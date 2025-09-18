@@ -53,8 +53,8 @@ jobs:
           labels: chore
 
       # 프로젝트에 등록 (프로젝트 생성 후 수정 필요)
-      # - name: GitHub 프로젝트에 추가
-      #   uses: actions/add-to-project@v1.0.2
-      #   with:
-      #     project-url: "https://github.com/orgs/prgrms-web-devcourse-final-project/projects/[프로젝트_번호]"
-      #     github-token: ${{ secrets.PROJECT_ACCESS_TOKEN }}
+      - name: GitHub 프로젝트에 추가
+        uses: actions/add-to-project@v1.0.2
+        with:
+          project-url: "https://github.com/orgs/prgrms-web-devcourse-final-project/projects/154"
+          github-token: ${{ secrets.PROJECT_ACCESS_TOKEN }}

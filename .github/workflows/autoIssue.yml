@@ -47,10 +47,10 @@ jobs:
           labels: chore
 
       # 프로젝트에 자동 추가 (프로젝트 생성 후 수정 필요)
-      # - name : Github 프로젝트에 추가
-      #   uses: jinhokim98/project-flow-add-issue-to-project@v1
-      #   with:
-      #     github_token: ${{ secrets.PROJECT_ACCESS_TOKEN }}
-      #     project_owner: prgrms-web-devcourse-final-project
-      #     project_number: [프로젝트_번호]
-      #     target_column: 'Backlog'
+      - name : Github 프로젝트에 추가
+        uses: jinhokim98/project-flow-add-issue-to-project@v1
+        with:
+          github_token: ${{ secrets.PROJECT_ACCESS_TOKEN }}
+          project_owner: prgrms-web-devcourse-final-project
+          project_number: 154
+          target_column: 'Backlog'
