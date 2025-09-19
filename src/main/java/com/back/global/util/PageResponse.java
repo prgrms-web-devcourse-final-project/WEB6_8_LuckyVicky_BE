@@ -2,6 +2,7 @@ package com.back.global.util;
 
 import lombok.AllArgsConstructor;
 import lombok.Getter;
+import lombok.NoArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -15,6 +16,7 @@ import java.util.List;
  * 기본 페이지 사이즈: 10개 (원본 명세는 20개였지만 요청에 따라 10개로 설정)
  */
 @Getter
+@NoArgsConstructor
 @AllArgsConstructor
 public class PageResponse<T> {
     
