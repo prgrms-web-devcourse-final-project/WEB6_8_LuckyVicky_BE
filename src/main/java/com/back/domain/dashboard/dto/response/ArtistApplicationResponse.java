@@ -1,5 +1,7 @@
 package com.back.domain.dashboard.dto.response;
 
+import com.back.global.util.PageResponse;
+
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -14,10 +16,12 @@ public class ArtistApplicationResponse {
     
     @Getter
     @Setter
-    @NoArgsConstructor
-    @AllArgsConstructor
-    public static class List extends PageResponseDto<ArtistApplicationResponse.Summary> {
+    public static class List extends PageResponse<ArtistApplicationResponse.Summary> {
         private SummaryDto summary;
+        
+        public List() {
+            super();
+        }
         
         public List(SummaryDto summary, java.util.List<Summary> content,
                    int page, int size, long totalElements, int totalPages,
