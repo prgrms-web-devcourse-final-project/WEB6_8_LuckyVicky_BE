@@ -68,7 +68,7 @@ public class DashboardServiceImpl implements DashboardService {
                         LocalDateTime.of(2025, 9, 25, 14, 10))
         );
         
-        return new ArtistApplicationResponse.List(summary, content, page, size, 2, 1, false, false);
+        return new ArtistApplicationResponse.List(summary, content, page, 10, 2, 1, false, false);
     }
     
     @Override
@@ -130,7 +130,7 @@ public class DashboardServiceImpl implements DashboardService {
                         ))
         );
         
-        return new OrderResponse.List(summary, content, page, size, 42, 3, true, false);
+        return new OrderResponse.List(summary, content, page, 10, 42, 5, true, false);
     }
     
     @Override
@@ -154,7 +154,7 @@ public class DashboardServiceImpl implements DashboardService {
                 )
         );
         
-        return new FollowingResponse.List(summary, content, page, size, 2, 1, false, false);
+        return new FollowingResponse.List(summary, content, page, 10, 2, 1, false, false);
     }
     
     @Override
@@ -178,7 +178,7 @@ public class DashboardServiceImpl implements DashboardService {
                 )
         );
         
-        return new WishlistResponse.List(summary, bulkActions, content, page, size, 57, 3, true, false);
+        return new WishlistResponse.List(summary, bulkActions, content, page, 10, 57, 6, true, false);
     }
     
     @Override
@@ -208,6 +208,6 @@ public class DashboardServiceImpl implements DashboardService {
                 )
         );
         
-        return new FundingResponse.List(summary, content, page, size, 12, 1, false, false);
+        return new FundingResponse.List(summary, content, page, 10, 12, 2, false, false);
     }
 }
