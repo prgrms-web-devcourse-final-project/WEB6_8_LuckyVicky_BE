@@ -1,7 +1,7 @@
-package com.back.domain.dashboard.controller;
+package com.back.domain.dashboard.customer.controller;
 
-import com.back.domain.dashboard.dto.response.*;
-import com.back.domain.dashboard.service.DashboardService;
+import com.back.domain.dashboard.customer.dto.response.*;
+import com.back.domain.dashboard.customer.service.DashboardService;
 import com.back.global.rsData.RsData;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -17,7 +17,7 @@ import org.springframework.web.bind.annotation.*;
 @RestController
 @RequestMapping("/api/dashboard")
 @RequiredArgsConstructor
-@Tag(name = "DashboardController", description = "고객용 대시보드 컨트롤러")
+@Tag(name = "CustomerDashboardController", description = "고객용 대시보드 컨트롤러")
 public class DashboardController {
     
     private final DashboardService dashboardService;
@@ -31,11 +31,11 @@ public class DashboardController {
      */
     @GetMapping("/account")
     @Operation(summary = "계정 설정 조회")
-    public ResponseEntity<RsData<AccountSettingsResponseDto>> getAccountSettings(
+    public ResponseEntity<RsData<AccountResponse.Settings>> getAccountSettings(
             @RequestHeader("Authorization") String authorization,
             @RequestParam(defaultValue = "profile,contact,security") String include) {
         
-        AccountSettingsResponseDto response = dashboardService.getAccountSettings(authorization, include);
+        AccountResponse.Settings response = dashboardService.getAccountSettings(authorization, include);
         
         return ResponseEntity.ok(RsData.of(
                 "200-OK",
@@ -59,7 +59,7 @@ public class DashboardController {
      */
     @GetMapping("/artist-applications")
     @Operation(summary = "작가 신청 내역 목록 조회")
-    public ResponseEntity<RsData<ArtistApplicationListResponseDto>> getArtistApplications(
+    public ResponseEntity<RsData<ArtistApplicationResponse.List>> getArtistApplications(
             @RequestHeader("Authorization") String authorization,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size,
@@ -69,7 +69,7 @@ public class DashboardController {
             @RequestParam(defaultValue = "submittedAt") String sort,
             @RequestParam(defaultValue = "DESC") String order) {
         
-        ArtistApplicationListResponseDto response = dashboardService.getArtistApplications(
+        ArtistApplicationResponse.List response = dashboardService.getArtistApplications(
                 authorization, page, size, status, startDate, endDate, sort, order);
         
         return ResponseEntity.ok(RsData.of(
@@ -88,11 +88,11 @@ public class DashboardController {
      */
     @GetMapping("/artist-applications/{applicationId}")
     @Operation(summary = "입점 신청 상세 조회")
-    public ResponseEntity<RsData<ArtistApplicationDetailResponseDto>> getArtistApplicationDetail(
+    public ResponseEntity<RsData<ArtistApplicationResponse.Detail>> getArtistApplicationDetail(
             @RequestHeader("Authorization") String authorization,
             @PathVariable Long applicationId) {
         
-        ArtistApplicationDetailResponseDto response = dashboardService.getArtistApplicationDetail(
+        ArtistApplicationResponse.Detail response = dashboardService.getArtistApplicationDetail(
                 authorization, applicationId);
         
         return ResponseEntity.ok(RsData.of(
@@ -116,7 +116,7 @@ public class DashboardController {
      */
     @GetMapping("/orders")
     @Operation(summary = "주문 목록 조회")
-    public ResponseEntity<RsData<OrderListResponseDto>> getOrders(
+    public ResponseEntity<RsData<OrderResponse.List>> getOrders(
             @RequestHeader("Authorization") String authorization,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size,
@@ -125,7 +125,7 @@ public class DashboardController {
             @RequestParam(defaultValue = "orderDate") String sort,
             @RequestParam(defaultValue = "DESC") String order) {
         
-        OrderListResponseDto response = dashboardService.getOrders(
+        OrderResponse.List response = dashboardService.getOrders(
                 authorization, page, size, status, period, sort, order);
         
         return ResponseEntity.ok(RsData.of(
@@ -148,7 +148,7 @@ public class DashboardController {
      */
     @GetMapping("/following-artists")
     @Operation(summary = "내가 팔로우한 작가 목록 조회")
-    public ResponseEntity<RsData<FollowingArtistListResponseDto>> getFollowingArtists(
+    public ResponseEntity<RsData<FollowingResponse.List>> getFollowingArtists(
             @RequestHeader("Authorization") String authorization,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size,
@@ -156,7 +156,7 @@ public class DashboardController {
             @RequestParam(defaultValue = "followedAt") String sort,
             @RequestParam(defaultValue = "DESC") String order) {
         
-        FollowingArtistListResponseDto response = dashboardService.getFollowingArtists(
+        FollowingResponse.List response = dashboardService.getFollowingArtists(
                 authorization, page, size, keyword, sort, order);
         
         return ResponseEntity.ok(RsData.of(
@@ -181,7 +181,7 @@ public class DashboardController {
      */
     @GetMapping("/wishlist")
     @Operation(summary = "찜한 상품 목록 조회")
-    public ResponseEntity<RsData<WishlistResponseDto>> getWishlist(
+    public ResponseEntity<RsData<WishlistResponse.List>> getWishlist(
             @RequestHeader("Authorization") String authorization,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size,
@@ -191,7 +191,7 @@ public class DashboardController {
             @RequestParam(defaultValue = "addedAt") String sort,
             @RequestParam(defaultValue = "DESC") String order) {
         
-        WishlistResponseDto response = dashboardService.getWishlist(
+        WishlistResponse.List response = dashboardService.getWishlist(
                 authorization, page, size, keyword, artistId, categoryId, sort, order);
         
         return ResponseEntity.ok(RsData.of(
@@ -215,7 +215,7 @@ public class DashboardController {
      */
     @GetMapping("/funding")
     @Operation(summary = "참여한 펀딩 목록 조회")
-    public ResponseEntity<RsData<FundingParticipationListResponseDto>> getFundingParticipations(
+    public ResponseEntity<RsData<FundingResponse.List>> getFundingParticipations(
             @RequestHeader("Authorization") String authorization,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size,
@@ -224,7 +224,7 @@ public class DashboardController {
             @RequestParam(defaultValue = "endDate") String sort,
             @RequestParam(defaultValue = "DESC") String order) {
         
-        FundingParticipationListResponseDto response = dashboardService.getFundingParticipations(
+        FundingResponse.List response = dashboardService.getFundingParticipations(
                 authorization, page, size, status, keyword, sort, order);
         
         return ResponseEntity.ok(RsData.of(
