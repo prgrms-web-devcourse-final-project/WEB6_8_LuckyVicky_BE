@@ -5,7 +5,6 @@ import lombok.NoArgsConstructor;
 
 /**
  * 대시보드 전용 페이징 응답 DTO
- * 
  * 공용 PageResponse를 상속받아 사용
  */
 @NoArgsConstructor

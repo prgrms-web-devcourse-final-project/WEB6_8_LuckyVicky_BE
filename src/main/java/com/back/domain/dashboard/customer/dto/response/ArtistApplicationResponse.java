@@ -2,21 +2,27 @@ package com.back.domain.dashboard.customer.dto.response;
 
 import com.back.global.util.PageResponse;
 
-import lombok.AllArgsConstructor;
-import lombok.Getter;
-import lombok.NoArgsConstructor;
-import lombok.Setter;
+import lombok.*;
 
 import java.time.LocalDateTime;
 
 /**
  * 작가 신청 관련 응답 DTO
+ * 
+ * 작가 입점 신청과 관련된 모든 응답 데이터를 포함합니다.
+ * 신청 목록 조회, 상세 조회 등에서 사용됩니다.
+ * 2025.09.20 수정
  */
 public class ArtistApplicationResponse {
     
+    /**
+     * 작가 신청 목록 응답
+     * 페이징된 작가 신청 목록과 요약 정보를 포함합니다.
+     */
     @Getter
     @Setter
     public static class List extends PageResponse<ArtistApplicationResponse.Summary> {
+        /** 신청 현황 요약 정보 */
         private SummaryDto summary;
         
         public List() {
@@ -31,46 +37,82 @@ public class ArtistApplicationResponse {
         }
     }
     
+    /**
+     * 작가 신청 상세 정보
+     * 신청서의 모든 상세 정보를 포함합니다.
+     */
     @Getter
     @Setter
+    @Builder
     @NoArgsConstructor
     @AllArgsConstructor
     public static class Detail {
+        /** 신청 기본 정보 */
         private Application application;
+        /** 신청자 정보 */
         private Applicant applicant;
+        /** 연락처 정보 */
         private Contact contact;
+        /** 사업자 정보 */
         private Business business;
+        /** 작가 프로필 정보 */
         private Profile profile;
+        /** 권한 정보 */
         private Permission permissions;
     }
     
+    /**
+     * 신청 현황 요약 정보
+     *전체, 대기중, 승인, 거절 건수를 포함합니다.
+     */
     @Getter
     @Setter
+    @Builder
     @NoArgsConstructor
     @AllArgsConstructor
     public static class SummaryDto {
+        /** 전체 신청 건수 */
         private int total;
+        /** 대기중인 신청 건수 */
         private int pending;
+        /** 승인된 신청 건수 */
         private int approved;
+        /** 거절된 신청 건수 */
         private int rejected;
     }
     
+    /**
+     * 작가 신청 요약 정보
+     * 목록에서 표시되는 간략한 신청 정보입니다.
+     */
     @Getter
     @Setter
+    @Builder
     @NoArgsConstructor
     @AllArgsConstructor
     public static class Summary {
+        /** 신청 ID */
         private Long applicationId;
+        /** 작가명 */
         private String artistName;
+        /** 신청일 (yyyy-MM-dd) */
         private String submittedAt;
+        /** 신청 상태 (PENDING/APPROVED/REJECTED) */
         private String status;
+        /** 상태 텍스트 */
         private String statusText;
+        /** 권한 정보 */
         private Permission permissions;
+        /** 마지막 업데이트 일시 */
         private LocalDateTime lastUpdatedAt;
     }
     
+    /**
+     * 신청 기본 정보
+     */
     @Getter
     @Setter
+    @Builder
     @NoArgsConstructor
     @AllArgsConstructor
     public static class Application {
@@ -82,8 +124,12 @@ public class ArtistApplicationResponse {
         private String rejectionReason;
     }
     
+    /**
+     * 신청자 정보
+     */
     @Getter
     @Setter
+    @Builder
     @NoArgsConstructor
     @AllArgsConstructor
     public static class Applicant {
@@ -92,8 +138,12 @@ public class ArtistApplicationResponse {
         private String avatarUrl;
     }
     
+    /**
+     * 연락처 정보
+     */
     @Getter
     @Setter
+    @Builder
     @NoArgsConstructor
     @AllArgsConstructor
     public static class Contact {
@@ -101,8 +151,12 @@ public class ArtistApplicationResponse {
         private String phone;
     }
     
+    /**
+     * 사업자 정보
+     */
     @Getter
     @Setter
+    @Builder
     @NoArgsConstructor
     @AllArgsConstructor
     public static class Business {
@@ -113,8 +167,12 @@ public class ArtistApplicationResponse {
         private String address;
     }
     
+    /**
+     * 작가 프로필 정보
+     */
     @Getter
     @Setter
+    @Builder
     @NoArgsConstructor
     @AllArgsConstructor
     public static class Profile {
@@ -124,8 +182,12 @@ public class ArtistApplicationResponse {
         private java.util.List<FileDto> portfolio;
     }
     
+    /**
+     * 첨부 파일 정보
+     */
     @Getter
     @Setter
+    @Builder
     @NoArgsConstructor
     @AllArgsConstructor
     public static class FileDto {
@@ -135,8 +197,12 @@ public class ArtistApplicationResponse {
         private LocalDateTime expiresAt;
     }
     
+    /**
+     * SNS 정보
+     */
     @Getter
     @Setter
+    @Builder
     @NoArgsConstructor
     @AllArgsConstructor
     public static class Sns {
@@ -144,8 +210,12 @@ public class ArtistApplicationResponse {
         private String handle;
     }
     
+    /**
+     * 권한 정보
+     */
     @Getter
     @Setter
+    @Builder
     @NoArgsConstructor
     @AllArgsConstructor
     public static class Permission {
