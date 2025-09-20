@@ -1,4 +1,4 @@
-package com.back.domain.dashboard.dto.response;
+package com.back.domain.dashboard.customer.dto.response;
 
 import com.back.global.util.PageResponse;
 import lombok.NoArgsConstructor;
