@@ -2,9 +2,9 @@ spring:
   # H2 Database 설정
   datasource:
     driver-class-name: org.h2.Driver
-    url: jdbc:h2:./db_dev;MODE=MySQL
-    username: sa
-    password:
+    url: ${DB_URL:jdbc:h2:./db_dev;MODE=MySQL}
+    username: ${DB_USERNAME:sa}
+    password: ${DB_PASSWORD:}
 
   # H2 Console 설정
   h2:
@@ -15,3 +15,9 @@ spring:
   # JPA 설정
   jpa:
     database-platform: org.hibernate.dialect.H2Dialect
+
+# JWT 설정 (.env 파일 없어도 동작하도록 기본값 제공)
+jwt:
+  secret: ${JWT_SECRET:default-secret-key-for-development-only-change-in-production}
+  access-token-expiration: ${JWT_ACCESS_EXPIRATION:3600000}    # 1시간
+  refresh-token-expiration: ${JWT_REFRESH_EXPIRATION:604800000} # 7일
