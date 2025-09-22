@@ -1,5 +1,6 @@
 package com.back.domain.cart.entity;
 
+import com.back.domain.product.product.entity.Product;
 import com.back.domain.user.entity.User;
 import com.back.global.jpa.entity.BaseEntity;
 import jakarta.persistence.*;
