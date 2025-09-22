@@ -15,7 +15,7 @@ import static org.junit.jupiter.api.Assertions.assertAll;
  * DashboardServiceImpl 테스트
  * 
  * Service 레이어의 비즈니스 로직을 테스트
- *2025.09.22 수정.
+ *2025.09.22 수정
  */
 @ExtendWith(MockitoExtension.class)
 @DisplayName("대시보드 서비스 구현체 테스트")
