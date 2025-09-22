@@ -7,7 +7,6 @@ import lombok.*;
 @Entity
 @Getter
 @Setter
-@Table(name = "additional_product")
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
