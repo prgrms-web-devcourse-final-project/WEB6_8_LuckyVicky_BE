@@ -119,6 +119,10 @@ public class GlobalExceptionHandler {
 
     /**
      * 커스텀 예외 클래스 - 비즈니스 로직 오류
+     * 1. 계정이 잠겨있는 경우
+     * 2. 잔액이 부족한 경우
+     * 3. 이미 신청한 작가인 경우
+     * 4. 주문을 취소할 수 없는 상태인 경우
      */
     @Getter
     public static class BusinessException extends RuntimeException {

@@ -9,15 +9,15 @@ import java.time.LocalDateTime;
 /**
  * 작가 신청 관련 응답 DTO
  * 
- * 작가 입점 신청과 관련된 모든 응답 데이터를 포함합니다.
- * 신청 목록 조회, 상세 조회 등에서 사용됩니다.
- * 2025.09.20 수정
+ * 작가 입점 신청과 관련된 모든 응답 데이터를 포함
+ * 신청 목록 조회, 상세 조회 등에서 사용
+ * 2025.09.22 수정
  */
 public class ArtistApplicationResponse {
     
     /**
      * 작가 신청 목록 응답
-     * 페이징된 작가 신청 목록과 요약 정보를 포함합니다.
+     * 페이징된 작가 신청 목록과 요약 정보를 포함
      */
     @Getter
     @Setter
@@ -39,7 +39,7 @@ public class ArtistApplicationResponse {
     
     /**
      * 작가 신청 상세 정보
-     * 신청서의 모든 상세 정보를 포함합니다.
+     * 신청서의 모든 상세 정보를 포함
      */
     @Getter
     @Setter
@@ -63,7 +63,7 @@ public class ArtistApplicationResponse {
     
     /**
      * 신청 현황 요약 정보
-     *전체, 대기중, 승인, 거절 건수를 포함합니다.
+     *전체, 대기중, 승인, 거절 건수를 포함
      */
     @Getter
     @Setter
@@ -83,7 +83,7 @@ public class ArtistApplicationResponse {
     
     /**
      * 작가 신청 요약 정보
-     * 목록에서 표시되는 간략한 신청 정보입니다.
+     * 목록에서 표시되는 간략한 신청 정보
      */
     @Getter
     @Setter

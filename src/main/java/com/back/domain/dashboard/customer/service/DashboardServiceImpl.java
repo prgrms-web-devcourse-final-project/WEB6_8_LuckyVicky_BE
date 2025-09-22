@@ -11,6 +11,7 @@ import java.util.List;
 
 /**
  * 고객용 대시보드 서비스 구현체
+ *2025.09.22 수정
  */
 @Service
 @RequiredArgsConstructor
@@ -134,27 +135,39 @@ public class DashboardServiceImpl implements DashboardService {
     }
     
     @Override
-    public FollowingResponse.List getFollowingArtists(String authorization, int page, int size, 
-                                                     String keyword, String sort, String order) {
+    public FollowingResponse.List getFollowingArtists(String userId, String authorization, int page, int size, 
+                                                     String keyword, String status, String sort, String order) {
         // TODO: 실제 데이터베이스 조회 로직 구현
         
-        FollowingResponse.SummaryDto summary = 
-                new FollowingResponse.SummaryDto(2, 1);
+        // 조회 대상 사용자 프로필 정보
+        FollowingResponse.Profile profile = new FollowingResponse.Profile(
+                "abc123", "사용자닉네임", "https://cdn.example.com/u/abc123/profile.jpg");
         
-        List<FollowingResponse.Artist> content = List.of(
+        // 팔로우 현황 요약 정보
+        FollowingResponse.SummaryDto summary = 
+                new FollowingResponse.SummaryDto(8);
+        
+        // 팔로우한 작가 목록
+        List<FollowingResponse.Artist> content = Arrays.asList(
                 new FollowingResponse.Artist(
-                        "asdfd331", "작가명입니다 작가명입니다",
-                        "https://cdn.example.com/artists/asdfd331/profile.jpg",
-                        500, "/artists/asdfd331",
-                        LocalDateTime.of(2025, 9, 18, 10, 0),
-                        LocalDateTime.of(2025, 9, 16, 9, 20),
-                        Arrays.asList("스티커", "메모지"),
-                        new FollowingResponse.Badge(true),
-                        new FollowingResponse.Permission(true)
+                        "artist_001", "작가명입니다",
+                        "https://cdn.example.com/artists/artist_001/profile.jpg",
+                        500, "/artists/artist_001",
+                        new FollowingResponse.FollowRelation("FOLLOWING", 
+                                LocalDateTime.of(2025, 9, 18, 10, 0)),
+                        new FollowingResponse.Badge(true)
+                ),
+                new FollowingResponse.Artist(
+                        "artist_002", "다른작가",
+                        "https://cdn.example.com/artists/artist_002/profile.jpg",
+                        123, "/artists/artist_002",
+                        new FollowingResponse.FollowRelation("FOLLOWING", 
+                                LocalDateTime.of(2025, 9, 17, 14, 20)),
+                        new FollowingResponse.Badge(false)
                 )
         );
         
-        return new FollowingResponse.List(summary, content, page, 10, 2, 1, false, false);
+        return new FollowingResponse.List(profile, summary, content, page, 8, 8, 1, false, false);
     }
     
     @Override
@@ -187,24 +200,54 @@ public class DashboardServiceImpl implements DashboardService {
         // TODO: 실제 데이터베이스 조회 로직 구현
         
         FundingResponse.SummaryDto summary = 
-                new FundingResponse.SummaryDto(12, 4, 7, 1);
+                new FundingResponse.SummaryDto(12, 4, 5, 1, 2);
         
-        List<FundingResponse.Participation> content = List.of(
+        List<FundingResponse.Participation> content = Arrays.asList(
                 new FundingResponse.Participation(
-                        "FP-20250918-0001",
-                        new FundingResponse.Funding(
-                                456789L, "F0456789", "펀딩 제목입니다 펀딩 제목입니다",
-                                new FundingResponse.Artist("artist_abc", "작가명입니다"),
-                                "https://cdn.example.com/f/456789/thumb_256.jpg", "2025-09-18",
-                                100, 900000, 900000, 800
-                        ),
-                        new FundingResponse.UserPledge(
-                                30000, "리워드 A", 1,
-                                LocalDateTime.of(2025, 9, 10, 11, 20), "ACTIVE"
-                        ),
-                        "ACTIVE", "진행중",
-                        new FundingResponse.Permission(true, false),
-                        new FundingResponse.Link("/fundings/456789")
+                        "00010", "FP-20250918-0001",
+                        "https://cdn.example.com/f/456789/thumb_256.jpg",
+                        "펀딩 제목입니다 펀딩 제목입니다",
+                        new FundingResponse.Artist("artist_abc", "작가명입니다"),
+                        1, 1000, "ACTIVE", "진행중", "2025-09-18",
+                        new FundingResponse.Link("/fundings/456789"),
+                        new FundingResponse.Meta(
+                                456789L, "F0456789", 100, 900000, 900000, 800,
+                                new FundingResponse.UserPledge("리워드 A", 
+                                        LocalDateTime.of(2025, 9, 10, 11, 20), "ACTIVE"),
+                                new FundingResponse.Permission(true, false)
+                        )
+                ),
+                new FundingResponse.Participation(
+                        "00027", "FP-20250918-0002",
+                        "https://cdn.example.com/f/456790/thumb_256.jpg",
+                        "다른 펀딩 제목",
+                        new FundingResponse.Artist("artist_xyz", "작가명입니다"),
+                        2, 8000, "ENDED", "종료", "2025-09-18",
+                        new FundingResponse.Link("/fundings/456790"),
+                        new FundingResponse.Meta(
+                                456790L, "F0456790", 1500, 13500000, 900000, 800,
+                                new FundingResponse.UserPledge("리워드 B", 
+                                        LocalDateTime.of(2025, 9, 8, 9, 0), "ACTIVE"),
+                                new FundingResponse.Permission(false, true)
+                        )
+                ),
+                new FundingResponse.Participation(
+                        "00100", "FP-20250918-0003",
+                        "https://cdn.example.com/f/456791/thumb_256.jpg",
+                        "펀딩 제목입니다",
+                        new FundingResponse.Artist("artist_qwe", "작가명입니다"),
+                        1, 8000, "FULFILLING", "발송준비중", "2025-09-18",
+                        new FundingResponse.Link("/fundings/456791"),
+                        null  // meta 선택적
+                ),
+                new FundingResponse.Participation(
+                        "01230", "FP-20250918-0004",
+                        "https://cdn.example.com/f/456792/thumb_256.jpg",
+                        "펀딩 제목입니다",
+                        new FundingResponse.Artist("artist_asd", "작가명입니다"),
+                        1, 1000, "FULFILLED", "발송완료", "2025-09-18",
+                        new FundingResponse.Link("/fundings/456792"),
+                        null  // meta 선택적
                 )
         );
         

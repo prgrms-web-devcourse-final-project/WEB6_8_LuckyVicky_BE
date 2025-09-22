@@ -4,6 +4,7 @@ import com.back.domain.dashboard.customer.dto.response.*;
 
 /**
  * 고객용 대시보드 서비스 인터페이스
+ *2025.09.22 수정
  */
 public interface DashboardService {
     
@@ -33,8 +34,8 @@ public interface DashboardService {
     /**
      * 내가 팔로우한 작가 목록 조회
      */
-    FollowingResponse.List getFollowingArtists(String authorization, int page, int size, 
-                                              String keyword, String sort, String order);
+    FollowingResponse.List getFollowingArtists(String userId, String authorization, int page, int size, 
+                                              String keyword, String status, String sort, String order);
     
     /**
      * 찜한 상품 목록 조회

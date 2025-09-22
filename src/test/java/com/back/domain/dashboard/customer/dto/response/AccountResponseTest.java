@@ -10,7 +10,8 @@ import static org.junit.jupiter.api.Assertions.assertAll;
 
 /**
  * AccountResponse DTO 테스트
- * Builder 패턴과 데이터 구조의 정확성을 검증합니다.
+ * Builder 패턴과 데이터 구조의 정확성을 검증
+ *2025.09.22 수정
  */
 @DisplayName("AccountResponse DTO 테스트")
 public class AccountResponseTest {

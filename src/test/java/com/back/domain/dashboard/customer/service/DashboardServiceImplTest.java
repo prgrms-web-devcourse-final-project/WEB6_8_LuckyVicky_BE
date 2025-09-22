@@ -14,8 +14,8 @@ import static org.junit.jupiter.api.Assertions.assertAll;
 /**
  * DashboardServiceImpl 테스트
  * 
- * Service 레이어의 비즈니스 로직을 테스트합니다.
- *2025.09.20
+ * Service 레이어의 비즈니스 로직을 테스트
+ *2025.09.22 수정
  */
 @ExtendWith(MockitoExtension.class)
 @DisplayName("대시보드 서비스 구현체 테스트")
@@ -188,24 +188,41 @@ class DashboardServiceImplTest {
         @DisplayName("팔로우 작가 목록 조회 성공")
         void getFollowingArtists_Success() {
             // Given
-            int page = 0, size = 10;
-            String keyword = null, sort = "followedAt", order = "DESC";
+            String userId = "abc123";
+            int page = 0, size = 8;
+            String keyword = null, status = "FOLLOWING", sort = "followedAt", order = "DESC";
 
             // When
             FollowingResponse.List result = dashboardService.getFollowingArtists(
-                    TEST_AUTHORIZATION, page, size, keyword, sort, order);
+                    userId, TEST_AUTHORIZATION, page, size, keyword, status, sort, order);
 
             // Then
             assertAll(
                     () -> assertThat(result).isNotNull(),
+                    () -> assertThat(result.getProfile()).isNotNull(),
                     () -> assertThat(result.getSummary()).isNotNull(),
                     () -> assertThat(result.getContent()).isNotNull(),
-                    () -> assertThat(result.getSummary().getTotalFollowing()).isEqualTo(2),
-                    () -> assertThat(result.getSummary().getNewFollowing7d()).isEqualTo(1),
-                    () -> assertThat(result.getContent()).hasSize(1),
-                    () -> assertThat(result.getContent().get(0).getArtistId()).isEqualTo("asdfd331"),
+                    // Profile 검증
+                    () -> assertThat(result.getProfile().getUserId()).isEqualTo("abc123"),
+                    () -> assertThat(result.getProfile().getNickname()).isEqualTo("사용자닉네임"),
+                    () -> assertThat(result.getProfile().getProfileImageUrl()).isNotNull(),
+                    // Summary 검증
+                    () -> assertThat(result.getSummary().getTotalFollowing()).isEqualTo(8),
+                    // Content 검증
+                    () -> assertThat(result.getContent()).hasSize(2),
+                    // 첫 번째 작가 검증
+                    () -> assertThat(result.getContent().get(0).getArtistId()).isEqualTo("artist_001"),
+                    () -> assertThat(result.getContent().get(0).getArtistName()).isEqualTo("작가명입니다"),
+                    () -> assertThat(result.getContent().get(0).getFollowerCount()).isEqualTo(500),
+                    () -> assertThat(result.getContent().get(0).getFollowRelation().getStatus()).isEqualTo("FOLLOWING"),
                     () -> assertThat(result.getContent().get(0).getBadges().getVerified()).isTrue(),
-                    () -> assertThat(result.getContent().get(0).getPermissions().getCanUnfollow()).isTrue()
+                    // 페이징 검증
+                    () -> assertThat(result.getPage()).isEqualTo(0),
+                    () -> assertThat(result.getSize()).isEqualTo(8),
+                    () -> assertThat(result.getTotalElements()).isEqualTo(8),
+                    () -> assertThat(result.getTotalPages()).isEqualTo(1),
+                    () -> assertThat(result.isHasNext()).isFalse(),
+                    () -> assertThat(result.isHasPrevious()).isFalse()
             );
         }
     }
@@ -251,7 +268,7 @@ class DashboardServiceImplTest {
         void getFundingParticipations_Success() {
             // Given
             int page = 0, size = 10;
-            String status = null, keyword = null, sort = "endDate", order = "DESC";
+            String status = null, keyword = null, sort = "pledgedDate", order = "DESC";
 
             // When
             FundingResponse.List result = dashboardService.getFundingParticipations(
@@ -262,14 +279,36 @@ class DashboardServiceImplTest {
                     () -> assertThat(result).isNotNull(),
                     () -> assertThat(result.getSummary()).isNotNull(),
                     () -> assertThat(result.getContent()).isNotNull(),
+                    // Summary 검증
                     () -> assertThat(result.getSummary().getTotalParticipations()).isEqualTo(12),
                     () -> assertThat(result.getSummary().getActive()).isEqualTo(4),
-                    () -> assertThat(result.getSummary().getSuccess()).isEqualTo(7),
-                    () -> assertThat(result.getSummary().getFailed()).isEqualTo(1),
-                    () -> assertThat(result.getContent()).hasSize(1),
+                    () -> assertThat(result.getSummary().getEnded()).isEqualTo(5),
+                    () -> assertThat(result.getSummary().getFulfilling()).isEqualTo(1),
+                    () -> assertThat(result.getSummary().getFulfilled()).isEqualTo(2),
+                    // Content 검증
+                    () -> assertThat(result.getContent()).hasSize(4),
+                    // 첫 번째 참여 정보 검증
+                    () -> assertThat(result.getContent().get(0).getParticipationNumber()).isEqualTo("00010"),
                     () -> assertThat(result.getContent().get(0).getParticipationId()).isEqualTo("FP-20250918-0001"),
-                    () -> assertThat(result.getContent().get(0).getFunding().getTitle()).isEqualTo("펀딩 제목입니다 펀딩 제목입니다"),
-                    () -> assertThat(result.getContent().get(0).getUserPledge().getPledgedAmount()).isEqualTo(30000)
+                    () -> assertThat(result.getContent().get(0).getTitle()).isEqualTo("펀딩 제목입니다 펀딩 제목입니다"),
+                    () -> assertThat(result.getContent().get(0).getArtist().getName()).isEqualTo("작가명입니다"),
+                    () -> assertThat(result.getContent().get(0).getPledgedAmount()).isEqualTo(1000),
+                    () -> assertThat(result.getContent().get(0).getStatus()).isEqualTo("ACTIVE"),
+                    () -> assertThat(result.getContent().get(0).getStatusText()).isEqualTo("진행중"),
+                    () -> assertThat(result.getContent().get(0).getPledgedDate()).isEqualTo("2025-09-18"),
+                    // Meta 정보 검증 (첫 번째 항목)
+                    () -> assertThat(result.getContent().get(0).getMeta()).isNotNull(),
+                    () -> assertThat(result.getContent().get(0).getMeta().getFundingId()).isEqualTo(456789L),
+                    () -> assertThat(result.getContent().get(0).getMeta().getAchievementRate()).isEqualTo(100),
+                    () -> assertThat(result.getContent().get(0).getMeta().getUserPledge().getRewardTierName()).isEqualTo("리워드 A"),
+                    () -> assertThat(result.getContent().get(0).getMeta().getPermissions().getCanCancelPledge()).isTrue(),
+                    // 페이징 검증
+                    () -> assertThat(result.getPage()).isEqualTo(0),
+                    () -> assertThat(result.getSize()).isEqualTo(10),
+                    () -> assertThat(result.getTotalElements()).isEqualTo(12),
+                    () -> assertThat(result.getTotalPages()).isEqualTo(2),
+                    () -> assertThat(result.isHasNext()).isFalse(),
+                    () -> assertThat(result.isHasPrevious()).isFalse()
             );
         }
     }

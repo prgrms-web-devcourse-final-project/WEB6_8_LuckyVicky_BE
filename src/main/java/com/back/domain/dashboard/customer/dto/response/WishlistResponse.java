@@ -8,8 +8,8 @@ import java.time.LocalDateTime;
 
 /**
  * 찜하기 관련 응답 DTO
- *사용자가 찜한 상품들의 정보를 포함합니다.
- *2025.09.20 수정
+ *사용자가 찜한 상품들의 정보를 포함
+ *2025.09.22 수정
  */
 public class WishlistResponse {
     
