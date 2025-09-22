@@ -48,4 +48,9 @@ public interface DashboardService {
      */
     FundingResponse.List getFundingParticipations(String authorization, int page, int size,
                                                   String status, String keyword, String sort, String order);
+    
+    /**
+     * 교환/반품 폼 데이터 조회
+     */
+    ReturnResponse.FormData getReturnFormData(String authorization, Long returnId);
 }

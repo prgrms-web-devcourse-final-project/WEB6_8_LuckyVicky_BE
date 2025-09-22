@@ -122,6 +122,8 @@ public class ArtistApplicationResponse {
         private LocalDateTime submittedAt;
         private LocalDateTime decidedAt;
         private String rejectionReason;
+        /** 검토자 정보 (선택적) */
+        private Reviewer reviewer;
     }
     
     /**
@@ -221,5 +223,22 @@ public class ArtistApplicationResponse {
     public static class Permission {
         private Boolean canEdit;
         private Boolean canCancel;
+        /** 재신청/이의제기 가능 여부 (선택적) */
+        private Boolean canAppeal;
+    }
+    
+    /**
+     * 검토자 정보 (선택적)
+     */
+    @Getter
+    @Setter
+    @Builder
+    @NoArgsConstructor
+    @AllArgsConstructor
+    public static class Reviewer {
+        /** 관리자 ID */
+        private String id;
+        /** 관리자명 */
+        private String name;
     }
 }

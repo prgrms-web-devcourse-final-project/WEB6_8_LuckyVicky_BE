@@ -15,7 +15,7 @@ import static org.junit.jupiter.api.Assertions.assertAll;
  * DashboardServiceImpl 테스트
  * 
  * Service 레이어의 비즈니스 로직을 테스트
- *2025.09.22 수정.
+ *2025.09.22 수정
  */
 @ExtendWith(MockitoExtension.class)
 @DisplayName("대시보드 서비스 구현체 테스트")
@@ -141,10 +141,29 @@ class DashboardServiceImplTest {
                     () -> assertThat(result.getBusiness()).isNotNull(),
                     () -> assertThat(result.getProfile()).isNotNull(),
                     () -> assertThat(result.getPermissions()).isNotNull(),
+                    // Application 검증
                     () -> assertThat(result.getApplication().getApplicationId()).isEqualTo(2L),
-                    () -> assertThat(result.getApplication().getStatus()).isEqualTo("APPROVED"),
+                    () -> assertThat(result.getApplication().getStatus()).isEqualTo("REJECTED"),
+                    () -> assertThat(result.getApplication().getStatusText()).isEqualTo("입점 거절"),
+                    () -> assertThat(result.getApplication().getRejectionReason()).isEqualTo("브랜드 컨셉 불일치"),
+                    () -> assertThat(result.getApplication().getReviewer()).isNotNull(),
+                    () -> assertThat(result.getApplication().getReviewer().getId()).isEqualTo("admin_001"),
+                    () -> assertThat(result.getApplication().getReviewer().getName()).isEqualTo("관리자A"),
+                    // Applicant 검증
                     () -> assertThat(result.getApplicant().getArtistName()).isEqualTo("모리모리모리"),
-                    () -> assertThat(result.getBusiness().getRegistrationNo()).isEqualTo("123-45-67890")
+                    () -> assertThat(result.getApplicant().getMemberId()).isEqualTo("abc123"),
+                    // Business 검증
+                    () -> assertThat(result.getBusiness().getRegistrationNo()).isEqualTo("123-45-67890"),
+                    () -> assertThat(result.getBusiness().getTelemarketingReportNo()).isEqualTo("2025-서울강남-1234"),
+                    // Profile 검증
+                    () -> assertThat(result.getProfile().getDescription()).isEqualTo("작가 소개입니다."),
+                    () -> assertThat(result.getProfile().getMainCategories()).containsExactly("스티커", "메모지"),
+                    () -> assertThat(result.getProfile().getSns()).hasSize(1),
+                    () -> assertThat(result.getProfile().getSns().get(0).getPlatform()).isEqualTo("Instagram"),
+                    // Permissions 검증
+                    () -> assertThat(result.getPermissions().getCanEdit()).isFalse(),
+                    () -> assertThat(result.getPermissions().getCanCancel()).isFalse(),
+                    () -> assertThat(result.getPermissions().getCanAppeal()).isTrue()
             );
         }
     }
@@ -309,6 +328,55 @@ class DashboardServiceImplTest {
                     () -> assertThat(result.getTotalPages()).isEqualTo(2),
                     () -> assertThat(result.isHasNext()).isFalse(),
                     () -> assertThat(result.isHasPrevious()).isFalse()
+            );
+        }
+    }
+    
+    @Nested
+    @DisplayName("교환/반품 폼 데이터 조회 테스트")
+    class GetReturnFormDataTest {
+
+        @Test
+        @DisplayName("교환/반품 폼 데이터 조회 성공")
+        void getReturnFormData_Success() {
+            // Given
+            Long returnId = 1L;
+
+            // When
+            ReturnResponse.FormData result = dashboardService.getReturnFormData(
+                    TEST_AUTHORIZATION, returnId);
+
+            // Then
+            assertAll(
+                    () -> assertThat(result).isNotNull(),
+                    () -> assertThat(result.getSummary()).isNotNull(),
+                    () -> assertThat(result.getForm()).isNotNull(),
+                    () -> assertThat(result.getPermissions()).isNotNull(),
+                    // Summary 검증
+                    () -> assertThat(result.getSummary().getOrderNo()).isEqualTo("0123157"),
+                    () -> assertThat(result.getSummary().getBrandName()).isEqualTo("브랜드명"),
+                    () -> assertThat(result.getSummary().getTitle()).isEqualTo("상품명입니다"),
+                    () -> assertThat(result.getSummary().getPrice()).isEqualTo(1000),
+                    () -> assertThat(result.getSummary().getQuantity()).isEqualTo(1),
+                    () -> assertThat(result.getSummary().getThumbnailUrl()).isNotNull(),
+                    // Form 검증
+                    () -> assertThat(result.getForm().getType()).isEqualTo("EXCHANGE"),
+                    () -> assertThat(result.getForm().getMethod()).isEqualTo("PICKUP"),
+                    () -> assertThat(result.getForm().getReasonCode()).isEqualTo("DEFECT"),
+                    () -> assertThat(result.getForm().getDetail()).isEqualTo("스티커 구김 현상 발견"),
+                    () -> assertThat(result.getForm().getImages()).hasSize(1),
+                    () -> assertThat(result.getForm().getImages().get(0).getFileId()).isEqualTo("img-1"),
+                    () -> assertThat(result.getForm().getImages().get(0).getFileName()).isEqualTo("photo_1.jpg"),
+                    // Pickup 검증
+                    () -> assertThat(result.getForm().getPickup()).isNotNull(),
+                    () -> assertThat(result.getForm().getPickup().getZip()).isEqualTo("06245"),
+                    () -> assertThat(result.getForm().getPickup().getAddress1()).isEqualTo("서울 강남구 테헤란로 123"),
+                    () -> assertThat(result.getForm().getPickup().getAddress2()).isEqualTo("3층"),
+                    () -> assertThat(result.getForm().getPickup().getName()).isEqualTo("홍길동"),
+                    () -> assertThat(result.getForm().getPickup().getPhone()).isEqualTo("010-1234-5678"),
+                    // Permissions 검증
+                    () -> assertThat(result.getPermissions().getCanEdit()).isTrue(),
+                    () -> assertThat(result.getPermissions().getCanCancel()).isTrue()
             );
         }
     }

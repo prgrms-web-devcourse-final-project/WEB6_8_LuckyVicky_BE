@@ -358,4 +358,34 @@ public class DashboardController {
                 response
         ));
     }
+    
+    /**
+     * 교환/반품 폼 데이터 조회
+     * 특정 교환/반품 신청의 폼 데이터를 조회합니다.
+     * 주문 요약 정보, 신청 내용, 권한 정보를 포함합니다.
+     * 
+     * @param authorization Bearer 토큰 (필수)
+     * @param returnId 교환/반품 ID (필수)
+     * @return 교환/반품 폼 데이터
+     * 
+     * @throws SecurityException 인증 토큰이 유효하지 않은 경우
+     * @throws NoSuchElementException 해당 교환/반품 ID가 존재하지 않는 경우
+     * @throws IllegalArgumentException 교환/반품 ID가 유효하지 않은 경우
+     */
+    @GetMapping("/returns/{returnId}/form-data")
+    @Operation(summary = "교환/반품 폼 데이터 조회", description = "특정 교환/반품 신청의 폼 데이터를 조회합니다")
+    public ResponseEntity<RsData<ReturnResponse.FormData>> getReturnFormData(
+            @RequestHeader("Authorization") String authorization,
+            @PathVariable 
+            @Min(value = 1, message = "교환/반품 ID는 1 이상이어야 합니다") 
+            Long returnId) {
+        
+        ReturnResponse.FormData response = dashboardService.getReturnFormData(authorization, returnId);
+        
+        return ResponseEntity.ok(RsData.of(
+                "200-OK",
+                "교환/반품 폼 데이터 조회 성공",
+                response
+        ));
+    }
 }

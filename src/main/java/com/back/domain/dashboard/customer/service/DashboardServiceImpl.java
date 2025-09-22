@@ -61,11 +61,11 @@ public class DashboardServiceImpl implements DashboardService {
         List<ArtistApplicationResponse.Summary> content = Arrays.asList(
                 new ArtistApplicationResponse.Summary(
                         1L, "모리모리", "2025-09-19", "REJECTED", "거절",
-                        new ArtistApplicationResponse.Permission(false, false),
+                        new ArtistApplicationResponse.Permission(false, false, true),
                         LocalDateTime.of(2025, 9, 20, 10, 30)),
                 new ArtistApplicationResponse.Summary(
                         2L, "모리모리모리", "2025-09-25", "APPROVED", "승인",
-                        new ArtistApplicationResponse.Permission(false, false),
+                        new ArtistApplicationResponse.Permission(false, false, false),
                         LocalDateTime.of(2025, 9, 25, 14, 10))
         );
         
@@ -78,9 +78,11 @@ public class DashboardServiceImpl implements DashboardService {
         
         return new ArtistApplicationResponse.Detail(
                 new ArtistApplicationResponse.Application(
-                        2L, "APPROVED", "승인", 
+                        2L, "REJECTED", "입점 거절", 
                         LocalDateTime.of(2025, 9, 25, 9, 30),
-                        LocalDateTime.of(2025, 9, 25, 14, 10), null),
+                        LocalDateTime.of(2025, 9, 25, 14, 10), 
+                        "브랜드 컨셉 불일치",
+                        new ArtistApplicationResponse.Reviewer("admin_001", "관리자A")),
                 new ArtistApplicationResponse.Applicant(
                         "abc123", "모리모리모리", "https://cdn.example.com/u/10025/profile.jpg"),
                 new ArtistApplicationResponse.Contact(
@@ -105,7 +107,7 @@ public class DashboardServiceImpl implements DashboardService {
                                 "pf-1", "포트폴리오.pdf",
                                 "https://files.example.com/signed/pf-1",
                                 LocalDateTime.of(2025, 9, 25, 15, 10)))),
-                new ArtistApplicationResponse.Permission(false, false)
+                new ArtistApplicationResponse.Permission(false, false, true)
         );
     }
     
@@ -252,5 +254,23 @@ public class DashboardServiceImpl implements DashboardService {
         );
         
         return new FundingResponse.List(summary, content, page, 10, 12, 2, false, false);
+    }
+    
+    @Override
+    public ReturnResponse.FormData getReturnFormData(String authorization, Long returnId) {
+        // TODO: 실제 데이터베이스 조회 로직 구현
+        
+        ReturnResponse.Summary summary = new ReturnResponse.Summary(
+                "0123157", "브랜드명", "상품명입니다", 1000, 1,
+                "https://cdn.example.com/i/98765/256.jpg");
+        
+        ReturnResponse.Form form = new ReturnResponse.Form(
+                "EXCHANGE", "PICKUP", "DEFECT", "스티커 구김 현상 발견",
+                List.of(new ReturnResponse.Image("img-1", "photo_1.jpg")),
+                new ReturnResponse.Pickup("06245", "서울 강남구 테헤란로 123", "3층", "홍길동", "010-1234-5678"));
+        
+        ReturnResponse.Permission permissions = new ReturnResponse.Permission(true, true);
+        
+        return new ReturnResponse.FormData(summary, form, permissions);
     }
 }
