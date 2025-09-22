@@ -8,7 +8,7 @@ import java.time.LocalDateTime;
  * 계정 관련 응답 DTO
  * 사용자의 계정 설정 정보를 조회할 때 사용되는 응답 객체
  * include 파라미터에 따라 profile, contact, security 정보를 선택적으로 포함할 수 있음.
- * 2025.09.22 수정
+ * 2025.09.22 수정..
  */
 public class AccountResponse {
     
