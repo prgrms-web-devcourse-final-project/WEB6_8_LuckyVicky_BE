@@ -113,27 +113,170 @@ public class DashboardServiceImpl implements DashboardService {
     
     @Override
     public OrderResponse.List getOrders(String authorization, int page, int size, String status,
-                                        String period, String sort, String order) {
+                                       String aftersalesStatus, String from, String to, String period,
+                                       String sort, String order) {
         // TODO: 실제 데이터베이스 조회 로직 구현
         
-        OrderResponse.SummaryDto summary = 
-                new OrderResponse.SummaryDto(42, 3, 5, 12, 20, 2);
+        OrderResponse.SummaryDto summary = OrderResponse.SummaryDto.builder()
+                .totalOrders(42)
+                .pending(3)
+                .confirmed(2)
+                .preparing(5)
+                .shipped(12)
+                .delivered(20)
+                .canceled(2)
+                .cancelRequested(2)
+                .cancelProcessing(1)
+                .cancelCompleted(1)
+                .exchangeRequested(1)
+                .exchangeProcessing(0)
+                .exchangeCompleted(3)
+                .build();
         
-        List<OrderResponse.Summary> content = List.of(
-                new OrderResponse.Summary(
-                        "550e8400-e29b-41d4-a716-446655440000", "0123157", "2025-09-18",
-                        "PENDING", "발주 전", 47500, 2,
-                        new OrderResponse.Product(101L, "상품명입니다 상품명입니다", 1, 12500, "https://example.com/product101.jpg"),
-                        new OrderResponse.Shipping("서울시 강남구 …", "홍길동"),
-                        new OrderResponse.Permission(true, false, false),
-                        new OrderResponse.Link("/orders/0123157"),
-                        Arrays.asList(
-                                new OrderResponse.OrderItem(1L, 101L, "상품명입니다 상품명입니다", 1, 12500, "https://example.com/product101.jpg"),
-                                new OrderResponse.OrderItem(2L, 102L, "다른 상품명", 1, 35000, "https://example.com/product102.jpg")
+        List<OrderResponse.Order> content = Arrays.asList(
+                OrderResponse.Order.builder()
+                        .orderId("550e8400-e29b-41d4-a716-446655440000")
+                        .orderNumber("0123157")
+                        .orderDate(LocalDateTime.of(2025, 9, 18, 11, 20))
+                        .status("PENDING")
+                        .statusText("발주 전")
+                        .totalAmount(47500)
+                        .itemCount(2)
+                        .representativeItem(OrderResponse.RepresentativeItem.builder()
+                                .productId(101L)
+                                .productName("상품명입니다 상품명입니다")
+                                .quantity(1)
+                                .price(12500)
+                                .imageUrl("https://example.com/product101.jpg")
+                                .build())
+                        .shipping(OrderResponse.Shipping.builder()
+                                .addressShort("서울시 강남구 …")
+                                .recipient("홍길동")
+                                .build())
+                        .aftersales(OrderResponse.Aftersales.builder()
+                                .cancel(OrderResponse.AftersalesInfo.builder()
+                                        .status("REQUESTED")
+                                        .statusText("취소 요청 중")
+                                        .requestId(901L)
+                                        .build())
+                                .exchange(null)
+                                .build())
+                        .permissions(OrderResponse.Permission.builder()
+                                .canCancel(true)
+                                .canReturn(false)
+                                .canExchange(false)
+                                .build())
+                        .links(OrderResponse.Link.builder()
+                                .detail("/orders/0123157")
+                                .build())
+                        .items(Arrays.asList(
+                                OrderResponse.OrderItem.builder()
+                                        .orderItemId(1L)
+                                        .productId(101L)
+                                        .productName("상품명입니다 상품명입니다")
+                                        .quantity(1)
+                                        .price(12500)
+                                        .imageUrl("https://example.com/product101.jpg")
+                                        .build(),
+                                OrderResponse.OrderItem.builder()
+                                        .orderItemId(2L)
+                                        .productId(102L)
+                                        .productName("다른 상품명")
+                                        .quantity(1)
+                                        .price(35000)
+                                        .imageUrl("https://example.com/product102.jpg")
+                                        .build()
                         ))
+                        .build(),
+                        
+                OrderResponse.Order.builder()
+                        .orderId("550e8400-e29b-41d4-a716-446655440001")
+                        .orderNumber("0123156")
+                        .orderDate(LocalDateTime.of(2025, 9, 18, 10, 5))
+                        .status("PREPARING")
+                        .statusText("배송 준비중")
+                        .totalAmount(32000)
+                        .itemCount(1)
+                        .representativeItem(OrderResponse.RepresentativeItem.builder()
+                                .productId(103L)
+                                .productName("상품명입니다 상품명입니다")
+                                .quantity(1)
+                                .price(32000)
+                                .imageUrl("https://example.com/product103.jpg")
+                                .build())
+                        .shipping(OrderResponse.Shipping.builder()
+                                .addressShort("서울시 서초구 …")
+                                .recipient("손경호")
+                                .build())
+                        .aftersales(OrderResponse.Aftersales.builder()
+                                .cancel(null)
+                                .exchange(OrderResponse.AftersalesInfo.builder()
+                                        .status("PROCESSING")
+                                        .statusText("교환 처리 중")
+                                        .requestId(902L)
+                                        .build())
+                                .build())
+                        .permissions(OrderResponse.Permission.builder()
+                                .canCancel(true)
+                                .canReturn(false)
+                                .canExchange(false)
+                                .build())
+                        .links(OrderResponse.Link.builder()
+                                .detail("/orders/0123156")
+                                .build())
+                        .build(),
+                        
+                OrderResponse.Order.builder()
+                        .orderId("550e8400-e29b-41d4-a716-446655440002")
+                        .orderNumber("0123155")
+                        .orderDate(LocalDateTime.of(2025, 9, 18, 9, 40))
+                        .status("SHIPPED")
+                        .statusText("배송중")
+                        .totalAmount(28500)
+                        .itemCount(1)
+                        .representativeItem(OrderResponse.RepresentativeItem.builder()
+                                .productId(104L)
+                                .productName("상품명입니다 상품명입니다")
+                                .quantity(1)
+                                .price(28500)
+                                .imageUrl("https://example.com/product104.jpg")
+                                .build())
+                        .shipping(OrderResponse.Shipping.builder()
+                                .addressShort("부산시 해운대구 …")
+                                .recipient("이영희")
+                                .build())
+                        .aftersales(OrderResponse.Aftersales.builder()
+                                .cancel(OrderResponse.AftersalesInfo.builder()
+                                        .status("COMPLETED")
+                                        .statusText("취소 완료")
+                                        .requestId(903L)
+                                        .build())
+                                .exchange(OrderResponse.AftersalesInfo.builder()
+                                        .status("COMPLETED")
+                                        .statusText("교환 완료")
+                                        .requestId(904L)
+                                        .build())
+                                .build())
+                        .permissions(OrderResponse.Permission.builder()
+                                .canCancel(false)
+                                .canReturn(true)
+                                .canExchange(true)
+                                .build())
+                        .links(OrderResponse.Link.builder()
+                                .detail("/orders/0123155")
+                                .build())
+                        .build()
         );
         
-        return new OrderResponse.List(summary, content, page, 10, 42, 5, true, false);
+        // 기간 정보 계산 (period 파라미터 기반)
+        OrderResponse.Period periodInfo = OrderResponse.Period.builder()
+                .type(period != null ? period : "MONTH")
+                .from(from != null ? from : "2025-09-01")
+                .to(to != null ? to : "2025-09-30")
+                .build();
+        
+        return new OrderResponse.List(summary, content, page, 10, 42, 5, true, false, 
+                                     "Asia/Seoul", periodInfo);
     }
     
     @Override

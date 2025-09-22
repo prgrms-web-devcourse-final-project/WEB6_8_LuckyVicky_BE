@@ -179,24 +179,112 @@ class DashboardServiceImplTest {
         void getOrders_Success() {
             // Given
             int page = 0, size = 10;
-            String status = "PENDING", period = "MONTH", sort = "orderDate", order = "DESC";
+            String status = null, aftersalesStatus = null, from = null, to = null;
+            String period = "MONTH", sort = "orderDate", order = "DESC";
 
             // When
             OrderResponse.List result = dashboardService.getOrders(
-                    TEST_AUTHORIZATION, page, size, status, period, sort, order);
+                    TEST_AUTHORIZATION, page, size, status, aftersalesStatus, from, to, period, sort, order);
 
             // Then
             assertAll(
                     () -> assertThat(result).isNotNull(),
                     () -> assertThat(result.getSummary()).isNotNull(),
                     () -> assertThat(result.getContent()).isNotNull(),
+                    () -> assertThat(result.getTimezone()).isEqualTo("Asia/Seoul"),
+                    () -> assertThat(result.getPeriod()).isNotNull(),
+                    // Summary 검증 - 주문 상태별
                     () -> assertThat(result.getSummary().getTotalOrders()).isEqualTo(42),
                     () -> assertThat(result.getSummary().getPending()).isEqualTo(3),
-                    () -> assertThat(result.getContent()).hasSize(1),
-                    () -> assertThat(result.getContent().get(0).getOrderId()).isNotNull(),
+                    () -> assertThat(result.getSummary().getConfirmed()).isEqualTo(2),
+                    () -> assertThat(result.getSummary().getPreparing()).isEqualTo(5),
+                    () -> assertThat(result.getSummary().getShipped()).isEqualTo(12),
+                    () -> assertThat(result.getSummary().getDelivered()).isEqualTo(20),
+                    () -> assertThat(result.getSummary().getCanceled()).isEqualTo(2),
+                    // Summary 검증 - 취소 관련
+                    () -> assertThat(result.getSummary().getCancelRequested()).isEqualTo(2),
+                    () -> assertThat(result.getSummary().getCancelProcessing()).isEqualTo(1),
+                    () -> assertThat(result.getSummary().getCancelCompleted()).isEqualTo(1),
+                    // Summary 검증 - 교환 관련
+                    () -> assertThat(result.getSummary().getExchangeRequested()).isEqualTo(1),
+                    () -> assertThat(result.getSummary().getExchangeProcessing()).isEqualTo(0),
+                    () -> assertThat(result.getSummary().getExchangeCompleted()).isEqualTo(3),
+                    // Content 검증
+                    () -> assertThat(result.getContent()).hasSize(3),
+                    // 첫 번째 주문 검증
+                    () -> assertThat(result.getContent().get(0).getOrderId()).isEqualTo("550e8400-e29b-41d4-a716-446655440000"),
+                    () -> assertThat(result.getContent().get(0).getOrderNumber()).isEqualTo("0123157"),
+                    () -> assertThat(result.getContent().get(0).getStatus()).isEqualTo("PENDING"),
+                    () -> assertThat(result.getContent().get(0).getStatusText()).isEqualTo("발주 전"),
+                    () -> assertThat(result.getContent().get(0).getTotalAmount()).isEqualTo(47500),
+                    () -> assertThat(result.getContent().get(0).getItemCount()).isEqualTo(2),
+                    // 대표 상품 검증
                     () -> assertThat(result.getContent().get(0).getRepresentativeItem()).isNotNull(),
-                    () -> assertThat(result.getContent().get(0).getItems()).isNotNull(),
-                    () -> assertThat(result.getContent().get(0).getItems()).hasSize(2)
+                    () -> assertThat(result.getContent().get(0).getRepresentativeItem().getProductId()).isEqualTo(101L),
+                    () -> assertThat(result.getContent().get(0).getRepresentativeItem().getProductName()).isEqualTo("상품명입니다 상품명입니다"),
+                    // 배송 정보 검증
+                    () -> assertThat(result.getContent().get(0).getShipping().getAddressShort()).isEqualTo("서울시 강남구 …"),
+                    () -> assertThat(result.getContent().get(0).getShipping().getRecipient()).isEqualTo("홍길동"),
+                    // 애프터세일즈 검증
+                    () -> assertThat(result.getContent().get(0).getAftersales()).isNotNull(),
+                    () -> assertThat(result.getContent().get(0).getAftersales().getCancel()).isNotNull(),
+                    () -> assertThat(result.getContent().get(0).getAftersales().getCancel().getStatus()).isEqualTo("REQUESTED"),
+                    () -> assertThat(result.getContent().get(0).getAftersales().getCancel().getStatusText()).isEqualTo("취소 요청 중"),
+                    () -> assertThat(result.getContent().get(0).getAftersales().getCancel().getRequestId()).isEqualTo(901L),
+                    () -> assertThat(result.getContent().get(0).getAftersales().getExchange()).isNull(),
+                    // 권한 검증
+                    () -> assertThat(result.getContent().get(0).getPermissions().getCanCancel()).isTrue(),
+                    () -> assertThat(result.getContent().get(0).getPermissions().getCanReturn()).isFalse(),
+                    () -> assertThat(result.getContent().get(0).getPermissions().getCanExchange()).isFalse(),
+                    // 링크 검증
+                    () -> assertThat(result.getContent().get(0).getLinks().getDetail()).isEqualTo("/orders/0123157"),
+                    // 주문 상품 목록 검증
+                    () -> assertThat(result.getContent().get(0).getItems()).hasSize(2),
+                    () -> assertThat(result.getContent().get(0).getItems().get(0).getOrderItemId()).isEqualTo(1L),
+                    () -> assertThat(result.getContent().get(0).getItems().get(0).getProductName()).isEqualTo("상품명입니다 상품명입니다"),
+                    // 두 번째 주문 검증 (교환 케이스)
+                    () -> assertThat(result.getContent().get(1).getAftersales().getExchange()).isNotNull(),
+                    () -> assertThat(result.getContent().get(1).getAftersales().getExchange().getStatus()).isEqualTo("PROCESSING"),
+                    () -> assertThat(result.getContent().get(1).getAftersales().getExchange().getStatusText()).isEqualTo("교환 처리 중"),
+                    () -> assertThat(result.getContent().get(1).getAftersales().getCancel()).isNull(),
+                    // 세 번째 주문 검증 (취소+교환 완료 케이스)
+                    () -> assertThat(result.getContent().get(2).getAftersales().getCancel().getStatus()).isEqualTo("COMPLETED"),
+                    () -> assertThat(result.getContent().get(2).getAftersales().getExchange().getStatus()).isEqualTo("COMPLETED"),
+                    // Period 검증
+                    () -> assertThat(result.getPeriod().getType()).isEqualTo("MONTH"),
+                    () -> assertThat(result.getPeriod().getFrom()).isEqualTo("2025-09-01"),
+                    () -> assertThat(result.getPeriod().getTo()).isEqualTo("2025-09-30"),
+                    // 페이징 검증
+                    () -> assertThat(result.getPage()).isEqualTo(0),
+                    () -> assertThat(result.getSize()).isEqualTo(10),
+                    () -> assertThat(result.getTotalElements()).isEqualTo(42),
+                    () -> assertThat(result.getTotalPages()).isEqualTo(5),
+                    () -> assertThat(result.isHasNext()).isTrue(),
+                    () -> assertThat(result.isHasPrevious()).isFalse()
+            );
+        }
+
+        @Test
+        @DisplayName("주문 목록 조회 성공 - 필터링 옵션")
+        void getOrders_Success_WithFilters() {
+            // Given
+            int page = 0, size = 10;
+            String status = "PENDING", aftersalesStatus = "CANCEL_REQUESTED";
+            String from = "2025-09-01", to = "2025-09-30";
+            String period = "CUSTOM", sort = "totalAmount", order = "ASC";
+
+            // When
+            OrderResponse.List result = dashboardService.getOrders(
+                    TEST_AUTHORIZATION, page, size, status, aftersalesStatus, from, to, period, sort, order);
+
+            // Then
+            assertAll(
+                    () -> assertThat(result).isNotNull(),
+                    () -> assertThat(result.getSummary()).isNotNull(),
+                    () -> assertThat(result.getContent()).isNotNull(),
+                    () -> assertThat(result.getPeriod().getType()).isEqualTo("CUSTOM"),
+                    () -> assertThat(result.getPeriod().getFrom()).isEqualTo("2025-09-01"),
+                    () -> assertThat(result.getPeriod().getTo()).isEqualTo("2025-09-30")
             );
         }
     }

@@ -29,7 +29,8 @@ public interface DashboardService {
      * 주문 목록 조회
      */
     OrderResponse.List getOrders(String authorization, int page, int size, String status,
-                                 String period, String sort, String order);
+                                String aftersalesStatus, String from, String to, String period,
+                                String sort, String order);
     
     /**
      * 내가 팔로우한 작가 목록 조회

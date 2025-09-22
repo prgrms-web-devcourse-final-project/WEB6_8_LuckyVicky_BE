@@ -138,7 +138,7 @@ class DashboardControllerTest {
         OrderResponse.List mockResponse = createMockOrderList();
 
         given(dashboardService.getOrders(
-                anyString(), anyInt(), anyInt(), any(), anyString(), anyString(), anyString()))
+                anyString(), anyInt(), anyInt(), any(), any(), any(), any(), anyString(), anyString(), anyString()))
                 .willReturn(mockResponse);
 
         // When & Then
@@ -189,22 +189,29 @@ class DashboardControllerTest {
         OrderResponse.SummaryDto summary = OrderResponse.SummaryDto.builder()
                 .totalOrders(42)
                 .pending(3)
+                .confirmed(2)
                 .preparing(5)
                 .shipped(12)
                 .delivered(20)
                 .canceled(2)
+                .cancelRequested(2)
+                .cancelProcessing(1)
+                .cancelCompleted(1)
+                .exchangeRequested(1)
+                .exchangeProcessing(0)
+                .exchangeCompleted(3)
                 .build();
 
-        List<OrderResponse.Summary> content = List.of(
-                OrderResponse.Summary.builder()
+        List<OrderResponse.Order> content = List.of(
+                OrderResponse.Order.builder()
                         .orderId("test-order-123")
                         .orderNumber("ORD001")
-                        .orderDate("2025-09-20")
+                        .orderDate(LocalDateTime.of(2025, 9, 20, 14, 30))
                         .status("PENDING")
                         .statusText("결제완료")
                         .totalAmount(47500)
                         .itemCount(2)
-                        .representativeItem(OrderResponse.Product.builder()
+                        .representativeItem(OrderResponse.RepresentativeItem.builder()
                                 .productId(101L)
                                 .productName("테스트상품")
                                 .quantity(1)
@@ -214,6 +221,14 @@ class DashboardControllerTest {
                         .shipping(OrderResponse.Shipping.builder()
                                 .addressShort("서울시 강남구...")
                                 .recipient("테스트고객")
+                                .build())
+                        .aftersales(OrderResponse.Aftersales.builder()
+                                .cancel(OrderResponse.AftersalesInfo.builder()
+                                        .status("REQUESTED")
+                                        .statusText("취소 요청 중")
+                                        .requestId(901L)
+                                        .build())
+                                .exchange(null)
                                 .build())
                         .permissions(OrderResponse.Permission.builder()
                                 .canCancel(true)
@@ -236,6 +251,12 @@ class DashboardControllerTest {
                         .build()
         );
 
-        return new OrderResponse.List(summary, content, 0, 10, 42, 5, true, false);
+        OrderResponse.Period period = OrderResponse.Period.builder()
+                .type("MONTH")
+                .from("2025-09-01")
+                .to("2025-09-30")
+                .build();
+
+        return new OrderResponse.List(summary, content, 0, 10, 42, 5, true, false, "Asia/Seoul", period);
     }
 }
