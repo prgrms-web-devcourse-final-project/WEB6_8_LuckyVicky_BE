@@ -9,7 +9,7 @@ import java.time.LocalDateTime;
  * 캐시 관련 응답 DTO
  * 
  * 캐시 보유 현황 및 충전 내역 정보를 포함합니다.
- * 2025.09.22 생성
+ * 2025.09.22 생성.
  */
 public class CashResponse {
     
