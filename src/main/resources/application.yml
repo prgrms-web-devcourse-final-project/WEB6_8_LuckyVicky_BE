@@ -21,8 +21,16 @@ spring:
         format_sql: true
         highlight_sql: true
         use_sql_comments: true
+
+# JWT 설정 (.env 파일 없어도 동작하도록 기본값 제공)
+jwt:
+  secret: ${JWT_SECRET:default-secret-key-for-development-only-change-in-production}
+  access-token-expiration: ${JWT_ACCESS_EXPIRATION:3600000}    # 1시간
+  refresh-token-expiration: ${JWT_REFRESH_EXPIRATION:604800000} # 7일
+
 springdoc:
   default-produces-media-type: application/json;charset=UTF-8
+
 logging:
   level:
     org.hibernate.orm.jdbc.bind: TRACE
