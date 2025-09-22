@@ -1,6 +1,7 @@
 package com.back.domain.dashboard.artist.service;
 
 import com.back.domain.dashboard.artist.dto.response.ArtistMainResponse;
+import com.back.domain.dashboard.artist.dto.response.ArtistProductResponse;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -125,6 +126,67 @@ class ArtistDashboardServiceImplTest {
                     () -> assertThat(result.getNotifications()).isNotNull(),
                     () -> assertThat(result.getServerTime()).isNotNull(),
                     () -> assertThat(result.getTimezone()).isEqualTo("Asia/Seoul")
+            );
+        }
+    }
+    
+    @Nested
+    @DisplayName("작가 상품 목록 조회 테스트")
+    class GetProductsTest {
+
+        @Test
+        @DisplayName("상품 목록 조회 성공")
+        void getProducts_Success() {
+            // Given
+            int page = 0, size = 10;
+            String keyword = null, sort = "registrationDate", order = "DESC";
+            Boolean selling = null;
+
+            // When
+            ArtistProductResponse.List result = artistDashboardService.getProducts(
+                    TEST_AUTHORIZATION, page, size, keyword, selling, sort, order);
+
+            // Then
+            assertAll(
+                    () -> assertThat(result).isNotNull(),
+                    () -> assertThat(result.getContent()).isNotNull(),
+                    () -> assertThat(result.getContent()).hasSize(3),
+                    // 첫 번째 상품 검증
+                    () -> assertThat(result.getContent().get(0).getProductNumber()).isEqualTo("0123157"),
+                    () -> assertThat(result.getContent().get(0).getProductName()).isEqualTo("상품명입니다 상품명입니다"),
+                    () -> assertThat(result.getContent().get(0).getPrice()).isEqualTo(90000),
+                    () -> assertThat(result.getContent().get(0).getSellingStatus()).isEqualTo("SELLING"),
+                    () -> assertThat(result.getContent().get(0).getStatusText()).isEqualTo("판매중"),
+                    () -> assertThat(result.getContent().get(0).getRegistrationDate()).isEqualTo("2025. 09. 18"),
+                    // 페이징 검증
+                    () -> assertThat(result.getPage()).isEqualTo(0),
+                    () -> assertThat(result.getSize()).isEqualTo(10),
+                    () -> assertThat(result.getTotalElements()).isEqualTo(28),
+                    () -> assertThat(result.getTotalPages()).isEqualTo(3),
+                    () -> assertThat(result.isHasNext()).isTrue(),
+                    () -> assertThat(result.isHasPrevious()).isFalse()
+            );
+        }
+
+        @Test
+        @DisplayName("상품 목록 조회 성공 - 필터링 옵션")
+        void getProducts_Success_WithFilters() {
+            // Given
+            int page = 0, size = 10;
+            String keyword = "상품명", sort = "price", order = "ASC";
+            Boolean selling = true;
+
+            // When
+            ArtistProductResponse.List result = artistDashboardService.getProducts(
+                    TEST_AUTHORIZATION, page, size, keyword, selling, sort, order);
+
+            // Then
+            assertAll(
+                    () -> assertThat(result).isNotNull(),
+                    () -> assertThat(result.getContent()).isNotNull(),
+                    () -> assertThat(result.getContent()).hasSize(3),
+                    () -> assertThat(result.getPage()).isEqualTo(0),
+                    () -> assertThat(result.getTotalElements()).isEqualTo(28)
             );
         }
     }

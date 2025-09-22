@@ -1,6 +1,7 @@
 package com.back.domain.dashboard.artist.service;
 
 import com.back.domain.dashboard.artist.dto.response.ArtistMainResponse;
+import com.back.domain.dashboard.artist.dto.response.ArtistProductResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -160,5 +161,41 @@ public class ArtistDashboardServiceImpl implements ArtistDashboardService {
                 .serverTime(LocalDateTime.of(2025, 12, 24, 15, 0))
                 .timezone("Asia/Seoul")
                 .build();
+    }
+    
+    @Override
+    public ArtistProductResponse.List getProducts(String authorization, int page, int size, String keyword,
+                                                 Boolean selling, String sort, String order) {
+        // TODO: JWT 토큰에서 작가 정보 추출
+        // TODO: 실제 데이터베이스에서 상품 목록 조회
+        
+        List<ArtistProductResponse.Product> content = Arrays.asList(
+                ArtistProductResponse.Product.builder()
+                        .productNumber("0123157")
+                        .productName("상품명입니다 상품명입니다")
+                        .price(90000)
+                        .sellingStatus("SELLING")
+                        .statusText("판매중")
+                        .registrationDate("2025. 09. 18")
+                        .build(),
+                ArtistProductResponse.Product.builder()
+                        .productNumber("0123156")
+                        .productName("상품명입니다 상품명입니다")
+                        .price(90000)
+                        .sellingStatus("SELLING")
+                        .statusText("판매중")
+                        .registrationDate("2025. 09. 18")
+                        .build(),
+                ArtistProductResponse.Product.builder()
+                        .productNumber("0123155")
+                        .productName("상품명입니다 상품명입니다")
+                        .price(90000)
+                        .sellingStatus("SELLING")
+                        .statusText("판매중")
+                        .registrationDate("2025. 09. 18")
+                        .build()
+        );
+        
+        return new ArtistProductResponse.List(content, page, 10, 28, 3, true, false);
     }
 }
