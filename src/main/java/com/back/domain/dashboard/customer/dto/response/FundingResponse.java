@@ -65,7 +65,7 @@ public class FundingResponse {
     @NoArgsConstructor
     @AllArgsConstructor
     public static class Participation {
-        /** 참여번호 (리스트 표기용 짧은 번호) */
+        /** 참여번호 */
         private String participationNumber;
         /** 내부 식별자 */
         private String participationId;

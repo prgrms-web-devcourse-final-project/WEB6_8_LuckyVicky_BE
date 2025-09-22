@@ -8,7 +8,7 @@ import java.time.LocalDateTime;
 /**
  * 캐시 관련 응답 DTO
  * 
- * 캐시 보유 현황 및 충전 내역 정보를 포함합니다.
+ * 캐시 보유 현황 및 충전 내역 정보를 포함
  * 2025.09.22 생성.
  */
 public class CashResponse {
@@ -62,10 +62,8 @@ public class CashResponse {
     public static class SummaryDto {
         /** 현재 보유 캐시 */
         private int currentBalance;
-        /** 기간 내 충전 합계 (선택적) */
+        /** 기간 내 충전 합계 */
         private int periodTotalRecharge;
-        /** 기간 내 적립 포인트 합계 (선택적) */
-        private int periodTotalBonus;
     }
     
     /**
@@ -85,15 +83,13 @@ public class CashResponse {
         private String category;
         /** 충전 금액 */
         private int amount;
-        /** 적립 포인트 */
-        private int bonusPoint;
         /** 결제 수단 코드 */
         private String method;
         /** 결제 수단 텍스트 */
         private String methodText;
         /** 상태 */
         private String status;
-        /** 링크 정보 (선택적) */
+        /** 링크 정보 (영수증)*/
         private Link links;
     }
     

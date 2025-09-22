@@ -78,7 +78,11 @@ public class AccountResponse {
     @NoArgsConstructor
     @AllArgsConstructor
     public static class Security {
-        /** 마지막 비밀번호 변경 일시 */
+        /**
+         * (90일) 이상 비밀번호를 바꾸지 않았다면 강제 변경 알림을 줄 수 있게끔 만듬 (추후 기능)
+         * 마지막 비밀번호 변경 일시
+         * */
+
         private LocalDateTime lastPasswordChangedAt;
     }
 }

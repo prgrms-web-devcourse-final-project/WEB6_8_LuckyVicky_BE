@@ -431,18 +431,18 @@ public class DashboardServiceImpl implements DashboardService {
                                                   String sort, String order) {
         // TODO: 실제 데이터베이스 조회 로직 구현
         
-        CashResponse.SummaryDto summary = new CashResponse.SummaryDto(720, 18000, 480);
+        CashResponse.SummaryDto summary = new CashResponse.SummaryDto(720, 18000);
         
         List<CashResponse.Transaction> content = Arrays.asList(
                 new CashResponse.Transaction(
                         "RC-20250131-2303-0001",
                         LocalDateTime.of(2025, 1, 31, 23, 3),
-                        "캐시 충전", 2000, 60, "NAVERPAY", "네이버페이", "COMPLETED",
+                        "캐시 충전", 2000, "NAVERPAY", "네이버페이", "COMPLETED",
                         new CashResponse.Link(null)),
                 new CashResponse.Transaction(
                         "RC-20250123-0020-0001",
                         LocalDateTime.of(2025, 1, 23, 0, 20),
-                        "캐시 충전", 2000, 60, "NAVERPAY", "네이버페이", "COMPLETED",
+                        "캐시 충전", 2000, "NAVERPAY", "네이버페이", "COMPLETED",
                         new CashResponse.Link(null))
         );
         

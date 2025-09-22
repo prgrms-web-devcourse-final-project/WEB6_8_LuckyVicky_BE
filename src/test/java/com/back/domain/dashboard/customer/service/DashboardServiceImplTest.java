@@ -516,14 +516,12 @@ class DashboardServiceImplTest {
                     // Summary 검증
                     () -> assertThat(result.getSummary().getCurrentBalance()).isEqualTo(720),
                     () -> assertThat(result.getSummary().getPeriodTotalRecharge()).isEqualTo(18000),
-                    () -> assertThat(result.getSummary().getPeriodTotalBonus()).isEqualTo(480),
                     // Content 검증
                     () -> assertThat(result.getContent()).hasSize(2),
                     // 첫 번째 거래 검증
                     () -> assertThat(result.getContent().get(0).getTxId()).isEqualTo("RC-20250131-2303-0001"),
                     () -> assertThat(result.getContent().get(0).getCategory()).isEqualTo("캐시 충전"),
                     () -> assertThat(result.getContent().get(0).getAmount()).isEqualTo(2000),
-                    () -> assertThat(result.getContent().get(0).getBonusPoint()).isEqualTo(60),
                     () -> assertThat(result.getContent().get(0).getMethod()).isEqualTo("NAVERPAY"),
                     () -> assertThat(result.getContent().get(0).getMethodText()).isEqualTo("네이버페이"),
                     () -> assertThat(result.getContent().get(0).getStatus()).isEqualTo("COMPLETED"),

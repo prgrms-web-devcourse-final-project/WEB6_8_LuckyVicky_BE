@@ -28,7 +28,7 @@ public class ArtistApplicationResponse {
         public List() {
             super();
         }
-        
+        /** hasNext, hasPrevious 추가로 이전 페이지, 다음페이지 활성화 가능 */
         public List(SummaryDto summary, java.util.List<Summary> content,
                    int page, int size, long totalElements, int totalPages,
                    boolean hasNext, boolean hasPrevious) {
@@ -122,7 +122,7 @@ public class ArtistApplicationResponse {
         private LocalDateTime submittedAt;
         private LocalDateTime decidedAt;
         private String rejectionReason;
-        /** 검토자 정보 (선택적) */
+        /** 검토자 정보 추가, 승인자를 알 수 있음 */
         private Reviewer reviewer;
     }
     
@@ -162,10 +162,15 @@ public class ArtistApplicationResponse {
     @NoArgsConstructor
     @AllArgsConstructor
     public static class Business {
+        /** 사업자등록번호 */
         private String registrationNo;
+        /** 사업자등록증 사본*/
         private FileDto registrationProof;
+        /** 통신판매업 신고번호 */
         private String telemarketingReportNo;
+        /** 통신판매업 신고증 사본 */
         private FileDto telemarketingReportProof;
+        /** 사업자 주소 */
         private String address;
     }
     
@@ -228,7 +233,7 @@ public class ArtistApplicationResponse {
     }
     
     /**
-     * 검토자 정보 (선택적)
+     * 검토자 정보
      */
     @Getter
     @Setter
