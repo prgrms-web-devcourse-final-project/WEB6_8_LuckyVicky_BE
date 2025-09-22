@@ -53,4 +53,16 @@ public interface DashboardService {
      * 교환/반품 폼 데이터 조회
      */
     ReturnResponse.FormData getReturnFormData(String authorization, Long returnId);
+    
+    /**
+     * 캐시 정보 조회
+     */
+    CashResponse.Balance getCashBalance(String authorization);
+    
+    /**
+     * 캐시 충전 내역 조회
+     */
+    CashResponse.HistoryList getCashHistory(String authorization, int page, int size,
+                                           String method, String status, String dateFrom, String dateTo,
+                                           String sort, String order);
 }

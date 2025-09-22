@@ -388,4 +388,89 @@ public class DashboardController {
                 response
         ));
     }
+    
+    /**
+     * 캐시 정보 조회
+     * 현재 보유 캐시 정보를 조회합니다.
+     * 
+     * @param authorization Bearer 토큰 (필수)
+     * @return 캐시 정보
+     * 
+     * @throws SecurityException 인증 토큰이 유효하지 않은 경우
+     */
+    @GetMapping("/cash")
+    @Operation(summary = "캐시 정보 조회", description = "현재 보유 캐시 정보를 조회합니다")
+    public ResponseEntity<RsData<CashResponse.Balance>> getCashBalance(
+            @RequestHeader("Authorization") String authorization) {
+        
+        CashResponse.Balance response = dashboardService.getCashBalance(authorization);
+        
+        return ResponseEntity.ok(RsData.of(
+                "200-OK",
+                "캐시 정보 조회 성공",
+                response
+        ));
+    }
+    
+    /**
+     * 캐시 충전 내역 조회
+     * 캐시 충전 내역을 페이지 단위로 조회합니다.
+     * 결제 수단, 상태, 기간별 필터링이 가능합니다.
+     * 
+     * @param authorization Bearer 토큰 (필수)
+     * @param page 페이지 번호 (0부터 시작, 기본값: 0)
+     * @param size 페이지 크기 (1-100, 기본값: 10)
+     * @param method 결제 수단 필터 (NAVERPAY, TOSS, CARD, ETC 중 선택)
+     * @param status 상태 필터 (PENDING, COMPLETED, FAILED, CANCELED 중 선택)
+     * @param dateFrom 시작 날짜 (yyyy-MM-dd 형식, 선택사항)
+     * @param dateTo 종료 날짜 (yyyy-MM-dd 형식, 선택사항)
+     * @param sort 정렬 기준 (occurredAt, amount 중 선택)
+     * @param order 정렬 방향 (ASC, DESC 중 선택)
+     * @return 캐시 충전 내역 목록 (페이징 정보 포함)
+     * 
+     * @throws SecurityException 인증 토큰이 유효하지 않은 경우
+     * @throws IllegalArgumentException 파라미터가 유효하지 않은 경우
+     */
+    @GetMapping("/cash/history")
+    @Operation(summary = "캐시 충전 내역 조회", description = "캐시 충전 내역을 페이지 단위로 조회합니다")
+    public ResponseEntity<RsData<CashResponse.HistoryList>> getCashHistory(
+            @RequestHeader("Authorization") String authorization,
+            @RequestParam(defaultValue = "0") 
+            @Min(value = 0, message = "페이지는 0 이상이어야 합니다") 
+            int page,
+            @RequestParam(defaultValue = "10") 
+            @Min(value = 1, message = "페이지 크기는 1 이상이어야 합니다")
+            @Max(value = 100, message = "페이지 크기는 100 이하여야 합니다")
+            int size,
+            @RequestParam(required = false) 
+            @Pattern(regexp = "^(NAVERPAY|TOSS|CARD|ETC)$", 
+                    message = "method는 NAVERPAY, TOSS, CARD, ETC 중 하나여야 합니다")
+            String method,
+            @RequestParam(required = false) 
+            @Pattern(regexp = "^(PENDING|COMPLETED|FAILED|CANCELED)$", 
+                    message = "status는 PENDING, COMPLETED, FAILED, CANCELED 중 하나여야 합니다")
+            String status,
+            @RequestParam(required = false) 
+            @Pattern(regexp = "^\\d{4}-\\d{2}-\\d{2}$", message = "날짜는 yyyy-MM-dd 형식이어야 합니다")
+            String dateFrom,
+            @RequestParam(required = false) 
+            @Pattern(regexp = "^\\d{4}-\\d{2}-\\d{2}$", message = "날짜는 yyyy-MM-dd 형식이어야 합니다")
+            String dateTo,
+            @RequestParam(defaultValue = "occurredAt") 
+            @Pattern(regexp = "^(occurredAt|amount)$", 
+                    message = "sort는 occurredAt, amount 중 하나여야 합니다")
+            String sort,
+            @RequestParam(defaultValue = "DESC") 
+            @Pattern(regexp = "^(ASC|DESC)$", message = "order는 ASC 또는 DESC여야 합니다")
+            String order) {
+        
+        CashResponse.HistoryList response = dashboardService.getCashHistory(
+                authorization, page, size, method, status, dateFrom, dateTo, sort, order);
+        
+        return ResponseEntity.ok(RsData.of(
+                "200-OK",
+                "캐시 충전 내역 조회 성공",
+                response
+        ));
+    }
 }

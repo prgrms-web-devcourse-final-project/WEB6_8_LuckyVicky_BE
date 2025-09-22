@@ -273,4 +273,36 @@ public class DashboardServiceImpl implements DashboardService {
         
         return new ReturnResponse.FormData(summary, form, permissions);
     }
+    
+    @Override
+    public CashResponse.Balance getCashBalance(String authorization) {
+        // TODO: 실제 데이터베이스 조회 로직 구현
+        
+        return new CashResponse.Balance(
+                5900, "KRW", LocalDateTime.of(2025, 9, 22, 10, 15));
+    }
+    
+    @Override
+    public CashResponse.HistoryList getCashHistory(String authorization, int page, int size,
+                                                  String method, String status, String dateFrom, String dateTo,
+                                                  String sort, String order) {
+        // TODO: 실제 데이터베이스 조회 로직 구현
+        
+        CashResponse.SummaryDto summary = new CashResponse.SummaryDto(720, 18000, 480);
+        
+        List<CashResponse.Transaction> content = Arrays.asList(
+                new CashResponse.Transaction(
+                        "RC-20250131-2303-0001",
+                        LocalDateTime.of(2025, 1, 31, 23, 3),
+                        "캐시 충전", 2000, 60, "NAVERPAY", "네이버페이", "COMPLETED",
+                        new CashResponse.Link(null)),
+                new CashResponse.Transaction(
+                        "RC-20250123-0020-0001",
+                        LocalDateTime.of(2025, 1, 23, 0, 20),
+                        "캐시 충전", 2000, 60, "NAVERPAY", "네이버페이", "COMPLETED",
+                        new CashResponse.Link(null))
+        );
+        
+        return new CashResponse.HistoryList(summary, content, page, 10, 9, 1, false, false);
+    }
 }

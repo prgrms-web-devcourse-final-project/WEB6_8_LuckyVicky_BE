@@ -8,6 +8,8 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import java.time.LocalDateTime;
+
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertAll;
 
@@ -377,6 +379,75 @@ class DashboardServiceImplTest {
                     // Permissions 검증
                     () -> assertThat(result.getPermissions().getCanEdit()).isTrue(),
                     () -> assertThat(result.getPermissions().getCanCancel()).isTrue()
+            );
+        }
+    }
+    
+    @Nested
+    @DisplayName("캐시 정보 조회 테스트")
+    class GetCashBalanceTest {
+
+        @Test
+        @DisplayName("캐시 정보 조회 성공")
+        void getCashBalance_Success() {
+            // Given
+            // When
+            CashResponse.Balance result = dashboardService.getCashBalance(TEST_AUTHORIZATION);
+
+            // Then
+            assertAll(
+                    () -> assertThat(result).isNotNull(),
+                    () -> assertThat(result.getCurrentBalance()).isEqualTo(5900),
+                    () -> assertThat(result.getCurrency()).isEqualTo("KRW"),
+                    () -> assertThat(result.getUpdatedAt()).isEqualTo(LocalDateTime.of(2025, 9, 22, 10, 15))
+            );
+        }
+    }
+
+    @Nested
+    @DisplayName("캐시 충전 내역 조회 테스트")
+    class GetCashHistoryTest {
+
+        @Test
+        @DisplayName("캐시 충전 내역 조회 성공")
+        void getCashHistory_Success() {
+            // Given
+            int page = 0, size = 10;
+            String method = null, status = null, dateFrom = null, dateTo = null;
+            String sort = "occurredAt", order = "DESC";
+
+            // When
+            CashResponse.HistoryList result = dashboardService.getCashHistory(
+                    TEST_AUTHORIZATION, page, size, method, status, dateFrom, dateTo, sort, order);
+
+            // Then
+            assertAll(
+                    () -> assertThat(result).isNotNull(),
+                    () -> assertThat(result.getSummary()).isNotNull(),
+                    () -> assertThat(result.getContent()).isNotNull(),
+                    // Summary 검증
+                    () -> assertThat(result.getSummary().getCurrentBalance()).isEqualTo(720),
+                    () -> assertThat(result.getSummary().getPeriodTotalRecharge()).isEqualTo(18000),
+                    () -> assertThat(result.getSummary().getPeriodTotalBonus()).isEqualTo(480),
+                    // Content 검증
+                    () -> assertThat(result.getContent()).hasSize(2),
+                    // 첫 번째 거래 검증
+                    () -> assertThat(result.getContent().get(0).getTxId()).isEqualTo("RC-20250131-2303-0001"),
+                    () -> assertThat(result.getContent().get(0).getCategory()).isEqualTo("캐시 충전"),
+                    () -> assertThat(result.getContent().get(0).getAmount()).isEqualTo(2000),
+                    () -> assertThat(result.getContent().get(0).getBonusPoint()).isEqualTo(60),
+                    () -> assertThat(result.getContent().get(0).getMethod()).isEqualTo("NAVERPAY"),
+                    () -> assertThat(result.getContent().get(0).getMethodText()).isEqualTo("네이버페이"),
+                    () -> assertThat(result.getContent().get(0).getStatus()).isEqualTo("COMPLETED"),
+                    () -> assertThat(result.getContent().get(0).getOccurredAt()).isEqualTo(LocalDateTime.of(2025, 1, 31, 23, 3)),
+                    () -> assertThat(result.getContent().get(0).getLinks().getReceipt()).isNull(),
+                    // 페이징 검증
+                    () -> assertThat(result.getPage()).isEqualTo(0),
+                    () -> assertThat(result.getSize()).isEqualTo(10),
+                    () -> assertThat(result.getTotalElements()).isEqualTo(9),
+                    () -> assertThat(result.getTotalPages()).isEqualTo(1),
+                    () -> assertThat(result.isHasNext()).isFalse(),
+                    () -> assertThat(result.isHasPrevious()).isFalse()
             );
         }
     }
