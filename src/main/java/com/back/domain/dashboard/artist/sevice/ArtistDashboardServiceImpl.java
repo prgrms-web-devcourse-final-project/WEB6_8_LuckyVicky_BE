@@ -4,6 +4,7 @@ import com.back.domain.dashboard.artist.dto.response.ArtistCashResponse;
 import com.back.domain.dashboard.artist.dto.response.ArtistMainResponse;
 import com.back.domain.dashboard.artist.dto.response.ArtistProductResponse;
 import com.back.domain.dashboard.artist.dto.response.ArtistCashHistoryResponse;
+import com.back.domain.dashboard.artist.dto.response.ArtistOrderResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -282,6 +283,111 @@ public class ArtistDashboardServiceImpl implements ArtistDashboardService {
                 .totalPages(1)
                 .hasNext(false)
                 .hasPrevious(false)
+                .build();
+    }
+
+    @Override
+    public ArtistOrderResponse.List getOrders(String authorization, int page, int size,
+                                             String status, String keyword, String startDate,
+                                             String endDate, String sort, String order) {
+        // TODO: JWT 토큰에서 작가 정보 추출
+        // TODO: 실제 데이터베이스에서 주문 목록 조회
+
+        // 주문 상태별 요약 정보
+        ArtistOrderResponse.Summary summary = ArtistOrderResponse.Summary.builder()
+                .total(156)
+                .pending(8)
+                .preparing(12)
+                .shipped(142)
+                .delivered(136)
+                .canceled(5)
+                .build();
+
+        // 주문 목록 더미 데이터
+        List<ArtistOrderResponse.Order> content = Arrays.asList(
+                ArtistOrderResponse.Order.builder()
+                        .orderId("550e84...000")
+                        .orderNumber("0123157")
+                        .orderDate("2025-09-18")
+                        .status("PENDING")
+                        .statusText("발주 전")
+                        .totalAmount(47500)
+                        .productSummary("상품명입니다 상품명입니다")
+                        .itemCount(2)
+                        .buyer(ArtistOrderResponse.Buyer.builder()
+                                .id(201L)
+                                .nickname("heroeson02")
+                                .name("손경호")
+                                .build())
+                        .shipment(ArtistOrderResponse.Shipment.builder()
+                                .status("READY")
+                                .trackingNo(null)
+                                .shippingCompany(null)
+                                .build())
+                        .permissions(ArtistOrderResponse.Permissions.builder()
+                                .canChangeStatus(true)
+                                .canCancel(true)
+                                .build())
+                        .build(),
+                ArtistOrderResponse.Order.builder()
+                        .orderId("550e84...001")
+                        .orderNumber("0123156")
+                        .orderDate("2025-09-17")
+                        .status("SHIPPED")
+                        .statusText("배송 중")
+                        .totalAmount(25000)
+                        .productSummary("아트 프린트 모음집")
+                        .itemCount(1)
+                        .buyer(ArtistOrderResponse.Buyer.builder()
+                                .id(202L)
+                                .nickname("artlover")
+                                .name("김아트")
+                                .build())
+                        .shipment(ArtistOrderResponse.Shipment.builder()
+                                .status("SHIPPED")
+                                .trackingNo("123456789012")
+                                .shippingCompany("한진택배")
+                                .build())
+                        .permissions(ArtistOrderResponse.Permissions.builder()
+                                .canChangeStatus(false)
+                                .canCancel(false)
+                                .build())
+                        .build(),
+                ArtistOrderResponse.Order.builder()
+                        .orderId("550e84...002")
+                        .orderNumber("0123155")
+                        .orderDate("2025-09-16")
+                        .status("DELIVERED")
+                        .statusText("배송 완료")
+                        .totalAmount(35000)
+                        .productSummary("커스텀 스티커 세트")
+                        .itemCount(3)
+                        .buyer(ArtistOrderResponse.Buyer.builder()
+                                .id(203L)
+                                .nickname("stickerfan")
+                                .name("이스티")
+                                .build())
+                        .shipment(ArtistOrderResponse.Shipment.builder()
+                                .status("DELIVERED")
+                                .trackingNo("987654321098")
+                                .shippingCompany("CJ대한통운")
+                                .build())
+                        .permissions(ArtistOrderResponse.Permissions.builder()
+                                .canChangeStatus(false)
+                                .canCancel(false)
+                                .build())
+                        .build()
+        );
+
+        return ArtistOrderResponse.List.builder()
+                .summary(summary)
+                .content(content)
+                .page(page)
+                .size(size)
+                .totalElements(156)
+                .totalPages(8)
+                .hasNext(page < 7)
+                .hasPrevious(page > 0)
                 .build();
     }
 }

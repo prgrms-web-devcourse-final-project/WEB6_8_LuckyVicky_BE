@@ -4,6 +4,7 @@ import com.back.domain.dashboard.artist.dto.response.ArtistCashResponse;
 import com.back.domain.dashboard.artist.dto.response.ArtistMainResponse;
 import com.back.domain.dashboard.artist.dto.response.ArtistProductResponse;
 import com.back.domain.dashboard.artist.dto.response.ArtistCashHistoryResponse;
+import com.back.domain.dashboard.artist.dto.response.ArtistOrderResponse;
 import com.back.domain.dashboard.artist.sevice.ArtistDashboardServiceImpl;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -181,6 +182,61 @@ class ArtistDashboardServiceImplTest {
                 () -> assertThat(result.getContent().stream()
                         .filter(tx -> "DEPOSIT".equals(tx.getType()))
                         .allMatch(tx -> tx.getDepositAmount() > 0 && tx.getWithdrawalAmount() == 0)).isTrue()
+        );
+    }
+
+    @Test
+    @DisplayName("주문 내역 조회 - 통계와 목록 일관성 검증")
+    void getOrders_ReturnsConsistentOrderData() {
+        // When
+        ArtistOrderResponse.List result = artistDashboardService.getOrders(
+                TEST_AUTHORIZATION, 0, 20, null, null, null, null, "orderDate", "DESC");
+
+        // Then - 주문 통계와 목록 일관성 검증
+        assertAll(
+                () -> assertThat(result).isNotNull(),
+                () -> assertThat(result.getSummary()).isNotNull(),
+                () -> assertThat(result.getContent()).isNotNull(),
+                // 통계 정보 검증
+                () -> assertThat(result.getSummary().getTotal()).isEqualTo(156),
+                () -> assertThat(result.getSummary().getPending()).isEqualTo(8),
+                () -> assertThat(result.getSummary().getDelivered()).isEqualTo(136),
+                // 각 상태별 수량은 음수가 아니어야 함
+                () -> assertThat(result.getSummary().getPending()).isNotNegative(),
+                () -> assertThat(result.getSummary().getPreparing()).isNotNegative(),
+                () -> assertThat(result.getSummary().getShipped()).isNotNegative(),
+                () -> assertThat(result.getSummary().getDelivered()).isNotNegative(),
+                () -> assertThat(result.getSummary().getCanceled()).isNotNegative(),
+                // 주문 목록 검증
+                () -> assertThat(result.getContent()).hasSize(3),
+                () -> assertThat(result.getContent().get(0).getOrderNumber()).isNotBlank(),
+                () -> assertThat(result.getContent().get(0).getTotalAmount()).isPositive(),
+                () -> assertThat(result.getContent().get(0).getBuyer()).isNotNull(),
+                // 페이징 정보 검증
+                () -> assertThat(result.getPage()).isNotNegative(),
+                () -> assertThat(result.getTotalElements()).isEqualTo(156),
+                () -> assertThat(result.getTotalPages()).isEqualTo(8)
+        );
+    }
+
+    @Test
+    @DisplayName("주문 내역 조회 - 상태별 필터링")
+    void getOrders_WithStatusFilter() {
+        // When - PENDING 상태만 조회
+        ArtistOrderResponse.List result = artistDashboardService.getOrders(
+                TEST_AUTHORIZATION, 0, 20, "PENDING", null, null, null, "orderDate", "DESC");
+
+        // Then - 필터링 결과 검증
+        assertAll(
+                () -> assertThat(result).isNotNull(),
+                () -> assertThat(result.getContent()).isNotNull(),
+                // PENDING 상태 주문이 포함되어 있는지 확인
+                () -> assertThat(result.getContent().stream()
+                        .anyMatch(order -> "PENDING".equals(order.getStatus()))).isTrue(),
+                // 권한 정보 검증 - PENDING 상태는 변경 가능해야 함
+                () -> assertThat(result.getContent().stream()
+                        .filter(order -> "PENDING".equals(order.getStatus()))
+                        .allMatch(order -> order.getPermissions().isCanChangeStatus())).isTrue()
         );
     }
 }

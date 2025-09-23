@@ -4,6 +4,7 @@ import com.back.domain.dashboard.artist.dto.response.ArtistCashResponse;
 import com.back.domain.dashboard.artist.dto.response.ArtistMainResponse;
 import com.back.domain.dashboard.artist.dto.response.ArtistProductResponse;
 import com.back.domain.dashboard.artist.dto.response.ArtistCashHistoryResponse;
+import com.back.domain.dashboard.artist.dto.response.ArtistOrderResponse;
 import com.back.domain.dashboard.artist.sevice.ArtistDashboardService;
 import com.back.global.rsData.RsData;
 import lombok.RequiredArgsConstructor;
@@ -134,6 +135,39 @@ public class ArtistDashboardController {
             );
         } catch (Exception e) {
             log.error("작가 캐시 내역 조회 실패", e);
+            return ResponseEntity.internalServerError().body(
+                    RsData.of("500-ERROR", "서버 오류가 발생했습니다.")
+            );
+        }
+    }
+
+    /**
+     * 작가 주문 내역 조회
+     */
+    @GetMapping("/orders")
+    public ResponseEntity<RsData<ArtistOrderResponse.List>> getOrders(
+            @RequestHeader("Authorization") String authorization,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size,
+            @RequestParam(required = false) String status,
+            @RequestParam(required = false) String keyword,
+            @RequestParam(required = false) String startDate,
+            @RequestParam(required = false) String endDate,
+            @RequestParam(defaultValue = "orderDate") String sort,
+            @RequestParam(defaultValue = "DESC") String order) {
+
+        log.info("작가 주문 내역 조회 요청 - page: {}, size: {}, status: {}, keyword: {}, startDate: {}, endDate: {}, sort: {}, order: {}",
+                page, size, status, keyword, startDate, endDate, sort, order);
+
+        try {
+            ArtistOrderResponse.List response = artistDashboardService.getOrders(
+                    authorization, page, size, status, keyword, startDate, endDate, sort, order);
+
+            return ResponseEntity.ok(
+                    RsData.of("200-OK", "주문 목록 조회 성공", response)
+            );
+        } catch (Exception e) {
+            log.error("작가 주문 내역 조회 실패", e);
             return ResponseEntity.internalServerError().body(
                     RsData.of("500-ERROR", "서버 오류가 발생했습니다.")
             );

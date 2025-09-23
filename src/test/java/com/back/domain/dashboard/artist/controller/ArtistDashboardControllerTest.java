@@ -3,6 +3,7 @@ package com.back.domain.dashboard.artist.controller;
 import com.back.domain.dashboard.artist.dto.response.ArtistCashResponse;
 import com.back.domain.dashboard.artist.dto.response.ArtistProductResponse;
 import com.back.domain.dashboard.artist.dto.response.ArtistCashHistoryResponse;
+import com.back.domain.dashboard.artist.dto.response.ArtistOrderResponse;
 import com.back.domain.dashboard.artist.sevice.ArtistDashboardService;
 import com.back.global.rsData.RsData;
 import org.junit.jupiter.api.DisplayName;
@@ -255,6 +256,162 @@ class ArtistDashboardControllerTest {
                 () -> assertThat(response.getBody().data().getContent()).hasSize(1),
                 () -> assertThat(response.getBody().data().getContent().get(0).getType()).isEqualTo("DEPOSIT"),
                 () -> assertThat(response.getBody().data().getSummary().getPeriodWithdrawalTotal()).isEqualTo(0)
+        );
+    }
+
+    @Test
+    @DisplayName("작가 주문 내역 조회 성공")
+    void getOrders_Success() {
+        // Given
+        ArtistOrderResponse.Summary summary = ArtistOrderResponse.Summary.builder()
+                .total(156).pending(8).preparing(12)
+                .shipped(142).delivered(136).canceled(5)
+                .build();
+
+        List<ArtistOrderResponse.Order> content = Arrays.asList(
+                ArtistOrderResponse.Order.builder()
+                        .orderId("550e84...000")
+                        .orderNumber("0123157")
+                        .orderDate("2025-09-18")
+                        .status("PENDING")
+                        .statusText("발주 전")
+                        .totalAmount(47500)
+                        .productSummary("상품명입니다 상품명입니다")
+                        .itemCount(2)
+                        .buyer(ArtistOrderResponse.Buyer.builder()
+                                .id(201L)
+                                .nickname("heroeson02")
+                                .name("손경호")
+                                .build())
+                        .shipment(ArtistOrderResponse.Shipment.builder()
+                                .status("READY")
+                                .trackingNo(null)
+                                .shippingCompany(null)
+                                .build())
+                        .permissions(ArtistOrderResponse.Permissions.builder()
+                                .canChangeStatus(true)
+                                .canCancel(true)
+                                .build())
+                        .build(),
+                ArtistOrderResponse.Order.builder()
+                        .orderId("550e84...001")
+                        .orderNumber("0123156")
+                        .orderDate("2025-09-17")
+                        .status("SHIPPED")
+                        .statusText("배송 중")
+                        .totalAmount(25000)
+                        .productSummary("아트 프린트 모음집")
+                        .itemCount(1)
+                        .buyer(ArtistOrderResponse.Buyer.builder()
+                                .id(202L)
+                                .nickname("artlover")
+                                .name("김아트")
+                                .build())
+                        .shipment(ArtistOrderResponse.Shipment.builder()
+                                .status("SHIPPED")
+                                .trackingNo("123456789012")
+                                .shippingCompany("한진택배")
+                                .build())
+                        .permissions(ArtistOrderResponse.Permissions.builder()
+                                .canChangeStatus(false)
+                                .canCancel(false)
+                                .build())
+                        .build()
+        );
+
+        ArtistOrderResponse.List mockResponse = ArtistOrderResponse.List.builder()
+                .summary(summary)
+                .content(content)
+                .page(0)
+                .size(20)
+                .totalElements(156)
+                .totalPages(8)
+                .hasNext(true)
+                .hasPrevious(false)
+                .build();
+
+        given(artistDashboardService.getOrders(
+                anyString(), anyInt(), anyInt(), any(), any(), any(), any(), anyString(), anyString()))
+                .willReturn(mockResponse);
+
+        // When
+        ResponseEntity<RsData<ArtistOrderResponse.List>> response =
+                artistDashboardController.getOrders(BEARER_TOKEN, 0, 20, null, null, null, null, "orderDate", "DESC");
+
+        // Then
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(response.getBody()).isNotNull();
+
+        RsData<ArtistOrderResponse.List> body = response.getBody();
+        ArtistOrderResponse.Order firstOrder = body.data().getContent().get(0);
+
+        assertAll(
+                () -> assertThat(body.resultCode()).isEqualTo("200-OK"),
+                () -> assertThat(body.msg()).isEqualTo("주문 목록 조회 성공"),
+                () -> assertThat(body.data()).isNotNull(),
+                // 요약 정보 검증
+                () -> assertThat(body.data().getSummary().getTotal()).isEqualTo(156),
+                () -> assertThat(body.data().getSummary().getPending()).isEqualTo(8),
+                () -> assertThat(body.data().getSummary().getDelivered()).isEqualTo(136),
+                // 주문 내역 검증
+                () -> assertThat(body.data().getContent()).hasSize(2),
+                () -> assertThat(firstOrder.getOrderNumber()).isEqualTo("0123157"),
+                () -> assertThat(firstOrder.getStatus()).isEqualTo("PENDING"),
+                () -> assertThat(firstOrder.getTotalAmount()).isEqualTo(47500),
+                () -> assertThat(firstOrder.getBuyer().getNickname()).isEqualTo("heroeson02"),
+                () -> assertThat(firstOrder.getPermissions().isCanChangeStatus()).isTrue(),
+                // 페이징 정보 검증
+                () -> assertThat(body.data().getPage()).isEqualTo(0),
+                () -> assertThat(body.data().getSize()).isEqualTo(20),
+                () -> assertThat(body.data().getTotalElements()).isEqualTo(156),
+                () -> assertThat(body.data().isHasNext()).isTrue()
+        );
+    }
+
+    @Test
+    @DisplayName("작가 주문 내역 조회 - 필터 파라미터 포함")
+    void getOrders_WithFilters() {
+        // Given
+        ArtistOrderResponse.List mockResponse = ArtistOrderResponse.List.builder()
+                .summary(ArtistOrderResponse.Summary.builder()
+                        .total(8).pending(8).preparing(0)
+                        .shipped(0).delivered(0).canceled(0)
+                        .build())
+                .content(Arrays.asList(
+                        ArtistOrderResponse.Order.builder()
+                                .orderId("550e84...000")
+                                .orderNumber("0123157")
+                                .status("PENDING")
+                                .totalAmount(47500)
+                                .buyer(ArtistOrderResponse.Buyer.builder()
+                                        .id(201L).nickname("heroeson02").name("손경호")
+                                        .build())
+                                .permissions(ArtistOrderResponse.Permissions.builder()
+                                        .canChangeStatus(true).canCancel(true)
+                                        .build())
+                                .build()
+                ))
+                .page(0).size(20).totalElements(8).totalPages(1)
+                .hasNext(false).hasPrevious(false)
+                .build();
+
+        given(artistDashboardService.getOrders(
+                eq(BEARER_TOKEN), eq(0), eq(20), eq("PENDING"), eq("0123157"), 
+                eq("2025-09-01"), eq("2025-09-30"), eq("orderDate"), eq("DESC")))
+                .willReturn(mockResponse);
+
+        // When
+        ResponseEntity<RsData<ArtistOrderResponse.List>> response =
+                artistDashboardController.getOrders(BEARER_TOKEN, 0, 20, "PENDING", "0123157", 
+                        "2025-09-01", "2025-09-30", "orderDate", "DESC");
+
+        // Then - 필터링된 결과 검증
+        assertAll(
+                () -> assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK),
+                () -> assertThat(response.getBody().data().getContent()).hasSize(1),
+                () -> assertThat(response.getBody().data().getContent().get(0).getStatus()).isEqualTo("PENDING"),
+                () -> assertThat(response.getBody().data().getSummary().getPending()).isEqualTo(8),
+                () -> assertThat(response.getBody().data().getSummary().getDelivered()).isEqualTo(0)
         );
     }
 }

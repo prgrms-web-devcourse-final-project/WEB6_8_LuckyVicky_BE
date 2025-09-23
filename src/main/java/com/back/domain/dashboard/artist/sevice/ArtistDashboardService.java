@@ -4,6 +4,7 @@ import com.back.domain.dashboard.artist.dto.response.ArtistMainResponse;
 import com.back.domain.dashboard.artist.dto.response.ArtistProductResponse;
 import com.back.domain.dashboard.artist.dto.response.ArtistCashResponse;
 import com.back.domain.dashboard.artist.dto.response.ArtistCashHistoryResponse;
+import com.back.domain.dashboard.artist.dto.response.ArtistOrderResponse;
 
 /**
  * 작가용 대시보드 서비스 인터페이스
@@ -34,4 +35,11 @@ public interface ArtistDashboardService {
     ArtistCashHistoryResponse.List getCashHistory(String authorization, int page, int size, 
                                                  String type, String status, String dateFrom, 
                                                  String dateTo, String sort, String order);
+
+    /**
+     * 작가 주문 내역 조회
+     */
+    ArtistOrderResponse.List getOrders(String authorization, int page, int size, 
+                                      String status, String keyword, String startDate, 
+                                      String endDate, String sort, String order);
 }
