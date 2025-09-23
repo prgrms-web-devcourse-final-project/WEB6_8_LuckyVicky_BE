@@ -17,7 +17,7 @@ import static org.junit.jupiter.api.Assertions.assertAll;
  * DashboardServiceImpl 테스트
  * 
  * Service 레이어의 비즈니스 로직을 테스트
- *2025.09.22 수정
+ *2025.09.23 수정
  */
 @ExtendWith(MockitoExtension.class)
 @DisplayName("대시보드 서비스 구현체 테스트")
@@ -179,21 +179,31 @@ class DashboardServiceImplTest {
         void getOrders_Success() {
             // Given
             int page = 0, size = 10;
-            String status = "PENDING", period = "MONTH", sort = "orderDate", order = "DESC";
+            String status = "PENDING", aftersalesStatus = null, from = null, to = null;
+            String period = "MONTH", sort = "orderDate", order = "DESC";
 
             // When
             OrderResponse.List result = dashboardService.getOrders(
-                    TEST_AUTHORIZATION, page, size, status, period, sort, order);
+                    TEST_AUTHORIZATION, page, size, status, aftersalesStatus, from, to, period, sort, order);
 
             // Then
             assertAll(
                     () -> assertThat(result).isNotNull(),
                     () -> assertThat(result.getSummary()).isNotNull(),
                     () -> assertThat(result.getContent()).isNotNull(),
+                    () -> assertThat(result.getTimezone()).isEqualTo("Asia/Seoul"),
+                    () -> assertThat(result.getPeriod()).isNotNull(),
+                    () -> assertThat(result.getPeriod().getType()).isEqualTo("MONTH"),
                     () -> assertThat(result.getSummary().getTotalOrders()).isEqualTo(42),
                     () -> assertThat(result.getSummary().getPending()).isEqualTo(3),
-                    () -> assertThat(result.getContent()).hasSize(1),
+                    () -> assertThat(result.getSummary().getConfirmed()).isEqualTo(2),
+                    () -> assertThat(result.getSummary().getCancelRequested()).isEqualTo(2),
+                    () -> assertThat(result.getSummary().getExchangeRequested()).isEqualTo(1),
+                    () -> assertThat(result.getContent()).hasSize(3),
                     () -> assertThat(result.getContent().get(0).getOrderId()).isNotNull(),
+                    () -> assertThat(result.getContent().get(0).getAftersales()).isNotNull(),
+                    () -> assertThat(result.getContent().get(0).getAftersales().getCancel()).isNotNull(),
+                    () -> assertThat(result.getContent().get(0).getAftersales().getCancel().getStatus()).isEqualTo("REQUESTED"),
                     () -> assertThat(result.getContent().get(0).getRepresentativeItem()).isNotNull(),
                     () -> assertThat(result.getContent().get(0).getItems()).isNotNull(),
                     () -> assertThat(result.getContent().get(0).getItems()).hasSize(2)

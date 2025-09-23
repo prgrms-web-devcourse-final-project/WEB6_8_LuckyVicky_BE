@@ -1,6 +1,7 @@
 package com.back.domain.cart.repository;
 
 import com.back.domain.cart.entity.Cart;
+import com.back.domain.product.product.entity.Product;
 import com.back.domain.user.entity.User;
 import com.back.domain.product.product.entity.Product;
 import org.springframework.data.jpa.repository.JpaRepository;
