@@ -2,6 +2,7 @@ package com.back.domain.dashboard.artist.service;
 
 import com.back.domain.dashboard.artist.dto.response.ArtistMainResponse;
 import com.back.domain.dashboard.artist.dto.response.ArtistProductResponse;
+import com.back.domain.dashboard.artist.dto.response.ArtistCashResponse;
 
 /**
  * 작가용 대시보드 서비스 인터페이스
@@ -19,4 +20,9 @@ public interface ArtistDashboardService {
      */
     ArtistProductResponse.List getProducts(String authorization, int page, int size, String keyword,
                                            Boolean selling, String sort, String order);
+    
+    /**
+     * 작가 지갑 잔액 조회
+     */
+    ArtistCashResponse.Balance getCashBalance(String authorization);
 }

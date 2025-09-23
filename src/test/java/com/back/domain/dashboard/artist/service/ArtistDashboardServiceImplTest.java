@@ -2,6 +2,7 @@ package com.back.domain.dashboard.artist.service;
 
 import com.back.domain.dashboard.artist.dto.response.ArtistMainResponse;
 import com.back.domain.dashboard.artist.dto.response.ArtistProductResponse;
+import com.back.domain.dashboard.artist.dto.response.ArtistCashResponse;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -17,7 +18,7 @@ import static org.junit.jupiter.api.Assertions.assertAll;
 /**
  * ArtistDashboardServiceImpl 테스트
  * 
- * 작가용 대시보드 Service 레이어의 비즈니스 로직을 테스트합니다.
+ * 작가용 대시보드 Service 레이어의 비즈니스 로직을 테스트
  * 2025.09.22
  */
 @ExtendWith(MockitoExtension.class)
@@ -187,6 +188,30 @@ class ArtistDashboardServiceImplTest {
                     () -> assertThat(result.getContent()).hasSize(3),
                     () -> assertThat(result.getPage()).isEqualTo(0),
                     () -> assertThat(result.getTotalElements()).isEqualTo(28)
+            );
+        }
+    }
+    
+    @Nested
+    @DisplayName("작가 지갑 잔액 조회 테스트")
+    class GetCashBalanceTest {
+
+        @Test
+        @DisplayName("지갑 잔액 조회 성공")
+        void getCashBalance_Success() {
+            // Given
+            // When
+            ArtistCashResponse.Balance result = artistDashboardService.getCashBalance(TEST_AUTHORIZATION);
+
+            // Then
+            assertAll(
+                    () -> assertThat(result).isNotNull(),
+                    () -> assertThat(result.getCurrentBalance()).isEqualTo(72000),
+                    () -> assertThat(result.getPendingSettlement()).isEqualTo(15000),
+                    () -> assertThat(result.getPendingWithdrawal()).isEqualTo(0),
+                    () -> assertThat(result.getWithdrawable()).isEqualTo(72000),
+                    () -> assertThat(result.getCurrency()).isEqualTo("KRW"),
+                    () -> assertThat(result.getUpdatedAt()).isEqualTo(LocalDateTime.of(2025, 9, 24, 10, 0))
             );
         }
     }

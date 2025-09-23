@@ -2,6 +2,7 @@ package com.back.domain.dashboard.artist.controller;
 
 import com.back.domain.dashboard.artist.dto.response.ArtistMainResponse;
 import com.back.domain.dashboard.artist.dto.response.ArtistProductResponse;
+import com.back.domain.dashboard.artist.dto.response.ArtistCashResponse;
 import com.back.domain.dashboard.artist.service.ArtistDashboardService;
 import com.back.global.rsData.RsData;
 import io.swagger.v3.oas.annotations.Operation;
@@ -83,8 +84,8 @@ public class ArtistDashboardController {
     
     /**
      * 작가 상품 목록 조회
-     * 작가가 등록한 상품들의 목록을 페이지 단위로 조회합니다.
-     * 상품명/번호 검색, 판매 상태 필터링, 다양한 정렬 기준을 지원합니다.
+     * 작가가 등록한 상품들의 목록을 페이지 단위로 조회
+     * 상품명/번호 검색, 판매 상태 필터링, 다양한 정렬 기준을 지원
      * 
      * @param authorization Bearer 토큰 (필수)
      * @param page 페이지 번호 (0부터 시작, 기본값: 0)
@@ -125,6 +126,30 @@ public class ArtistDashboardController {
         return ResponseEntity.ok(RsData.of(
                 "200-OK",
                 "내 상품 목록 조회 성공",
+                response
+        ));
+    }
+    
+    /**
+     * 작가 지갑 잔액 조회
+     * 작가의 현재 지갑 잔액과 관련 정보를 조회
+     * 현재 잔액, 정산 대기 금액, 환전 처리 중인 금액, 환전 가능 금액을 포함
+     * 
+     * @param authorization Bearer 토큰 (필수)
+     * @return 작가 지갑 잔액 정보
+     * 
+     * @throws SecurityException 인증 토큰이 유효하지 않은 경우
+     */
+    @GetMapping("/cash")
+    @Operation(summary = "작가 지갑 잔액 조회", description = "작가의 현재 지갑 잔액과 관련 정보를 조회합니다")
+    public ResponseEntity<RsData<ArtistCashResponse.Balance>> getCashBalance(
+            @RequestHeader("Authorization") String authorization) {
+        
+        ArtistCashResponse.Balance response = artistDashboardService.getCashBalance(authorization);
+        
+        return ResponseEntity.ok(RsData.of(
+                "200-OK",
+                "작가지갑 요약 조회 성공",
                 response
         ));
     }

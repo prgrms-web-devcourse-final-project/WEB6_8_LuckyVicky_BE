@@ -2,6 +2,7 @@ package com.back.domain.dashboard.artist.service;
 
 import com.back.domain.dashboard.artist.dto.response.ArtistMainResponse;
 import com.back.domain.dashboard.artist.dto.response.ArtistProductResponse;
+import com.back.domain.dashboard.artist.dto.response.ArtistCashResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -197,5 +198,20 @@ public class ArtistDashboardServiceImpl implements ArtistDashboardService {
         );
         
         return new ArtistProductResponse.List(content, page, 10, 28, 3, true, false);
+    }
+    
+    @Override
+    public ArtistCashResponse.Balance getCashBalance(String authorization) {
+        // TODO: JWT 토큰에서 작가 정보 추출
+        // TODO: 실제 데이터베이스에서 지갑 잔액 정보 조회
+        
+        return ArtistCashResponse.Balance.builder()
+                .currentBalance(72000)
+                .pendingSettlement(15000)
+                .pendingWithdrawal(0)
+                .withdrawable(72000)
+                .currency("KRW")
+                .updatedAt(LocalDateTime.of(2025, 9, 24, 10, 0))
+                .build();
     }
 }
