@@ -26,7 +26,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 /**
  * DashboardController 테스트
- * 2025.09.20 수정
+ * 2025.09.23 수정
  */
 @ExtendWith(MockitoExtension.class)
 @DisplayName("대시보드 컨트롤러 테스트")
@@ -138,7 +138,7 @@ class DashboardControllerTest {
         OrderResponse.List mockResponse = createMockOrderList();
 
         given(dashboardService.getOrders(
-                anyString(), anyInt(), anyInt(), any(), anyString(), anyString(), anyString()))
+                anyString(), anyInt(), anyInt(), any(), any(), any(), any(), anyString(), anyString(), anyString()))
                 .willReturn(mockResponse);
 
         // When & Then
@@ -147,15 +147,22 @@ class DashboardControllerTest {
                         .param("page", "0")
                         .param("size", "10")
                         .param("status", "PENDING")
+                        .param("aftersalesStatus", "CANCEL_REQUESTED")
+                        .param("from", "2025-09-01")
+                        .param("to", "2025-09-30")
                         .param("period", "MONTH"))
                 .andDo(print())
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.summary.totalOrders").value(42))
+                .andExpect(jsonPath("$.data.summary.confirmed").value(2))
+                .andExpect(jsonPath("$.data.summary.cancelRequested").value(2))
+                .andExpect(jsonPath("$.data.summary.exchangeRequested").value(1))
                 .andExpect(jsonPath("$.data.content").isArray())
                 .andExpect(jsonPath("$.data.content[0].orderId").exists())
                 .andExpect(jsonPath("$.data.content[0].orderNumber").exists())
-                .andExpect(jsonPath("$.data.content[0].representativeItem").exists())
-                .andExpect(jsonPath("$.data.content[0].items").isArray());
+                .andExpect(jsonPath("$.data.content[0].aftersales").exists())
+                .andExpect(jsonPath("$.data.timezone").value("Asia/Seoul"))
+                .andExpect(jsonPath("$.data.period.type").value("MONTH"));
     }
 
     // Mock 데이터 생성 헬퍼 메서드들
@@ -189,19 +196,26 @@ class DashboardControllerTest {
         OrderResponse.SummaryDto summary = OrderResponse.SummaryDto.builder()
                 .totalOrders(42)
                 .pending(3)
+                .confirmed(2)
                 .preparing(5)
                 .shipped(12)
                 .delivered(20)
                 .canceled(2)
+                .cancelRequested(2)
+                .cancelProcessing(1)
+                .cancelCompleted(1)
+                .exchangeRequested(1)
+                .exchangeProcessing(0)
+                .exchangeCompleted(3)
                 .build();
 
         List<OrderResponse.Summary> content = List.of(
                 OrderResponse.Summary.builder()
                         .orderId("test-order-123")
                         .orderNumber("ORD001")
-                        .orderDate("2025-09-20")
+                        .orderDate("2025-09-20T11:20:00+09:00")
                         .status("PENDING")
-                        .statusText("결제완료")
+                        .statusText("발주 전")
                         .totalAmount(47500)
                         .itemCount(2)
                         .representativeItem(OrderResponse.Product.builder()
@@ -214,6 +228,14 @@ class DashboardControllerTest {
                         .shipping(OrderResponse.Shipping.builder()
                                 .addressShort("서울시 강남구...")
                                 .recipient("테스트고객")
+                                .build())
+                        .aftersales(OrderResponse.Aftersales.builder()
+                                .cancel(OrderResponse.AftersalesItem.builder()
+                                        .status("REQUESTED")
+                                        .statusText("취소 요청 중")
+                                        .requestId(901L)
+                                        .build())
+                                .exchange(null)
                                 .build())
                         .permissions(OrderResponse.Permission.builder()
                                 .canCancel(true)
@@ -236,6 +258,12 @@ class DashboardControllerTest {
                         .build()
         );
 
-        return new OrderResponse.List(summary, content, 0, 10, 42, 5, true, false);
+        OrderResponse.PeriodInfo periodInfo = OrderResponse.PeriodInfo.builder()
+                .type("MONTH")
+                .from("2025-09-01")
+                .to("2025-09-30")
+                .build();
+
+        return new OrderResponse.List(summary, content, 0, 10, 42, 5, true, false, "Asia/Seoul", periodInfo);
     }
 }

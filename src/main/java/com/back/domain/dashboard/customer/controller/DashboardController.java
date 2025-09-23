@@ -29,7 +29,7 @@ import java.util.NoSuchElementException;
  *   <li>찜한 상품 목록 조회</li>
  *   <li>참여한 펀딩 목록 조회</li>
  * </ul>
- *  2025.09.22 수정
+ *  2025.09.23 수정
  */
 @RestController
 @RequestMapping("/api/dashboard")
@@ -90,7 +90,7 @@ public class DashboardController {
             @RequestParam(defaultValue = "0") 
             @Min(value = 0, message = "페이지는 0 이상이어야 합니다") 
             int page,
-            @RequestParam(defaultValue = "8") 
+            @RequestParam(defaultValue = "10") 
             @Min(value = 1, message = "페이지 크기는 1 이상이어야 합니다")
             @Max(value = 100, message = "페이지 크기는 100 이하여야 합니다")
             int size,
@@ -154,12 +154,15 @@ public class DashboardController {
     /**
      * 주문 목록 조회
      * 사용자의 주문 내역을 페이지 단위로 조회
-     * 주문 상태별 필터링과 기간별 검색이 가능합니다.
+     * 주문 상태별, A/S 상태별 필터링과 기간별 검색이 가능합니다.
      * 
      * @param authorization Bearer 토큰 (필수)
      * @param page 페이지 번호 (0부터 시작, 기본값: 0)
-     * @param size 페이지 크기 (1-100, 기본값: 8)
-     * @param status 주문 상태 필터 (PENDING, PREPARING, SHIPPED, DELIVERED, CANCELED 중 선택)
+     * @param size 페이지 크기 (1-100, 기본값: 10)
+     * @param status 주문 상태 필터 (PENDING, CONFIRMED, PREPARING, SHIPPED, DELIVERED, CANCELED 중 선택)
+     * @param aftersalesStatus A/S 상태 필터 (CANCEL_REQUESTED, CANCEL_PROCESSING, CANCEL_COMPLETED, EXCHANGE_REQUESTED, EXCHANGE_PROCESSING, EXCHANGE_COMPLETED 중 선택)
+     * @param from 시작 날짜 (yyyy-MM-dd 형식, 선택사항)
+     * @param to 종료 날짜 (yyyy-MM-dd 형식, 선택사항)
      * @param period 기간 필터 (TODAY, WEEK, MONTH, QUARTER, YEAR, CUSTOM 중 선택)
      * @param sort 정렬 기준 (orderDate, orderNumber, status, totalAmount 중 선택)
      * @param order 정렬 방향 (ASC, DESC 중 선택)
@@ -175,14 +178,24 @@ public class DashboardController {
             @RequestParam(defaultValue = "0") 
             @Min(value = 0, message = "페이지는 0 이상이어야 합니다") 
             int page,
-            @RequestParam(defaultValue = "8") 
+            @RequestParam(defaultValue = "10") 
             @Min(value = 1, message = "페이지 크기는 1 이상이어야 합니다")
             @Max(value = 100, message = "페이지 크기는 100 이하여야 합니다")
             int size,
             @RequestParam(required = false) 
-            @Pattern(regexp = "^(PENDING|PREPARING|SHIPPED|DELIVERED|CANCELED)$", 
-                    message = "status는 PENDING, PREPARING, SHIPPED, DELIVERED, CANCELED 중 하나여야 합니다")
+            @Pattern(regexp = "^(PENDING|CONFIRMED|PREPARING|SHIPPED|DELIVERED|CANCELED)$", 
+                    message = "status는 PENDING, CONFIRMED, PREPARING, SHIPPED, DELIVERED, CANCELED 중 하나여야 합니다")
             String status,
+            @RequestParam(required = false) 
+            @Pattern(regexp = "^(CANCEL_REQUESTED|CANCEL_PROCESSING|CANCEL_COMPLETED|EXCHANGE_REQUESTED|EXCHANGE_PROCESSING|EXCHANGE_COMPLETED)$", 
+                    message = "aftersalesStatus는 CANCEL_REQUESTED, CANCEL_PROCESSING, CANCEL_COMPLETED, EXCHANGE_REQUESTED, EXCHANGE_PROCESSING, EXCHANGE_COMPLETED 중 하나여야 합니다")
+            String aftersalesStatus,
+            @RequestParam(required = false) 
+            @Pattern(regexp = "^\\d{4}-\\d{2}-\\d{2}$", message = "날짜는 yyyy-MM-dd 형식이어야 합니다")
+            String from,
+            @RequestParam(required = false) 
+            @Pattern(regexp = "^\\d{4}-\\d{2}-\\d{2}$", message = "날짜는 yyyy-MM-dd 형식이어야 합니다")
+            String to,
             @RequestParam(defaultValue = "MONTH") 
             @Pattern(regexp = "^(TODAY|WEEK|MONTH|QUARTER|YEAR|CUSTOM)$", 
                     message = "period는 TODAY, WEEK, MONTH, QUARTER, YEAR, CUSTOM 중 하나여야 합니다")
@@ -196,7 +209,7 @@ public class DashboardController {
             String order) {
         
         OrderResponse.List response = dashboardService.getOrders(
-                authorization, page, size, status, period, sort, order);
+                authorization, page, size, status, aftersalesStatus, from, to, period, sort, order);
         
         return ResponseEntity.ok(RsData.of(
                 "200-OK",
@@ -230,7 +243,7 @@ public class DashboardController {
             @RequestParam(defaultValue = "0") 
             @Min(value = 0, message = "페이지는 0 이상이어야 합니다") 
             int page,
-            @RequestParam(defaultValue = "8") 
+            @RequestParam(defaultValue = "10") 
             @Min(value = 1, message = "페이지 크기는 1 이상이어야 합니다")
             @Max(value = 100, message = "페이지 크기는 100 이하여야 합니다")
             int size,
@@ -281,7 +294,7 @@ public class DashboardController {
             @RequestParam(defaultValue = "0") 
             @Min(value = 0, message = "페이지는 0 이상이어야 합니다") 
             int page,
-            @RequestParam(defaultValue = "8") 
+            @RequestParam(defaultValue = "10") 
             @Min(value = 1, message = "페이지 크기는 1 이상이어야 합니다")
             @Max(value = 100, message = "페이지 크기는 100 이하여야 합니다")
             int size,
@@ -332,7 +345,7 @@ public class DashboardController {
             @RequestParam(defaultValue = "0") 
             @Min(value = 0, message = "페이지는 0 이상이어야 합니다") 
             int page,
-            @RequestParam(defaultValue = "8") 
+            @RequestParam(defaultValue = "10") 
             @Min(value = 1, message = "페이지 크기는 1 이상이어야 합니다")
             @Max(value = 100, message = "페이지 크기는 100 이하여야 합니다")
             int size,
