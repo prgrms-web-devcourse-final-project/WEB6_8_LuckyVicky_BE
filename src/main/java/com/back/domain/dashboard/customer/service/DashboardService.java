@@ -4,7 +4,7 @@ import com.back.domain.dashboard.customer.dto.response.*;
 
 /**
  * 고객용 대시보드 서비스 인터페이스
- *2025.09.22 수정
+ *2025.09.23 수정
  */
 public interface DashboardService {
     
@@ -29,7 +29,7 @@ public interface DashboardService {
      * 주문 목록 조회
      */
     OrderResponse.List getOrders(String authorization, int page, int size, String status,
-                                 String period, String sort, String order);
+                                 String aftersalesStatus, String from, String to, String period, String sort, String order);
     
     /**
      * 내가 팔로우한 작가 목록 조회

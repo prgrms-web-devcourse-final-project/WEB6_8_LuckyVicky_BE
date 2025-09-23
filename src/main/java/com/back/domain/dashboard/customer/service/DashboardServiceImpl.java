@@ -11,7 +11,7 @@ import java.util.List;
 
 /**
  * 고객용 대시보드 서비스 구현체
- *2025.09.22 수정
+ *2025.09.23 수정
  */
 @Service
 @RequiredArgsConstructor
@@ -113,27 +113,174 @@ public class DashboardServiceImpl implements DashboardService {
     
     @Override
     public OrderResponse.List getOrders(String authorization, int page, int size, String status,
-                                        String period, String sort, String order) {
-        // TODO: 실제 데이터베이스 조회 로직 구현
+                                        String aftersalesStatus, String from, String to, String period, String sort, String order) {
+        // TODO: 실제 주문 데이터 조회 로직 구현
+        // 실제로는 orderService.getOrdersByUser() 같은 메서드 호출하여 데이터 조회
+        // 그 후 매핑 로직을 통해 API 응답 형태로 변환
         
-        OrderResponse.SummaryDto summary = 
-                new OrderResponse.SummaryDto(42, 3, 5, 12, 20, 2);
+        // 주문 현황 요약 정보 (API 문서에 맞춘 상태별 카운트)
+        OrderResponse.SummaryDto summary = OrderResponse.SummaryDto.builder()
+                .totalOrders(42)
+                .pending(3)          // API의 PENDING 상태 (결제완료/발주전)
+                .confirmed(2)        // API의 CONFIRMED 상태 (발주확인)  
+                .preparing(5)        // API의 PREPARING 상태 (배송준비중)
+                .shipped(12)         // API의 SHIPPED 상태 (배송중)
+                .delivered(20)       // API의 DELIVERED 상태 (배송완료)
+                .canceled(2)         // API의 CANCELED 상태 (취소됨)
+                .cancelRequested(2)  // A/S: 취소 요청
+                .cancelProcessing(1) // A/S: 취소 처리중
+                .cancelCompleted(1)  // A/S: 취소 완료
+                .exchangeRequested(1)  // A/S: 교환 요청
+                .exchangeProcessing(0) // A/S: 교환 처리중
+                .exchangeCompleted(3)  // A/S: 교환 완료
+                .build();
         
+        // API 문서에 맞는 주문 목록 (A/S 정보 포함)
         List<OrderResponse.Summary> content = List.of(
-                new OrderResponse.Summary(
-                        "550e8400-e29b-41d4-a716-446655440000", "0123157", "2025-09-18",
-                        "PENDING", "발주 전", 47500, 2,
-                        new OrderResponse.Product(101L, "상품명입니다 상품명입니다", 1, 12500, "https://example.com/product101.jpg"),
-                        new OrderResponse.Shipping("서울시 강남구 …", "홍길동"),
-                        new OrderResponse.Permission(true, false, false),
-                        new OrderResponse.Link("/orders/0123157"),
-                        Arrays.asList(
-                                new OrderResponse.OrderItem(1L, 101L, "상품명입니다 상품명입니다", 1, 12500, "https://example.com/product101.jpg"),
-                                new OrderResponse.OrderItem(2L, 102L, "다른 상품명", 1, 35000, "https://example.com/product102.jpg")
+                OrderResponse.Summary.builder()
+                        .orderId("550e8400-e29b-41d4-a716-446655440000")
+                        .orderNumber("0123157")
+                        .orderDate("2025-09-18T11:20:00+09:00")
+                        .status("PENDING")      // API 응답용 상태
+                        .statusText("발주 전")
+                        .totalAmount(47500)
+                        .itemCount(2)
+                        .representativeItem(OrderResponse.Product.builder()
+                                .productId(101L)
+                                .productName("상품명입니다 상품명입니다")
+                                .quantity(1)
+                                .price(12500)
+                                .imageUrl("https://example.com/product101.jpg")
+                                .build())
+                        .shipping(OrderResponse.Shipping.builder()
+                                .addressShort("서울시 강남구 …")
+                                .recipient("홍길동")
+                                .build())
+                        .aftersales(OrderResponse.Aftersales.builder()
+                                .cancel(OrderResponse.AftersalesItem.builder()
+                                        .status("REQUESTED")
+                                        .statusText("취소 요청 중")
+                                        .requestId(901L)
+                                        .build())
+                                .exchange(null)
+                                .build())
+                        .permissions(OrderResponse.Permission.builder()
+                                .canCancel(true)
+                                .canReturn(false)
+                                .canExchange(false)
+                                .build())
+                        .links(OrderResponse.Link.builder()
+                                .detail("/orders/0123157")
+                                .build())
+                        .items(Arrays.asList(
+                                OrderResponse.OrderItem.builder()
+                                        .orderItemId(1L)
+                                        .productId(101L)
+                                        .productName("상품명입니다 상품명입니다")
+                                        .quantity(1)
+                                        .price(12500)
+                                        .imageUrl("https://example.com/product101.jpg")
+                                        .build(),
+                                OrderResponse.OrderItem.builder()
+                                        .orderItemId(2L)
+                                        .productId(102L)
+                                        .productName("다른 상품명")
+                                        .quantity(1)
+                                        .price(35000)
+                                        .imageUrl("https://example.com/product102.jpg")
+                                        .build()
                         ))
+                        .build(),
+                OrderResponse.Summary.builder()
+                        .orderId("550e8400-e29b-41d4-a716-446655440001")
+                        .orderNumber("0123156")
+                        .orderDate("2025-09-18T10:05:00+09:00")
+                        .status("PREPARING")    // API 응답용 상태
+                        .statusText("배송 준비중")
+                        .totalAmount(32000)
+                        .itemCount(1)
+                        .representativeItem(OrderResponse.Product.builder()
+                                .productId(103L)
+                                .productName("상품명입니다 상품명입니다")
+                                .quantity(1)
+                                .price(32000)
+                                .imageUrl("https://example.com/product103.jpg")
+                                .build())
+                        .shipping(OrderResponse.Shipping.builder()
+                                .addressShort("서울시 서초구 …")
+                                .recipient("손경호")
+                                .build())
+                        .aftersales(OrderResponse.Aftersales.builder()
+                                .cancel(null)
+                                .exchange(OrderResponse.AftersalesItem.builder()
+                                        .status("PROCESSING")
+                                        .statusText("교환 처리 중")
+                                        .requestId(902L)
+                                        .build())
+                                .build())
+                        .permissions(OrderResponse.Permission.builder()
+                                .canCancel(true)
+                                .canReturn(false)
+                                .canExchange(false)
+                                .build())
+                        .links(OrderResponse.Link.builder()
+                                .detail("/orders/0123156")
+                                .build())
+                        .items(null) // items는 선택적
+                        .build(),
+                OrderResponse.Summary.builder()
+                        .orderId("550e8400-e29b-41d4-a716-446655440002")
+                        .orderNumber("0123155")
+                        .orderDate("2025-09-18T09:40:00+09:00")
+                        .status("SHIPPED")      // API 응답용 상태
+                        .statusText("배송중")
+                        .totalAmount(28500)
+                        .itemCount(1)
+                        .representativeItem(OrderResponse.Product.builder()
+                                .productId(104L)
+                                .productName("상품명입니다 상품명입니다")
+                                .quantity(1)
+                                .price(28500)
+                                .imageUrl("https://example.com/product104.jpg")
+                                .build())
+                        .shipping(OrderResponse.Shipping.builder()
+                                .addressShort("부산시 해운대구 …")
+                                .recipient("이영희")
+                                .build())
+                        .aftersales(OrderResponse.Aftersales.builder()
+                                .cancel(OrderResponse.AftersalesItem.builder()
+                                        .status("COMPLETED")
+                                        .statusText("취소 완료")
+                                        .requestId(903L)
+                                        .build())
+                                .exchange(OrderResponse.AftersalesItem.builder()
+                                        .status("COMPLETED")
+                                        .statusText("교환 완료")
+                                        .requestId(904L)
+                                        .build())
+                                .build())
+                        .permissions(OrderResponse.Permission.builder()
+                                .canCancel(false)
+                                .canReturn(true)
+                                .canExchange(true)
+                                .build())
+                        .links(OrderResponse.Link.builder()
+                                .detail("/orders/0123155")
+                                .build())
+                        .items(null) // items는 선택적
+                        .build()
         );
         
-        return new OrderResponse.List(summary, content, page, 10, 42, 5, true, false);
+        // 기간 정보 (API 문서에 맞춘 구조)
+        OrderResponse.PeriodInfo periodInfo = OrderResponse.PeriodInfo.builder()
+                .type("MONTH")
+                .from("2025-09-01")
+                .to("2025-09-30")
+                .build();
+        
+        return new OrderResponse.List(
+                summary, content, page, 10, 42, 5, true, false, 
+                "Asia/Seoul", periodInfo);
     }
     
     @Override
