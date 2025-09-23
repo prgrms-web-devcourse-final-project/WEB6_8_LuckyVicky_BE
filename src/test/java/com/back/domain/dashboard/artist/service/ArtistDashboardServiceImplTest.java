@@ -3,6 +3,7 @@ package com.back.domain.dashboard.artist.service;
 import com.back.domain.dashboard.artist.dto.response.ArtistCashResponse;
 import com.back.domain.dashboard.artist.dto.response.ArtistMainResponse;
 import com.back.domain.dashboard.artist.dto.response.ArtistProductResponse;
+import com.back.domain.dashboard.artist.dto.response.ArtistCashHistoryResponse;
 import com.back.domain.dashboard.artist.sevice.ArtistDashboardServiceImpl;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -128,6 +129,58 @@ class ArtistDashboardServiceImplTest {
                 () -> assertThat(result.getTrends()).isNotNull(),
                 () -> assertThat(result.getNotifications()).isNotNull(),
                 () -> assertThat(result.getTimezone()).isEqualTo("Asia/Seoul")
+        );
+    }
+
+    @Test
+    @DisplayName("캐시 내역 조회 - 거래 데이터와 통계 일관성 검증")
+    void getCashHistory_ReturnsConsistentTransactionData() {
+        // When
+        ArtistCashHistoryResponse.List result = artistDashboardService.getCashHistory(
+                TEST_AUTHORIZATION, 0, 20, null, null, null, null, "transactedAt", "DESC");
+
+        // Then - 거래 데이터와 통계 일관성 검증
+        assertAll(
+                () -> assertThat(result).isNotNull(),
+                () -> assertThat(result.getSummary()).isNotNull(),
+                () -> assertThat(result.getContent()).isNotNull(),
+                // 요약 정보 검증
+                () -> assertThat(result.getSummary().getPeriodDepositTotal()).isEqualTo(74000),
+                () -> assertThat(result.getSummary().getPeriodWithdrawalTotal()).isEqualTo(64000),
+                () -> assertThat(result.getSummary().getPeriodNet()).isEqualTo(10000),
+                // 비즈니스 규칙 - 순 증감은 입금 - 환전
+                () -> assertThat(result.getSummary().getPeriodNet()).isEqualTo(
+                        result.getSummary().getPeriodDepositTotal() - result.getSummary().getPeriodWithdrawalTotal()),
+                // 거래 내역 검증
+                () -> assertThat(result.getContent()).hasSize(3),
+                () -> assertThat(result.getContent().get(0).getTxId()).isNotBlank(),
+                () -> assertThat(result.getContent().get(0).getTransactedAt()).isNotBlank(),
+                () -> assertThat(result.getContent().get(0).getBalanceAfter()).isNotNegative(),
+                // 페이징 정보 검증
+                () -> assertThat(result.getPage()).isNotNegative(),
+                () -> assertThat(result.getSize()).isPositive(),
+                () -> assertThat(result.getTotalElements()).isEqualTo(3),
+                () -> assertThat(result.getTotalPages()).isEqualTo(1)
+        );
+    }
+
+    @Test
+    @DisplayName("캐시 내역 조회 - 거래 유형별 필터링")
+    void getCashHistory_WithTypeFilter() {
+        // When - DEPOSIT 타입만 조회
+        ArtistCashHistoryResponse.List result = artistDashboardService.getCashHistory(
+                TEST_AUTHORIZATION, 0, 20, "DEPOSIT", null, null, null, "transactedAt", "DESC");
+
+        // Then - 필터링 결과 검증
+        assertAll(
+                () -> assertThat(result).isNotNull(),
+                () -> assertThat(result.getContent()).isNotNull(),
+                // 거래 데이터 일관성 (입금 거래 포함되어 있는지 확인)
+                () -> assertThat(result.getContent().stream()
+                        .anyMatch(tx -> "DEPOSIT".equals(tx.getType()))).isTrue(),
+                () -> assertThat(result.getContent().stream()
+                        .filter(tx -> "DEPOSIT".equals(tx.getType()))
+                        .allMatch(tx -> tx.getDepositAmount() > 0 && tx.getWithdrawalAmount() == 0)).isTrue()
         );
     }
 }

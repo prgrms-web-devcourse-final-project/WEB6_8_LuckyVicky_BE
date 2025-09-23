@@ -3,6 +3,7 @@ package com.back.domain.dashboard.artist.sevice;
 import com.back.domain.dashboard.artist.dto.response.ArtistCashResponse;
 import com.back.domain.dashboard.artist.dto.response.ArtistMainResponse;
 import com.back.domain.dashboard.artist.dto.response.ArtistProductResponse;
+import com.back.domain.dashboard.artist.dto.response.ArtistCashHistoryResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -212,6 +213,75 @@ public class ArtistDashboardServiceImpl implements ArtistDashboardService {
                 .withdrawable(72000)
                 .currency("KRW")
                 .updatedAt(LocalDateTime.of(2025, 9, 24, 10, 0))
+                .build();
+    }
+
+    @Override
+    public ArtistCashHistoryResponse.List getCashHistory(String authorization, int page, int size,
+                                                        String type, String status, String dateFrom,
+                                                        String dateTo, String sort, String order) {
+        // TODO: JWT 토큰에서 작가 정보 추출
+        // TODO: 실제 데이터베이스에서 캐시 거래 내역 조회
+
+        // 기간별 요약 정보
+        ArtistCashHistoryResponse.Summary summary = ArtistCashHistoryResponse.Summary.builder()
+                .periodDepositTotal(74000)
+                .periodWithdrawalTotal(64000)
+                .periodNet(10000)
+                .build();
+
+        // 거래 내역 더미 데이터
+        List<ArtistCashHistoryResponse.Transaction> content = Arrays.asList(
+                ArtistCashHistoryResponse.Transaction.builder()
+                        .txId("TX-20250924-0001")
+                        .transactedAt("2025-09-24T09:12:00+09:00")
+                        .type("DEPOSIT")
+                        .typeText("정산금 입금")
+                        .depositAmount(10000)
+                        .withdrawalAmount(0)
+                        .balanceAfter(10000)
+                        .method("WALLET")
+                        .methodText("모리캐시")
+                        .status("COMPLETED")
+                        .note(null)
+                        .build(),
+                ArtistCashHistoryResponse.Transaction.builder()
+                        .txId("TX-20250923-0004")
+                        .transactedAt("2025-09-23T16:20:00+09:00")
+                        .type("WITHDRAWAL")
+                        .typeText("모리캐시 환전")
+                        .depositAmount(0)
+                        .withdrawalAmount(64000)
+                        .balanceAfter(0)
+                        .method("BANK_TRANSFER")
+                        .methodText("계좌이체")
+                        .status("COMPLETED")
+                        .note("우리은행 ****-**-***** 홍길동")
+                        .build(),
+                ArtistCashHistoryResponse.Transaction.builder()
+                        .txId("TX-20250922-0002")
+                        .transactedAt("2025-09-22T14:30:00+09:00")
+                        .type("DEPOSIT")
+                        .typeText("정산금 입금")
+                        .depositAmount(64000)
+                        .withdrawalAmount(0)
+                        .balanceAfter(64000)
+                        .method("WALLET")
+                        .methodText("모리캐시")
+                        .status("COMPLETED")
+                        .note(null)
+                        .build()
+        );
+
+        return ArtistCashHistoryResponse.List.builder()
+                .summary(summary)
+                .content(content)
+                .page(page)
+                .size(size)
+                .totalElements(3)
+                .totalPages(1)
+                .hasNext(false)
+                .hasPrevious(false)
                 .build();
     }
 }

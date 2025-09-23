@@ -3,6 +3,7 @@ package com.back.domain.dashboard.artist.sevice;
 import com.back.domain.dashboard.artist.dto.response.ArtistMainResponse;
 import com.back.domain.dashboard.artist.dto.response.ArtistProductResponse;
 import com.back.domain.dashboard.artist.dto.response.ArtistCashResponse;
+import com.back.domain.dashboard.artist.dto.response.ArtistCashHistoryResponse;
 
 /**
  * 작가용 대시보드 서비스 인터페이스
@@ -26,4 +27,11 @@ public interface ArtistDashboardService {
      * 작가 지갑 잔액 조회
      */
     ArtistCashResponse.Balance getCashBalance(String authorization);
+
+    /**
+     * 작가 캐시 입금/환전 내역 조회
+     */
+    ArtistCashHistoryResponse.List getCashHistory(String authorization, int page, int size, 
+                                                 String type, String status, String dateFrom, 
+                                                 String dateTo, String sort, String order);
 }

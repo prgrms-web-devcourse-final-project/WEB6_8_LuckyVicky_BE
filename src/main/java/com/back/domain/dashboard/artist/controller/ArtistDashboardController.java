@@ -3,6 +3,7 @@ package com.back.domain.dashboard.artist.controller;
 import com.back.domain.dashboard.artist.dto.response.ArtistCashResponse;
 import com.back.domain.dashboard.artist.dto.response.ArtistMainResponse;
 import com.back.domain.dashboard.artist.dto.response.ArtistProductResponse;
+import com.back.domain.dashboard.artist.dto.response.ArtistCashHistoryResponse;
 import com.back.domain.dashboard.artist.sevice.ArtistDashboardService;
 import com.back.global.rsData.RsData;
 import lombok.RequiredArgsConstructor;
@@ -15,7 +16,7 @@ import org.springframework.web.bind.annotation.*;
  * 2025.09.23 생성
  */
 @RestController
-@RequestMapping("/api/v1/dashboard/artist")
+@RequestMapping("/api/dashboard/artist")
 @RequiredArgsConstructor
 @Slf4j
 public class ArtistDashboardController {
@@ -100,6 +101,39 @@ public class ArtistDashboardController {
             );
         } catch (Exception e) {
             log.error("작가 지갑 잔액 조회 실패", e);
+            return ResponseEntity.internalServerError().body(
+                    RsData.of("500-ERROR", "서버 오류가 발생했습니다.")
+            );
+        }
+    }
+
+    /**
+     * 작가 캐시 입금/환전 내역 조회
+     */
+    @GetMapping("/cash/history")
+    public ResponseEntity<RsData<ArtistCashHistoryResponse.List>> getCashHistory(
+            @RequestHeader("Authorization") String authorization,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size,
+            @RequestParam(required = false) String type,
+            @RequestParam(required = false) String status,
+            @RequestParam(required = false) String dateFrom,
+            @RequestParam(required = false) String dateTo,
+            @RequestParam(defaultValue = "transactedAt") String sort,
+            @RequestParam(defaultValue = "DESC") String order) {
+
+        log.info("작가 캐시 내역 조회 요청 - page: {}, size: {}, type: {}, status: {}, dateFrom: {}, dateTo: {}, sort: {}, order: {}",
+                page, size, type, status, dateFrom, dateTo, sort, order);
+
+        try {
+            ArtistCashHistoryResponse.List response = artistDashboardService.getCashHistory(
+                    authorization, page, size, type, status, dateFrom, dateTo, sort, order);
+
+            return ResponseEntity.ok(
+                    RsData.of("200-OK", "입금/환전 내역 조회 성공", response)
+            );
+        } catch (Exception e) {
+            log.error("작가 캐시 내역 조회 실패", e);
             return ResponseEntity.internalServerError().body(
                     RsData.of("500-ERROR", "서버 오류가 발생했습니다.")
             );
