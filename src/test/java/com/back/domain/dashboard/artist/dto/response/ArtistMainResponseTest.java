@@ -13,7 +13,7 @@ import static org.junit.jupiter.api.Assertions.assertAll;
 /**
  * ArtistMainResponse DTO 테스트
  * Builder 패턴과 복잡한 중첩 구조의 정확성을 검증
- * 2025.09.22 생성
+ * 2025.09.23 생성
  */
 @DisplayName("ArtistMainResponse DTO 테스트")
 public class ArtistMainResponseTest {

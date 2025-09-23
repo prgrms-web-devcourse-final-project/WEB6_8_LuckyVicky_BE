@@ -12,7 +12,7 @@ import org.springframework.web.bind.annotation.*;
 
 /**
  * 작가 대시보드 컨트롤러
- * 2025.09.22 생성
+ * 2025.09.23 생성
  */
 @RestController
 @RequestMapping("/api/v1/dashboard/artist")

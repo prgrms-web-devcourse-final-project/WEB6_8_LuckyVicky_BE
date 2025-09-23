@@ -20,7 +20,7 @@ import static org.junit.jupiter.api.Assertions.assertAll;
  * ArtistDashboardServiceImpl 테스트
  *
  * 작가용 대시보드 Service 레이어의 비즈니스 로직을 테스트
- * 2025.09.22
+ * 2025.09.23
  */
 @ExtendWith(MockitoExtension.class)
 @DisplayName("작가 대시보드 서비스 구현체 테스트")

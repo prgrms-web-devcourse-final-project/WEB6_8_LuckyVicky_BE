@@ -8,7 +8,7 @@ import java.time.LocalDateTime;
  * 작가 지갑 관련 응답 DTO
  *
  * 작가의 지갑 잔액과 관련된 정보를 포함
- * 2025.09.22 생성
+ * 2025.09.23 생성
  */
 public class ArtistCashResponse {
 

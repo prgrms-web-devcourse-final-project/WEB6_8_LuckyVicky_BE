@@ -7,7 +7,7 @@ import lombok.*;
  * 작가 상품 관련 응답 DTO
  *
  * 작가의 상품 목록과 관련된 정보를 포함합니다.
- * 2025.09.22 생성
+ * 2025.09.23 생성
  */
 public class ArtistProductResponse {
 

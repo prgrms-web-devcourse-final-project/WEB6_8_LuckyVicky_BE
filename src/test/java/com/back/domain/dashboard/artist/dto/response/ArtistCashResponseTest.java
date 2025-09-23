@@ -11,7 +11,7 @@ import static org.junit.jupiter.api.Assertions.assertAll;
 /**
  * ArtistCashResponse DTO 테스트
  * Builder 패턴과 데이터 구조의 정확성을 검증
- * 2025.09.22 생성
+ * 2025.09.23 생성
  */
 @DisplayName("ArtistCashResponse DTO 테스트")
 public class ArtistCashResponseTest {

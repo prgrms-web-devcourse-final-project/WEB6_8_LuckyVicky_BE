@@ -23,7 +23,7 @@ import static org.mockito.BDDMockito.given;
 
 /**
  * ArtistDashboardController 테스트
- * 2025.09.22 생성
+ * 2025.09.23 생성
  */
 @ExtendWith(MockitoExtension.class)
 @DisplayName("작가 대시보드 컨트롤러 테스트")

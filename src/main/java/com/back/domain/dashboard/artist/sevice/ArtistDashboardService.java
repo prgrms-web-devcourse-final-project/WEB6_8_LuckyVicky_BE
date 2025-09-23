@@ -6,6 +6,7 @@ import com.back.domain.dashboard.artist.dto.response.ArtistCashResponse;
 
 /**
  * 작가용 대시보드 서비스 인터페이스
+ * 2025.09.23 생성
  */
 public interface ArtistDashboardService {
 

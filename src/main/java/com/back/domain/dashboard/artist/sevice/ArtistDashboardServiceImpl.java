@@ -13,7 +13,7 @@ import java.util.List;
 
 /**
  * 작가용 대시보드 서비스 구현체
- * 2025.09.22 생성
+ * 2025.09.23 생성
  */
 @Service
 @RequiredArgsConstructor
