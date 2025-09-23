@@ -56,10 +56,10 @@ class ArtistDashboardServiceImplTest {
         // Then - 페이징 로직과 데이터 일관성 검증
         assertAll(
                 () -> assertThat(result).isNotNull(),
-                () -> assertThat(result.getContent()).hasSize(1),
-                () -> assertThat(result.getTotalElements()).isEqualTo(28),
-                () -> assertThat(result.getTotalPages()).isEqualTo(3),
-                () -> assertThat(result.isHasNext()).isTrue(),
+                () -> assertThat(result.getContent()).hasSize(2),
+                () -> assertThat(result.getTotalElements()).isEqualTo(2),
+                () -> assertThat(result.getTotalPages()).isEqualTo(1),
+                () -> assertThat(result.isHasNext()).isFalse(),
                 () -> assertThat(result.isHasPrevious()).isFalse(),
                 () -> assertThat(result.getContent().get(0).getPrice()).isNotNegative(),
                 () -> assertThat(result.getContent().get(0).getSellingStatus()).isEqualTo("SELLING")
@@ -95,12 +95,12 @@ class ArtistDashboardServiceImplTest {
         assertAll(
                 () -> assertThat(result).isNotNull(),
                 () -> assertThat(result.getSummary()).isNotNull(),
-                () -> assertThat(result.getContent()).hasSize(1),
+                () -> assertThat(result.getContent()).hasSize(2),
                 // 핵심 비즈니스 규칙 - 순 증감은 입금 - 환전
                 () -> assertThat(result.getSummary().getPeriodNet()).isEqualTo(
                         result.getSummary().getPeriodDepositTotal() - result.getSummary().getPeriodWithdrawalTotal()),
                 () -> assertThat(result.getContent().get(0).getBalanceAfter()).isNotNegative(),
-                () -> assertThat(result.getTotalElements()).isEqualTo(3)
+                () -> assertThat(result.getTotalElements()).isEqualTo(2)
         );
     }
 

@@ -175,7 +175,7 @@ public class ArtistDashboardServiceImpl implements ArtistDashboardService {
                         .build()
         );
 
-        return new ArtistProductResponse.List(content, page, size, 28, 3, true, false);
+        return new ArtistProductResponse.List(content, page, size, content.size(), 1, false, false);
     }
 
     @Override
