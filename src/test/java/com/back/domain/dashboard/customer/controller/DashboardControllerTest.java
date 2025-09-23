@@ -106,7 +106,7 @@ class DashboardControllerTest {
                         .param("status", "PENDING"))
                 .andDo(print())
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.data.summary.totalOrders").value(42))
+                .andExpect(jsonPath("$.data.summary.totalOrders").value(25))
                 .andExpect(jsonPath("$.data.content").isArray())
                 .andExpect(jsonPath("$.data.content[0].orderId").exists())
                 .andExpect(jsonPath("$.data.timezone").value("Asia/Seoul"));
@@ -176,7 +176,7 @@ class DashboardControllerTest {
 
     private OrderResponse.List createMockOrderList() {
         OrderResponse.SummaryDto summary = OrderResponse.SummaryDto.builder()
-                .totalOrders(42)
+                .totalOrders(25)
                 .pending(3)
                 .confirmed(2)
                 .cancelRequested(2)
@@ -224,6 +224,6 @@ class DashboardControllerTest {
                 .to("2025-09-30")
                 .build();
 
-        return new OrderResponse.List(summary, content, 0, 10, 42, 5, true, false, "Asia/Seoul", periodInfo);
+        return new OrderResponse.List(summary, content, 0, 10, 25, 3, true, false, "Asia/Seoul", periodInfo);
     }
 }
