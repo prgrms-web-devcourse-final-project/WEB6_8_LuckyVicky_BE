@@ -31,11 +31,11 @@ public class Funding extends BaseEntity {
     private FundingStatus status = FundingStatus.DRAFT;
 
     @Column(nullable = false)
-    private Long targetAmount;
+    private long targetAmount;
 
     @Column(nullable = false)
     @Builder.Default
-    private Long collectedAmount = 0L;
+    private long collectedAmount = 0L;
 
     @Column(nullable = false)
     private LocalDateTime startDate;
@@ -62,7 +62,7 @@ public class Funding extends BaseEntity {
         this.options.add(option);
     }
 
-    public void increaseCollectedAmount(Long delta) {
+    public void increaseCollectedAmount(long delta) {
         this.collectedAmount += delta;
     }
 
