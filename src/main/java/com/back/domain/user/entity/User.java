@@ -7,6 +7,7 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 
 import java.time.LocalDateTime;
+import java.util.List;
 
 @Getter
 @Entity
@@ -78,6 +79,11 @@ public class User extends BaseEntity {
         user.termsAgreedAt = LocalDateTime.now();  // 현재 시간
         user.agreementIp = agreementIp;    // 외부에서 받음
         return user;
+    }
+
+    // 로그인 가능한 역할 목록 반환
+    public List<Role> getAvailableLoginRoles() {
+        return role.getAvailableRoles();
     }
 
     // TODO: 정적 팩토리 메서드 - 소셜 로그인 구현

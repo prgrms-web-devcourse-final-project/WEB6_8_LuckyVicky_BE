@@ -1,5 +1,6 @@
 package com.back.domain.auth.entity;
 
+import com.back.domain.user.entity.Role;
 import com.back.domain.user.entity.User;
 import com.back.global.jpa.entity.BaseEntity;
 import jakarta.persistence.*;
@@ -30,17 +31,16 @@ public class UserToken extends BaseEntity {
     private Boolean isActive;
 
     @Enumerated(EnumType.STRING)
-    @Column(name = "token_type")
-    private TokenType tokenType;
+    private Role loginRole;
 
     // RefreshToken 생성 메서드
-    public static UserToken createRefreshToken(User user, String refreshToken, LocalDateTime expiresAt, TokenType tokenType) {
+    public static UserToken createRefreshToken(User user, String refreshToken, LocalDateTime expiresAt, Role loginRole) {
         return UserToken.builder()
                 .user(user)
                 .refreshToken(refreshToken)
                 .expiresAt(expiresAt)
                 .isActive(true)
-                .tokenType(tokenType)
+                .loginRole(loginRole)
                 .build();
     }
 
