@@ -94,7 +94,7 @@ public class ArtistOrderResponseTest {
         );
     }
 
-    // =========================== 헬퍼 메서드 ===========================
+    //----------------- 헬퍼 메서드------------------
 
     private ArtistOrderResponse.List createSampleOrderList() {
         return ArtistOrderResponse.List.builder()

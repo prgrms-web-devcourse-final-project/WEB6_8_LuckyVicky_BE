@@ -93,7 +93,7 @@ public class ArtistCashHistoryResponseTest {
         );
     }
 
-    // =========================== 헬퍼 메서드 ===========================
+    // -----------헬퍼 메서드 -------------
 
     private ArtistCashHistoryResponse.List createSampleCashHistory() {
         return ArtistCashHistoryResponse.List.builder()

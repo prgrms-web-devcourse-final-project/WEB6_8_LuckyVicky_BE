@@ -1,10 +1,11 @@
-package com.back.domain.dashboard.artist.sevice;
+package com.back.domain.dashboard.artist.service;
 
 import com.back.domain.dashboard.artist.dto.response.ArtistMainResponse;
 import com.back.domain.dashboard.artist.dto.response.ArtistProductResponse;
 import com.back.domain.dashboard.artist.dto.response.ArtistCashResponse;
 import com.back.domain.dashboard.artist.dto.response.ArtistCashHistoryResponse;
 import com.back.domain.dashboard.artist.dto.response.ArtistOrderResponse;
+import com.back.domain.dashboard.artist.dto.response.ArtistCancellationResponse;
 
 /**
  * 작가용 대시보드 서비스 인터페이스
@@ -42,4 +43,11 @@ public interface ArtistDashboardService {
     ArtistOrderResponse.List getOrders(String authorization, int page, int size, 
                                       String status, String keyword, String startDate, 
                                       String endDate, String sort, String order);
+
+    /**
+     * 작가 취소 요청 목록 조회
+     */
+    ArtistCancellationResponse.List getCancellationRequests(String authorization, int page, int size,
+                                                           String status, String keyword, String startDate,
+                                                           String endDate, Long productId, String sort, String order);
 }

@@ -1,10 +1,11 @@
-package com.back.domain.dashboard.artist.sevice;
+package com.back.domain.dashboard.artist.service;
 
 import com.back.domain.dashboard.artist.dto.response.ArtistCashResponse;
 import com.back.domain.dashboard.artist.dto.response.ArtistMainResponse;
 import com.back.domain.dashboard.artist.dto.response.ArtistProductResponse;
 import com.back.domain.dashboard.artist.dto.response.ArtistCashHistoryResponse;
 import com.back.domain.dashboard.artist.dto.response.ArtistOrderResponse;
+import com.back.domain.dashboard.artist.dto.response.ArtistCancellationResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -388,6 +389,130 @@ public class ArtistDashboardServiceImpl implements ArtistDashboardService {
                 .totalPages(8)
                 .hasNext(page < 7)
                 .hasPrevious(page > 0)
+                .build();
+    }
+
+    @Override
+    public ArtistCancellationResponse.List getCancellationRequests(String authorization, int page, int size,
+                                                                  String status, String keyword, String startDate,
+                                                                  String endDate, Long productId, String sort, String order) {
+        // TODO: JWT 토큰에서 작가 정보 추출
+        // TODO: 실제 데이터베이스에서 취소 요청 목록 조회
+
+        // 취소 요청 상태별 요약 정보
+        ArtistCancellationResponse.Summary summary = ArtistCancellationResponse.Summary.builder()
+                .total(8)
+                .pending(5)
+                .approved(2)
+                .rejected(1)
+                .build();
+
+        // 취소 요청 목록 더미 데이터
+        List<ArtistCancellationResponse.CancellationRequest> content = Arrays.asList(
+                ArtistCancellationResponse.CancellationRequest.builder()
+                        .requestId(1L)
+                        .orderId("550e84...000")
+                        .orderNumber("ORD-20241225-001")
+                        .type("CANCEL")
+                        .status("PENDING")
+                        .statusText("처리대기")
+                        .requestDate("2024-12-26T09:00:00+09:00")
+                        .reason("단순 변심")
+                        .customerMessage("사이즈가 맞지 않아서 취소하고 싶습니다.")
+                        .customer(ArtistCancellationResponse.Customer.builder()
+                                .id(201L)
+                                .nickname("고객명")
+                                .build())
+                        .orderItem(ArtistCancellationResponse.OrderItem.builder()
+                                .productId(101L)
+                                .productName("귀여운 고양이 스티커")
+                                .quantity(2)
+                                .price(12500)
+                                .build())
+                        .refundAmount(25000)
+                        .permissions(ArtistCancellationResponse.Permissions.builder()
+                                .canApprove(true)
+                                .canReject(true)
+                                .build())
+                        .build(),
+                ArtistCancellationResponse.CancellationRequest.builder()
+                        .requestId(2L)
+                        .orderId("550e84...001")
+                        .orderNumber("ORD-20241224-002")
+                        .type("CANCEL")
+                        .status("APPROVED")
+                        .statusText("승인완료")
+                        .requestDate("2024-12-25T14:30:00+09:00")
+                        .reason("상품 불량")
+                        .customerMessage("상품에 흠집이 있어서 취소를 요청드립니다.")
+                        .customer(ArtistCancellationResponse.Customer.builder()
+                                .id(202L)
+                                .nickname("아트러버")
+                                .build())
+                        .orderItem(ArtistCancellationResponse.OrderItem.builder()
+                                .productId(102L)
+                                .productName("감성 일러스트 포스터")
+                                .quantity(1)
+                                .price(35000)
+                                .build())
+                        .refundAmount(35000)
+                        .permissions(ArtistCancellationResponse.Permissions.builder()
+                                .canApprove(false)
+                                .canReject(false)
+                                .build())
+                        .build(),
+                ArtistCancellationResponse.CancellationRequest.builder()
+                        .requestId(3L)
+                        .orderId("550e84...002")
+                        .orderNumber("ORD-20241223-003")
+                        .type("CANCEL")
+                        .status("REJECTED")
+                        .statusText("거절됨")
+                        .requestDate("2024-12-24T11:15:00+09:00")
+                        .reason("단순 변심")
+                        .customerMessage("마음이 바뀌었습니다.")
+                        .customer(ArtistCancellationResponse.Customer.builder()
+                                .id(203L)
+                                .nickname("스티커팬")
+                                .build())
+                        .orderItem(ArtistCancellationResponse.OrderItem.builder()
+                                .productId(103L)
+                                .productName("캐릭터 스티커 세트")
+                                .quantity(3)
+                                .price(8000)
+                                .build())
+                        .refundAmount(24000)
+                        .permissions(ArtistCancellationResponse.Permissions.builder()
+                                .canApprove(false)
+                                .canReject(false)
+                                .build())
+                        .build()
+        );
+
+        // 일괄 작업 옵션
+        List<ArtistCancellationResponse.BulkAction> bulkActions = Arrays.asList(
+                ArtistCancellationResponse.BulkAction.builder()
+                        .action("CANCEL_APPROVE")
+                        .label("취소 승인")
+                        .requiresConfirmation(true)
+                        .build(),
+                ArtistCancellationResponse.BulkAction.builder()
+                        .action("CANCEL_REJECT")
+                        .label("취소 거절")
+                        .requiresConfirmation(true)
+                        .build()
+        );
+
+        return ArtistCancellationResponse.List.builder()
+                .summary(summary)
+                .content(content)
+                .bulkActions(bulkActions)
+                .page(page)
+                .size(size)
+                .totalElements(8)
+                .totalPages(1)
+                .hasNext(false)
+                .hasPrevious(false)
                 .build();
     }
 }

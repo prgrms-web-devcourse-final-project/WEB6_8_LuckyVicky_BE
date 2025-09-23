@@ -4,7 +4,8 @@ import com.back.domain.dashboard.artist.dto.response.ArtistCashResponse;
 import com.back.domain.dashboard.artist.dto.response.ArtistProductResponse;
 import com.back.domain.dashboard.artist.dto.response.ArtistCashHistoryResponse;
 import com.back.domain.dashboard.artist.dto.response.ArtistOrderResponse;
-import com.back.domain.dashboard.artist.sevice.ArtistDashboardService;
+import com.back.domain.dashboard.artist.dto.response.ArtistCancellationResponse;
+import com.back.domain.dashboard.artist.service.ArtistDashboardService;
 import com.back.global.rsData.RsData;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -412,6 +413,156 @@ class ArtistDashboardControllerTest {
                 () -> assertThat(response.getBody().data().getContent().get(0).getStatus()).isEqualTo("PENDING"),
                 () -> assertThat(response.getBody().data().getSummary().getPending()).isEqualTo(8),
                 () -> assertThat(response.getBody().data().getSummary().getDelivered()).isEqualTo(0)
+        );
+    }
+
+    @Test
+    @DisplayName("작가 취소 요청 목록 조회 성공")
+    void getCancellationRequests_Success() {
+        // Given
+        ArtistCancellationResponse.Summary summary = ArtistCancellationResponse.Summary.builder()
+                .total(8).pending(5).approved(2).rejected(1)
+                .build();
+
+        List<ArtistCancellationResponse.CancellationRequest> content = Arrays.asList(
+                ArtistCancellationResponse.CancellationRequest.builder()
+                        .requestId(1L)
+                        .orderId("550e84...000")
+                        .orderNumber("ORD-20241225-001")
+                        .type("CANCEL")
+                        .status("PENDING")
+                        .statusText("처리대기")
+                        .requestDate("2024-12-26T09:00:00+09:00")
+                        .reason("단순 변심")
+                        .customerMessage("사이즈가 맞지 않아서 취소하고 싶습니다.")
+                        .customer(ArtistCancellationResponse.Customer.builder()
+                                .id(201L)
+                                .nickname("고객명")
+                                .build())
+                        .orderItem(ArtistCancellationResponse.OrderItem.builder()
+                                .productId(101L)
+                                .productName("귀여운 고양이 스티커")
+                                .quantity(2)
+                                .price(12500)
+                                .build())
+                        .refundAmount(25000)
+                        .permissions(ArtistCancellationResponse.Permissions.builder()
+                                .canApprove(true)
+                                .canReject(true)
+                                .build())
+                        .build()
+        );
+
+        List<ArtistCancellationResponse.BulkAction> bulkActions = Arrays.asList(
+                ArtistCancellationResponse.BulkAction.builder()
+                        .action("CANCEL_APPROVE")
+                        .label("취소 승인")
+                        .requiresConfirmation(true)
+                        .build(),
+                ArtistCancellationResponse.BulkAction.builder()
+                        .action("CANCEL_REJECT")
+                        .label("취소 거절")
+                        .requiresConfirmation(true)
+                        .build()
+        );
+
+        ArtistCancellationResponse.List mockResponse = ArtistCancellationResponse.List.builder()
+                .summary(summary)
+                .content(content)
+                .bulkActions(bulkActions)
+                .page(0)
+                .size(20)
+                .totalElements(8)
+                .totalPages(1)
+                .hasNext(false)
+                .hasPrevious(false)
+                .build();
+
+        given(artistDashboardService.getCancellationRequests(
+                anyString(), anyInt(), anyInt(), any(), any(), any(), any(), any(), anyString(), anyString()))
+                .willReturn(mockResponse);
+
+        // When
+        ResponseEntity<RsData<ArtistCancellationResponse.List>> response =
+                artistDashboardController.getCancellationRequests(BEARER_TOKEN, 0, 20, null, null, null, null, null, "requestDate", "DESC");
+
+        // Then
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(response.getBody()).isNotNull();
+
+        RsData<ArtistCancellationResponse.List> body = response.getBody();
+        ArtistCancellationResponse.CancellationRequest firstRequest = body.data().getContent().get(0);
+
+        assertAll(
+                () -> assertThat(body.resultCode()).isEqualTo("200-OK"),
+                () -> assertThat(body.msg()).isEqualTo("취소 요청 목록 조회 성공"),
+                () -> assertThat(body.data()).isNotNull(),
+                // 요약 정보 검증
+                () -> assertThat(body.data().getSummary().getTotal()).isEqualTo(8),
+                () -> assertThat(body.data().getSummary().getPending()).isEqualTo(5),
+                () -> assertThat(body.data().getSummary().getApproved()).isEqualTo(2),
+                () -> assertThat(body.data().getSummary().getRejected()).isEqualTo(1),
+                // 취소 요청 검증
+                () -> assertThat(body.data().getContent()).hasSize(1),
+                () -> assertThat(firstRequest.getRequestId()).isEqualTo(1L),
+                () -> assertThat(firstRequest.getOrderNumber()).isEqualTo("ORD-20241225-001"),
+                () -> assertThat(firstRequest.getStatus()).isEqualTo("PENDING"),
+                () -> assertThat(firstRequest.getRefundAmount()).isEqualTo(25000),
+                () -> assertThat(firstRequest.getCustomer().getNickname()).isEqualTo("고객명"),
+                () -> assertThat(firstRequest.getOrderItem().getProductName()).isEqualTo("귀여운 고양이 스티커"),
+                () -> assertThat(firstRequest.getPermissions().isCanApprove()).isTrue(),
+                // 일괄 작업 검증
+                () -> assertThat(body.data().getBulkActions()).hasSize(2),
+                () -> assertThat(body.data().getBulkActions().get(0).getAction()).isEqualTo("CANCEL_APPROVE"),
+                () -> assertThat(body.data().getBulkActions().get(1).getAction()).isEqualTo("CANCEL_REJECT"),
+                // 페이징 정보 검증
+                () -> assertThat(body.data().getPage()).isEqualTo(0),
+                () -> assertThat(body.data().getTotalElements()).isEqualTo(8),
+                () -> assertThat(body.data().isHasNext()).isFalse()
+        );
+    }
+
+    @Test
+    @DisplayName("작가 취소 요청 목록 조회 - 필터 파라미터 포함")
+    void getCancellationRequests_WithFilters() {
+        // Given
+        ArtistCancellationResponse.List mockResponse = ArtistCancellationResponse.List.builder()
+                .summary(ArtistCancellationResponse.Summary.builder()
+                        .total(5).pending(5).approved(0).rejected(0)
+                        .build())
+                .content(Arrays.asList(
+                        ArtistCancellationResponse.CancellationRequest.builder()
+                                .requestId(1L)
+                                .orderNumber("ORD-20241225-001")
+                                .status("PENDING")
+                                .refundAmount(25000)
+                                .permissions(ArtistCancellationResponse.Permissions.builder()
+                                        .canApprove(true).canReject(true)
+                                        .build())
+                                .build()
+                ))
+                .bulkActions(Arrays.asList())
+                .page(0).size(20).totalElements(5).totalPages(1)
+                .hasNext(false).hasPrevious(false)
+                .build();
+
+        given(artistDashboardService.getCancellationRequests(
+                eq(BEARER_TOKEN), eq(0), eq(20), eq("PENDING"), eq("ORD-20241225-001"), 
+                eq("2024-12-01"), eq("2024-12-31"), eq(101L), eq("requestDate"), eq("DESC")))
+                .willReturn(mockResponse);
+
+        // When
+        ResponseEntity<RsData<ArtistCancellationResponse.List>> response =
+                artistDashboardController.getCancellationRequests(BEARER_TOKEN, 0, 20, "PENDING", "ORD-20241225-001", 
+                        "2024-12-01", "2024-12-31", 101L, "requestDate", "DESC");
+
+        // Then - 필터링된 결과 검증
+        assertAll(
+                () -> assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK),
+                () -> assertThat(response.getBody().data().getContent()).hasSize(1),
+                () -> assertThat(response.getBody().data().getContent().get(0).getStatus()).isEqualTo("PENDING"),
+                () -> assertThat(response.getBody().data().getSummary().getPending()).isEqualTo(5),
+                () -> assertThat(response.getBody().data().getSummary().getApproved()).isEqualTo(0)
         );
     }
 }
