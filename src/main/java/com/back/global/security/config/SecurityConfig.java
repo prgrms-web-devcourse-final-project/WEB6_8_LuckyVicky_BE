@@ -34,12 +34,12 @@ public class SecurityConfig {
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http
-                // RL별 권한 설정
+                // URL별 권한 설정
                 .authorizeHttpRequests(auth -> auth
                         // 인증 관련 API
                         .requestMatchers("/auth/**").permitAll()
 
-                        // 공개 API
+                        // 공개 API - 로그인 없이 접근 허용
                         .requestMatchers("/public/**").permitAll()
 
                         // 개발 도구들
