@@ -145,4 +145,25 @@ class ArtistDashboardServiceImplTest {
                 () -> assertThat(result.getTotalElements()).isEqualTo(8)
         );
     }
+
+    @Test
+    @DisplayName("교환 요청 목록 조회 - 통계와 목록 일관성 검증")
+    void getExchangeRequests_ReturnsConsistentData() {
+        // When
+        ArtistExchangeResponse.List result = artistDashboardService.getExchangeRequests(
+                TEST_AUTHORIZATION, 0, 20, null, null, null, null, null, "requestDate", "DESC");
+
+        // Then - 교환 요청 통계와 목록 일관성 검증
+        assertAll(
+                () -> assertThat(result).isNotNull(),
+                () -> assertThat(result.getSummary()).isNotNull(),
+                () -> assertThat(result.getContent()).hasSize(3),
+                () -> assertThat(result.getBulkActions()).hasSize(2),
+                // 핵심 비즈니스 규칙 - 상태별 합계가 전체와 일치
+                () -> assertThat(result.getSummary().getPending() + result.getSummary().getApproved() 
+                        + result.getSummary().getRejected()).isEqualTo(result.getSummary().getTotal()),
+                () -> assertThat(result.getContent().get(0).getOrderItem().getPrice()).isPositive(),
+                () -> assertThat(result.getTotalElements()).isEqualTo(5)
+        );
+    }
 }

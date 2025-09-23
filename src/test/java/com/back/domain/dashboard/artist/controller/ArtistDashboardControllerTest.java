@@ -5,6 +5,7 @@ import com.back.domain.dashboard.artist.dto.response.ArtistProductResponse;
 import com.back.domain.dashboard.artist.dto.response.ArtistCashHistoryResponse;
 import com.back.domain.dashboard.artist.dto.response.ArtistOrderResponse;
 import com.back.domain.dashboard.artist.dto.response.ArtistCancellationResponse;
+import com.back.domain.dashboard.artist.dto.response.ArtistExchangeResponse;
 import com.back.domain.dashboard.artist.service.ArtistDashboardService;
 import com.back.global.rsData.RsData;
 import org.junit.jupiter.api.DisplayName;
@@ -563,6 +564,115 @@ class ArtistDashboardControllerTest {
                 () -> assertThat(response.getBody().data().getContent().get(0).getStatus()).isEqualTo("PENDING"),
                 () -> assertThat(response.getBody().data().getSummary().getPending()).isEqualTo(5),
                 () -> assertThat(response.getBody().data().getSummary().getApproved()).isEqualTo(0)
+        );
+    }
+
+    @Test
+    @DisplayName("작가 교환 요청 목록 조회 성공")
+    void getExchangeRequests_Success() {
+        // Given
+        ArtistExchangeResponse.Summary summary = ArtistExchangeResponse.Summary.builder()
+                .total(5).pending(3).approved(1).rejected(1)
+                .build();
+
+        List<ArtistExchangeResponse.ExchangeRequest> content = Arrays.asList(
+                ArtistExchangeResponse.ExchangeRequest.builder()
+                        .requestId(21L)
+                        .orderId("550e84...111")
+                        .orderNumber("ORD-20241226-003")
+                        .type("EXCHANGE")
+                        .status("PENDING")
+                        .statusText("처리대기")
+                        .requestDate("2024-12-26T11:10:00+09:00")
+                        .reason("불량 의심")
+                        .customerMessage("찍힘 자국이 있어요.")
+                        .customer(ArtistExchangeResponse.Customer.builder()
+                                .id(204L)
+                                .nickname("honggildong")
+                                .build())
+                        .orderItem(ArtistExchangeResponse.OrderItem.builder()
+                                .productId(103L)
+                                .productName("상품명입니다")
+                                .quantity(1)
+                                .price(28500)
+                                .build())
+                        .exchangeRequested(ArtistExchangeResponse.ExchangeRequested.builder()
+                                .option("색상=그린")
+                                .quantity(1)
+                                .build())
+                        .permissions(ArtistExchangeResponse.Permissions.builder()
+                                .canApprove(true)
+                                .canReject(true)
+                                .build())
+                        .build()
+        );
+
+        List<ArtistExchangeResponse.BulkAction> bulkActions = Arrays.asList(
+                ArtistExchangeResponse.BulkAction.builder()
+                        .action("EXCHANGE_APPROVE")
+                        .label("교환 승인")
+                        .requiresConfirmation(true)
+                        .build(),
+                ArtistExchangeResponse.BulkAction.builder()
+                        .action("EXCHANGE_REJECT")
+                        .label("교환 거절")
+                        .requiresConfirmation(true)
+                        .build()
+        );
+
+        ArtistExchangeResponse.List mockResponse = ArtistExchangeResponse.List.builder()
+                .summary(summary)
+                .content(content)
+                .bulkActions(bulkActions)
+                .page(0)
+                .size(20)
+                .totalElements(5)
+                .totalPages(1)
+                .hasNext(false)
+                .hasPrevious(false)
+                .build();
+
+        given(artistDashboardService.getExchangeRequests(
+                anyString(), anyInt(), anyInt(), any(), any(), any(), any(), any(), anyString(), anyString()))
+                .willReturn(mockResponse);
+
+        // When
+        ResponseEntity<RsData<ArtistExchangeResponse.List>> response =
+                artistDashboardController.getExchangeRequests(BEARER_TOKEN, 0, 20, null, null, null, null, null, "requestDate", "DESC");
+
+        // Then
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(response.getBody()).isNotNull();
+
+        RsData<ArtistExchangeResponse.List> body = response.getBody();
+        ArtistExchangeResponse.ExchangeRequest firstRequest = body.data().getContent().get(0);
+
+        assertAll(
+                () -> assertThat(body.resultCode()).isEqualTo("200-OK"),
+                () -> assertThat(body.msg()).isEqualTo("교환 요청 목록 조회 성공"),
+                () -> assertThat(body.data()).isNotNull(),
+                // 요약 정보 검증
+                () -> assertThat(body.data().getSummary().getTotal()).isEqualTo(5),
+                () -> assertThat(body.data().getSummary().getPending()).isEqualTo(3),
+                () -> assertThat(body.data().getSummary().getApproved()).isEqualTo(1),
+                () -> assertThat(body.data().getSummary().getRejected()).isEqualTo(1),
+                // 교환 요청 검증
+                () -> assertThat(body.data().getContent()).hasSize(1),
+                () -> assertThat(firstRequest.getRequestId()).isEqualTo(21L),
+                () -> assertThat(firstRequest.getOrderNumber()).isEqualTo("ORD-20241226-003"),
+                () -> assertThat(firstRequest.getStatus()).isEqualTo("PENDING"),
+                () -> assertThat(firstRequest.getCustomer().getNickname()).isEqualTo("honggildong"),
+                () -> assertThat(firstRequest.getOrderItem().getProductName()).isEqualTo("상품명입니다"),
+                () -> assertThat(firstRequest.getExchangeRequested().getOption()).isEqualTo("색상=그린"),
+                () -> assertThat(firstRequest.getPermissions().isCanApprove()).isTrue(),
+                // 일괄 작업 검증
+                () -> assertThat(body.data().getBulkActions()).hasSize(2),
+                () -> assertThat(body.data().getBulkActions().get(0).getAction()).isEqualTo("EXCHANGE_APPROVE"),
+                () -> assertThat(body.data().getBulkActions().get(1).getAction()).isEqualTo("EXCHANGE_REJECT"),
+                // 페이징 정보 검증
+                () -> assertThat(body.data().getPage()).isEqualTo(0),
+                () -> assertThat(body.data().getTotalElements()).isEqualTo(5),
+                () -> assertThat(body.data().isHasNext()).isFalse()
         );
     }
 }

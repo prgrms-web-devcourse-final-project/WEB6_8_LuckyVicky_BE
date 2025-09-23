@@ -6,6 +6,7 @@ import com.back.domain.dashboard.artist.dto.response.ArtistProductResponse;
 import com.back.domain.dashboard.artist.dto.response.ArtistCashHistoryResponse;
 import com.back.domain.dashboard.artist.dto.response.ArtistOrderResponse;
 import com.back.domain.dashboard.artist.dto.response.ArtistCancellationResponse;
+import com.back.domain.dashboard.artist.dto.response.ArtistExchangeResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -510,6 +511,139 @@ public class ArtistDashboardServiceImpl implements ArtistDashboardService {
                 .page(page)
                 .size(size)
                 .totalElements(8)
+                .totalPages(1)
+                .hasNext(false)
+                .hasPrevious(false)
+                .build();
+    }
+
+    @Override
+    public ArtistExchangeResponse.List getExchangeRequests(String authorization, int page, int size,
+                                                          String status, String keyword, String startDate,
+                                                          String endDate, Long productId, String sort, String order) {
+        // TODO: JWT 토큰에서 작가 정보 추출
+        // TODO: 실제 데이터베이스에서 교환 요청 목록 조회
+
+        // 교환 요청 상태별 요약 정보
+        ArtistExchangeResponse.Summary summary = ArtistExchangeResponse.Summary.builder()
+                .total(5)
+                .pending(3)
+                .approved(1)
+                .rejected(1)
+                .build();
+
+        // 교환 요청 목록 더미 데이터
+        List<ArtistExchangeResponse.ExchangeRequest> content = Arrays.asList(
+                ArtistExchangeResponse.ExchangeRequest.builder()
+                        .requestId(21L)
+                        .orderId("550e84...111")
+                        .orderNumber("ORD-20241226-003")
+                        .type("EXCHANGE")
+                        .status("PENDING")
+                        .statusText("처리대기")
+                        .requestDate("2024-12-26T11:10:00+09:00")
+                        .reason("불량 의심")
+                        .customerMessage("찍힘 자국이 있어요.")
+                        .customer(ArtistExchangeResponse.Customer.builder()
+                                .id(204L)
+                                .nickname("honggildong")
+                                .build())
+                        .orderItem(ArtistExchangeResponse.OrderItem.builder()
+                                .productId(103L)
+                                .productName("상품명입니다")
+                                .quantity(1)
+                                .price(28500)
+                                .build())
+                        .exchangeRequested(ArtistExchangeResponse.ExchangeRequested.builder()
+                                .option("색상=그린")
+                                .quantity(1)
+                                .build())
+                        .permissions(ArtistExchangeResponse.Permissions.builder()
+                                .canApprove(true)
+                                .canReject(true)
+                                .build())
+                        .build(),
+                ArtistExchangeResponse.ExchangeRequest.builder()
+                        .requestId(22L)
+                        .orderId("550e84...112")
+                        .orderNumber("ORD-20241225-004")
+                        .type("EXCHANGE")
+                        .status("APPROVED")
+                        .statusText("승인완료")
+                        .requestDate("2024-12-25T16:30:00+09:00")
+                        .reason("사이즈 변경")
+                        .customerMessage("L 사이즈로 교환해주세요.")
+                        .customer(ArtistExchangeResponse.Customer.builder()
+                                .id(205L)
+                                .nickname("artfan123")
+                                .build())
+                        .orderItem(ArtistExchangeResponse.OrderItem.builder()
+                                .productId(104L)
+                                .productName("아티스트 티셔츠")
+                                .quantity(1)
+                                .price(35000)
+                                .build())
+                        .exchangeRequested(ArtistExchangeResponse.ExchangeRequested.builder()
+                                .option("사이즈=L")
+                                .quantity(1)
+                                .build())
+                        .permissions(ArtistExchangeResponse.Permissions.builder()
+                                .canApprove(false)
+                                .canReject(false)
+                                .build())
+                        .build(),
+                ArtistExchangeResponse.ExchangeRequest.builder()
+                        .requestId(23L)
+                        .orderId("550e84...113")
+                        .orderNumber("ORD-20241224-005")
+                        .type("EXCHANGE")
+                        .status("REJECTED")
+                        .statusText("거절됨")
+                        .requestDate("2024-12-24T10:20:00+09:00")
+                        .reason("개인 취향")
+                        .customerMessage("다른 디자인으로 바꾸고 싶어요.")
+                        .customer(ArtistExchangeResponse.Customer.builder()
+                                .id(206L)
+                                .nickname("designlover")
+                                .build())
+                        .orderItem(ArtistExchangeResponse.OrderItem.builder()
+                                .productId(105L)
+                                .productName("캐릭터 머그컵")
+                                .quantity(1)
+                                .price(18000)
+                                .build())
+                        .exchangeRequested(ArtistExchangeResponse.ExchangeRequested.builder()
+                                .option("디자인=패턴B")
+                                .quantity(1)
+                                .build())
+                        .permissions(ArtistExchangeResponse.Permissions.builder()
+                                .canApprove(false)
+                                .canReject(false)
+                                .build())
+                        .build()
+        );
+
+        // 일괄 작업 옵션
+        List<ArtistExchangeResponse.BulkAction> bulkActions = Arrays.asList(
+                ArtistExchangeResponse.BulkAction.builder()
+                        .action("EXCHANGE_APPROVE")
+                        .label("교환 승인")
+                        .requiresConfirmation(true)
+                        .build(),
+                ArtistExchangeResponse.BulkAction.builder()
+                        .action("EXCHANGE_REJECT")
+                        .label("교환 거절")
+                        .requiresConfirmation(true)
+                        .build()
+        );
+
+        return ArtistExchangeResponse.List.builder()
+                .summary(summary)
+                .content(content)
+                .bulkActions(bulkActions)
+                .page(page)
+                .size(size)
+                .totalElements(5)
                 .totalPages(1)
                 .hasNext(false)
                 .hasPrevious(false)
