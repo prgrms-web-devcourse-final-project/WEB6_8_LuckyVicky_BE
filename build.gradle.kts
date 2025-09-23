@@ -41,6 +41,9 @@ dependencies {
     implementation("io.jsonwebtoken:jjwt-api:0.12.3")
     implementation("io.jsonwebtoken:jjwt-impl:0.12.3")
     implementation("io.jsonwebtoken:jjwt-jackson:0.12.3")
+
+    // AWS S3용 SDK
+    implementation("software.amazon.awssdk:s3:2.34.0")
 }
 
 tasks.withType<Test> {
