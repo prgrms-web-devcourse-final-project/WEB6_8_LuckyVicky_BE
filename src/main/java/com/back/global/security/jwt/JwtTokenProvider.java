@@ -1,11 +1,11 @@
 package com.back.global.security.jwt;
 
-import com.back.domain.auth.entity.TokenType;
+import com.back.domain.user.entity.Role;
 import com.back.global.exception.ServiceException;
 import io.jsonwebtoken.*;
 import io.jsonwebtoken.security.Keys;
-import org.springframework.beans.factory.annotation.Value;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
 import javax.crypto.SecretKey;
@@ -32,7 +32,7 @@ public class JwtTokenProvider {
     /**
      * AccessToken 생성
      */
-    public String createAccessToken(Long userId, String email, TokenType role) {
+    public String createAccessToken(Long userId, String email, Role role) {
         Date now = new Date();
         Date expiration = new Date(now.getTime() + accessTokenExpiration);
 
@@ -49,7 +49,7 @@ public class JwtTokenProvider {
     /**
      * RefreshToken 생성
      */
-    public String createRefreshToken(Long userId, TokenType role) {
+    public String createRefreshToken(Long userId, Role role) {
         Date now = new Date();
         Date expiration = new Date(now.getTime() + refreshTokenExpiration);
 
@@ -125,6 +125,20 @@ public class JwtTokenProvider {
                 .build()
                 .parseSignedClaims(token)
                 .getPayload();
+    }
+
+    /**
+     * 토큰에서 역할 추출
+     */
+    public Role getRoleFromToken(String token) {
+        try {
+            Claims claims = parseToken(token);
+            String role = claims.get("role", String.class);
+            return Role.valueOf(role);
+        } catch (Exception e) {
+            log.error("토큰에서 역할 추출 실패: {}", e.getMessage());
+            throw new ServiceException("JWT_INVALID_ROLE", "토큰에서 역할 추출에 실패했습니다.");
+        }
     }
 
 }
