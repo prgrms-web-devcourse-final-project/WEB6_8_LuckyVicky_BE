@@ -1,6 +1,7 @@
 package com.back.domain.product.product.entity;
 
 import com.back.global.jpa.entity.BaseEntity;
+import com.back.global.s3.FileType;
 import jakarta.persistence.*;
 import lombok.*;
 
@@ -22,5 +23,5 @@ public class ProductImage extends BaseEntity {
 
     @Column(nullable = false)
     @Enumerated(EnumType.STRING)
-    private ImageType imageType; // 이미지 종류 (MAIN, ADDITIONAL, THUMBNAIL)
+    private FileType imageType; // 이미지 종류 (MAIN, ADDITIONAL, THUMBNAIL)
 }
