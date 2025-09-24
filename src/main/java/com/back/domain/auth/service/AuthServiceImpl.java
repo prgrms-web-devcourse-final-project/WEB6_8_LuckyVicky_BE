@@ -202,8 +202,13 @@ public class AuthServiceImpl implements AuthService{
     @Override
     public void logout(String refreshToken) {
         userTokenRepository.findByRefreshToken(refreshToken)
-                .ifPresent(userTokenRepository::delete);
-        log.info("로그아웃 성공: refreshToken={}", refreshToken);
+                .ifPresentOrElse(
+                        token -> {
+                            userTokenRepository.delete(token);
+                            log.info("로그아웃 성공: userId={}", token.getUser().getId());
+                        },
+                        () -> log.warn("존재하지 않는 토큰으로 로그아웃 시도")
+                );
     }
 
     /**
@@ -211,7 +216,12 @@ public class AuthServiceImpl implements AuthService{
      */
     @Override
     public void logoutAll(Long userId) {
-        userTokenRepository.deleteAllRefreshTokenByUserId(userId);
-        log.info("전체 로그아웃 성공: userId={}", userId);
+        int deletedCount = userTokenRepository.deleteAllRefreshTokenByUserId(userId);
+
+        if (deletedCount > 0) {
+            log.info("전체 로그아웃 성공: userId={}, 삭제된 토큰 수={}", userId, deletedCount);
+        } else {
+            log.info("전체 로그아웃: userId={}, 삭제할 토큰 없음", userId);
+        }
     }
 }
