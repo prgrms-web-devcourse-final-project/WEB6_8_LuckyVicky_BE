@@ -86,5 +86,10 @@ public class User extends BaseEntity {
         return role.getAvailableRoles();
     }
 
+    // 특정 역할로 로그인 가능한지 확인
+    public boolean canLoginAs(Role targetRole) {
+        return role.canLoginAs(targetRole);
+    }
+
     // TODO: 정적 팩토리 메서드 - 소셜 로그인 구현
 }

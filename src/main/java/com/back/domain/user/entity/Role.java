@@ -27,4 +27,9 @@ public enum Role {
             case ROOT -> List.of(Role.USER, Role.ARTIST, Role.ADMIN, Role.ROOT); // 모든 권한
         };
     }
+
+    // 특정 역할로 로그인 가능한지 확인
+    public boolean canLoginAs(Role target) {
+        return this.getAvailableRoles().contains(target);
+    }
 }
