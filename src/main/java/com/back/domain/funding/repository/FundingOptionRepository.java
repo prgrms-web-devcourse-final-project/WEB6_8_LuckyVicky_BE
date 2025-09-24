@@ -17,5 +17,5 @@ public interface FundingOptionRepository extends JpaRepository<FundingOption, Lo
     List<FundingOption> findByFundingId(Long fundingId);
 
     // 재고 있는 옵션만 조회
-    List<FundingOption> findByFundingIdAndAvailableQuantityGreaterThanOrderBySortOrderAsc(Long fundingId, int minQty);
+    List<FundingOption> findByFundingIdAndStockGreaterThanOrderBySortOrderAsc(Long fundingId, int minQty);
 }

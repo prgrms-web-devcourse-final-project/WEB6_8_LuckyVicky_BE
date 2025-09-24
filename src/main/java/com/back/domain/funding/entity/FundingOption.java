@@ -22,7 +22,7 @@ public class FundingOption extends BaseEntity {
     private long price;
 
     @Column
-    private Integer availableQuantity;
+    private Integer stock;
 
     @Column
     @Builder.Default
@@ -33,7 +33,7 @@ public class FundingOption extends BaseEntity {
     }
 
     public void decreaseStock(int qty) {
-        if (availableQuantity == null) return;
-        this.availableQuantity = this.availableQuantity - qty;
+        if (stock == null) return;
+        this.stock = this.stock - qty;
     }
 }
