@@ -36,8 +36,8 @@ public class SecurityConfig {
         http
                 // URL별 권한 설정
                 .authorizeHttpRequests(auth -> auth
-                        // 인증 관련 API
-                        .requestMatchers("/auth/**").permitAll()
+                        // 인증이 필요 없는 API
+                        .requestMatchers("/api/auth/signup", "/api/auth/login", "/api/auth/refresh", "/api/auth/logout").permitAll()
 
                         // 공개 API - 로그인 없이 접근 허용
                         .requestMatchers("/public/**").permitAll()

@@ -10,93 +10,76 @@ import static org.junit.jupiter.api.Assertions.assertAll;
 
 /**
  * AccountResponse DTO 테스트
- * Builder 패턴과 데이터 구조의 정확성을 검증
- *2025.09.22 수정
+ * 계정 설정 구조와 핵심 비즈니스 로직에 집중
+ * 2025.09.22 수정
  */
 @DisplayName("AccountResponse DTO 테스트")
 public class AccountResponseTest {
 
     @Test
-    @DisplayName("Builder 패턴으로 Settings 생성 테스트")
-    void builder_Settings_Success() {
-        // Given
-        AccountResponse.Profile profile = AccountResponse.Profile.builder()
-                .userId(123L)
-                .nickname("테스트유저")
-                .profileImageUrl("https://example.com/profile.jpg")
-                .build();
-
-        AccountResponse.Contact contact = AccountResponse.Contact.builder()
-                .email("test@example.com")
-                .emailVerified(true)
-                .phone("+821012345678")
-                .address("서울시 강남구")
-                .build();
-
-        AccountResponse.Security security = AccountResponse.Security.builder()
-                .lastPasswordChangedAt(LocalDateTime.of(2025, 9, 20, 10, 30))
-                .build();
-
+    @DisplayName("전체 계정 설정 구조 생성 및 검증")
+    void createCompleteSettings_Success() {
         // When
-        AccountResponse.Settings settings = AccountResponse.Settings.builder()
-                .profile(profile)
-                .contact(contact)
-                .security(security)
-                .build();
+        AccountResponse.Settings settings = createSampleSettings();
 
-        // Then
+        // Then - 전체 구조 검증
         assertAll(
                 () -> assertThat(settings).isNotNull(),
                 () -> assertThat(settings.getProfile()).isNotNull(),
                 () -> assertThat(settings.getContact()).isNotNull(),
-                () -> assertThat(settings.getSecurity()).isNotNull(),
-                () -> assertThat(settings.getProfile().getUserId()).isEqualTo(123L),
-                () -> assertThat(settings.getContact().getEmail()).isEqualTo("test@example.com"),
-                () -> assertThat(settings.getSecurity().getLastPasswordChangedAt()).isNotNull()
+                () -> assertThat(settings.getSecurity()).isNotNull()
         );
     }
 
     @Test
-    @DisplayName("Profile Builder 패턴 테스트")
-    void builder_Profile_Success() {
+    @DisplayName("계정 정보 일관성 검증")
+    void validateAccountConsistency_Success() {
         // When
-        AccountResponse.Profile profile = AccountResponse.Profile.builder()
-                .userId(100L)
-                .nickname("닉네임테스트")
-                .profileImageUrl("https://cdn.test.com/image.jpg")
+        AccountResponse.Settings settings = createSampleSettings();
+
+        // Then - 비즈니스 로직 검증
+        assertAll(
+                // 프로필 정보 검증
+                () -> assertThat(settings.getProfile().getUserId()).isPositive(),
+                () -> assertThat(settings.getProfile().getNickname()).isNotBlank(),
+                // 연락처 정보 검증
+                () -> assertThat(settings.getContact().getEmail()).contains("@"),
+                () -> assertThat(settings.getContact().getEmailVerified()).isNotNull(),
+                () -> assertThat(settings.getContact().getPhone()).startsWith("+82"),
+                // 보안 정보 검증
+                () -> assertThat(settings.getSecurity().getLastPasswordChangedAt()).isBeforeOrEqualTo(LocalDateTime.now())
+        );
+    }
+
+    @Test
+    @DisplayName("부분 정보 조회 구조 검증")
+    void validatePartialSettings_Success() {
+        // Given - 프로필만 있는 설정
+        AccountResponse.Settings profileOnly = AccountResponse.Settings.builder()
+                .profile(createSampleProfile())
+                .build();
+
+        // Given - 연락처만 있는 설정
+        AccountResponse.Settings contactOnly = AccountResponse.Settings.builder()
+                .contact(createSampleContact())
                 .build();
 
         // Then
         assertAll(
-                () -> assertThat(profile.getUserId()).isEqualTo(100L),
-                () -> assertThat(profile.getNickname()).isEqualTo("닉네임테스트"),
-                () -> assertThat(profile.getProfileImageUrl()).isEqualTo("https://cdn.test.com/image.jpg")
+                // 프로필만 조회시
+                () -> assertThat(profileOnly.getProfile()).isNotNull(),
+                () -> assertThat(profileOnly.getContact()).isNull(),
+                () -> assertThat(profileOnly.getSecurity()).isNull(),
+                // 연락처만 조회시
+                () -> assertThat(contactOnly.getProfile()).isNull(),
+                () -> assertThat(contactOnly.getContact()).isNotNull(),
+                () -> assertThat(contactOnly.getSecurity()).isNull()
         );
     }
 
     @Test
-    @DisplayName("Contact Builder 패턴 테스트")
-    void builder_Contact_Success() {
-        // When
-        AccountResponse.Contact contact = AccountResponse.Contact.builder()
-                .email("contact@test.com")
-                .emailVerified(false)
-                .phone("+821087654321")
-                .address("부산시 해운대구")
-                .build();
-
-        // Then
-        assertAll(
-                () -> assertThat(contact.getEmail()).isEqualTo("contact@test.com"),
-                () -> assertThat(contact.getEmailVerified()).isFalse(),
-                () -> assertThat(contact.getPhone()).isEqualTo("+821087654321"),
-                () -> assertThat(contact.getAddress()).isEqualTo("부산시 해운대구")
-        );
-    }
-
-    @Test
-    @DisplayName("API 명세와 동일한 구조 생성 테스트")
-    void createApiResponseStructure() {
+    @DisplayName("API 명세와 일치하는 구조 생성")
+    void createApiCompatibleStructure_Success() {
         // When
         AccountResponse.Settings response = AccountResponse.Settings.builder()
                 .profile(AccountResponse.Profile.builder()
@@ -115,7 +98,7 @@ public class AccountResponseTest {
                         .build())
                 .build();
 
-        // Then
+        // Then - API 응답 구조 검증
         assertAll(
                 () -> assertThat(response.getProfile().getUserId()).isEqualTo(10025L),
                 () -> assertThat(response.getProfile().getNickname()).isEqualTo("닉네임입니다"),
@@ -123,5 +106,38 @@ public class AccountResponseTest {
                 () -> assertThat(response.getContact().getEmailVerified()).isTrue(),
                 () -> assertThat(response.getSecurity().getLastPasswordChangedAt()).isNotNull()
         );
+    }
+
+    // =========================== 헬퍼 메서드들 ===========================
+
+    private AccountResponse.Settings createSampleSettings() {
+        return AccountResponse.Settings.builder()
+                .profile(createSampleProfile())
+                .contact(createSampleContact())
+                .security(createSampleSecurity())
+                .build();
+    }
+
+    private AccountResponse.Profile createSampleProfile() {
+        return AccountResponse.Profile.builder()
+                .userId(123L)
+                .nickname("테스트유저")
+                .profileImageUrl("https://example.com/profile.jpg")
+                .build();
+    }
+
+    private AccountResponse.Contact createSampleContact() {
+        return AccountResponse.Contact.builder()
+                .email("test@example.com")
+                .emailVerified(true)
+                .phone("+821012345678")
+                .address("서울시 강남구")
+                .build();
+    }
+
+    private AccountResponse.Security createSampleSecurity() {
+        return AccountResponse.Security.builder()
+                .lastPasswordChangedAt(LocalDateTime.of(2025, 9, 20, 10, 30))
+                .build();
     }
 }

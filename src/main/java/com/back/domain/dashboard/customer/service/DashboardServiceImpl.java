@@ -32,15 +32,14 @@ public class DashboardServiceImpl implements DashboardService {
             switch (field.trim()) {
                 case "profile":
                     response.setProfile(new AccountResponse.Profile(
-                            10025L, "닉네임입니다", "https://cdn.example.com/u/10025/profile.jpg"));
+                            10025L, "사용자닉네임", "https://cdn.example.com/u/10025/profile.jpg"));
                     break;
                 case "contact":
                     response.setContact(new AccountResponse.Contact(
-                            "user@example.com", true, "+821012345678", "서울특별시 강남구 테헤란로 123 2층"));
+                            "user@example.com", true, "+821012345678", "서울특별시 강남구"));
                     break;
                 case "security":
-                    response.setSecurity(new AccountResponse.Security(
-                            LocalDateTime.of(2025, 8, 10, 11, 0)));
+                    response.setSecurity(new AccountResponse.Security(LocalDateTime.now()));
                     break;
             }
         }
@@ -54,22 +53,21 @@ public class DashboardServiceImpl implements DashboardService {
                                                                 String sort, String order) {
         // TODO: 실제 데이터베이스 조회 로직 구현
         
-        // 샘플 데이터
         ArtistApplicationResponse.SummaryDto summary = 
                 new ArtistApplicationResponse.SummaryDto(2, 0, 1, 1);
         
         List<ArtistApplicationResponse.Summary> content = Arrays.asList(
                 new ArtistApplicationResponse.Summary(
-                        1L, "모리모리", "2025-09-19", "REJECTED", "거절",
-                        new ArtistApplicationResponse.Permission(false, false, true),
-                        LocalDateTime.of(2025, 9, 20, 10, 30)),
+                        1L, "작가지원자", "2025-09-19", "PENDING", "대기중",
+                        new ArtistApplicationResponse.Permission(true, false, true),
+                        LocalDateTime.now()),
                 new ArtistApplicationResponse.Summary(
-                        2L, "모리모리모리", "2025-09-25", "APPROVED", "승인",
+                        2L, "승인작가", "2025-09-18", "APPROVED", "승인",
                         new ArtistApplicationResponse.Permission(false, false, false),
-                        LocalDateTime.of(2025, 9, 25, 14, 10))
+                        LocalDateTime.now().minusDays(1))
         );
         
-        return new ArtistApplicationResponse.List(summary, content, page, 10, 2, 1, false, false);
+        return new ArtistApplicationResponse.List(summary, content, page, size, 2, 1, false, false);
     }
     
     @Override
@@ -78,36 +76,36 @@ public class DashboardServiceImpl implements DashboardService {
         
         return new ArtistApplicationResponse.Detail(
                 new ArtistApplicationResponse.Application(
-                        2L, "REJECTED", "입점 거절", 
-                        LocalDateTime.of(2025, 9, 25, 9, 30),
-                        LocalDateTime.of(2025, 9, 25, 14, 10), 
-                        "브랜드 컨셉 불일치",
-                        new ArtistApplicationResponse.Reviewer("admin_001", "관리자A")),
+                        applicationId, "PENDING", "검토중", 
+                        LocalDateTime.now().minusDays(2),
+                        LocalDateTime.now(), 
+                        null,
+                        new ArtistApplicationResponse.Reviewer("admin_001", "관리자")),
                 new ArtistApplicationResponse.Applicant(
-                        "abc123", "모리모리모리", "https://cdn.example.com/u/10025/profile.jpg"),
+                        "user123", "지원작가", "https://cdn.example.com/u/user123/profile.jpg"),
                 new ArtistApplicationResponse.Contact(
-                        "abc123@abc.com", "010-1234-5678"),
+                        "user123@example.com", "010-1234-5678"),
                 new ArtistApplicationResponse.Business(
                         "123-45-67890",
                         new ArtistApplicationResponse.FileDto(
                                 "biz-123", "사업자등록증.pdf", 
-                                "https://files.example.com/signed/biz-123",
-                                LocalDateTime.of(2025, 9, 25, 15, 10)),
-                        "2025-서울강남-1234",
+                                "https://files.example.com/biz-123",
+                                LocalDateTime.now()),
+                        "2025-서울-1234",
                         new ArtistApplicationResponse.FileDto(
                                 "rep-456", "통신판매업신고증.pdf",
-                                "https://files.example.com/signed/rep-456",
-                                LocalDateTime.of(2025, 9, 25, 15, 10)),
-                        "서울특별시 강남구 테헤란로 123 2층"),
+                                "https://files.example.com/rep-456",
+                                LocalDateTime.now()),
+                        "서울특별시 강남구"),
                 new ArtistApplicationResponse.Profile(
                         "작가 소개입니다.",
                         Arrays.asList("스티커", "메모지"),
-                        List.of(new ArtistApplicationResponse.Sns("Instagram", "@morimori_official")),
+                        List.of(new ArtistApplicationResponse.Sns("Instagram", "@artist")),
                         List.of(new ArtistApplicationResponse.FileDto(
                                 "pf-1", "포트폴리오.pdf",
-                                "https://files.example.com/signed/pf-1",
-                                LocalDateTime.of(2025, 9, 25, 15, 10)))),
-                new ArtistApplicationResponse.Permission(false, false, true)
+                                "https://files.example.com/pf-1",
+                                LocalDateTime.now()))),
+                new ArtistApplicationResponse.Permission(true, true, true)
         );
     }
     
@@ -115,55 +113,44 @@ public class DashboardServiceImpl implements DashboardService {
     public OrderResponse.List getOrders(String authorization, int page, int size, String status,
                                         String aftersalesStatus, String from, String to, String period, String sort, String order) {
         // TODO: 실제 주문 데이터 조회 로직 구현
-        // 실제로는 orderService.getOrdersByUser() 같은 메서드 호출하여 데이터 조회
-        // 그 후 매핑 로직을 통해 API 응답 형태로 변환
         
-        // 주문 현황 요약 정보 (API 문서에 맞춘 상태별 카운트)
         OrderResponse.SummaryDto summary = OrderResponse.SummaryDto.builder()
-                .totalOrders(42)
-                .pending(3)          // API의 PENDING 상태 (결제완료/발주전)
-                .confirmed(2)        // API의 CONFIRMED 상태 (발주확인)  
-                .preparing(5)        // API의 PREPARING 상태 (배송준비중)
-                .shipped(12)         // API의 SHIPPED 상태 (배송중)
-                .delivered(20)       // API의 DELIVERED 상태 (배송완료)
-                .canceled(2)         // API의 CANCELED 상태 (취소됨)
-                .cancelRequested(2)  // A/S: 취소 요청
-                .cancelProcessing(1) // A/S: 취소 처리중
-                .cancelCompleted(1)  // A/S: 취소 완료
-                .exchangeRequested(1)  // A/S: 교환 요청
-                .exchangeProcessing(0) // A/S: 교환 처리중
-                .exchangeCompleted(3)  // A/S: 교환 완료
+                .totalOrders(25)
+                .pending(3)
+                .confirmed(2)  
+                .preparing(5)
+                .shipped(10)
+                .delivered(5)
+                .canceled(2)
+                .cancelRequested(1)
+                .cancelProcessing(0) 
+                .cancelCompleted(1)
+                .exchangeRequested(1)
+                .exchangeProcessing(0)
+                .exchangeCompleted(1)
                 .build();
         
-        // API 문서에 맞는 주문 목록 (A/S 정보 포함)
         List<OrderResponse.Summary> content = List.of(
                 OrderResponse.Summary.builder()
-                        .orderId("550e8400-e29b-41d4-a716-446655440000")
+                        .orderId("ORDER-001")
                         .orderNumber("0123157")
                         .orderDate("2025-09-18T11:20:00+09:00")
-                        .status("PENDING")      // API 응답용 상태
-                        .statusText("발주 전")
+                        .status("PENDING")
+                        .statusText("결제완료")
                         .totalAmount(47500)
                         .itemCount(2)
                         .representativeItem(OrderResponse.Product.builder()
                                 .productId(101L)
-                                .productName("상품명입니다 상품명입니다")
+                                .productName("감성 포스터")
                                 .quantity(1)
-                                .price(12500)
+                                .price(25000)
                                 .imageUrl("https://example.com/product101.jpg")
                                 .build())
                         .shipping(OrderResponse.Shipping.builder()
-                                .addressShort("서울시 강남구 …")
+                                .addressShort("서울시 강남구")
                                 .recipient("홍길동")
                                 .build())
-                        .aftersales(OrderResponse.Aftersales.builder()
-                                .cancel(OrderResponse.AftersalesItem.builder()
-                                        .status("REQUESTED")
-                                        .statusText("취소 요청 중")
-                                        .requestId(901L)
-                                        .build())
-                                .exchange(null)
-                                .build())
+                        .aftersales(null)
                         .permissions(OrderResponse.Permission.builder()
                                 .canCancel(true)
                                 .canReturn(false)
@@ -176,102 +163,23 @@ public class DashboardServiceImpl implements DashboardService {
                                 OrderResponse.OrderItem.builder()
                                         .orderItemId(1L)
                                         .productId(101L)
-                                        .productName("상품명입니다 상품명입니다")
+                                        .productName("감성 포스터")
                                         .quantity(1)
-                                        .price(12500)
+                                        .price(25000)
                                         .imageUrl("https://example.com/product101.jpg")
                                         .build(),
                                 OrderResponse.OrderItem.builder()
                                         .orderItemId(2L)
                                         .productId(102L)
-                                        .productName("다른 상품명")
+                                        .productName("아트 스티커")
                                         .quantity(1)
-                                        .price(35000)
+                                        .price(22500)
                                         .imageUrl("https://example.com/product102.jpg")
                                         .build()
                         ))
-                        .build(),
-                OrderResponse.Summary.builder()
-                        .orderId("550e8400-e29b-41d4-a716-446655440001")
-                        .orderNumber("0123156")
-                        .orderDate("2025-09-18T10:05:00+09:00")
-                        .status("PREPARING")    // API 응답용 상태
-                        .statusText("배송 준비중")
-                        .totalAmount(32000)
-                        .itemCount(1)
-                        .representativeItem(OrderResponse.Product.builder()
-                                .productId(103L)
-                                .productName("상품명입니다 상품명입니다")
-                                .quantity(1)
-                                .price(32000)
-                                .imageUrl("https://example.com/product103.jpg")
-                                .build())
-                        .shipping(OrderResponse.Shipping.builder()
-                                .addressShort("서울시 서초구 …")
-                                .recipient("손경호")
-                                .build())
-                        .aftersales(OrderResponse.Aftersales.builder()
-                                .cancel(null)
-                                .exchange(OrderResponse.AftersalesItem.builder()
-                                        .status("PROCESSING")
-                                        .statusText("교환 처리 중")
-                                        .requestId(902L)
-                                        .build())
-                                .build())
-                        .permissions(OrderResponse.Permission.builder()
-                                .canCancel(true)
-                                .canReturn(false)
-                                .canExchange(false)
-                                .build())
-                        .links(OrderResponse.Link.builder()
-                                .detail("/orders/0123156")
-                                .build())
-                        .items(null) // items는 선택적
-                        .build(),
-                OrderResponse.Summary.builder()
-                        .orderId("550e8400-e29b-41d4-a716-446655440002")
-                        .orderNumber("0123155")
-                        .orderDate("2025-09-18T09:40:00+09:00")
-                        .status("SHIPPED")      // API 응답용 상태
-                        .statusText("배송중")
-                        .totalAmount(28500)
-                        .itemCount(1)
-                        .representativeItem(OrderResponse.Product.builder()
-                                .productId(104L)
-                                .productName("상품명입니다 상품명입니다")
-                                .quantity(1)
-                                .price(28500)
-                                .imageUrl("https://example.com/product104.jpg")
-                                .build())
-                        .shipping(OrderResponse.Shipping.builder()
-                                .addressShort("부산시 해운대구 …")
-                                .recipient("이영희")
-                                .build())
-                        .aftersales(OrderResponse.Aftersales.builder()
-                                .cancel(OrderResponse.AftersalesItem.builder()
-                                        .status("COMPLETED")
-                                        .statusText("취소 완료")
-                                        .requestId(903L)
-                                        .build())
-                                .exchange(OrderResponse.AftersalesItem.builder()
-                                        .status("COMPLETED")
-                                        .statusText("교환 완료")
-                                        .requestId(904L)
-                                        .build())
-                                .build())
-                        .permissions(OrderResponse.Permission.builder()
-                                .canCancel(false)
-                                .canReturn(true)
-                                .canExchange(true)
-                                .build())
-                        .links(OrderResponse.Link.builder()
-                                .detail("/orders/0123155")
-                                .build())
-                        .items(null) // items는 선택적
                         .build()
         );
         
-        // 기간 정보 (API 문서에 맞춘 구조)
         OrderResponse.PeriodInfo periodInfo = OrderResponse.PeriodInfo.builder()
                 .type("MONTH")
                 .from("2025-09-01")
@@ -279,7 +187,7 @@ public class DashboardServiceImpl implements DashboardService {
                 .build();
         
         return new OrderResponse.List(
-                summary, content, page, 10, 42, 5, true, false, 
+                summary, content, page, size, 25, 3, true, false, 
                 "Asia/Seoul", periodInfo);
     }
     
@@ -288,35 +196,30 @@ public class DashboardServiceImpl implements DashboardService {
                                                      String keyword, String status, String sort, String order) {
         // TODO: 실제 데이터베이스 조회 로직 구현
         
-        // 조회 대상 사용자 프로필 정보
         FollowingResponse.Profile profile = new FollowingResponse.Profile(
-                "abc123", "사용자닉네임", "https://cdn.example.com/u/abc123/profile.jpg");
+                userId, "사용자닉네임", "https://cdn.example.com/u/" + userId + "/profile.jpg");
         
-        // 팔로우 현황 요약 정보
         FollowingResponse.SummaryDto summary = 
-                new FollowingResponse.SummaryDto(8);
+                new FollowingResponse.SummaryDto(5);
         
-        // 팔로우한 작가 목록
         List<FollowingResponse.Artist> content = Arrays.asList(
                 new FollowingResponse.Artist(
-                        "artist_001", "작가명입니다",
+                        "artist_001", "감성작가",
                         "https://cdn.example.com/artists/artist_001/profile.jpg",
                         500, "/artists/artist_001",
-                        new FollowingResponse.FollowRelation("FOLLOWING", 
-                                LocalDateTime.of(2025, 9, 18, 10, 0)),
+                        new FollowingResponse.FollowRelation("FOLLOWING", LocalDateTime.now()),
                         new FollowingResponse.Badge(true)
                 ),
                 new FollowingResponse.Artist(
-                        "artist_002", "다른작가",
+                        "artist_002", "캐릭터작가",
                         "https://cdn.example.com/artists/artist_002/profile.jpg",
                         123, "/artists/artist_002",
-                        new FollowingResponse.FollowRelation("FOLLOWING", 
-                                LocalDateTime.of(2025, 9, 17, 14, 20)),
+                        new FollowingResponse.FollowRelation("FOLLOWING", LocalDateTime.now().minusDays(1)),
                         new FollowingResponse.Badge(false)
                 )
         );
         
-        return new FollowingResponse.List(profile, summary, content, page, 8, 8, 1, false, false);
+        return new FollowingResponse.List(profile, summary, content, page, size, 5, 1, false, false);
     }
     
     @Override
@@ -324,7 +227,7 @@ public class DashboardServiceImpl implements DashboardService {
                                              String artistId, Long categoryId, String sort, String order) {
         // TODO: 실제 데이터베이스 조회 로직 구현
         
-        WishlistResponse.SummaryDto summary = new WishlistResponse.SummaryDto(57);
+        WishlistResponse.SummaryDto summary = new WishlistResponse.SummaryDto(15);
         
         List<WishlistResponse.BulkAction> bulkActions = List.of(
                 new WishlistResponse.BulkAction("BULK_UNWISH", "선택 항목 해제", true)
@@ -332,15 +235,22 @@ public class DashboardServiceImpl implements DashboardService {
         
         List<WishlistResponse.Item> content = List.of(
                 new WishlistResponse.Item(
-                        "w-20250918-0001", 123157L, "0123157", "상품명입니다 상품명입니다", 90000,
-                        new WishlistResponse.Artist("asdfd331", "작가명입니다 작가명입니다"),
-                        "https://cdn.example.com/p/123157/main_256.jpg", "SELLING", "2025-09-18",
-                        LocalDateTime.of(2025, 9, 19, 11, 45), "/products/0123157",
+                        "w-001", 123157L, "0123157", "감성 일러스트 포스터", 25000,
+                        new WishlistResponse.Artist("artist001", "감성작가"),
+                        "https://cdn.example.com/p/123157/main.jpg", "SELLING", "2025-09-18",
+                        LocalDateTime.now(), "/products/0123157",
+                        new WishlistResponse.Permission(true)
+                ),
+                new WishlistResponse.Item(
+                        "w-002", 123158L, "0123158", "귀여운 스티커 세트", 15000,
+                        new WishlistResponse.Artist("artist002", "캐릭터작가"),
+                        "https://cdn.example.com/p/123158/main.jpg", "SELLING", "2025-09-17",
+                        LocalDateTime.now().minusDays(1), "/products/0123158",
                         new WishlistResponse.Permission(true)
                 )
         );
         
-        return new WishlistResponse.List(summary, bulkActions, content, page, 10, 57, 6, true, false);
+        return new WishlistResponse.List(summary, bulkActions, content, page, size, 15, 2, true, false);
     }
     
     @Override
@@ -349,58 +259,38 @@ public class DashboardServiceImpl implements DashboardService {
         // TODO: 실제 데이터베이스 조회 로직 구현
         
         FundingResponse.SummaryDto summary = 
-                new FundingResponse.SummaryDto(12, 4, 5, 1, 2);
+                new FundingResponse.SummaryDto(8, 3, 3, 1, 1);
         
         List<FundingResponse.Participation> content = Arrays.asList(
                 new FundingResponse.Participation(
-                        "00010", "FP-20250918-0001",
-                        "https://cdn.example.com/f/456789/thumb_256.jpg",
-                        "펀딩 제목입니다 펀딩 제목입니다",
-                        new FundingResponse.Artist("artist_abc", "작가명입니다"),
-                        1, 1000, "ACTIVE", "진행중", "2025-09-18",
+                        "00010", "FP-001",
+                        "https://cdn.example.com/f/456789/thumb.jpg",
+                        "아티스트 굿즈 펀딩",
+                        new FundingResponse.Artist("artist_abc", "펀딩작가"),
+                        1, 25000, "ACTIVE", "진행중", "2025-09-18",
                         new FundingResponse.Link("/fundings/456789"),
                         new FundingResponse.Meta(
                                 456789L, "F0456789", 100, 900000, 900000, 800,
-                                new FundingResponse.UserPledge("리워드 A", 
-                                        LocalDateTime.of(2025, 9, 10, 11, 20), "ACTIVE"),
+                                new FundingResponse.UserPledge("리워드 A", LocalDateTime.now(), "ACTIVE"),
                                 new FundingResponse.Permission(true, false)
                         )
                 ),
                 new FundingResponse.Participation(
-                        "00027", "FP-20250918-0002",
-                        "https://cdn.example.com/f/456790/thumb_256.jpg",
-                        "다른 펀딩 제목",
-                        new FundingResponse.Artist("artist_xyz", "작가명입니다"),
-                        2, 8000, "ENDED", "종료", "2025-09-18",
+                        "00027", "FP-002",
+                        "https://cdn.example.com/f/456790/thumb.jpg",
+                        "캐릭터 굿즈 펀딩",
+                        new FundingResponse.Artist("artist_xyz", "캐릭터작가"),
+                        2, 35000, "ENDED", "종료", "2025-09-10",
                         new FundingResponse.Link("/fundings/456790"),
                         new FundingResponse.Meta(
-                                456790L, "F0456790", 1500, 13500000, 900000, 800,
-                                new FundingResponse.UserPledge("리워드 B", 
-                                        LocalDateTime.of(2025, 9, 8, 9, 0), "ACTIVE"),
+                                456790L, "F0456790", 150, 1350000, 900000, 800,
+                                new FundingResponse.UserPledge("리워드 B", LocalDateTime.now().minusDays(8), "COMPLETED"),
                                 new FundingResponse.Permission(false, true)
                         )
-                ),
-                new FundingResponse.Participation(
-                        "00100", "FP-20250918-0003",
-                        "https://cdn.example.com/f/456791/thumb_256.jpg",
-                        "펀딩 제목입니다",
-                        new FundingResponse.Artist("artist_qwe", "작가명입니다"),
-                        1, 8000, "FULFILLING", "발송준비중", "2025-09-18",
-                        new FundingResponse.Link("/fundings/456791"),
-                        null  // meta 선택적
-                ),
-                new FundingResponse.Participation(
-                        "01230", "FP-20250918-0004",
-                        "https://cdn.example.com/f/456792/thumb_256.jpg",
-                        "펀딩 제목입니다",
-                        new FundingResponse.Artist("artist_asd", "작가명입니다"),
-                        1, 1000, "FULFILLED", "발송완료", "2025-09-18",
-                        new FundingResponse.Link("/fundings/456792"),
-                        null  // meta 선택적
                 )
         );
         
-        return new FundingResponse.List(summary, content, page, 10, 12, 2, false, false);
+        return new FundingResponse.List(summary, content, page, size, 8, 1, false, false);
     }
     
     @Override
@@ -408,13 +298,13 @@ public class DashboardServiceImpl implements DashboardService {
         // TODO: 실제 데이터베이스 조회 로직 구현
         
         ReturnResponse.Summary summary = new ReturnResponse.Summary(
-                "0123157", "브랜드명", "상품명입니다", 1000, 1,
-                "https://cdn.example.com/i/98765/256.jpg");
+                "0123157", "아티스트브랜드", "감성 포스터", 25000, 1,
+                "https://cdn.example.com/product.jpg");
         
         ReturnResponse.Form form = new ReturnResponse.Form(
-                "EXCHANGE", "PICKUP", "DEFECT", "스티커 구김 현상 발견",
-                List.of(new ReturnResponse.Image("img-1", "photo_1.jpg")),
-                new ReturnResponse.Pickup("06245", "서울 강남구 테헤란로 123", "3층", "홍길동", "010-1234-5678"));
+                "EXCHANGE", "PICKUP", "DEFECT", "상품 불량",
+                List.of(new ReturnResponse.Image("img-1", "photo.jpg")),
+                new ReturnResponse.Pickup("12345", "서울 강남구", "3층", "홍길동", "010-1234-5678"));
         
         ReturnResponse.Permission permissions = new ReturnResponse.Permission(true, true);
         
@@ -425,8 +315,7 @@ public class DashboardServiceImpl implements DashboardService {
     public CashResponse.Balance getCashBalance(String authorization) {
         // TODO: 실제 데이터베이스 조회 로직 구현
         
-        return new CashResponse.Balance(
-                5900, "KRW", LocalDateTime.of(2025, 9, 22, 10, 15));
+        return new CashResponse.Balance(5900, "KRW", LocalDateTime.now());
     }
     
     @Override
@@ -435,21 +324,19 @@ public class DashboardServiceImpl implements DashboardService {
                                                   String sort, String order) {
         // TODO: 실제 데이터베이스 조회 로직 구현
         
-        CashResponse.SummaryDto summary = new CashResponse.SummaryDto(720, 18000, 480);
+        CashResponse.SummaryDto summary = new CashResponse.SummaryDto(5, 15000, 2);
         
         List<CashResponse.Transaction> content = Arrays.asList(
                 new CashResponse.Transaction(
-                        "RC-20250131-2303-0001",
-                        LocalDateTime.of(2025, 1, 31, 23, 3),
-                        "캐시 충전", 2000, 60, "NAVERPAY", "네이버페이", "COMPLETED",
+                        "RC-001", LocalDateTime.now(),
+                        "캐시 충전", 10000, 50, "NAVERPAY", "네이버페이", "COMPLETED",
                         new CashResponse.Link(null)),
                 new CashResponse.Transaction(
-                        "RC-20250123-0020-0001",
-                        LocalDateTime.of(2025, 1, 23, 0, 20),
-                        "캐시 충전", 2000, 60, "NAVERPAY", "네이버페이", "COMPLETED",
-                        new CashResponse.Link(null))
+                        "RC-002", LocalDateTime.now().minusDays(1),
+                        "캐시 사용", -5000, 45, "PURCHASE", "상품구매", "COMPLETED",
+                        new CashResponse.Link("/orders/0123157"))
         );
         
-        return new CashResponse.HistoryList(summary, content, page, 10, 9, 1, false, false);
+        return new CashResponse.HistoryList(summary, content, page, size, 5, 1, false, false);
     }
 }
