@@ -7,6 +7,7 @@ import com.back.domain.dashboard.artist.dto.response.ArtistCashHistoryResponse;
 import com.back.domain.dashboard.artist.dto.response.ArtistOrderResponse;
 import com.back.domain.dashboard.artist.dto.response.ArtistCancellationResponse;
 import com.back.domain.dashboard.artist.dto.response.ArtistExchangeResponse;
+import com.back.domain.dashboard.artist.dto.response.ArtistSettingsResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -195,8 +196,8 @@ public class ArtistDashboardServiceImpl implements ArtistDashboardService {
 
     @Override
     public ArtistCashHistoryResponse.List getCashHistory(String authorization, int page, int size,
-                                                        String type, String status, String dateFrom,
-                                                        String dateTo, String sort, String order) {
+                                                         String type, String status, String dateFrom,
+                                                         String dateTo, String sort, String order) {
         // TODO: JWT 토큰에서 작가 정보 추출
         // TODO: 실제 데이터베이스에서 캐시 거래 내역 조회
 
@@ -249,8 +250,8 @@ public class ArtistDashboardServiceImpl implements ArtistDashboardService {
 
     @Override
     public ArtistOrderResponse.List getOrders(String authorization, int page, int size,
-                                             String status, String keyword, String startDate,
-                                             String endDate, String sort, String order) {
+                                              String status, String keyword, String startDate,
+                                              String endDate, String sort, String order) {
         // TODO: JWT 토큰에서 작가 정보 추출
         // TODO: 실제 데이터베이스에서 주문 목록 조회
 
@@ -304,8 +305,8 @@ public class ArtistDashboardServiceImpl implements ArtistDashboardService {
 
     @Override
     public ArtistCancellationResponse.List getCancellationRequests(String authorization, int page, int size,
-                                                                  String status, String keyword, String startDate,
-                                                                  String endDate, Long productId, String sort, String order) {
+                                                                   String status, String keyword, String startDate,
+                                                                   String endDate, Long productId, String sort, String order) {
         // TODO: JWT 토큰에서 작가 정보 추출
         // TODO: 실제 데이터베이스에서 취소 요청 목록 조회
 
@@ -373,8 +374,8 @@ public class ArtistDashboardServiceImpl implements ArtistDashboardService {
 
     @Override
     public ArtistExchangeResponse.List getExchangeRequests(String authorization, int page, int size,
-                                                          String status, String keyword, String startDate,
-                                                          String endDate, Long productId, String sort, String order) {
+                                                           String status, String keyword, String startDate,
+                                                           String endDate, Long productId, String sort, String order) {
         // TODO: JWT 토큰에서 작가 정보 추출
         // TODO: 실제 데이터베이스에서 교환 요청 목록 조회
 
@@ -440,6 +441,56 @@ public class ArtistDashboardServiceImpl implements ArtistDashboardService {
                 .totalPages(1)
                 .hasNext(false)
                 .hasPrevious(false)
+                .build();
+    }
+
+    @Override
+    public ArtistSettingsResponse getSettings(String authorization) {
+        // TODO: JWT 토큰에서 작가 정보 추출
+        // TODO: 실제 데이터베이스에서 작가 설정 정보 조회
+
+        // 프로필 정보
+        ArtistSettingsResponse.Profile profile = ArtistSettingsResponse.Profile.builder()
+                .nickname("작가명입니다")
+                .bio("자신을 소개하는 글을 입력해주세요.")
+                .sns(Arrays.asList(
+                        ArtistSettingsResponse.Sns.builder()
+                                .platform("Instagram")
+                                .handle("@mori_official")
+                                .build()
+                ))
+                .profileImageUrl("https://cdn.example.com/u/5/profile.jpg")
+                .build();
+
+        // 사업자 정보
+        ArtistSettingsResponse.Business business = ArtistSettingsResponse.Business.builder()
+                .address("서울특별시 강남구 테헤란로 123 2층")
+                .businessRegistrationNo("123-45-67890")
+                .telemarketingReportNo("2025-서울강남-1234")
+                .verified(true)
+                .build();
+
+        // 정산 계좌 정보
+        ArtistSettingsResponse.Payout payout = ArtistSettingsResponse.Payout.builder()
+                .bankCode("088")
+                .bankName("신한")
+                .accountHolder("홍길동")
+                .accountMasked("****-****-**3456")
+                .status("VERIFIED")
+                .build();
+
+        // 권한 정보
+        ArtistSettingsResponse.Permissions permissions = ArtistSettingsResponse.Permissions.builder()
+                .canEditProfile(true)
+                .canEditBusiness(true)
+                .canEditPayout(true)
+                .build();
+
+        return ArtistSettingsResponse.builder()
+                .profile(profile)
+                .business(business)
+                .payout(payout)
+                .permissions(permissions)
                 .build();
     }
 }

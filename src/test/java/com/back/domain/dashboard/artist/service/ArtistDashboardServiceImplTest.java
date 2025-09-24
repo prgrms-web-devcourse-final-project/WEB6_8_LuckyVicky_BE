@@ -137,7 +137,7 @@ class ArtistDashboardServiceImplTest {
                 () -> assertThat(result.getContent()).hasSize(1),
                 () -> assertThat(result.getBulkActions()).hasSize(2),
                 // 핵심 비즈니스 규칙 - 상태별 합계가 전체와 일치
-                () -> assertThat(result.getSummary().getPending() + result.getSummary().getApproved() 
+                () -> assertThat(result.getSummary().getPending() + result.getSummary().getApproved()
                         + result.getSummary().getRejected()).isEqualTo(result.getSummary().getTotal()),
                 () -> assertThat(result.getContent().get(0).getRefundAmount()).isPositive(),
                 () -> assertThat(result.getTotalElements()).isEqualTo(8)
@@ -158,10 +158,47 @@ class ArtistDashboardServiceImplTest {
                 () -> assertThat(result.getContent()).hasSize(1),
                 () -> assertThat(result.getBulkActions()).hasSize(2),
                 // 핵심 비즈니스 규칙 - 상태별 합계가 전체와 일치
-                () -> assertThat(result.getSummary().getPending() + result.getSummary().getApproved() 
+                () -> assertThat(result.getSummary().getPending() + result.getSummary().getApproved()
                         + result.getSummary().getRejected()).isEqualTo(result.getSummary().getTotal()),
                 () -> assertThat(result.getContent().get(0).getOrderItem().getPrice()).isPositive(),
                 () -> assertThat(result.getTotalElements()).isEqualTo(5)
+        );
+    }
+
+    @Test
+    @DisplayName("작가 설정 정보 조회 - 완전한 설정 정보 반환")
+    void getSettings_ReturnsCompleteSettings() {
+        // When
+        ArtistSettingsResponse result = artistDashboardService.getSettings(TEST_AUTHORIZATION);
+
+        // Then - 설정 정보 구조와 데이터 검증
+        assertAll(
+                () -> assertThat(result).isNotNull(),
+                () -> assertThat(result.getProfile()).isNotNull(),
+                () -> assertThat(result.getBusiness()).isNotNull(),
+                () -> assertThat(result.getPayout()).isNotNull(),
+                () -> assertThat(result.getPermissions()).isNotNull(),
+                // 프로필 정보 검증
+                () -> assertThat(result.getProfile().getNickname()).isEqualTo("작가명입니다"),
+                () -> assertThat(result.getProfile().getBio()).isNotEmpty(),
+                () -> assertThat(result.getProfile().getSns()).hasSize(1),
+                () -> assertThat(result.getProfile().getSns().get(0).getPlatform()).isEqualTo("Instagram"),
+                () -> assertThat(result.getProfile().getProfileImageUrl()).isNotEmpty(),
+                // 사업자 정보 검증
+                () -> assertThat(result.getBusiness().getAddress()).isNotEmpty(),
+                () -> assertThat(result.getBusiness().getBusinessRegistrationNo()).isEqualTo("123-45-67890"),
+                () -> assertThat(result.getBusiness().getTelemarketingReportNo()).isNotEmpty(),
+                () -> assertThat(result.getBusiness().isVerified()).isTrue(),
+                // 정산 계좌 정보 검증
+                () -> assertThat(result.getPayout().getBankCode()).isEqualTo("088"),
+                () -> assertThat(result.getPayout().getBankName()).isEqualTo("신한"),
+                () -> assertThat(result.getPayout().getAccountHolder()).isEqualTo("홍길동"),
+                () -> assertThat(result.getPayout().getAccountMasked()).contains("****"),
+                () -> assertThat(result.getPayout().getStatus()).isEqualTo("VERIFIED"),
+                // 권한 정보 검증
+                () -> assertThat(result.getPermissions().isCanEditProfile()).isTrue(),
+                () -> assertThat(result.getPermissions().isCanEditBusiness()).isTrue(),
+                () -> assertThat(result.getPermissions().isCanEditPayout()).isTrue()
         );
     }
 }

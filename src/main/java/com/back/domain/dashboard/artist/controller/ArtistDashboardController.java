@@ -7,6 +7,7 @@ import com.back.domain.dashboard.artist.dto.response.ArtistCashHistoryResponse;
 import com.back.domain.dashboard.artist.dto.response.ArtistOrderResponse;
 import com.back.domain.dashboard.artist.dto.response.ArtistCancellationResponse;
 import com.back.domain.dashboard.artist.dto.response.ArtistExchangeResponse;
+import com.back.domain.dashboard.artist.dto.response.ArtistSettingsResponse;
 import com.back.domain.dashboard.artist.service.ArtistDashboardService;
 import com.back.global.rsData.RsData;
 import lombok.RequiredArgsConstructor;
@@ -238,6 +239,29 @@ public class ArtistDashboardController {
             );
         } catch (Exception e) {
             log.error("작가 교환 요청 목록 조회 실패", e);
+            return ResponseEntity.internalServerError().body(
+                    RsData.of("500-ERROR", "서버 오류가 발생했습니다.")
+            );
+        }
+    }
+
+    /**
+     * 작가 설정 정보 조회
+     */
+    @GetMapping("/settings")
+    public ResponseEntity<RsData<ArtistSettingsResponse>> getSettings(
+            @RequestHeader("Authorization") String authorization) {
+
+        log.info("작가 설정 정보 조회 요청");
+
+        try {
+            ArtistSettingsResponse response = artistDashboardService.getSettings(authorization);
+
+            return ResponseEntity.ok(
+                    RsData.of("200-OK", "판매자 설정 조회 성공", response)
+            );
+        } catch (Exception e) {
+            log.error("작가 설정 정보 조회 실패", e);
             return ResponseEntity.internalServerError().body(
                     RsData.of("500-ERROR", "서버 오류가 발생했습니다.")
             );

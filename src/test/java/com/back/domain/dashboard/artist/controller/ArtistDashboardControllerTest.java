@@ -6,6 +6,7 @@ import com.back.domain.dashboard.artist.dto.response.ArtistCashHistoryResponse;
 import com.back.domain.dashboard.artist.dto.response.ArtistOrderResponse;
 import com.back.domain.dashboard.artist.dto.response.ArtistCancellationResponse;
 import com.back.domain.dashboard.artist.dto.response.ArtistExchangeResponse;
+import com.back.domain.dashboard.artist.dto.response.ArtistSettingsResponse;
 import com.back.domain.dashboard.artist.service.ArtistDashboardService;
 import com.back.global.rsData.RsData;
 import org.junit.jupiter.api.DisplayName;
@@ -243,13 +244,13 @@ class ArtistDashboardControllerTest {
                 .build();
 
         given(artistDashboardService.getCashHistory(
-                eq(BEARER_TOKEN), eq(0), eq(20), eq("DEPOSIT"), eq("COMPLETED"), 
+                eq(BEARER_TOKEN), eq(0), eq(20), eq("DEPOSIT"), eq("COMPLETED"),
                 eq("2025-09-01"), eq("2025-09-30"), eq("transactedAt"), eq("DESC")))
                 .willReturn(mockResponse);
 
         // When
         ResponseEntity<RsData<ArtistCashHistoryResponse.List>> response =
-                artistDashboardController.getCashHistory(BEARER_TOKEN, 0, 20, "DEPOSIT", "COMPLETED", 
+                artistDashboardController.getCashHistory(BEARER_TOKEN, 0, 20, "DEPOSIT", "COMPLETED",
                         "2025-09-01", "2025-09-30", "transactedAt", "DESC");
 
         // Then - 필터링된 결과 검증
@@ -398,13 +399,13 @@ class ArtistDashboardControllerTest {
                 .build();
 
         given(artistDashboardService.getOrders(
-                eq(BEARER_TOKEN), eq(0), eq(20), eq("PENDING"), eq("0123157"), 
+                eq(BEARER_TOKEN), eq(0), eq(20), eq("PENDING"), eq("0123157"),
                 eq("2025-09-01"), eq("2025-09-30"), eq("orderDate"), eq("DESC")))
                 .willReturn(mockResponse);
 
         // When
         ResponseEntity<RsData<ArtistOrderResponse.List>> response =
-                artistDashboardController.getOrders(BEARER_TOKEN, 0, 20, "PENDING", "0123157", 
+                artistDashboardController.getOrders(BEARER_TOKEN, 0, 20, "PENDING", "0123157",
                         "2025-09-01", "2025-09-30", "orderDate", "DESC");
 
         // Then - 필터링된 결과 검증
@@ -548,13 +549,13 @@ class ArtistDashboardControllerTest {
                 .build();
 
         given(artistDashboardService.getCancellationRequests(
-                eq(BEARER_TOKEN), eq(0), eq(20), eq("PENDING"), eq("ORD-20241225-001"), 
+                eq(BEARER_TOKEN), eq(0), eq(20), eq("PENDING"), eq("ORD-20241225-001"),
                 eq("2024-12-01"), eq("2024-12-31"), eq(101L), eq("requestDate"), eq("DESC")))
                 .willReturn(mockResponse);
 
         // When
         ResponseEntity<RsData<ArtistCancellationResponse.List>> response =
-                artistDashboardController.getCancellationRequests(BEARER_TOKEN, 0, 20, "PENDING", "ORD-20241225-001", 
+                artistDashboardController.getCancellationRequests(BEARER_TOKEN, 0, 20, "PENDING", "ORD-20241225-001",
                         "2024-12-01", "2024-12-31", 101L, "requestDate", "DESC");
 
         // Then - 필터링된 결과 검증
@@ -673,6 +674,93 @@ class ArtistDashboardControllerTest {
                 () -> assertThat(body.data().getPage()).isEqualTo(0),
                 () -> assertThat(body.data().getTotalElements()).isEqualTo(5),
                 () -> assertThat(body.data().isHasNext()).isFalse()
+        );
+    }
+
+    @Test
+    @DisplayName("작가 설정 정보 조회 성공")
+    void getSettings_Success() {
+        // Given
+        ArtistSettingsResponse.Profile profile = ArtistSettingsResponse.Profile.builder()
+                .nickname("작가명입니다")
+                .bio("자신을 소개하는 글을 입력해주세요.")
+                .sns(Arrays.asList(
+                        ArtistSettingsResponse.Sns.builder()
+                                .platform("Instagram")
+                                .handle("@mori_official")
+                                .build()
+                ))
+                .profileImageUrl("https://cdn.example.com/u/5/profile.jpg")
+                .build();
+
+        ArtistSettingsResponse.Business business = ArtistSettingsResponse.Business.builder()
+                .address("서울특별시 강남구 테헤란로 123 2층")
+                .businessRegistrationNo("123-45-67890")
+                .telemarketingReportNo("2025-서울강남-1234")
+                .verified(true)
+                .build();
+
+        ArtistSettingsResponse.Payout payout = ArtistSettingsResponse.Payout.builder()
+                .bankCode("088")
+                .bankName("신한")
+                .accountHolder("홍길동")
+                .accountMasked("****-****-**3456")
+                .status("VERIFIED")
+                .build();
+
+        ArtistSettingsResponse.Permissions permissions = ArtistSettingsResponse.Permissions.builder()
+                .canEditProfile(true)
+                .canEditBusiness(true)
+                .canEditPayout(true)
+                .build();
+
+        ArtistSettingsResponse mockResponse = ArtistSettingsResponse.builder()
+                .profile(profile)
+                .business(business)
+                .payout(payout)
+                .permissions(permissions)
+                .build();
+
+        given(artistDashboardService.getSettings(anyString()))
+                .willReturn(mockResponse);
+
+        // When
+        ResponseEntity<RsData<ArtistSettingsResponse>> response =
+                artistDashboardController.getSettings(BEARER_TOKEN);
+
+        // Then
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(response.getBody()).isNotNull();
+
+        RsData<ArtistSettingsResponse> body = response.getBody();
+        ArtistSettingsResponse data = body.data();
+
+        assertAll(
+                () -> assertThat(body.resultCode()).isEqualTo("200-OK"),
+                () -> assertThat(body.msg()).isEqualTo("판매자 설정 조회 성공"),
+                () -> assertThat(data).isNotNull(),
+                // 프로필 정보 검증
+                () -> assertThat(data.getProfile().getNickname()).isEqualTo("작가명입니다"),
+                () -> assertThat(data.getProfile().getBio()).isEqualTo("자신을 소개하는 글을 입력해주세요."),
+                () -> assertThat(data.getProfile().getSns()).hasSize(1),
+                () -> assertThat(data.getProfile().getSns().get(0).getPlatform()).isEqualTo("Instagram"),
+                () -> assertThat(data.getProfile().getSns().get(0).getHandle()).isEqualTo("@mori_official"),
+                () -> assertThat(data.getProfile().getProfileImageUrl()).isEqualTo("https://cdn.example.com/u/5/profile.jpg"),
+                // 사업자 정보 검증
+                () -> assertThat(data.getBusiness().getAddress()).isEqualTo("서울특별시 강남구 테헤란로 123 2층"),
+                () -> assertThat(data.getBusiness().getBusinessRegistrationNo()).isEqualTo("123-45-67890"),
+                () -> assertThat(data.getBusiness().getTelemarketingReportNo()).isEqualTo("2025-서울강남-1234"),
+                () -> assertThat(data.getBusiness().isVerified()).isTrue(),
+                // 정산 계좌 정보 검증
+                () -> assertThat(data.getPayout().getBankCode()).isEqualTo("088"),
+                () -> assertThat(data.getPayout().getBankName()).isEqualTo("신한"),
+                () -> assertThat(data.getPayout().getAccountHolder()).isEqualTo("홍길동"),
+                () -> assertThat(data.getPayout().getAccountMasked()).isEqualTo("****-****-**3456"),
+                () -> assertThat(data.getPayout().getStatus()).isEqualTo("VERIFIED"),
+                // 권한 정보 검증
+                () -> assertThat(data.getPermissions().isCanEditProfile()).isTrue(),
+                () -> assertThat(data.getPermissions().isCanEditBusiness()).isTrue(),
+                () -> assertThat(data.getPermissions().isCanEditPayout()).isTrue()
         );
     }
 }
