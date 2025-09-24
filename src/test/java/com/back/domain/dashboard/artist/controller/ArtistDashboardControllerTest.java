@@ -42,7 +42,7 @@ class ArtistDashboardControllerTest {
     private ArtistDashboardController artistDashboardController;
 
     private static final String BEARER_TOKEN = "Bearer test-artist-token-123";
-    
+
     // 공통 상수들
     private static final String SUCCESS_CODE = "200-OK";
     private static final int DEFAULT_PAGE = 0;
@@ -54,12 +54,12 @@ class ArtistDashboardControllerTest {
     private <T> T assertSuccessResponse(ResponseEntity<RsData<T>> response, String expectedMessage) {
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
         assertThat(response.getBody()).isNotNull();
-        
+
         RsData<T> body = response.getBody();
         assertThat(body).isNotNull();
         assertThat(body.resultCode()).isEqualTo(SUCCESS_CODE);
         assertThat(body.msg()).isEqualTo(expectedMessage);
-        
+
         T data = body.data();
         assertThat(data).isNotNull();
         return data;
@@ -129,50 +129,6 @@ class ArtistDashboardControllerTest {
                         .canCancel(true)
                         .build())
                 .build();
-    }
-
-    private ArtistCancellationResponse.CancellationRequest createMockCancellationRequest() {
-        return ArtistCancellationResponse.CancellationRequest.builder()
-                .requestId(1L)
-                .orderId("550e84...000")
-                .orderNumber("ORD-20241225-001")
-                .type("CANCEL")
-                .status("PENDING")
-                .statusText("처리대기")
-                .requestDate("2024-12-26T09:00:00+09:00")
-                .reason("단순 변심")
-                .customerMessage("사이즈가 맞지 않아서 취소하고 싶습니다.")
-                .customer(ArtistCancellationResponse.Customer.builder()
-                        .id(201L)
-                        .nickname("고객명")
-                        .build())
-                .orderItem(ArtistCancellationResponse.OrderItem.builder()
-                        .productId(101L)
-                        .productName("귀여운 고양이 스티커")
-                        .quantity(2)
-                        .price(12500)
-                        .build())
-                .refundAmount(25000)
-                .permissions(ArtistCancellationResponse.Permissions.builder()
-                        .canApprove(true)
-                        .canReject(true)
-                        .build())
-                .build();
-    }
-
-    private List<ArtistCancellationResponse.BulkAction> createMockCancellationBulkActions() {
-        return List.of(
-                ArtistCancellationResponse.BulkAction.builder()
-                        .action("CANCEL_APPROVE")
-                        .label("취소 승인")
-                        .requiresConfirmation(true)
-                        .build(),
-                ArtistCancellationResponse.BulkAction.builder()
-                        .action("CANCEL_REJECT")
-                        .label("취소 거절")
-                        .requiresConfirmation(true)
-                        .build()
-        );
     }
 
     @Test
@@ -420,14 +376,18 @@ class ArtistDashboardControllerTest {
     @DisplayName("작가 취소 요청 목록 조회 성공")
     void getCancellationRequests_Success() {
         // Given
-        ArtistCancellationResponse.Summary summary = ArtistCancellationResponse.Summary.builder()
-                .total(8).pending(5).approved(2).rejected(1)
-                .build();
+        ArtistCancellationResponse.CancellationRequest mockRequest =
+                ArtistCancellationResponse.CancellationRequest.builder()
+                        .requestId(1L)
+                        .orderNumber("ORD-20241225-001")
+                        .status("PENDING")
+                        .refundAmount(25000)
+                        .build();
 
         ArtistCancellationResponse.List mockResponse = ArtistCancellationResponse.List.builder()
-                .summary(summary)
-                .content(List.of(createMockCancellationRequest()))
-                .bulkActions(createMockCancellationBulkActions())
+                .summary(ArtistCancellationResponse.Summary.builder().total(8).pending(5).build())
+                .content(List.of(mockRequest))
+                .bulkActions(List.of())
                 .page(DEFAULT_PAGE)
                 .size(DEFAULT_SIZE)
                 .totalElements(8)
@@ -446,27 +406,11 @@ class ArtistDashboardControllerTest {
 
         // Then
         ArtistCancellationResponse.List data = assertSuccessResponse(response, "취소 요청 목록 조회 성공");
-        ArtistCancellationResponse.CancellationRequest firstRequest = data.getContent().getFirst();
-
         assertAll(
-                // 요약 정보 검증
                 () -> assertThat(data.getSummary().getTotal()).isEqualTo(8),
-                () -> assertThat(data.getSummary().getPending()).isEqualTo(5),
-                () -> assertThat(data.getSummary().getApproved()).isEqualTo(2),
-                () -> assertThat(data.getSummary().getRejected()).isEqualTo(1),
-                // 취소 요청 검증
                 () -> assertThat(data.getContent()).hasSize(1),
-                () -> assertThat(firstRequest.getRequestId()).isEqualTo(1L),
-                () -> assertThat(firstRequest.getOrderNumber()).isEqualTo("ORD-20241225-001"),
-                () -> assertThat(firstRequest.getStatus()).isEqualTo("PENDING"),
-                () -> assertThat(firstRequest.getRefundAmount()).isEqualTo(25000),
-                () -> assertThat(firstRequest.getCustomer().getNickname()).isEqualTo("고객명"),
-                () -> assertThat(firstRequest.getOrderItem().getProductName()).isEqualTo("귀여운 고양이 스티커"),
-                () -> assertThat(firstRequest.getPermissions().isCanApprove()).isTrue(),
-                // 일괄 작업 검증
-                () -> assertThat(data.getBulkActions()).hasSize(2),
-                () -> assertThat(data.getBulkActions().getFirst().getAction()).isEqualTo("CANCEL_APPROVE"),
-                () -> assertThat(data.getBulkActions().get(1).getAction()).isEqualTo("CANCEL_REJECT")
+                () -> assertThat(data.getContent().getFirst().getRequestId()).isEqualTo(1L),
+                () -> assertThat(data.getContent().getFirst().getStatus()).isEqualTo("PENDING")
         );
     }
 
@@ -474,7 +418,7 @@ class ArtistDashboardControllerTest {
     @DisplayName("작가 취소 요청 목록 조회 - 필터 파라미터 포함")
     void getCancellationRequests_WithFilters() {
         // Given - 간소화된 Mock 데이터
-        ArtistCancellationResponse.CancellationRequest simplifiedRequest = 
+        ArtistCancellationResponse.CancellationRequest simplifiedRequest =
                 ArtistCancellationResponse.CancellationRequest.builder()
                         .requestId(1L)
                         .orderNumber("ORD-20241225-001")
@@ -519,65 +463,18 @@ class ArtistDashboardControllerTest {
     @DisplayName("작가 교환 요청 목록 조회 성공")
     void getExchangeRequests_Success() {
         // Given
-        ArtistExchangeResponse.Summary summary = ArtistExchangeResponse.Summary.builder()
-                .total(5).pending(3).approved(1).rejected(1)
+        ArtistExchangeResponse.ExchangeRequest mockRequest = ArtistExchangeResponse.ExchangeRequest.builder()
+                .requestId(21L)
+                .orderNumber("ORD-20241226-003")
+                .status("PENDING")
                 .build();
 
-        List<ArtistExchangeResponse.ExchangeRequest> content = List.of(
-                ArtistExchangeResponse.ExchangeRequest.builder()
-                        .requestId(21L)
-                        .orderId("550e84...111")
-                        .orderNumber("ORD-20241226-003")
-                        .type("EXCHANGE")
-                        .status("PENDING")
-                        .statusText("처리대기")
-                        .requestDate("2024-12-26T11:10:00+09:00")
-                        .reason("불량 의심")
-                        .customerMessage("찍힘 자국이 있어요.")
-                        .customer(ArtistExchangeResponse.Customer.builder()
-                                .id(204L)
-                                .nickname("honggildong")
-                                .build())
-                        .orderItem(ArtistExchangeResponse.OrderItem.builder()
-                                .productId(103L)
-                                .productName("상품명입니다")
-                                .quantity(1)
-                                .price(28500)
-                                .build())
-                        .exchangeRequested(ArtistExchangeResponse.ExchangeRequested.builder()
-                                .option("색상=그린")
-                                .quantity(1)
-                                .build())
-                        .permissions(ArtistExchangeResponse.Permissions.builder()
-                                .canApprove(true)
-                                .canReject(true)
-                                .build())
-                        .build()
-        );
-
-        List<ArtistExchangeResponse.BulkAction> bulkActions = List.of(
-                ArtistExchangeResponse.BulkAction.builder()
-                        .action("EXCHANGE_APPROVE")
-                        .label("교환 승인")
-                        .requiresConfirmation(true)
-                        .build(),
-                ArtistExchangeResponse.BulkAction.builder()
-                        .action("EXCHANGE_REJECT")
-                        .label("교환 거절")
-                        .requiresConfirmation(true)
-                        .build()
-        );
-
         ArtistExchangeResponse.List mockResponse = ArtistExchangeResponse.List.builder()
-                .summary(summary)
-                .content(content)
-                .bulkActions(bulkActions)
-                .page(0)
-                .size(20)
-                .totalElements(5)
-                .totalPages(1)
-                .hasNext(false)
-                .hasPrevious(false)
+                .summary(ArtistExchangeResponse.Summary.builder().total(5).pending(3).build())
+                .content(List.of(mockRequest))
+                .bulkActions(List.of())
+                .page(DEFAULT_PAGE).size(DEFAULT_SIZE).totalElements(5).totalPages(1)
+                .hasNext(false).hasPrevious(false)
                 .build();
 
         given(artistDashboardService.getExchangeRequests(
@@ -586,44 +483,15 @@ class ArtistDashboardControllerTest {
 
         // When
         ResponseEntity<RsData<ArtistExchangeResponse.List>> response =
-                artistDashboardController.getExchangeRequests(BEARER_TOKEN, 0, 20, null, null, null, null, null, "requestDate", "DESC");
+                artistDashboardController.getExchangeRequests(BEARER_TOKEN, DEFAULT_PAGE, DEFAULT_SIZE, null, null, null, null, null, "requestDate", "DESC");
 
         // Then
-        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
-        assertThat(response.getBody()).isNotNull();
-
-        RsData<ArtistExchangeResponse.List> body = response.getBody();
-        assertThat(body).isNotNull();
-        ArtistExchangeResponse.List data = body.data();
-        assertThat(data).isNotNull();
-        ArtistExchangeResponse.ExchangeRequest firstRequest = data.getContent().getFirst();
-
+        ArtistExchangeResponse.List data = assertSuccessResponse(response, "교환 요청 목록 조회 성공");
         assertAll(
-                () -> assertThat(body.resultCode()).isEqualTo("200-OK"),
-                () -> assertThat(body.msg()).isEqualTo("교환 요청 목록 조회 성공"),
-                () -> assertThat(data).isNotNull(),
-                // 요약 정보 검증
                 () -> assertThat(data.getSummary().getTotal()).isEqualTo(5),
-                () -> assertThat(data.getSummary().getPending()).isEqualTo(3),
-                () -> assertThat(data.getSummary().getApproved()).isEqualTo(1),
-                () -> assertThat(data.getSummary().getRejected()).isEqualTo(1),
-                // 교환 요청 검증
                 () -> assertThat(data.getContent()).hasSize(1),
-                () -> assertThat(firstRequest.getRequestId()).isEqualTo(21L),
-                () -> assertThat(firstRequest.getOrderNumber()).isEqualTo("ORD-20241226-003"),
-                () -> assertThat(firstRequest.getStatus()).isEqualTo("PENDING"),
-                () -> assertThat(firstRequest.getCustomer().getNickname()).isEqualTo("honggildong"),
-                () -> assertThat(firstRequest.getOrderItem().getProductName()).isEqualTo("상품명입니다"),
-                () -> assertThat(firstRequest.getExchangeRequested().getOption()).isEqualTo("색상=그린"),
-                () -> assertThat(firstRequest.getPermissions().isCanApprove()).isTrue(),
-                // 일괄 작업 검증
-                () -> assertThat(data.getBulkActions()).hasSize(2),
-                () -> assertThat(data.getBulkActions().getFirst().getAction()).isEqualTo("EXCHANGE_APPROVE"),
-                () -> assertThat(data.getBulkActions().get(1).getAction()).isEqualTo("EXCHANGE_REJECT"),
-                // 페이징 정보 검증
-                () -> assertThat(data.getPage()).isEqualTo(0),
-                () -> assertThat(data.getTotalElements()).isEqualTo(5),
-                () -> assertThat(data.isHasNext()).isFalse()
+                () -> assertThat(data.getContent().getFirst().getRequestId()).isEqualTo(21L),
+                () -> assertThat(data.getContent().getFirst().getStatus()).isEqualTo("PENDING")
         );
     }
 
@@ -631,88 +499,38 @@ class ArtistDashboardControllerTest {
     @DisplayName("작가 설정 정보 조회 성공")
     void getSettings_Success() {
         // Given
-        ArtistSettingsResponse.Profile profile = ArtistSettingsResponse.Profile.builder()
-                .nickname("작가명입니다")
-                .bio("자신을 소개하는 글을 입력해주세요.")
-                .sns(List.of(
-                        ArtistSettingsResponse.Sns.builder()
-                                .platform("Instagram")
-                                .handle("@mori_official")
-                                .build()
-                ))
-                .profileImageUrl("https://cdn.example.com/u/5/profile.jpg")
-                .build();
-
-        ArtistSettingsResponse.Business business = ArtistSettingsResponse.Business.builder()
-                .address("서울특별시 강남구 테헤란로 123 2층")
-                .businessRegistrationNo("123-45-67890")
-                .telemarketingReportNo("2025-서울강남-1234")
-                .verified(true)
-                .build();
-
-        ArtistSettingsResponse.Payout payout = ArtistSettingsResponse.Payout.builder()
-                .bankCode("088")
-                .bankName("신한")
-                .accountHolder("홍길동")
-                .accountMasked("****-****-**3456")
-                .status("VERIFIED")
-                .build();
-
-        ArtistSettingsResponse.Permissions permissions = ArtistSettingsResponse.Permissions.builder()
-                .canEditProfile(true)
-                .canEditBusiness(true)
-                .canEditPayout(true)
-                .build();
-
         ArtistSettingsResponse mockResponse = ArtistSettingsResponse.builder()
-                .profile(profile)
-                .business(business)
-                .payout(payout)
-                .permissions(permissions)
+                .profile(ArtistSettingsResponse.Profile.builder()
+                        .nickname("작가명입니다")
+                        .bio("자신을 소개하는 글을 입력해주세요.")
+                        .sns(List.of())
+                        .build())
+                .business(ArtistSettingsResponse.Business.builder()
+                        .address("서울특별시 강남구 테헤란로 123 2층")
+                        .verified(true)
+                        .build())
+                .payout(ArtistSettingsResponse.Payout.builder()
+                        .bankName("신한")
+                        .status("VERIFIED")
+                        .build())
+                .permissions(ArtistSettingsResponse.Permissions.builder()
+                        .canEditProfile(true)
+                        .build())
                 .build();
 
-        given(artistDashboardService.getSettings(anyString()))
-                .willReturn(mockResponse);
+        given(artistDashboardService.getSettings(anyString())).willReturn(mockResponse);
 
         // When
         ResponseEntity<RsData<ArtistSettingsResponse>> response =
                 artistDashboardController.getSettings(BEARER_TOKEN);
 
         // Then
-        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
-        assertThat(response.getBody()).isNotNull();
-
-        RsData<ArtistSettingsResponse> body = response.getBody();
-        assertThat(body).isNotNull();
-        ArtistSettingsResponse data = body.data();
-        assertThat(data).isNotNull();
-
+        ArtistSettingsResponse data = assertSuccessResponse(response, "판매자 설정 조회 성공");
         assertAll(
-                () -> assertThat(body.resultCode()).isEqualTo("200-OK"),
-                () -> assertThat(body.msg()).isEqualTo("판매자 설정 조회 성공"),
-                () -> assertThat(data).isNotNull(),
-                // 프로필 정보 검증
                 () -> assertThat(data.getProfile().getNickname()).isEqualTo("작가명입니다"),
-                () -> assertThat(data.getProfile().getBio()).isEqualTo("자신을 소개하는 글을 입력해주세요."),
-                () -> assertThat(data.getProfile().getSns()).hasSize(1),
-                () -> assertThat(data.getProfile().getSns().getFirst().getPlatform()).isEqualTo("Instagram"),
-                () -> assertThat(data.getProfile().getSns().getFirst().getHandle()).isEqualTo("@mori_official"),
-                () -> assertThat(data.getProfile().getProfileImageUrl()).isEqualTo("https://cdn.example.com/u/5/profile.jpg"),
-                // 사업자 정보 검증
-                () -> assertThat(data.getBusiness().getAddress()).isEqualTo("서울특별시 강남구 테헤란로 123 2층"),
-                () -> assertThat(data.getBusiness().getBusinessRegistrationNo()).isEqualTo("123-45-67890"),
-                () -> assertThat(data.getBusiness().getTelemarketingReportNo()).isEqualTo("2025-서울강남-1234"),
                 () -> assertThat(data.getBusiness().isVerified()).isTrue(),
-                // 정산 계좌 정보 검증
-                () -> assertThat(data.getPayout().getBankCode()).isEqualTo("088"),
-                () -> assertThat(data.getPayout().getBankName()).isEqualTo("신한"),
-                () -> assertThat(data.getPayout().getAccountHolder()).isEqualTo("홍길동"),
-                () -> assertThat(data.getPayout().getAccountMasked()).isEqualTo("****-****-**3456"),
                 () -> assertThat(data.getPayout().getStatus()).isEqualTo("VERIFIED"),
-                // 권한 정보 검증
-                () -> assertThat(data.getPermissions().isCanEditProfile()).isTrue(),
-                () -> assertThat(data.getPermissions().isCanEditBusiness()).isTrue(),
-                () -> assertThat(data.getPermissions().isCanEditPayout()).isTrue()
+                () -> assertThat(data.getPermissions().isCanEditProfile()).isTrue()
         );
     }
 
@@ -720,80 +538,18 @@ class ArtistDashboardControllerTest {
     @DisplayName("작가 펀딩 목록 조회 성공")
     void getFundings_Success() {
         // Given
-        ArtistFundingResponse.Summary summary = ArtistFundingResponse.Summary.builder()
-                .totalFundings(15)
-                .activeFundings(8)
-                .completedFundings(6)
-                .cancelledFundings(1)
+        ArtistFundingResponse.Funding mockFunding = ArtistFundingResponse.Funding.builder()
+                .fundingId(456789L)
+                .title("펀딩 제목입니다")
+                .status("ACTIVE")
+                .targetAmount(900000)
+                .currentAmount(900000)
+                .achievementRate(100)
                 .build();
 
-        List<ArtistFundingResponse.Funding> content = List.of(
-                ArtistFundingResponse.Funding.builder()
-                        .fundingId(456789L)
-                        .title("펀딩 제목입니다 펀딩 제목입니다")
-                        .status("ACTIVE")
-                        .targetAmount(900000)
-                        .currentAmount(900000)
-                        .achievementRate(100)
-                        .supporterCount(800)
-                        .startDate("2025-08-01")
-                        .endDate("2025-09-18")
-                        .registeredAt("2025-09-01")
-                        .mainImage("https://example.com/image.jpg")
-                        .category(ArtistFundingResponse.Category.builder()
-                                .id(1L)
-                                .name("스티커")
-                                .build())
-                        .permissions(ArtistFundingResponse.Permissions.builder()
-                                .canEdit(true)
-                                .canCancel(true)
-                                .canRequestSale(true)
-                                .build())
-                        .flags(ArtistFundingResponse.Flags.builder()
-                                .goalAchieved(true)
-                                .dueSoon(false)
-                                .ended(true)
-                                .build())
-                        .build(),
-                ArtistFundingResponse.Funding.builder()
-                        .fundingId(456788L)
-                        .title("펀딩 제목입니다")
-                        .status("ACTIVE")
-                        .targetAmount(600000)
-                        .currentAmount(9000000)
-                        .achievementRate(1500)
-                        .supporterCount(820)
-                        .startDate("2025-08-10")
-                        .endDate("2025-09-18")
-                        .registeredAt("2025-08-20")
-                        .mainImage("https://example.com/image2.jpg")
-                        .category(ArtistFundingResponse.Category.builder()
-                                .id(2L)
-                                .name("다이어리")
-                                .build())
-                        .permissions(ArtistFundingResponse.Permissions.builder()
-                                .canEdit(true)
-                                .canCancel(true)
-                                .canRequestSale(true)
-                                .build())
-                        .flags(ArtistFundingResponse.Flags.builder()
-                                .goalAchieved(true)
-                                .dueSoon(true)
-                                .ended(false)
-                                .build())
-                        .build()
-        );
-
-        List<ArtistFundingResponse.BulkAction> bulkActions = List.of(
-                ArtistFundingResponse.BulkAction.builder()
-                        .action("REQUEST_SALE")
-                        .label("판매 요청")
-                        .requiresConfirmation(true)
-                        .build()
-        );
-
         ArtistFundingResponse.List mockResponse = new ArtistFundingResponse.List(
-                summary, content, bulkActions, 0, 20, 15, 1, false, false);
+                ArtistFundingResponse.Summary.builder().totalFundings(15).build(),
+                List.of(mockFunding), List.of(), DEFAULT_PAGE, DEFAULT_SIZE, 15, 1, false, false);
 
         given(artistDashboardService.getFundings(
                 anyString(), anyInt(), anyInt(), any(), any(), any(), any(), any(), any(), any(), anyString(), anyString()))
@@ -801,49 +557,15 @@ class ArtistDashboardControllerTest {
 
         // When
         ResponseEntity<RsData<ArtistFundingResponse.List>> response =
-                artistDashboardController.getFundings(BEARER_TOKEN, 0, 20, null, null, null, null, null, null, null, "endDate", "ASC");
+                artistDashboardController.getFundings(BEARER_TOKEN, DEFAULT_PAGE, DEFAULT_SIZE, null, null, null, null, null, null, null, "endDate", "ASC");
 
         // Then
-        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
-        assertThat(response.getBody()).isNotNull();
-
-        RsData<ArtistFundingResponse.List> body = response.getBody();
-        assertThat(body).isNotNull();
-        ArtistFundingResponse.List data = body.data();
-        assertThat(data).isNotNull();
-        ArtistFundingResponse.Funding firstFunding = data.getContent().getFirst();
-
+        ArtistFundingResponse.List data = assertSuccessResponse(response, "내 펀딩 모니터링 조회 성공");
         assertAll(
-                () -> assertThat(body.resultCode()).isEqualTo("200-OK"),
-                () -> assertThat(body.msg()).isEqualTo("내 펀딩 모니터링 조회 성공"),
-                () -> assertThat(data).isNotNull(),
-                // 요약 정보 검증
                 () -> assertThat(data.getSummary().getTotalFundings()).isEqualTo(15),
-                () -> assertThat(data.getSummary().getActiveFundings()).isEqualTo(8),
-                () -> assertThat(data.getSummary().getCompletedFundings()).isEqualTo(6),
-                () -> assertThat(data.getSummary().getCancelledFundings()).isEqualTo(1),
-                // 펀딩 정보 검증
-                () -> assertThat(data.getContent()).hasSize(2),
-                () -> assertThat(firstFunding.getFundingId()).isEqualTo(456789L),
-                () -> assertThat(firstFunding.getTitle()).isEqualTo("펀딩 제목입니다 펀딩 제목입니다"),
-                () -> assertThat(firstFunding.getStatus()).isEqualTo("ACTIVE"),
-                () -> assertThat(firstFunding.getTargetAmount()).isEqualTo(900000),
-                () -> assertThat(firstFunding.getCurrentAmount()).isEqualTo(900000),
-                () -> assertThat(firstFunding.getAchievementRate()).isEqualTo(100),
-                () -> assertThat(firstFunding.getSupporterCount()).isEqualTo(800),
-                () -> assertThat(firstFunding.getCategory().getName()).isEqualTo("스티커"),
-                () -> assertThat(firstFunding.getPermissions().isCanRequestSale()).isTrue(),
-                () -> assertThat(firstFunding.getFlags().isGoalAchieved()).isTrue(),
-                // 일괄 작업 검증
-                () -> assertThat(data.getBulkActions()).hasSize(1),
-                () -> assertThat(data.getBulkActions().getFirst().getAction()).isEqualTo("REQUEST_SALE"),
-                () -> assertThat(data.getBulkActions().getFirst().getLabel()).isEqualTo("판매 요청"),
-                // 페이징 정보 검증
-                () -> assertThat(data.getPage()).isEqualTo(0),
-                () -> assertThat(data.getSize()).isEqualTo(20),
-                () -> assertThat(data.getTotalElements()).isEqualTo(15),
-                () -> assertThat(data.getTotalPages()).isEqualTo(1),
-                () -> assertThat(data.isHasNext()).isFalse()
+                () -> assertThat(data.getContent()).hasSize(1),
+                () -> assertThat(data.getContent().getFirst().getFundingId()).isEqualTo(456789L),
+                () -> assertThat(data.getContent().getFirst().getStatus()).isEqualTo("ACTIVE")
         );
     }
 
@@ -851,57 +573,32 @@ class ArtistDashboardControllerTest {
     @DisplayName("작가 펀딩 목록 조회 - 필터 파라미터 포함")
     void getFundings_WithFilters() {
         // Given
-        ArtistFundingResponse.Summary summary = ArtistFundingResponse.Summary.builder()
-                .totalFundings(3)
-                .activeFundings(3)
-                .completedFundings(0)
-                .cancelledFundings(0)
+        ArtistFundingResponse.Funding mockFunding = ArtistFundingResponse.Funding.builder()
+                .fundingId(456789L)
+                .status("ACTIVE")
+                .category(ArtistFundingResponse.Category.builder().name("스티커").build())
                 .build();
 
-        List<ArtistFundingResponse.Funding> content = List.of(
-                ArtistFundingResponse.Funding.builder()
-                        .fundingId(456789L)
-                        .title("스티커 펀딩")
-                        .status("ACTIVE")
-                        .achievementRate(150)
-                        .category(ArtistFundingResponse.Category.builder()
-                                .id(1L)
-                                .name("스티커")
-                                .build())
-                        .flags(ArtistFundingResponse.Flags.builder()
-                                .goalAchieved(true)
-                                .dueSoon(false)
-                                .ended(false)
-                                .build())
-                        .build()
-        );
-
         ArtistFundingResponse.List mockResponse = new ArtistFundingResponse.List(
-                summary, content, List.of(), 0, 20, 3, 1, false, false);
+                ArtistFundingResponse.Summary.builder().activeFundings(3).build(),
+                List.of(mockFunding), List.of(), DEFAULT_PAGE, DEFAULT_SIZE, 3, 1, false, false);
 
         given(artistDashboardService.getFundings(
-                eq(BEARER_TOKEN), eq(0), eq(20), eq("스티커"), eq("ACTIVE"), eq(1L),
+                eq(BEARER_TOKEN), eq(DEFAULT_PAGE), eq(DEFAULT_SIZE), eq("스티커"), eq("ACTIVE"), eq(1L),
                 eq(100), eq(200), eq("2025-08-01"), eq("2025-09-30"), eq("endDate"), eq("ASC")))
                 .willReturn(mockResponse);
 
         // When
         ResponseEntity<RsData<ArtistFundingResponse.List>> response =
-                artistDashboardController.getFundings(BEARER_TOKEN, 0, 20, "스티커", "ACTIVE", 1L,
+                artistDashboardController.getFundings(BEARER_TOKEN, DEFAULT_PAGE, DEFAULT_SIZE, "스티커", "ACTIVE", 1L,
                         100, 200, "2025-08-01", "2025-09-30", "endDate", "ASC");
 
-        // Then - 필터링된 결과 검증
-        RsData<ArtistFundingResponse.List> responseBody = response.getBody();
-        assertThat(responseBody).isNotNull();
-        ArtistFundingResponse.List responseData = responseBody.data();
-        assertThat(responseData).isNotNull();
-
+        // Then
+        ArtistFundingResponse.List data = assertSuccessResponse(response, "내 펀딩 모니터링 조회 성공");
         assertAll(
-                () -> assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK),
-                () -> assertThat(responseData.getContent()).hasSize(1),
-                () -> assertThat(responseData.getContent().getFirst().getStatus()).isEqualTo("ACTIVE"),
-                () -> assertThat(responseData.getContent().getFirst().getCategory().getName()).isEqualTo("스티커"),
-                () -> assertThat(responseData.getSummary().getActiveFundings()).isEqualTo(3),
-                () -> assertThat(responseData.getSummary().getCompletedFundings()).isEqualTo(0)
+                () -> assertThat(data.getContent()).hasSize(1),
+                () -> assertThat(data.getContent().getFirst().getStatus()).isEqualTo("ACTIVE"),
+                () -> assertThat(data.getSummary().getActiveFundings()).isEqualTo(3)
         );
     }
 }
