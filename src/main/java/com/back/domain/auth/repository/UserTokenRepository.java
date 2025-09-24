@@ -20,7 +20,7 @@ public interface UserTokenRepository extends JpaRepository<UserToken, Long> {
     @Modifying
     @Transactional
     @Query("DELETE FROM UserToken ut WHERE ut.user.id = :userId")
-    void deleteAllRefreshTokenByUserId(@Param("userId") Long userId);
+    int deleteAllRefreshTokenByUserId(@Param("userId") Long userId);
 
     /**
      * 토큰 비활성화 메서드 -  주석 처리된 부분은 필요에 따라 활성화하여 사용
