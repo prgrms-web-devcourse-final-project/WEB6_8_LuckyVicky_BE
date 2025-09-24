@@ -201,4 +201,37 @@ class ArtistDashboardServiceImplTest {
                 () -> assertThat(result.getPermissions().isCanEditPayout()).isTrue()
         );
     }
+
+    @Test
+    @DisplayName("작가 펀딩 목록 조회 - 완전한 응답 구조 반환")
+    void getFundings_ReturnsCompleteStructure() {
+        // When
+        ArtistFundingResponse.List result = artistDashboardService.getFundings(
+                TEST_AUTHORIZATION, 0, 20, null, null, null, null, null, null, null, "endDate", "ASC");
+
+        // Then - 구조와 비즈니스 로직 검증
+        assertAll(
+                () -> assertThat(result).isNotNull(),
+                () -> assertThat(result.getSummary()).isNotNull(),
+                () -> assertThat(result.getContent()).isNotEmpty(),
+                () -> assertThat(result.getBulkActions()).isNotEmpty(),
+                // 요약 정보 검증
+                () -> assertThat(result.getSummary().getTotalFundings()).isEqualTo(15),
+                () -> assertThat(result.getSummary().getActiveFundings()).isEqualTo(8),
+                () -> assertThat(result.getSummary().getCompletedFundings()).isEqualTo(6),
+                () -> assertThat(result.getSummary().getCancelledFundings()).isEqualTo(1),
+                // 비즈니스 규칙 검증 - 달성률과 목표달성 플래그 일관성
+                () -> assertThat(result.getContent().get(0).getAchievementRate()).isEqualTo(100),
+                () -> assertThat(result.getContent().get(0).getFlags().isGoalAchieved()).isTrue(),
+                () -> assertThat(result.getContent().get(1).getAchievementRate()).isEqualTo(1500),
+                () -> assertThat(result.getContent().get(1).getFlags().isGoalAchieved()).isTrue(),
+                // 권한 로직 검증
+                () -> assertThat(result.getContent().get(0).getPermissions().isCanRequestSale()).isTrue(),
+                () -> assertThat(result.getContent().get(1).getPermissions().isCanRequestSale()).isTrue(),
+                // 페이징 검증
+                () -> assertThat(result.getTotalElements()).isEqualTo(15),
+                () -> assertThat(result.getTotalPages()).isEqualTo(1),
+                () -> assertThat(result.isHasNext()).isFalse()
+        );
+    }
 }

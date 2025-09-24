@@ -8,6 +8,7 @@ import com.back.domain.dashboard.artist.dto.response.ArtistOrderResponse;
 import com.back.domain.dashboard.artist.dto.response.ArtistCancellationResponse;
 import com.back.domain.dashboard.artist.dto.response.ArtistExchangeResponse;
 import com.back.domain.dashboard.artist.dto.response.ArtistSettingsResponse;
+import com.back.domain.dashboard.artist.dto.response.ArtistFundingResponse;
 
 /**
  * 작가용 대시보드 서비스 인터페이스
@@ -64,4 +65,11 @@ public interface ArtistDashboardService {
      * 작가 설정 정보 조회
      */
     ArtistSettingsResponse getSettings(String authorization);
+
+    /**
+     * 작가 펀딩 목록 조회
+     */
+    ArtistFundingResponse.List getFundings(String authorization, int page, int size, String keyword,
+                                           String status, Long categoryId, Integer minAchievement, Integer maxAchievement,
+                                           String startDate, String endDate, String sort, String order);
 }

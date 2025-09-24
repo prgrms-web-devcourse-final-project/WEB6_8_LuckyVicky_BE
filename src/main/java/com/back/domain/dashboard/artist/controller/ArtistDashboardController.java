@@ -8,6 +8,7 @@ import com.back.domain.dashboard.artist.dto.response.ArtistOrderResponse;
 import com.back.domain.dashboard.artist.dto.response.ArtistCancellationResponse;
 import com.back.domain.dashboard.artist.dto.response.ArtistExchangeResponse;
 import com.back.domain.dashboard.artist.dto.response.ArtistSettingsResponse;
+import com.back.domain.dashboard.artist.dto.response.ArtistFundingResponse;
 import com.back.domain.dashboard.artist.service.ArtistDashboardService;
 import com.back.global.rsData.RsData;
 import lombok.RequiredArgsConstructor;
@@ -262,6 +263,45 @@ public class ArtistDashboardController {
             );
         } catch (Exception e) {
             log.error("작가 설정 정보 조회 실패", e);
+            return ResponseEntity.internalServerError().body(
+                    RsData.of("500-ERROR", "서버 오류가 발생했습니다.")
+            );
+        }
+    }
+
+    /**
+     * 작가 펀딩 목록 조회
+     */
+    @GetMapping("/funding")
+    public ResponseEntity<RsData<ArtistFundingResponse.List>> getFundings(
+            @RequestHeader("Authorization") String authorization,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size,
+            @RequestParam(required = false) String keyword,
+            @RequestParam(required = false) String status,
+            @RequestParam(required = false) Long categoryId,
+            @RequestParam(required = false) Integer minAchievement,
+            @RequestParam(required = false) Integer maxAchievement,
+            @RequestParam(required = false) String startDate,
+            @RequestParam(required = false) String endDate,
+            @RequestParam(defaultValue = "endDate") String sort,
+            @RequestParam(defaultValue = "ASC") String order) {
+
+        log.info("작가 펀딩 목록 조회 요청 - page: {}, size: {}, keyword: {}, status: {}, categoryId: {}, " +
+                        "minAchievement: {}, maxAchievement: {}, startDate: {}, endDate: {}, sort: {}, order: {}",
+                page, size, keyword, status, categoryId, minAchievement, maxAchievement,
+                startDate, endDate, sort, order);
+
+        try {
+            ArtistFundingResponse.List response = artistDashboardService.getFundings(
+                    authorization, page, size, keyword, status, categoryId, minAchievement, maxAchievement,
+                    startDate, endDate, sort, order);
+
+            return ResponseEntity.ok(
+                    RsData.of("200-OK", "내 펀딩 모니터링 조회 성공", response)
+            );
+        } catch (Exception e) {
+            log.error("작가 펀딩 목록 조회 실패", e);
             return ResponseEntity.internalServerError().body(
                     RsData.of("500-ERROR", "서버 오류가 발생했습니다.")
             );
