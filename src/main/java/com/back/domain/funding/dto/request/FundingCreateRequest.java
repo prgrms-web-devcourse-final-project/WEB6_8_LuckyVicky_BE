@@ -18,7 +18,7 @@ public record FundingCreateRequest(
 
         @NotNull(message = "목표 금액은 필수입니다.")
         @Positive(message = "목표 금액은 0보다 커야 합니다.")
-        Long targetAmount,
+        long targetAmount,
 
         @NotBlank(message = "대표 이미지 URL은 필수입니다.")
         String imageUrl,
