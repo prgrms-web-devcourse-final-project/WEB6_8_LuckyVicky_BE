@@ -33,7 +33,7 @@ public class CartResponseDto {
                 .productId(cart.getProduct().getId())
                 .productName(cart.getProduct().getName())
                 //.productImageUrl(cart.getProduct().getMainImageUrl()) // Product 엔티티에 있을 메서드
-                //.price(cart.getProduct().getPrice().intValue())
+                .price(cart.getProduct().getPrice())
                 .quantity(cart.getQuantity())
                 .optionInfo(cart.getOptionInfo())
                 .isSelected(cart.getIsSelected())
