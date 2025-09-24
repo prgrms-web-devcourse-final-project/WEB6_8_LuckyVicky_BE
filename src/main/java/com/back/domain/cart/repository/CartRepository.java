@@ -24,10 +24,15 @@ public interface CartRepository extends JpaRepository<Cart, Long> {
 
     void deleteByUserAndProduct(User user, Product product);
 
-    void deleteByUser(User user);
+    int deleteByUser(User user);
 
-    void deleteByUserAndCartType(User user, Cart.CartType cartType);
+    int deleteByUserAndCartType(User user, Cart.CartType cartType);
 
     @Query("SELECT c FROM Cart c JOIN FETCH c.product p WHERE c.user = :user AND c.cartType = :cartType")
     List<Cart> findByUserAndCartTypeWithProduct(@Param("user") User user, @Param("cartType") Cart.CartType cartType);
+
+    @Query("SELECT c FROM Cart c JOIN FETCH c.product p WHERE c.user = :user")
+    List<Cart> findByUserWithProduct(@Param("user") User user);
+
+    List<Cart> findByUserAndIsSelectedTrue(User user);
 }
