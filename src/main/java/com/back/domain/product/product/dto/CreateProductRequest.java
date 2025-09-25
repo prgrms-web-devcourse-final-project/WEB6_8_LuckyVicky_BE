@@ -1,8 +1,9 @@
 package com.back.domain.product.product.dto;
 
-import com.back.global.s3.UploadResultResponse;
+import com.back.global.s3.S3FileRequest;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.*;
+
 import java.time.LocalDate;
 import java.util.List;
 
@@ -77,7 +78,7 @@ public record CreateProductRequest(
 
         @NotEmpty(message = "이미지는 최소 1개 이상이어야 합니다.")
         @Valid
-        List<UploadResultResponse> images, // 업로드 완료된 이미지 정보
+        List<S3FileRequest> images, // 업로드 완료된 이미지 정보
 
         @NotBlank(message = "품명/모델명은 필수입니다.")
         String productModelName, // 품명/모델명

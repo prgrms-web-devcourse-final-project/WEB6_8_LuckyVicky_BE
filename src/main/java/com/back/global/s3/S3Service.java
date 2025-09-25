@@ -46,7 +46,7 @@ public class S3Service {
             throw new IllegalArgumentException("files와 types의 개수가 일치해야 하며, null일 수 없습니다.");
         }
 
-        List<CompletableFuture<UploadResultResponse>> futures = new ArrayList<>();
+        List<CompletableFuture<List<UploadResultResponse>>> futures = new ArrayList<>();
         for (int i = 0; i < files.size(); i++) {
             MultipartFile file = files.get(i);
             FileType type = types.get(i);
@@ -60,6 +60,7 @@ public class S3Service {
 
         return futures.stream()
                 .map(CompletableFuture::join)
+                .flatMap(List::stream)
                 .collect(Collectors.toList());
     }
 
@@ -67,7 +68,7 @@ public class S3Service {
      *  파일 업로드 시 비동기 처리 담당
      */
     @Async
-    public CompletableFuture<UploadResultResponse> uploadFileAsync(MultipartFile file, String folder, FileType type) {
+    public CompletableFuture<List<UploadResultResponse>> uploadFileAsync(MultipartFile file, String folder, FileType type) {
         try {
             return CompletableFuture.completedFuture(uploadFile(file, folder, type));
         } catch (Exception e) {
@@ -79,7 +80,10 @@ public class S3Service {
     /**
      * 실제 파일 업로드하고, key와 url 생성 담당
      */
-    public UploadResultResponse uploadFile(MultipartFile file, String folder, FileType type) throws IOException {
+    public List<UploadResultResponse> uploadFile(MultipartFile file, String folder, FileType type) throws IOException {
+
+        List<UploadResultResponse> results = new ArrayList<>();
+
         String originalFilename = file.getOriginalFilename();
         if (originalFilename == null || originalFilename.isBlank()) {
             throw new IllegalArgumentException("파일 이름이 없습니다.");
@@ -87,24 +91,29 @@ public class S3Service {
 
         String extension = originalFilename.substring(originalFilename.lastIndexOf('.') + 1).toLowerCase();
         FileCategory category = FileCategory.fromExtension(extension);
-
         String contentType = file.getContentType() != null ? file.getContentType() : "application/octet-stream";
 
         // S3 Key 생성 (UUID 사용)
         String s3Key = folder + "/" + UUID.randomUUID() + "." + extension;
+        // S3 업로드
         putS3Object(file.getBytes(), s3Key, contentType);
-
+        // URL 생성
         String url = s3Client.utilities().getUrl(b -> b.bucket(bucketName).key(s3Key)).toString();
 
-        String thumbnailUrl = null;
+        results.add(new UploadResultResponse(url,type,s3Key,originalFilename));
+
         if (category == FileCategory.IMAGE && type == FileType.MAIN) {
             byte[] thumbBytes = resizeImageSafe(file.getBytes(), 300, 300, extension);
+            // S3 Key 생성
             String thumbKey = folder + "/thumbnail-" + UUID.randomUUID() + "." + extension;
+            //S3에 업로드
             putS3Object(thumbBytes, thumbKey, contentType);
-            thumbnailUrl = s3Client.utilities().getUrl(b -> b.bucket(bucketName).key(thumbKey)).toString();
+            String thumbnailUrl = s3Client.utilities().getUrl(b -> b.bucket(bucketName).key(thumbKey)).toString();
+
+            results.add(new UploadResultResponse(thumbnailUrl,FileType.THUMBNAIL,thumbKey,"thumb_" + originalFilename));
         }
 
-        return new UploadResultResponse(url, thumbnailUrl, type, s3Key, originalFilename);
+        return results;
     }
     /**
      * 실제 파일 업로드 담당
