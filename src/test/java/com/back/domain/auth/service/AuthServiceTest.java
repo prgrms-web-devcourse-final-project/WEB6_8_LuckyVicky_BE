@@ -96,7 +96,7 @@ class AuthServiceTest {
                     .isInstanceOf(ServiceException.class)
                     .satisfies(ex -> {
                         ServiceException serviceEx = (ServiceException) ex;
-                        assertThat(serviceEx.getResultCode()).isEqualTo("EMAIL_ALREADY_EXISTS");
+                        assertThat(serviceEx.getResultCode()).isEqualTo("409");
                         assertThat(serviceEx.getMsg()).isEqualTo("이미 사용 중인 이메일입니다.");
                     });
         }
@@ -115,7 +115,7 @@ class AuthServiceTest {
                     .isInstanceOf(ServiceException.class)
                     .satisfies(ex -> {
                         ServiceException serviceEx = (ServiceException) ex;
-                        assertThat(serviceEx.getResultCode()).isEqualTo("PASSWORD_MISMATCH");
+                        assertThat(serviceEx.getResultCode()).isEqualTo("400");
                         assertThat(serviceEx.getMsg()).isEqualTo("비밀번호가 일치하지 않습니다.");
                     });
         }
@@ -134,7 +134,7 @@ class AuthServiceTest {
                     .isInstanceOf(ServiceException.class)
                     .satisfies(ex -> {
                         ServiceException serviceEx = (ServiceException) ex;
-                        assertThat(serviceEx.getResultCode()).isEqualTo("REQUIRED_TERMS_NOT_AGREED");
+                        assertThat(serviceEx.getResultCode()).isEqualTo("400");
                         assertThat(serviceEx.getMsg()).isEqualTo("필수 약관에 동의해야 합니다.");
                     });
         }
@@ -178,7 +178,7 @@ class AuthServiceTest {
                     .isInstanceOf(ServiceException.class)
                     .satisfies(ex -> {
                         ServiceException serviceEx = (ServiceException) ex;
-                        assertThat(serviceEx.getResultCode()).isEqualTo("USER_NOT_FOUND");
+                        assertThat(serviceEx.getResultCode()).isEqualTo("401");
                         assertThat(serviceEx.getMsg()).isEqualTo("사용자를 찾을 수 없습니다.");
                     });
         }
@@ -199,7 +199,7 @@ class AuthServiceTest {
                     .isInstanceOf(ServiceException.class)
                     .satisfies(ex -> {
                         ServiceException serviceEx = (ServiceException) ex;
-                        assertThat(serviceEx.getResultCode()).isEqualTo("INVALID_CREDENTIALS");
+                        assertThat(serviceEx.getResultCode()).isEqualTo("401");
                         assertThat(serviceEx.getMsg()).isEqualTo("이메일 또는 비밀번호가 잘못되었습니다.");
                     });
         }
@@ -318,7 +318,7 @@ class AuthServiceTest {
                     .isInstanceOf(ServiceException.class)
                     .satisfies(ex -> {
                         ServiceException serviceEx = (ServiceException) ex;
-                        assertThat(serviceEx.getResultCode()).isEqualTo("INVALID_REFRESH_TOKEN");
+                        assertThat(serviceEx.getResultCode()).isEqualTo("401");
                         assertThat(serviceEx.getMsg()).isEqualTo("유효하지 않은 RefreshToken 입니다.");
                     });
         }
@@ -347,7 +347,7 @@ class AuthServiceTest {
                     .isInstanceOf(ServiceException.class)
                     .satisfies(ex -> {
                         ServiceException serviceEx = (ServiceException) ex;
-                        assertThat(serviceEx.getResultCode()).isEqualTo("EXPIRED_REFRESH_TOKEN");
+                        assertThat(serviceEx.getResultCode()).isEqualTo("401");
                         assertThat(serviceEx.getMsg()).isEqualTo("RefreshToken이 만료되었습니다.");
                     });
 
