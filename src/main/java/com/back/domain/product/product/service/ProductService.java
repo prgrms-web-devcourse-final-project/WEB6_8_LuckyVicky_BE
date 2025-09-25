@@ -4,10 +4,11 @@ import com.back.domain.product.category.entity.Category;
 import com.back.domain.product.category.repository.CategoryRepository;
 import com.back.domain.product.product.dto.CreateProductRequest;
 import com.back.domain.product.product.entity.*;
-import com.back.domain.product.product.repository.*;
+import com.back.domain.product.product.repository.ProductRepository;
 import com.back.domain.product.tag.entity.Tag;
 import com.back.domain.product.tag.repository.TagRepository;
 import com.back.domain.user.entity.User;
+import com.back.global.s3.S3ValidationService;
 import com.back.global.security.auth.CustomUserDetails;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -23,6 +24,7 @@ public class ProductService {
     private final ProductRepository productRepository;
     private final CategoryRepository categoryRepository;
     private final TagRepository TagRepository;
+    private final S3ValidationService s3ValidationService;
 
     // 상품 등록
     @Transactional
@@ -112,6 +114,7 @@ public class ProductService {
         // 이미지 저장
         if (request.images() != null && !request.images().isEmpty()) {
             List<ProductImage> images = request.images().stream()
+                    .peek(img -> s3ValidationService.validateFileExists(img.key())) // S3에 파일 존재 여부 검증
                     .map(img -> ProductImage.builder()
                             .product(product)
                             .fileUrl(img.url())
