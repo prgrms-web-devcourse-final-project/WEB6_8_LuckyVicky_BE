@@ -1,5 +1,6 @@
 package com.back.domain.cart.service;
 
+import com.back.domain.cart.calculator.CartCalculator;
 import com.back.domain.cart.dto.request.CartRequestDto;
 import com.back.domain.cart.dto.response.CartListResponseDto;
 import com.back.domain.cart.dto.response.CartResponseDto;
@@ -23,6 +24,7 @@ import java.util.stream.Collectors;
 public class CartService {
 
     private final CartRepository cartRepository;
+    private final CartCalculator cartCalculator;
     // private final ProductRepository productRepository;
 
     /**
@@ -41,13 +43,8 @@ public class CartService {
         product.setName("임시 상품명");
         product.setPrice(10000);
 
-        // 2. 장바구니 타입 변환
-        Cart.CartType cartType;
-        try {
-            cartType = Cart.CartType.valueOf(requestDto.getCartType());
-        } catch (IllegalArgumentException e) {
-            throw new ServiceException("INVALID_CART_TYPE", "유효하지 않은 장바구니 타입입니다: " + requestDto.getCartType());
-        }
+        // 2. 장바구니 타입 변환 (도메인에서 처리)
+        Cart.CartType cartType = Cart.CartType.fromString(requestDto.cartType());
 
         // 3. 중복 상품 확인 및 처리
         Optional<Cart> existingCart = cartRepository.findByUserAndProductAndCartType(user, product, cartType);
@@ -55,11 +52,11 @@ public class CartService {
         if (existingCart.isPresent()) {
             // 기존 상품이 있으면 수량 증가
             Cart cart = existingCart.get();
-            cart.setQuantity(cart.getQuantity() + requestDto.getQuantity());
+            cart.changeQuantity(cart.getQuantity() + requestDto.quantity());
 
             // 옵션 정보가 있으면 업데이트
-            if (requestDto.getOptionInfo() != null) {
-                cart.setOptionInfo(requestDto.getOptionInfo());
+            if (requestDto.optionInfo() != null) {
+                cart.changeOptionInfo(requestDto.optionInfo());
             }
 
             Cart savedCart = cartRepository.save(cart);
@@ -70,8 +67,8 @@ public class CartService {
         Cart newCart = Cart.builder()
                 .user(user)
                 .product(product)
-                .quantity(requestDto.getQuantity())
-                .optionInfo(requestDto.getOptionInfo())
+                .quantity(requestDto.quantity())
+                .optionInfo(requestDto.optionInfo())
                 .cartType(cartType)
                 .isSelected(true)
                 .build();
@@ -100,20 +97,20 @@ public class CartService {
                 .collect(Collectors.toList());
 
         // 3. 총합 계산
-        Integer totalNormalQuantity = calculateTotalQuantity(normalCartItems);
-        Integer totalFundingQuantity = calculateTotalQuantity(fundingCartItems);
-        Integer totalNormalAmount = calculateTotalAmount(normalCartItems);
-        Integer totalFundingAmount = calculateTotalAmount(fundingCartItems);
+        Integer totalNormalQuantity = cartCalculator.calculateTotalQuantity(normalCartItems);
+        Integer totalFundingQuantity = cartCalculator.calculateTotalQuantity(fundingCartItems);
+        Integer totalNormalAmount = cartCalculator.calculateTotalAmount(normalCartItems);
+        Integer totalFundingAmount = cartCalculator.calculateTotalAmount(fundingCartItems);
 
 
-        return CartListResponseDto.builder()
-                .normalCartItems(normalCartItems)
-                .fundingCartItems(fundingCartItems)
-                .totalNormalQuantity(totalNormalQuantity)
-                .totalFundingQuantity(totalFundingQuantity)
-                .totalNormalAmount(totalNormalAmount)
-                .totalFundingAmount(totalFundingAmount)
-                .build();
+        return new CartListResponseDto(
+                normalCartItems,
+                fundingCartItems,
+                totalNormalQuantity,
+                totalFundingQuantity,
+                totalNormalAmount,
+                totalFundingAmount
+        );
     }
 
     /**
@@ -121,17 +118,11 @@ public class CartService {
      */
     @Transactional
     public CartResponseDto updateQuantity(User user, Long cartId, Integer quantity) {
-        // 입력값 검증
-        if (quantity == null || quantity < 1) {
-            throw new ServiceException("INVALID_QUANTITY", "수량은 1개 이상이어야 합니다.");
-        }
-
         // 1. 장바구니 아이템 조회 및 권한 확인
         Cart cart = findCartByIdAndValidateOwnership(cartId, user);
 
-        // 2. 수량 수정
-        Integer oldQuantity = cart.getQuantity();
-        cart.setQuantity(quantity);
+        // 2. 수량 수정 (도메인 메서드에서 검증)
+        cart.changeQuantity(quantity);
         Cart updatedCart = cartRepository.save(cart);
 
         return CartResponseDto.from(updatedCart);
@@ -162,13 +153,7 @@ public class CartService {
      */
     @Transactional
     public void clearCartByType(User user, String cartType) {
-        Cart.CartType type;
-        try {
-            type = Cart.CartType.valueOf(cartType);
-        } catch (IllegalArgumentException e) {
-            throw new ServiceException("INVALID_CART_TYPE", "유효하지 않은 장바구니 타입입니다: " + cartType);
-        }
-
+        Cart.CartType type = Cart.CartType.fromString(cartType);
         cartRepository.deleteByUserAndCartType(user, type);
     }
 
@@ -179,7 +164,11 @@ public class CartService {
     public CartResponseDto toggleSelection(User user, Long cartId) {
         Cart cart = findCartByIdAndValidateOwnership(cartId, user);
 
-        cart.setIsSelected(!cart.getIsSelected());
+        if (cart.getIsSelected()) {
+            cart.unselect();
+        } else {
+            cart.select();
+        }
         Cart updatedCart = cartRepository.save(cart);
 
         return CartResponseDto.from(updatedCart);
@@ -202,28 +191,9 @@ public class CartService {
         Cart cart = cartRepository.findById(cartId)
                 .orElseThrow(() -> new ServiceException("CART_NOT_FOUND", "존재하지 않는 장바구니 아이템입니다."));
 
-        if (!cart.getUser().getId().equals(user.getId())) {
-            throw new ServiceException("UNAUTHORIZED", "권한이 없습니다.");
-        }
-
+        // Tell, don't ask 원칙 적용
+        cart.validateOwnership(user);
         return cart;
     }
 
-    /**
-     * 총 수량 계산
-     */
-    private Integer calculateTotalQuantity(List<CartResponseDto> cartItems) {
-        return cartItems.stream()
-                .mapToInt(CartResponseDto::getQuantity)
-                .sum();
-    }
-
-    /**
-     * 총 금액 계산
-     */
-    private Integer calculateTotalAmount(List<CartResponseDto> cartItems) {
-        return cartItems.stream()
-                .mapToInt(item -> item.getPrice() * item.getQuantity())
-                .sum();
-    }
 }
