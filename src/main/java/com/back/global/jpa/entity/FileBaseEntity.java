@@ -8,12 +8,11 @@ import jakarta.persistence.MappedSuperclass;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
-import lombok.experimental.SuperBuilder;
+
 
 @Getter
 @NoArgsConstructor
 @AllArgsConstructor
-@SuperBuilder
 @MappedSuperclass
 public abstract class FileBaseEntity extends BaseEntity {
 
