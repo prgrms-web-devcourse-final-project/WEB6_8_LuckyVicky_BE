@@ -19,7 +19,7 @@ public class FundingNews extends BaseEntity {
     private Funding funding;
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
-    private User author;
+    private User artist;
 
     @Column(nullable = false)
     private String title;

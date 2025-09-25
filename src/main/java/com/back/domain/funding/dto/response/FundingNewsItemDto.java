@@ -7,7 +7,7 @@ import java.time.LocalDateTime;
 
 public record FundingNewsItemDto(
         Long id,
-        String actorNickname,
+        String artistNickname,
         String title,
         String content,
         String imageUrl,
@@ -17,7 +17,7 @@ public record FundingNewsItemDto(
     public FundingNewsItemDto(FundingNews u) {
         this(
                 u.getId(),
-                u.getAuthor().getName(),
+                u.getArtist().getName(),
                 u.getTitle(),
                 u.getContent(),
                 u.getImageUrl(),
