@@ -19,7 +19,7 @@ import java.util.List;
 
 /**
  * 작가용 대시보드 서비스 구현체
- * 2025.09.23 생성
+ * 2025.09.25 수정
  */
 @Service
 @RequiredArgsConstructor
@@ -33,38 +33,35 @@ public class ArtistDashboardServiceImpl implements ArtistDashboardService {
         // TODO: 실제 데이터베이스에서 통계 데이터 조회
 
         // 프로필 정보
-        ArtistMainResponse.Profile profile = ArtistMainResponse.Profile.builder()
-                .userId(5L)
-                .nickname("감성작가")
-                .email("artist@example.com")
-                .profileImageUrl("https://cdn.example.com/u/5/profile.jpg")
-                .build();
+        ArtistMainResponse.Profile profile = new ArtistMainResponse.Profile(
+                5L,
+                "감성작가",
+                "artist@example.com",
+                "https://cdn.example.com/u/5/profile.jpg"
+        );
 
         // 통계 정보
-        ArtistMainResponse.Stats stats = ArtistMainResponse.Stats.builder()
-                .followerCount(1250)
-                .productCount(28)
-                .todaysSales(125000)
-                .todaysOrders(8)
-                .totalSales(2450000)
-                .totalOrders(156)
-                .averageRating(4.8)
-                .pendingOrders(3)
-                .build();
+        ArtistMainResponse.Stats stats = new ArtistMainResponse.Stats(
+                1250,
+                28,
+                125000,
+                8,
+                2450000,
+                156,
+                4.8,
+                3
+        );
 
         // 트렌드 메타 정보
-        ArtistMainResponse.Meta meta = ArtistMainResponse.Meta.builder()
-                .range("6M")
-                .from("2025-03-01")
-                .to("2025-09-01")
-                .interval("WEEK")
-                .timezone("Asia/Seoul")
-                .maxPoints(400)
-                .compare(ArtistMainResponse.Compare.builder()
-                        .from("2024-09-01")
-                        .to("2025-03-01")
-                        .build())
-                .build();
+        ArtistMainResponse.Meta meta = new ArtistMainResponse.Meta(
+                "6M",
+                "2025-03-01",
+                "2025-09-01",
+                "WEEK",
+                "Asia/Seoul",
+                400,
+                new ArtistMainResponse.Compare("2024-09-01", "2025-03-01")
+        );
 
         // 시계열 데이터 포인트 (간략화)
         List<ArtistMainResponse.DataPoint> salesPoints = Arrays.asList(
@@ -86,70 +83,41 @@ public class ArtistDashboardServiceImpl implements ArtistDashboardService {
         );
 
         // 시계열 데이터
-        ArtistMainResponse.Series series = ArtistMainResponse.Series.builder()
-                .sales(ArtistMainResponse.SeriesData.builder()
-                        .unit("KRW")
-                        .points(salesPoints)
-                        .total(2450000)
-                        .build())
-                .orders(ArtistMainResponse.SeriesData.builder()
-                        .unit("COUNT")
-                        .points(orderPoints)
-                        .total(156)
-                        .build())
-                .followers(ArtistMainResponse.SeriesData.builder()
-                        .unit("COUNT")
-                        .points(followerPoints)
-                        .total(1250)
-                        .build())
-                .build();
+        ArtistMainResponse.Series series = new ArtistMainResponse.Series(
+                new ArtistMainResponse.SeriesData("KRW", salesPoints, 2450000),
+                new ArtistMainResponse.SeriesData("COUNT", orderPoints, 156),
+                new ArtistMainResponse.SeriesData("COUNT", followerPoints, 1250)
+        );
 
         // 변화량 정보
-        ArtistMainResponse.Changes changes = ArtistMainResponse.Changes.builder()
-                .sales(new ArtistMainResponse.ChangeData(-40000, -0.242))
-                .orders(new ArtistMainResponse.ChangeData(1, 0.143))
-                .followers(new ArtistMainResponse.ChangeData(70, 0.059))
-                .build();
+        ArtistMainResponse.Changes changes = new ArtistMainResponse.Changes(
+                new ArtistMainResponse.ChangeData(-40000, -0.242),
+                new ArtistMainResponse.ChangeData(1, 0.143),
+                new ArtistMainResponse.ChangeData(70, 0.059)
+        );
 
         // 트렌드 정보
-        ArtistMainResponse.Trends trends = ArtistMainResponse.Trends.builder()
-                .meta(meta)
-                .series(series)
-                .changes(changes)
-                .build();
+        ArtistMainResponse.Trends trends = new ArtistMainResponse.Trends(meta, series, changes);
 
         // 알림 정보 (간략화)
-        List<ArtistMainResponse.Alert> orderAlerts = Arrays.asList(
-                ArtistMainResponse.Alert.builder()
-                        .type("NEW_ORDER")
-                        .message("새로운 주문 3건")
-                        .count(3)
-                        .timestamp(LocalDateTime.now())
-                        .build()
+        List<ArtistMainResponse.Alert> orderAlerts = List.of(
+                new ArtistMainResponse.Alert("NEW_ORDER", "새로운 주문 3건", 3, LocalDateTime.now())
         );
 
         List<ArtistMainResponse.Alert> fundingAlerts = List.of(
-                ArtistMainResponse.Alert.builder()
-                        .type("FUNDING_GOAL_ACHIEVED")
-                        .message("펀딩 목표 달성")
-                        .count(1)
-                        .timestamp(LocalDateTime.now())
-                        .build()
+                new ArtistMainResponse.Alert("FUNDING_GOAL_ACHIEVED", "펀딩 목표 달성", 1, LocalDateTime.now())
         );
 
-        ArtistMainResponse.Notifications notifications = ArtistMainResponse.Notifications.builder()
-                .orderAlerts(orderAlerts)
-                .fundingAlerts(fundingAlerts)
-                .build();
+        ArtistMainResponse.Notifications notifications = new ArtistMainResponse.Notifications(orderAlerts, fundingAlerts);
 
-        return ArtistMainResponse.builder()
-                .profile(profile)
-                .stats(stats)
-                .trends(trends)
-                .notifications(notifications)
-                .serverTime(LocalDateTime.now())
-                .timezone("Asia/Seoul")
-                .build();
+        return new ArtistMainResponse(
+                profile,
+                stats,
+                trends,
+                notifications,
+                LocalDateTime.now(),
+                "Asia/Seoul"
+        );
     }
 
     @Override
@@ -159,22 +127,22 @@ public class ArtistDashboardServiceImpl implements ArtistDashboardService {
         // TODO: 실제 데이터베이스에서 상품 목록 조회
 
         List<ArtistProductResponse.Product> content = Arrays.asList(
-                ArtistProductResponse.Product.builder()
-                        .productNumber("0123157")
-                        .productName("감성 일러스트 포스터")
-                        .price(25000)
-                        .sellingStatus("SELLING")
-                        .statusText("판매중")
-                        .registrationDate("2025. 09. 18")
-                        .build(),
-                ArtistProductResponse.Product.builder()
-                        .productNumber("0123156")
-                        .productName("귀여운 캐릭터 스티커")
-                        .price(15000)
-                        .sellingStatus("SELLING")
-                        .statusText("판매중")
-                        .registrationDate("2025. 09. 17")
-                        .build()
+                new ArtistProductResponse.Product(
+                        "0123157",
+                        "감성 일러스트 포스터",
+                        25000,
+                        "SELLING",
+                        "판매중",
+                        "2025. 09. 18"
+                ),
+                new ArtistProductResponse.Product(
+                        "0123156",
+                        "귀여운 캐릭터 스티커",
+                        15000,
+                        "SELLING",
+                        "판매중",
+                        "2025. 09. 17"
+                )
         );
 
         return new ArtistProductResponse.List(content, page, size, content.size(), 1, false, false);
@@ -185,14 +153,14 @@ public class ArtistDashboardServiceImpl implements ArtistDashboardService {
         // TODO: JWT 토큰에서 작가 정보 추출
         // TODO: 실제 데이터베이스에서 지갑 잔액 정보 조회
 
-        return ArtistCashResponse.Balance.builder()
-                .currentBalance(72000)
-                .pendingSettlement(15000)
-                .pendingWithdrawal(0)
-                .withdrawable(72000)
-                .currency("KRW")
-                .updatedAt(LocalDateTime.now())
-                .build();
+        return new ArtistCashResponse.Balance(
+                72000,
+                15000,
+                0,
+                72000,
+                "KRW",
+                LocalDateTime.now()
+        );
     }
 
     @Override
@@ -202,51 +170,51 @@ public class ArtistDashboardServiceImpl implements ArtistDashboardService {
         // TODO: JWT 토큰에서 작가 정보 추출
         // TODO: 실제 데이터베이스에서 캐시 거래 내역 조회
 
-        ArtistCashHistoryResponse.Summary summary = ArtistCashHistoryResponse.Summary.builder()
-                .periodDepositTotal(74000)
-                .periodWithdrawalTotal(64000)
-                .periodNet(10000)
-                .build();
-
-        List<ArtistCashHistoryResponse.Transaction> content = Arrays.asList(
-                ArtistCashHistoryResponse.Transaction.builder()
-                        .txId("TX-001")
-                        .transactedAt("2025-09-24T09:12:00+09:00")
-                        .type("DEPOSIT")
-                        .typeText("정산금 입금")
-                        .depositAmount(10000)
-                        .withdrawalAmount(0)
-                        .balanceAfter(72000)
-                        .method("WALLET")
-                        .methodText("모리캐시")
-                        .status("COMPLETED")
-                        .note(null)
-                        .build(),
-                ArtistCashHistoryResponse.Transaction.builder()
-                        .txId("TX-002")
-                        .transactedAt("2025-09-23T16:20:00+09:00")
-                        .type("WITHDRAWAL")
-                        .typeText("환전")
-                        .depositAmount(0)
-                        .withdrawalAmount(50000)
-                        .balanceAfter(62000)
-                        .method("BANK_TRANSFER")
-                        .methodText("계좌이체")
-                        .status("COMPLETED")
-                        .note("우리은행")
-                        .build()
+        ArtistCashHistoryResponse.Summary summary = new ArtistCashHistoryResponse.Summary(
+                74000,
+                64000,
+                10000
         );
 
-        return ArtistCashHistoryResponse.List.builder()
-                .summary(summary)
-                .content(content)
-                .page(page)
-                .size(size)
-                .totalElements(content.size())
-                .totalPages(1)
-                .hasNext(false)
-                .hasPrevious(false)
-                .build();
+        List<ArtistCashHistoryResponse.Transaction> content = Arrays.asList(
+                new ArtistCashHistoryResponse.Transaction(
+                        "TX-001",
+                        "2025-09-24T09:12:00+09:00",
+                        "DEPOSIT",
+                        "정산금 입금",
+                        10000,
+                        0,
+                        72000,
+                        "WALLET",
+                        "모리캐시",
+                        "COMPLETED",
+                        null
+                ),
+                new ArtistCashHistoryResponse.Transaction(
+                        "TX-002",
+                        "2025-09-23T16:20:00+09:00",
+                        "WITHDRAWAL",
+                        "환전",
+                        0,
+                        50000,
+                        62000,
+                        "BANK_TRANSFER",
+                        "계좌이체",
+                        "COMPLETED",
+                        "우리은행"
+                )
+        );
+
+        return new ArtistCashHistoryResponse.List(
+                summary,
+                content,
+                page,
+                size,
+                content.size(),
+                1,
+                false,
+                false
+        );
     }
 
     @Override
@@ -256,52 +224,36 @@ public class ArtistDashboardServiceImpl implements ArtistDashboardService {
         // TODO: JWT 토큰에서 작가 정보 추출
         // TODO: 실제 데이터베이스에서 주문 목록 조회
 
-        ArtistOrderResponse.Summary summary = ArtistOrderResponse.Summary.builder()
-                .total(156)
-                .pending(8)
-                .preparing(12)
-                .shipped(100)
-                .delivered(36)
-                .canceled(5)
-                .build();
-
-        List<ArtistOrderResponse.Order> content = Arrays.asList(
-                ArtistOrderResponse.Order.builder()
-                        .orderId("ORDER-001")
-                        .orderNumber("0123157")
-                        .orderDate("2025-09-18")
-                        .status("PENDING")
-                        .statusText("발주 전")
-                        .totalAmount(47500)
-                        .productSummary("감성 포스터 외 1건")
-                        .itemCount(2)
-                        .buyer(ArtistOrderResponse.Buyer.builder()
-                                .id(201L)
-                                .nickname("아트러버")
-                                .name("김**")
-                                .build())
-                        .shipment(ArtistOrderResponse.Shipment.builder()
-                                .status("READY")
-                                .trackingNo(null)
-                                .shippingCompany(null)
-                                .build())
-                        .permissions(ArtistOrderResponse.Permissions.builder()
-                                .canChangeStatus(true)
-                                .canCancel(true)
-                                .build())
-                        .build()
+        ArtistOrderResponse.Summary summary = new ArtistOrderResponse.Summary(
+                156, 8, 12, 100, 36, 5
         );
 
-        return ArtistOrderResponse.List.builder()
-                .summary(summary)
-                .content(content)
-                .page(page)
-                .size(size)
-                .totalElements(156)
-                .totalPages(8)
-                .hasNext(page < 7)
-                .hasPrevious(page > 0)
-                .build();
+        List<ArtistOrderResponse.Order> content = List.of(
+                new ArtistOrderResponse.Order(
+                        "ORDER-001",
+                        "0123157",
+                        "2025-09-18",
+                        "PENDING",
+                        "발주 전",
+                        47500,
+                        "감성 포스터 외 1건",
+                        2,
+                        new ArtistOrderResponse.Buyer(201L, "아트러버", "김**"),
+                        new ArtistOrderResponse.Shipment("READY", null, null),
+                        new ArtistOrderResponse.Permissions(true, true)
+                )
+        );
+
+        return new ArtistOrderResponse.List(
+                summary,
+                content,
+                page,
+                size,
+                156,
+                8,
+                page < 7,
+                page > 0
+        );
     }
 
     @Override
@@ -311,66 +263,44 @@ public class ArtistDashboardServiceImpl implements ArtistDashboardService {
         // TODO: JWT 토큰에서 작가 정보 추출
         // TODO: 실제 데이터베이스에서 취소 요청 목록 조회
 
-        ArtistCancellationResponse.Summary summary = ArtistCancellationResponse.Summary.builder()
-                .total(8)
-                .pending(5)
-                .approved(2)
-                .rejected(1)
-                .build();
+        ArtistCancellationResponse.Summary summary = new ArtistCancellationResponse.Summary(8, 5, 2, 1);
 
-        List<ArtistCancellationResponse.CancellationRequest> content = Arrays.asList(
-                ArtistCancellationResponse.CancellationRequest.builder()
-                        .requestId(1L)
-                        .orderId("ORDER-001")
-                        .orderNumber("0123157")
-                        .type("CANCEL")
-                        .status("PENDING")
-                        .statusText("처리대기")
-                        .requestDate("2024-12-26T09:00:00+09:00")
-                        .reason("단순 변심")
-                        .customerMessage("취소 요청합니다.")
-                        .customer(ArtistCancellationResponse.Customer.builder()
-                                .id(201L)
-                                .nickname("고객A")
-                                .build())
-                        .orderItem(ArtistCancellationResponse.OrderItem.builder()
-                                .productId(101L)
-                                .productName("귀여운 스티커")
-                                .quantity(1)
-                                .price(15000)
-                                .build())
-                        .refundAmount(15000)
-                        .permissions(ArtistCancellationResponse.Permissions.builder()
-                                .canApprove(true)
-                                .canReject(true)
-                                .build())
-                        .build()
+        List<ArtistCancellationResponse.CancellationRequest> content = List.of(
+                new ArtistCancellationResponse.CancellationRequest(
+                        1L,
+                        "ORDER-001",
+                        "0123157",
+                        "CANCEL",
+                        "PENDING",
+                        "처리대기",
+                        "2024-12-26T09:00:00+09:00",
+                        "단순 변심",
+                        "취소 요청합니다.",
+                        new ArtistCancellationResponse.Customer(201L, "고객A"),
+                        new ArtistCancellationResponse.OrderItem(101L, "귀여운 스티커", 1, 15000),
+                        15000,
+                        new ArtistCancellationResponse.Permissions(true, true)
+                )
         );
 
-        List<ArtistCancellationResponse.BulkAction> bulkActions = Arrays.asList(
-                ArtistCancellationResponse.BulkAction.builder()
-                        .action("CANCEL_APPROVE")
-                        .label("취소 승인")
-                        .requiresConfirmation(true)
-                        .build(),
-                ArtistCancellationResponse.BulkAction.builder()
-                        .action("CANCEL_REJECT")
-                        .label("취소 거절")
-                        .requiresConfirmation(true)
-                        .build()
+        List<ArtistCancellationResponse.BulkAction> bulkActions = List.of(
+                new ArtistCancellationResponse.BulkAction("CANCEL_APPROVE", "취소 승인", true),
+                new ArtistCancellationResponse.BulkAction("CANCEL_REJECT", "취소 거절", true)
         );
 
-        return ArtistCancellationResponse.List.builder()
-                .summary(summary)
-                .content(content)
-                .bulkActions(bulkActions)
-                .page(page)
-                .size(size)
-                .totalElements(8)
-                .totalPages(1)
-                .hasNext(false)
-                .hasPrevious(false)
-                .build();
+        return new ArtistCancellationResponse.List(
+                summary,
+                content,
+                bulkActions,
+                page,
+                size,
+                8,
+                1,
+                false,
+                false
+        );
+
+
     }
 
     @Override
@@ -380,69 +310,42 @@ public class ArtistDashboardServiceImpl implements ArtistDashboardService {
         // TODO: JWT 토큰에서 작가 정보 추출
         // TODO: 실제 데이터베이스에서 교환 요청 목록 조회
 
-        ArtistExchangeResponse.Summary summary = ArtistExchangeResponse.Summary.builder()
-                .total(5)
-                .pending(3)
-                .approved(1)
-                .rejected(1)
-                .build();
+        ArtistExchangeResponse.Summary summary = new ArtistExchangeResponse.Summary(5, 3, 1, 1);
 
-        List<ArtistExchangeResponse.ExchangeRequest> content = Arrays.asList(
-                ArtistExchangeResponse.ExchangeRequest.builder()
-                        .requestId(21L)
-                        .orderId("ORDER-002")
-                        .orderNumber("0123156")
-                        .type("EXCHANGE")
-                        .status("PENDING")
-                        .statusText("처리대기")
-                        .requestDate("2024-12-26T11:10:00+09:00")
-                        .reason("사이즈 변경")
-                        .customerMessage("L사이즈로 교환 요청")
-                        .customer(ArtistExchangeResponse.Customer.builder()
-                                .id(204L)
-                                .nickname("고객B")
-                                .build())
-                        .orderItem(ArtistExchangeResponse.OrderItem.builder()
-                                .productId(103L)
-                                .productName("아티스트 티셔츠")
-                                .quantity(1)
-                                .price(28500)
-                                .build())
-                        .exchangeRequested(ArtistExchangeResponse.ExchangeRequested.builder()
-                                .option("사이즈=L")
-                                .quantity(1)
-                                .build())
-                        .permissions(ArtistExchangeResponse.Permissions.builder()
-                                .canApprove(true)
-                                .canReject(true)
-                                .build())
-                        .build()
+        List<ArtistExchangeResponse.ExchangeRequest> content = List.of(
+                new ArtistExchangeResponse.ExchangeRequest(
+                        21L,
+                        "ORDER-002",
+                        "0123156",
+                        "EXCHANGE",
+                        "PENDING",
+                        "처리대기",
+                        "2024-12-26T11:10:00+09:00",
+                        "사이즈 변경",
+                        "L사이즈로 교환 요청",
+                        new ArtistExchangeResponse.Customer(204L, "고객B"),
+                        new ArtistExchangeResponse.OrderItem(103L, "아티스트 티셔츠", 1, 28500),
+                        new ArtistExchangeResponse.ExchangeRequested("사이즈=L", 1),
+                        new ArtistExchangeResponse.Permissions(true, true)
+                )
         );
 
-        List<ArtistExchangeResponse.BulkAction> bulkActions = Arrays.asList(
-                ArtistExchangeResponse.BulkAction.builder()
-                        .action("EXCHANGE_APPROVE")
-                        .label("교환 승인")
-                        .requiresConfirmation(true)
-                        .build(),
-                ArtistExchangeResponse.BulkAction.builder()
-                        .action("EXCHANGE_REJECT")
-                        .label("교환 거절")
-                        .requiresConfirmation(true)
-                        .build()
+        List<ArtistExchangeResponse.BulkAction> bulkActions = List.of(
+                new ArtistExchangeResponse.BulkAction("EXCHANGE_APPROVE", "교환 승인", true),
+                new ArtistExchangeResponse.BulkAction("EXCHANGE_REJECT", "교환 거절", true)
         );
 
-        return ArtistExchangeResponse.List.builder()
-                .summary(summary)
-                .content(content)
-                .bulkActions(bulkActions)
-                .page(page)
-                .size(size)
-                .totalElements(5)
-                .totalPages(1)
-                .hasNext(false)
-                .hasPrevious(false)
-                .build();
+        return new ArtistExchangeResponse.List(
+                summary,
+                content,
+                bulkActions,
+                page,
+                size,
+                5,
+                1,
+                false,
+                false
+        );
     }
 
     @Override
@@ -451,48 +354,38 @@ public class ArtistDashboardServiceImpl implements ArtistDashboardService {
         // TODO: 실제 데이터베이스에서 작가 설정 정보 조회
 
         // 프로필 정보
-        ArtistSettingsResponse.Profile profile = ArtistSettingsResponse.Profile.builder()
-                .nickname("작가명입니다")
-                .bio("자신을 소개하는 글을 입력해주세요.")
-                .sns(Arrays.asList(
-                        ArtistSettingsResponse.Sns.builder()
-                                .platform("Instagram")
-                                .handle("@mori_official")
-                                .build()
-                ))
-                .profileImageUrl("https://cdn.example.com/u/5/profile.jpg")
-                .build();
+        ArtistSettingsResponse.Profile profile = new ArtistSettingsResponse.Profile(
+                "작가명입니다",
+                "자신을 소개하는 글을 입력해주세요.",
+                List.of(new ArtistSettingsResponse.Sns("Instagram", "@mori_official")),
+                "https://cdn.example.com/u/5/profile.jpg"
+        );
 
         // 사업자 정보
-        ArtistSettingsResponse.Business business = ArtistSettingsResponse.Business.builder()
-                .address("서울특별시 강남구 테헤란로 123 2층")
-                .businessRegistrationNo("123-45-67890")
-                .telemarketingReportNo("2025-서울강남-1234")
-                .verified(true)
-                .build();
+        ArtistSettingsResponse.Business business = new ArtistSettingsResponse.Business(
+                "서울특별시 강남구 테헤란로 123 2층",
+                "123-45-67890",
+                "2025-서울강남-1234",
+                true
+        );
 
         // 정산 계좌 정보
-        ArtistSettingsResponse.Payout payout = ArtistSettingsResponse.Payout.builder()
-                .bankCode("088")
-                .bankName("신한")
-                .accountHolder("홍길동")
-                .accountMasked("****-****-**3456")
-                .status("VERIFIED")
-                .build();
+        ArtistSettingsResponse.Payout payout = new ArtistSettingsResponse.Payout(
+                "088",
+                "신한",
+                "홍길동",
+                "****-****-**3456",
+                "VERIFIED"
+        );
 
         // 권한 정보
-        ArtistSettingsResponse.Permissions permissions = ArtistSettingsResponse.Permissions.builder()
-                .canEditProfile(true)
-                .canEditBusiness(true)
-                .canEditPayout(true)
-                .build();
+        ArtistSettingsResponse.Permissions permissions = new ArtistSettingsResponse.Permissions(
+                true,
+                true,
+                true
+        );
 
-        return ArtistSettingsResponse.builder()
-                .profile(profile)
-                .business(business)
-                .payout(payout)
-                .permissions(permissions)
-                .build();
+        return new ArtistSettingsResponse(profile, business, payout, permissions);
     }
 
     @Override
@@ -503,78 +396,47 @@ public class ArtistDashboardServiceImpl implements ArtistDashboardService {
         // TODO: 실제 데이터베이스에서 펀딩 목록 조회
 
         // 펀딩 요약 정보
-        ArtistFundingResponse.Summary summary = ArtistFundingResponse.Summary.builder()
-                .totalFundings(15)
-                .activeFundings(8)
-                .completedFundings(6)
-                .cancelledFundings(1)
-                .build();
+        ArtistFundingResponse.Summary summary = new ArtistFundingResponse.Summary(15, 8, 6, 1);
 
         // 펀딩 목록
         List<ArtistFundingResponse.Funding> content = Arrays.asList(
-                ArtistFundingResponse.Funding.builder()
-                        .fundingId(456789L)
-                        .title("펀딩 제목입니다 펀딩 제목입니다")
-                        .status("ACTIVE")
-                        .targetAmount(900000)
-                        .currentAmount(900000)
-                        .achievementRate(100)
-                        .supporterCount(800)
-                        .startDate("2025-08-01")
-                        .endDate("2025-09-18")
-                        .registeredAt("2025-09-01")
-                        .mainImage("https://example.com/image.jpg")
-                        .category(ArtistFundingResponse.Category.builder()
-                                .id(1L)
-                                .name("스티커")
-                                .build())
-                        .permissions(ArtistFundingResponse.Permissions.builder()
-                                .canEdit(true)
-                                .canCancel(true)
-                                .canRequestSale(true)
-                                .build())
-                        .flags(ArtistFundingResponse.Flags.builder()
-                                .goalAchieved(true)
-                                .dueSoon(false)
-                                .ended(true)
-                                .build())
-                        .build(),
-                ArtistFundingResponse.Funding.builder()
-                        .fundingId(456788L)
-                        .title("펀딩 제목입니다")
-                        .status("ACTIVE")
-                        .targetAmount(600000)
-                        .currentAmount(9000000)
-                        .achievementRate(1500)
-                        .supporterCount(820)
-                        .startDate("2025-08-10")
-                        .endDate("2025-09-18")
-                        .registeredAt("2025-08-20")
-                        .mainImage("https://example.com/image2.jpg")
-                        .category(ArtistFundingResponse.Category.builder()
-                                .id(2L)
-                                .name("다이어리")
-                                .build())
-                        .permissions(ArtistFundingResponse.Permissions.builder()
-                                .canEdit(true)
-                                .canCancel(true)
-                                .canRequestSale(true)
-                                .build())
-                        .flags(ArtistFundingResponse.Flags.builder()
-                                .goalAchieved(true)
-                                .dueSoon(true)
-                                .ended(false)
-                                .build())
-                        .build()
+                new ArtistFundingResponse.Funding(
+                        456789L,
+                        "펀딩 제목입니다 펀딩 제목입니다",
+                        "ACTIVE",
+                        900000,
+                        900000,
+                        100,
+                        800,
+                        "2025-08-01",
+                        "2025-09-18",
+                        "2025-09-01",
+                        "https://example.com/image.jpg",
+                        new ArtistFundingResponse.Category(1L, "스티커"),
+                        new ArtistFundingResponse.Permissions(true, true, true),
+                        new ArtistFundingResponse.Flags(true, false, true)
+                ),
+                new ArtistFundingResponse.Funding(
+                        456788L,
+                        "펀딩 제목입니다",
+                        "ACTIVE",
+                        600000,
+                        9000000,
+                        1500,
+                        820,
+                        "2025-08-10",
+                        "2025-09-18",
+                        "2025-08-20",
+                        "https://example.com/image2.jpg",
+                        new ArtistFundingResponse.Category(2L, "다이어리"),
+                        new ArtistFundingResponse.Permissions(true, true, true),
+                        new ArtistFundingResponse.Flags(true, true, false)
+                )
         );
 
         // 일괄 작업 목록
-        List<ArtistFundingResponse.BulkAction> bulkActions = Arrays.asList(
-                ArtistFundingResponse.BulkAction.builder()
-                        .action("REQUEST_SALE")
-                        .label("판매 요청")
-                        .requiresConfirmation(true)
-                        .build()
+        List<ArtistFundingResponse.BulkAction> bulkActions = List.of(
+                new ArtistFundingResponse.BulkAction("REQUEST_SALE", "판매 요청", true)
         );
 
         return new ArtistFundingResponse.List(

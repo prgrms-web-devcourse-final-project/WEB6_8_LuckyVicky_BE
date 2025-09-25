@@ -12,7 +12,7 @@ import com.back.domain.dashboard.artist.dto.response.ArtistFundingResponse;
 
 /**
  * 작가용 대시보드 서비스 인터페이스
- * 2025.09.23 생성
+ * 2025.09.25 Request DTO 패턴 적용
  */
 public interface ArtistDashboardService {
 

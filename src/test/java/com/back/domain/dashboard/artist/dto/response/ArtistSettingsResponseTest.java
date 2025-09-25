@@ -12,7 +12,7 @@ import static org.junit.jupiter.api.Assertions.assertAll;
 /**
  * ArtistSettingsResponse DTO 테스트
  * 작가 설정 구조와 권한 로직에 집중
- * 2025.09.24 생성
+ * 2025.09.25 수정
  */
 @DisplayName("ArtistSettingsResponse DTO 테스트")
 public class ArtistSettingsResponseTest {
@@ -26,10 +26,10 @@ public class ArtistSettingsResponseTest {
         // Then - 전체 구조 검증
         assertAll(
                 () -> assertThat(settings).isNotNull(),
-                () -> assertThat(settings.getProfile()).isNotNull(),
-                () -> assertThat(settings.getBusiness()).isNotNull(),
-                () -> assertThat(settings.getPayout()).isNotNull(),
-                () -> assertThat(settings.getPermissions()).isNotNull()
+                () -> assertThat(settings.profile()).isNotNull(),
+                () -> assertThat(settings.business()).isNotNull(),
+                () -> assertThat(settings.payout()).isNotNull(),
+                () -> assertThat(settings.permissions()).isNotNull()
         );
     }
 
@@ -41,12 +41,12 @@ public class ArtistSettingsResponseTest {
 
         // Then - 프로필 구조 검증
         assertAll(
-                () -> assertThat(profile.getNickname()).isNotBlank(),
-                () -> assertThat(profile.getBio()).isNotBlank(),
-                () -> assertThat(profile.getSns()).isNotEmpty(),
-                () -> assertThat(profile.getSns().get(0).getPlatform()).isNotBlank(),
-                () -> assertThat(profile.getSns().get(0).getHandle()).startsWith("@"),
-                () -> assertThat(profile.getProfileImageUrl()).startsWith("https://")
+                () -> assertThat(profile.nickname()).isNotBlank(),
+                () -> assertThat(profile.bio()).isNotBlank(),
+                () -> assertThat(profile.sns()).isNotEmpty(),
+                () -> assertThat(profile.sns().get(0).platform()).isNotBlank(),
+                () -> assertThat(profile.sns().get(0).handle()).startsWith("@"),
+                () -> assertThat(profile.profileImageUrl()).startsWith("https://")
         );
     }
 
@@ -60,12 +60,12 @@ public class ArtistSettingsResponseTest {
         // Then - 사업자 정보 검증
         assertAll(
                 // 인증된 사업자 정보
-                () -> assertThat(verifiedBusiness.getAddress()).isNotBlank(),
-                () -> assertThat(verifiedBusiness.getBusinessRegistrationNo()).matches("\\d{3}-\\d{2}-\\d{5}"),
-                () -> assertThat(verifiedBusiness.getTelemarketingReportNo()).contains("서울"),
-                () -> assertThat(verifiedBusiness.isVerified()).isTrue(),
+                () -> assertThat(verifiedBusiness.address()).isNotBlank(),
+                () -> assertThat(verifiedBusiness.businessRegistrationNo()).matches("\\d{3}-\\d{2}-\\d{5}"),
+                () -> assertThat(verifiedBusiness.telemarketingReportNo()).contains("서울"),
+                () -> assertThat(verifiedBusiness.verified()).isTrue(),
                 // 미인증 사업자 정보
-                () -> assertThat(unverifiedBusiness.isVerified()).isFalse()
+                () -> assertThat(unverifiedBusiness.verified()).isFalse()
         );
     }
 
@@ -80,15 +80,15 @@ public class ArtistSettingsResponseTest {
         // Then - 정산 계좌 상태별 검증
         assertAll(
                 // 인증된 계좌
-                () -> assertThat(verifiedPayout.getBankCode()).matches("\\d{3}"),
-                () -> assertThat(verifiedPayout.getBankName()).isNotBlank(),
-                () -> assertThat(verifiedPayout.getAccountHolder()).isNotBlank(),
-                () -> assertThat(verifiedPayout.getAccountMasked()).contains("****"),
-                () -> assertThat(verifiedPayout.getStatus()).isEqualTo("VERIFIED"),
+                () -> assertThat(verifiedPayout.bankCode()).matches("\\d{3}"),
+                () -> assertThat(verifiedPayout.bankName()).isNotBlank(),
+                () -> assertThat(verifiedPayout.accountHolder()).isNotBlank(),
+                () -> assertThat(verifiedPayout.accountMasked()).contains("****"),
+                () -> assertThat(verifiedPayout.status()).isEqualTo("VERIFIED"),
                 // 대기중 계좌
-                () -> assertThat(pendingPayout.getStatus()).isEqualTo("PENDING"),
+                () -> assertThat(pendingPayout.status()).isEqualTo("PENDING"),
                 // 거부된 계좌
-                () -> assertThat(rejectedPayout.getStatus()).isEqualTo("REJECTED")
+                () -> assertThat(rejectedPayout.status()).isEqualTo("REJECTED")
         );
     }
 
@@ -102,13 +102,13 @@ public class ArtistSettingsResponseTest {
         // Then - 권한 검증
         assertAll(
                 // 모든 권한 허용
-                () -> assertThat(allAllowedPermissions.isCanEditProfile()).isTrue(),
-                () -> assertThat(allAllowedPermissions.isCanEditBusiness()).isTrue(),
-                () -> assertThat(allAllowedPermissions.isCanEditPayout()).isTrue(),
+                () -> assertThat(allAllowedPermissions.canEditProfile()).isTrue(),
+                () -> assertThat(allAllowedPermissions.canEditBusiness()).isTrue(),
+                () -> assertThat(allAllowedPermissions.canEditPayout()).isTrue(),
                 // 제한된 권한
-                () -> assertThat(restrictedPermissions.isCanEditProfile()).isTrue(),
-                () -> assertThat(restrictedPermissions.isCanEditBusiness()).isFalse(),
-                () -> assertThat(restrictedPermissions.isCanEditPayout()).isFalse()
+                () -> assertThat(restrictedPermissions.canEditProfile()).isTrue(),
+                () -> assertThat(restrictedPermissions.canEditBusiness()).isFalse(),
+                () -> assertThat(restrictedPermissions.canEditPayout()).isFalse()
         );
     }
 
@@ -116,44 +116,35 @@ public class ArtistSettingsResponseTest {
     @DisplayName("API 명세와 일치하는 구조 생성")
     void createApiCompatibleStructure_Success() {
         // When
-        ArtistSettingsResponse response = ArtistSettingsResponse.builder()
-                .profile(ArtistSettingsResponse.Profile.builder()
-                        .nickname("작가명입니다")
-                        .bio("자신을 소개하는 글을 입력해주세요.")
-                        .sns(Arrays.asList(
-                                ArtistSettingsResponse.Sns.builder()
-                                        .platform("Instagram")
-                                        .handle("@mori_official")
-                                        .build()
-                        ))
-                        .profileImageUrl("https://cdn.example.com/u/5/profile.jpg")
-                        .build())
-                .business(ArtistSettingsResponse.Business.builder()
-                        .address("서울특별시 강남구 테헤란로 123 2층")
-                        .businessRegistrationNo("123-45-67890")
-                        .telemarketingReportNo("2025-서울강남-1234")
-                        .verified(true)
-                        .build())
-                .payout(ArtistSettingsResponse.Payout.builder()
-                        .bankCode("088")
-                        .bankName("신한")
-                        .accountHolder("홍길동")
-                        .accountMasked("****-****-**3456")
-                        .status("VERIFIED")
-                        .build())
-                .permissions(ArtistSettingsResponse.Permissions.builder()
-                        .canEditProfile(true)
-                        .canEditBusiness(true)
-                        .canEditPayout(true)
-                        .build())
-                .build();
+        ArtistSettingsResponse response = new ArtistSettingsResponse(
+                new ArtistSettingsResponse.Profile(
+                        "작가명입니다",
+                        "자신을 소개하는 글을 입력해주세요.",
+                        Arrays.asList(new ArtistSettingsResponse.Sns("Instagram", "@mori_official")),
+                        "https://cdn.example.com/u/5/profile.jpg"
+                ),
+                new ArtistSettingsResponse.Business(
+                        "서울특별시 강남구 테헤란로 123 2층",
+                        "123-45-67890",
+                        "2025-서울강남-1234",
+                        true
+                ),
+                new ArtistSettingsResponse.Payout(
+                        "088",
+                        "신한",
+                        "홍길동",
+                        "****-****-**3456",
+                        "VERIFIED"
+                ),
+                new ArtistSettingsResponse.Permissions(true, true, true)
+        );
 
         // Then - API 응답 구조 검증
         assertAll(
-                () -> assertThat(response.getProfile().getNickname()).isEqualTo("작가명입니다"),
-                () -> assertThat(response.getBusiness().getBusinessRegistrationNo()).isEqualTo("123-45-67890"),
-                () -> assertThat(response.getPayout().getBankName()).isEqualTo("신한"),
-                () -> assertThat(response.getPermissions().isCanEditProfile()).isTrue()
+                () -> assertThat(response.profile().nickname()).isEqualTo("작가명입니다"),
+                () -> assertThat(response.business().businessRegistrationNo()).isEqualTo("123-45-67890"),
+                () -> assertThat(response.payout().bankName()).isEqualTo("신한"),
+                () -> assertThat(response.permissions().canEditProfile()).isTrue()
         );
     }
 
@@ -162,102 +153,80 @@ public class ArtistSettingsResponseTest {
     void handleMultipleSNSPlatforms_Success() {
         // Given
         List<ArtistSettingsResponse.Sns> multipleSns = Arrays.asList(
-                ArtistSettingsResponse.Sns.builder()
-                        .platform("Instagram")
-                        .handle("@artist_insta")
-                        .build(),
-                ArtistSettingsResponse.Sns.builder()
-                        .platform("Twitter")
-                        .handle("@artist_twitter")
-                        .build(),
-                ArtistSettingsResponse.Sns.builder()
-                        .platform("YouTube")
-                        .handle("@artist_youtube")
-                        .build()
+                new ArtistSettingsResponse.Sns("Instagram", "@artist_insta"),
+                new ArtistSettingsResponse.Sns("Twitter", "@artist_twitter"),
+                new ArtistSettingsResponse.Sns("YouTube", "@artist_youtube")
         );
 
-        ArtistSettingsResponse.Profile profile = ArtistSettingsResponse.Profile.builder()
-                .nickname("멀티 작가")
-                .bio("다양한 플랫폼에서 활동하는 작가입니다.")
-                .sns(multipleSns)
-                .profileImageUrl("https://cdn.example.com/profile.jpg")
-                .build();
+        ArtistSettingsResponse.Profile profile = new ArtistSettingsResponse.Profile(
+                "멀티 작가",
+                "다양한 플랫폼에서 활동하는 작가입니다.",
+                multipleSns,
+                "https://cdn.example.com/profile.jpg"
+        );
 
         // Then - 다중 SNS 검증
         assertAll(
-                () -> assertThat(profile.getSns()).hasSize(3),
-                () -> assertThat(profile.getSns().get(0).getPlatform()).isEqualTo("Instagram"),
-                () -> assertThat(profile.getSns().get(1).getPlatform()).isEqualTo("Twitter"),
-                () -> assertThat(profile.getSns().get(2).getPlatform()).isEqualTo("YouTube")
+                () -> assertThat(profile.sns()).hasSize(3),
+                () -> assertThat(profile.sns().get(0).platform()).isEqualTo("Instagram"),
+                () -> assertThat(profile.sns().get(1).platform()).isEqualTo("Twitter"),
+                () -> assertThat(profile.sns().get(2).platform()).isEqualTo("YouTube")
         );
     }
 
     // =========================== 헬퍼 메서드들 ===========================
 
     private ArtistSettingsResponse createSampleSettings() {
-        return ArtistSettingsResponse.builder()
-                .profile(createSampleProfile())
-                .business(createVerifiedBusiness())
-                .payout(createPayoutWithStatus("VERIFIED"))
-                .permissions(createAllAllowedPermissions())
-                .build();
+        return new ArtistSettingsResponse(
+                createSampleProfile(),
+                createVerifiedBusiness(),
+                createPayoutWithStatus("VERIFIED"),
+                createAllAllowedPermissions()
+        );
     }
 
     private ArtistSettingsResponse.Profile createSampleProfile() {
-        return ArtistSettingsResponse.Profile.builder()
-                .nickname("테스트 작가")
-                .bio("테스트용 작가 소개입니다.")
-                .sns(Arrays.asList(
-                        ArtistSettingsResponse.Sns.builder()
-                                .platform("Instagram")
-                                .handle("@test_artist")
-                                .build()
-                ))
-                .profileImageUrl("https://cdn.example.com/test-profile.jpg")
-                .build();
+        return new ArtistSettingsResponse.Profile(
+                "테스트 작가",
+                "테스트용 작가 소개입니다.",
+                Arrays.asList(new ArtistSettingsResponse.Sns("Instagram", "@test_artist")),
+                "https://cdn.example.com/test-profile.jpg"
+        );
     }
 
     private ArtistSettingsResponse.Business createVerifiedBusiness() {
-        return ArtistSettingsResponse.Business.builder()
-                .address("서울특별시 강남구 테헤란로 123 2층")
-                .businessRegistrationNo("123-45-67890")
-                .telemarketingReportNo("2025-서울강남-1234")
-                .verified(true)
-                .build();
+        return new ArtistSettingsResponse.Business(
+                "서울특별시 강남구 테헤란로 123 2층",
+                "123-45-67890",
+                "2025-서울강남-1234",
+                true
+        );
     }
 
     private ArtistSettingsResponse.Business createUnverifiedBusiness() {
-        return ArtistSettingsResponse.Business.builder()
-                .address("서울특별시 강남구 테헤란로 456 3층")
-                .businessRegistrationNo("987-65-43210")
-                .telemarketingReportNo("2025-서울강남-5678")
-                .verified(false)
-                .build();
+        return new ArtistSettingsResponse.Business(
+                "서울특별시 강남구 테헤란로 456 3층",
+                "987-65-43210",
+                "2025-서울강남-5678",
+                false
+        );
     }
 
     private ArtistSettingsResponse.Payout createPayoutWithStatus(String status) {
-        return ArtistSettingsResponse.Payout.builder()
-                .bankCode("088")
-                .bankName("신한")
-                .accountHolder("홍길동")
-                .accountMasked("****-****-**3456")
-                .status(status)
-                .build();
+        return new ArtistSettingsResponse.Payout(
+                "088",
+                "신한",
+                "홍길동",
+                "****-****-**3456",
+                status
+        );
     }
 
     private ArtistSettingsResponse.Permissions createAllAllowedPermissions() {
-        return ArtistSettingsResponse.Permissions.builder()
-                .canEditProfile(true)
-                .canEditBusiness(true)
-                .canEditPayout(true)
-                .build();
+        return new ArtistSettingsResponse.Permissions(true, true, true);
     }
 
     private ArtistSettingsResponse.Permissions createRestrictedPermissions() {
-        return ArtistSettingsResponse.Permissions.builder()
-                .canEditProfile(true)
-                .canEditBusiness(false)
-                .canEditPayout(false)
-                .build();
+        return new ArtistSettingsResponse.Permissions(true, false, false);
     }
 }

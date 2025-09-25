@@ -23,7 +23,9 @@ public class DashboardServiceImpl implements DashboardService {
         // TODO: JWT 토큰에서 사용자 정보 추출
         // TODO: 실제 데이터베이스에서 사용자 정보 조회
         
-        AccountResponse.Settings response = new AccountResponse.Settings();
+        AccountResponse.Profile profile = null;
+        AccountResponse.Contact contact = null;
+        AccountResponse.Security security = null;
         
         // include 파라미터에 따라 필요한 정보만 포함
         String[] includeFields = include.split(",");
@@ -31,20 +33,20 @@ public class DashboardServiceImpl implements DashboardService {
         for (String field : includeFields) {
             switch (field.trim()) {
                 case "profile":
-                    response.setProfile(new AccountResponse.Profile(
-                            10025L, "사용자닉네임", "https://cdn.example.com/u/10025/profile.jpg"));
+                    profile = new AccountResponse.Profile(
+                            10025L, "사용자닉네임", "https://cdn.example.com/u/10025/profile.jpg");
                     break;
                 case "contact":
-                    response.setContact(new AccountResponse.Contact(
-                            "user@example.com", true, "+821012345678", "서울특별시 강남구"));
+                    contact = new AccountResponse.Contact(
+                            "user@example.com", true, "+821012345678", "서울특별시 강남구");
                     break;
                 case "security":
-                    response.setSecurity(new AccountResponse.Security(LocalDateTime.now()));
+                    security = new AccountResponse.Security(LocalDateTime.now());
                     break;
             }
         }
         
-        return response;
+        return new AccountResponse.Settings(profile, contact, security);
     }
     
     @Override
@@ -114,77 +116,65 @@ public class DashboardServiceImpl implements DashboardService {
                                         String aftersalesStatus, String from, String to, String period, String sort, String order) {
         // TODO: 실제 주문 데이터 조회 로직 구현
         
-        OrderResponse.SummaryDto summary = OrderResponse.SummaryDto.builder()
-                .totalOrders(25)
-                .pending(3)
-                .confirmed(2)  
-                .preparing(5)
-                .shipped(10)
-                .delivered(5)
-                .canceled(2)
-                .cancelRequested(1)
-                .cancelProcessing(0) 
-                .cancelCompleted(1)
-                .exchangeRequested(1)
-                .exchangeProcessing(0)
-                .exchangeCompleted(1)
-                .build();
-        
-        List<OrderResponse.Summary> content = List.of(
-                OrderResponse.Summary.builder()
-                        .orderId("ORDER-001")
-                        .orderNumber("0123157")
-                        .orderDate("2025-09-18T11:20:00+09:00")
-                        .status("PENDING")
-                        .statusText("결제완료")
-                        .totalAmount(47500)
-                        .itemCount(2)
-                        .representativeItem(OrderResponse.Product.builder()
-                                .productId(101L)
-                                .productName("감성 포스터")
-                                .quantity(1)
-                                .price(25000)
-                                .imageUrl("https://example.com/product101.jpg")
-                                .build())
-                        .shipping(OrderResponse.Shipping.builder()
-                                .addressShort("서울시 강남구")
-                                .recipient("홍길동")
-                                .build())
-                        .aftersales(null)
-                        .permissions(OrderResponse.Permission.builder()
-                                .canCancel(true)
-                                .canReturn(false)
-                                .canExchange(false)
-                                .build())
-                        .links(OrderResponse.Link.builder()
-                                .detail("/orders/0123157")
-                                .build())
-                        .items(Arrays.asList(
-                                OrderResponse.OrderItem.builder()
-                                        .orderItemId(1L)
-                                        .productId(101L)
-                                        .productName("감성 포스터")
-                                        .quantity(1)
-                                        .price(25000)
-                                        .imageUrl("https://example.com/product101.jpg")
-                                        .build(),
-                                OrderResponse.OrderItem.builder()
-                                        .orderItemId(2L)
-                                        .productId(102L)
-                                        .productName("아트 스티커")
-                                        .quantity(1)
-                                        .price(22500)
-                                        .imageUrl("https://example.com/product102.jpg")
-                                        .build()
-                        ))
-                        .build()
+        OrderResponse.SummaryDto summary = new OrderResponse.SummaryDto(
+                25, 3, 2, 5, 10, 5, 2, 1, 0, 1, 1, 0, 1
         );
         
-        OrderResponse.PeriodInfo periodInfo = OrderResponse.PeriodInfo.builder()
-                .type("MONTH")
-                .from("2025-09-01")
-                .to("2025-09-30")
-                .build();
+        List<OrderResponse.Summary> content = List.of(
+                new OrderResponse.Summary(
+                        "ORDER-001",
+                        "0123157",
+                        "2025-09-18T11:20:00+09:00",
+                        "PENDING",
+                        "결제완료",
+                        47500,
+                        2,
+                        new OrderResponse.Product(
+                                101L,
+                                "감성 포스터",
+                                1,
+                                25000,
+                                "https://example.com/product101.jpg"
+                        ),
+                        new OrderResponse.Shipping(
+                                "서울시 강남구",
+                                "홍길동"
+                        ),
+                        null, // aftersales
+                        new OrderResponse.Permission(
+                                true,
+                                false,
+                                false
+                        ),
+                        new OrderResponse.Link(
+                                "/orders/0123157"
+                        ),
+                        Arrays.asList(
+                                new OrderResponse.OrderItem(
+                                        1L,
+                                        101L,
+                                        "감성 포스터",
+                                        1,
+                                        25000,
+                                        "https://example.com/product101.jpg"
+                                ),
+                                new OrderResponse.OrderItem(
+                                        2L,
+                                        102L,
+                                        "아트 스티커",
+                                        1,
+                                        22500,
+                                        "https://example.com/product102.jpg"
+                                )
+                        )
+                )
+        );
+        
+        OrderResponse.PeriodInfo periodInfo = new OrderResponse.PeriodInfo(
+                "MONTH",
+                "2025-09-01",
+                "2025-09-30"
+        );
         
         return new OrderResponse.List(
                 summary, content, page, size, 25, 3, true, false, 

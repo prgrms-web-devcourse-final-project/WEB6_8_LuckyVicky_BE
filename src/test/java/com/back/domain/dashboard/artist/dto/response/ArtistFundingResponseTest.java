@@ -12,7 +12,7 @@ import static org.junit.jupiter.api.Assertions.assertAll;
 /**
  * ArtistFundingResponse DTO 테스트
  * 펀딩 목록과 비즈니스 로직에 집중
- * 2025.09.24 생성
+ * 2025.09.25 수정
  */
 @DisplayName("ArtistFundingResponse DTO 테스트")
 public class ArtistFundingResponseTest {
@@ -26,16 +26,16 @@ public class ArtistFundingResponseTest {
         // Then - 기본 구조 검증
         assertAll(
                 () -> assertThat(funding).isNotNull(),
-                () -> assertThat(funding.getFundingId()).isNotNull(),
-                () -> assertThat(funding.getTitle()).isNotBlank(),
-                () -> assertThat(funding.getStatus()).isNotBlank(),
-                () -> assertThat(funding.getTargetAmount()).isNotNegative(),
-                () -> assertThat(funding.getCurrentAmount()).isNotNegative(),
-                () -> assertThat(funding.getAchievementRate()).isNotNegative(),
-                () -> assertThat(funding.getSupporterCount()).isNotNegative(),
-                () -> assertThat(funding.getCategory()).isNotNull(),
-                () -> assertThat(funding.getPermissions()).isNotNull(),
-                () -> assertThat(funding.getFlags()).isNotNull()
+                () -> assertThat(funding.fundingId()).isNotNull(),
+                () -> assertThat(funding.title()).isNotBlank(),
+                () -> assertThat(funding.status()).isNotBlank(),
+                () -> assertThat(funding.targetAmount()).isNotNegative(),
+                () -> assertThat(funding.currentAmount()).isNotNegative(),
+                () -> assertThat(funding.achievementRate()).isNotNegative(),
+                () -> assertThat(funding.supporterCount()).isNotNegative(),
+                () -> assertThat(funding.category()).isNotNull(),
+                () -> assertThat(funding.permissions()).isNotNull(),
+                () -> assertThat(funding.flags()).isNotNull()
         );
     }
 
@@ -53,11 +53,11 @@ public class ArtistFundingResponseTest {
 
         // Then - 상태별 검증
         assertAll(
-                () -> assertThat(fundings.get(0).getStatus()).isEqualTo("ACTIVE"),
-                () -> assertThat(fundings.get(1).getStatus()).isEqualTo("COMPLETED"),
-                () -> assertThat(fundings.get(2).getStatus()).isEqualTo("CANCELLED"),
-                () -> assertThat(fundings.get(3).getStatus()).isEqualTo("PAUSED"),
-                () -> assertThat(fundings.get(4).getStatus()).isEqualTo("PENDING")
+                () -> assertThat(fundings.getFirst().status()).isEqualTo("ACTIVE"),
+                () -> assertThat(fundings.get(1).status()).isEqualTo("COMPLETED"),
+                () -> assertThat(fundings.get(2).status()).isEqualTo("CANCELLED"),
+                () -> assertThat(fundings.get(3).status()).isEqualTo("PAUSED"),
+                () -> assertThat(fundings.get(4).status()).isEqualTo("PENDING")
         );
     }
 
@@ -71,11 +71,11 @@ public class ArtistFundingResponseTest {
         // Then - 달성률과 목표달성 플래그 일관성
         assertAll(
                 // 목표 달성한 펀딩
-                () -> assertThat(achievedFunding.getAchievementRate()).isEqualTo(150),
-                () -> assertThat(achievedFunding.getFlags().isGoalAchieved()).isTrue(),
+                () -> assertThat(achievedFunding.achievementRate()).isEqualTo(150),
+                () -> assertThat(achievedFunding.flags().goalAchieved()).isTrue(),
                 // 목표 미달성한 펀딩
-                () -> assertThat(notAchievedFunding.getAchievementRate()).isEqualTo(75),
-                () -> assertThat(notAchievedFunding.getFlags().isGoalAchieved()).isFalse()
+                () -> assertThat(notAchievedFunding.achievementRate()).isEqualTo(75),
+                () -> assertThat(notAchievedFunding.flags().goalAchieved()).isFalse()
         );
     }
 
@@ -89,13 +89,13 @@ public class ArtistFundingResponseTest {
         // Then - 권한 검증
         assertAll(
                 // 전체 권한
-                () -> assertThat(fullPermissions.isCanEdit()).isTrue(),
-                () -> assertThat(fullPermissions.isCanCancel()).isTrue(),
-                () -> assertThat(fullPermissions.isCanRequestSale()).isTrue(),
+                () -> assertThat(fullPermissions.canEdit()).isTrue(),
+                () -> assertThat(fullPermissions.canCancel()).isTrue(),
+                () -> assertThat(fullPermissions.canRequestSale()).isTrue(),
                 // 제한된 권한
-                () -> assertThat(restrictedPermissions.isCanEdit()).isTrue(),
-                () -> assertThat(restrictedPermissions.isCanCancel()).isFalse(),
-                () -> assertThat(restrictedPermissions.isCanRequestSale()).isFalse()
+                () -> assertThat(restrictedPermissions.canEdit()).isTrue(),
+                () -> assertThat(restrictedPermissions.canCancel()).isFalse(),
+                () -> assertThat(restrictedPermissions.canRequestSale()).isFalse()
         );
     }
 
@@ -109,13 +109,13 @@ public class ArtistFundingResponseTest {
         // Then - 플래그 상태 검증
         assertAll(
                 // 진행중 펀딩 플래그
-                () -> assertThat(activeFlags.isGoalAchieved()).isTrue(),
-                () -> assertThat(activeFlags.isDueSoon()).isTrue(),
-                () -> assertThat(activeFlags.isEnded()).isFalse(),
+                () -> assertThat(activeFlags.goalAchieved()).isTrue(),
+                () -> assertThat(activeFlags.dueSoon()).isTrue(),
+                () -> assertThat(activeFlags.ended()).isFalse(),
                 // 종료된 펀딩 플래그
-                () -> assertThat(endedFlags.isGoalAchieved()).isTrue(),
-                () -> assertThat(endedFlags.isDueSoon()).isFalse(),
-                () -> assertThat(endedFlags.isEnded()).isTrue()
+                () -> assertThat(endedFlags.goalAchieved()).isTrue(),
+                () -> assertThat(endedFlags.dueSoon()).isFalse(),
+                () -> assertThat(endedFlags.ended()).isTrue()
         );
     }
 
@@ -129,7 +129,7 @@ public class ArtistFundingResponseTest {
                 createSampleFunding(),
                 createSampleFunding()
         );
-        List<ArtistFundingResponse.BulkAction> bulkActions = Arrays.asList(createSampleBulkAction());
+        List<ArtistFundingResponse.BulkAction> bulkActions = List.of(createSampleBulkAction());
 
         // When
         ArtistFundingResponse.List response = new ArtistFundingResponse.List(
@@ -154,21 +154,16 @@ public class ArtistFundingResponseTest {
     @DisplayName("요약 정보와 목록 일관성 검증")
     void validateSummaryConsistency_Success() {
         // Given
-        ArtistFundingResponse.Summary summary = ArtistFundingResponse.Summary.builder()
-                .totalFundings(15)
-                .activeFundings(8)
-                .completedFundings(6)
-                .cancelledFundings(1)
-                .build();
+        ArtistFundingResponse.Summary summary = new ArtistFundingResponse.Summary(15, 8, 6, 1);
 
         // Then - 요약 정보 일관성 검증
         assertAll(
-                () -> assertThat(summary.getActiveFundings() + summary.getCompletedFundings() + summary.getCancelledFundings())
-                        .isEqualTo(summary.getTotalFundings()),
-                () -> assertThat(summary.getTotalFundings()).isEqualTo(15),
-                () -> assertThat(summary.getActiveFundings()).isNotNegative(),
-                () -> assertThat(summary.getCompletedFundings()).isNotNegative(),
-                () -> assertThat(summary.getCancelledFundings()).isNotNegative()
+                () -> assertThat(summary.activeFundings() + summary.completedFundings() + summary.cancelledFundings())
+                        .isEqualTo(summary.totalFundings()),
+                () -> assertThat(summary.totalFundings()).isEqualTo(15),
+                () -> assertThat(summary.activeFundings()).isNotNegative(),
+                () -> assertThat(summary.completedFundings()).isNotNegative(),
+                () -> assertThat(summary.cancelledFundings()).isNotNegative()
         );
     }
 
@@ -176,161 +171,117 @@ public class ArtistFundingResponseTest {
     @DisplayName("API 명세와 일치하는 구조 생성")
     void createApiCompatibleStructure_Success() {
         // When
-        ArtistFundingResponse.Funding funding = ArtistFundingResponse.Funding.builder()
-                .fundingId(456789L)
-                .title("펀딩 제목입니다 펀딩 제목입니다")
-                .status("ACTIVE")
-                .targetAmount(900000)
-                .currentAmount(900000)
-                .achievementRate(100)
-                .supporterCount(800)
-                .startDate("2025-08-01")
-                .endDate("2025-09-18")
-                .registeredAt("2025-09-01")
-                .mainImage("https://example.com/image.jpg")
-                .category(ArtistFundingResponse.Category.builder()
-                        .id(1L)
-                        .name("스티커")
-                        .build())
-                .permissions(ArtistFundingResponse.Permissions.builder()
-                        .canEdit(true)
-                        .canCancel(true)
-                        .canRequestSale(true)
-                        .build())
-                .flags(ArtistFundingResponse.Flags.builder()
-                        .goalAchieved(true)
-                        .dueSoon(false)
-                        .ended(true)
-                        .build())
-                .build();
+        ArtistFundingResponse.Funding funding = new ArtistFundingResponse.Funding(
+                456789L,
+                "펀딩 제목입니다 펀딩 제목입니다",
+                "ACTIVE",
+                900000,
+                900000,
+                100,
+                800,
+                "2025-08-01",
+                "2025-09-18",
+                "2025-09-01",
+                "https://example.com/image.jpg",
+                new ArtistFundingResponse.Category(1L, "스티커"),
+                new ArtistFundingResponse.Permissions(true, true, true),
+                new ArtistFundingResponse.Flags(true, false, true)
+        );
 
         // Then - API 응답 구조 검증
         assertAll(
-                () -> assertThat(funding.getFundingId()).isEqualTo(456789L),
-                () -> assertThat(funding.getTitle()).isEqualTo("펀딩 제목입니다 펀딩 제목입니다"),
-                () -> assertThat(funding.getStatus()).isEqualTo("ACTIVE"),
-                () -> assertThat(funding.getTargetAmount()).isEqualTo(900000),
-                () -> assertThat(funding.getCurrentAmount()).isEqualTo(900000),
-                () -> assertThat(funding.getAchievementRate()).isEqualTo(100),
-                () -> assertThat(funding.getCategory().getName()).isEqualTo("스티커"),
-                () -> assertThat(funding.getPermissions().isCanRequestSale()).isTrue(),
-                () -> assertThat(funding.getFlags().isGoalAchieved()).isTrue()
+                () -> assertThat(funding.fundingId()).isEqualTo(456789L),
+                () -> assertThat(funding.title()).isEqualTo("펀딩 제목입니다 펀딩 제목입니다"),
+                () -> assertThat(funding.status()).isEqualTo("ACTIVE"),
+                () -> assertThat(funding.targetAmount()).isEqualTo(900000),
+                () -> assertThat(funding.currentAmount()).isEqualTo(900000),
+                () -> assertThat(funding.achievementRate()).isEqualTo(100),
+                () -> assertThat(funding.category().name()).isEqualTo("스티커"),
+                () -> assertThat(funding.permissions().canRequestSale()).isTrue(),
+                () -> assertThat(funding.flags().goalAchieved()).isTrue()
         );
     }
 
     // =========================== 헬퍼 메서드들 ===========================
 
     private ArtistFundingResponse.Funding createSampleFunding() {
-        return ArtistFundingResponse.Funding.builder()
-                .fundingId(123L)
-                .title("테스트 펀딩")
-                .status("ACTIVE")
-                .targetAmount(500000)
-                .currentAmount(600000)
-                .achievementRate(120)
-                .supporterCount(50)
-                .startDate("2025-08-01")
-                .endDate("2025-09-30")
-                .registeredAt("2025-08-01")
-                .mainImage("https://example.com/test.jpg")
-                .category(ArtistFundingResponse.Category.builder()
-                        .id(1L)
-                        .name("테스트 카테고리")
-                        .build())
-                .permissions(createFullPermissions())
-                .flags(createActiveFlags())
-                .build();
+        return new ArtistFundingResponse.Funding(
+                123L,
+                "테스트 펀딩",
+                "ACTIVE",
+                500000,
+                600000,
+                120,
+                50,
+                "2025-08-01",
+                "2025-09-30",
+                "2025-08-01",
+                "https://example.com/test.jpg",
+                new ArtistFundingResponse.Category(1L, "테스트 카테고리"),
+                createFullPermissions(),
+                createActiveFlags()
+        );
     }
 
     private ArtistFundingResponse.Funding createFundingWithStatus(String status) {
-        return ArtistFundingResponse.Funding.builder()
-                .fundingId(100L)
-                .title("상태 테스트 펀딩")
-                .status(status)
-                .targetAmount(100000)
-                .currentAmount(50000)
-                .achievementRate(50)
-                .supporterCount(10)
-                .startDate("2025-08-01")
-                .endDate("2025-09-30")
-                .registeredAt("2025-08-01")
-                .category(ArtistFundingResponse.Category.builder()
-                        .id(1L)
-                        .name("테스트")
-                        .build())
-                .permissions(createFullPermissions())
-                .flags(createActiveFlags())
-                .build();
+        return new ArtistFundingResponse.Funding(
+                100L,
+                "상태 테스트 펀딩",
+                status,
+                100000,
+                50000,
+                50,
+                10,
+                "2025-08-01",
+                "2025-09-30",
+                "2025-08-01",
+                null,
+                new ArtistFundingResponse.Category(1L, "테스트"),
+                createFullPermissions(),
+                createActiveFlags()
+        );
     }
 
     private ArtistFundingResponse.Funding createFundingWithAchievement(int achievementRate) {
-        return ArtistFundingResponse.Funding.builder()
-                .fundingId(200L)
-                .title("달성률 테스트 펀딩")
-                .status("ACTIVE")
-                .targetAmount(100000)
-                .currentAmount(achievementRate * 1000)
-                .achievementRate(achievementRate)
-                .supporterCount(10)
-                .category(ArtistFundingResponse.Category.builder()
-                        .id(1L)
-                        .name("테스트")
-                        .build())
-                .permissions(createFullPermissions())
-                .flags(ArtistFundingResponse.Flags.builder()
-                        .goalAchieved(achievementRate >= 100)
-                        .dueSoon(false)
-                        .ended(false)
-                        .build())
-                .build();
+        return new ArtistFundingResponse.Funding(
+                200L,
+                "달성률 테스트 펀딩",
+                "ACTIVE",
+                100000,
+                achievementRate * 1000,
+                achievementRate,
+                10,
+                null,
+                null,
+                null,
+                null,
+                new ArtistFundingResponse.Category(1L, "테스트"),
+                createFullPermissions(),
+                new ArtistFundingResponse.Flags(achievementRate >= 100, false, false)
+        );
     }
 
     private ArtistFundingResponse.Permissions createFullPermissions() {
-        return ArtistFundingResponse.Permissions.builder()
-                .canEdit(true)
-                .canCancel(true)
-                .canRequestSale(true)
-                .build();
+        return new ArtistFundingResponse.Permissions(true, true, true);
     }
 
     private ArtistFundingResponse.Permissions createRestrictedPermissions() {
-        return ArtistFundingResponse.Permissions.builder()
-                .canEdit(true)
-                .canCancel(false)
-                .canRequestSale(false)
-                .build();
+        return new ArtistFundingResponse.Permissions(true, false, false);
     }
 
     private ArtistFundingResponse.Flags createActiveFlags() {
-        return ArtistFundingResponse.Flags.builder()
-                .goalAchieved(true)
-                .dueSoon(true)
-                .ended(false)
-                .build();
+        return new ArtistFundingResponse.Flags(true, true, false);
     }
 
     private ArtistFundingResponse.Flags createEndedFlags() {
-        return ArtistFundingResponse.Flags.builder()
-                .goalAchieved(true)
-                .dueSoon(false)
-                .ended(true)
-                .build();
+        return new ArtistFundingResponse.Flags(true, false, true);
     }
 
     private ArtistFundingResponse.Summary createSampleSummary() {
-        return ArtistFundingResponse.Summary.builder()
-                .totalFundings(15)
-                .activeFundings(8)
-                .completedFundings(6)
-                .cancelledFundings(1)
-                .build();
+        return new ArtistFundingResponse.Summary(15, 8, 6, 1);
     }
 
     private ArtistFundingResponse.BulkAction createSampleBulkAction() {
-        return ArtistFundingResponse.BulkAction.builder()
-                .action("REQUEST_SALE")
-                .label("판매 요청")
-                .requiresConfirmation(true)
-                .build();
+        return new ArtistFundingResponse.BulkAction("REQUEST_SALE", "판매 요청", true);
     }
 }

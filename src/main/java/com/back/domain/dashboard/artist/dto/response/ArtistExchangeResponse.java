@@ -1,181 +1,136 @@
 package com.back.domain.dashboard.artist.dto.response;
 
-import com.back.global.util.PageResponse;
-import lombok.*;
-
-import java.util.List;
-
 /**
  * 작가 교환 요청 관련 응답 DTO
  *
  * 작가의 교환 요청 목록과 관련된 정보를 포함합니다.
- * 2025.09.24 생성
+ * 2025.09.25 수정
  */
 public class ArtistExchangeResponse {
 
     /**
      * 교환 요청 목록 응답
      */
-    @Getter
-    @Setter
-    @Builder
-    @NoArgsConstructor
-    @AllArgsConstructor
-    public static class List {
-        /** 교환 요청 요약 정보 */
-        private Summary summary;
-        /** 교환 요청 목록 */
-        private java.util.List<ExchangeRequest> content;
-        /** 일괄 작업 옵션 */
-        private java.util.List<BulkAction> bulkActions;
-        /** 페이지 번호 */
-        private int page;
-        /** 페이지 크기 */
-        private int size;
-        /** 전체 요소 수 */
-        private long totalElements;
-        /** 전체 페이지 수 */
-        private int totalPages;
-        /** 다음 페이지 존재 여부 */
-        private boolean hasNext;
-        /** 이전 페이지 존재 여부 */
-        private boolean hasPrevious;
-    }
+    public record List(
+            /** 교환 요청 요약 정보 */
+            Summary summary,
+            /** 교환 요청 목록 */
+            java.util.List<ExchangeRequest> content,
+            /** 일괄 작업 옵션 */
+            java.util.List<BulkAction> bulkActions,
+            /** 페이지 번호 */
+            int page,
+            /** 페이지 크기 */
+            int size,
+            /** 전체 요소 수 */
+            long totalElements,
+            /** 전체 페이지 수 */
+            int totalPages,
+            /** 다음 페이지 존재 여부 */
+            boolean hasNext,
+            /** 이전 페이지 존재 여부 */
+            boolean hasPrevious
+    ) {}
 
     /**
      * 교환 요청 요약 정보
      */
-    @Getter
-    @Setter
-    @Builder
-    @NoArgsConstructor
-    @AllArgsConstructor
-    public static class Summary {
-        /** 전체 교환 요청 수 */
-        private int total;
-        /** 처리 대기 수 */
-        private int pending;
-        /** 승인된 수 */
-        private int approved;
-        /** 거절된 수 */
-        private int rejected;
-    }
+    public record Summary(
+            /** 전체 교환 요청 수 */
+            int total,
+            /** 처리 대기 수 */
+            int pending,
+            /** 승인된 수 */
+            int approved,
+            /** 거절된 수 */
+            int rejected
+    ) {}
 
     /**
      * 교환 요청 정보
      */
-    @Getter
-    @Setter
-    @Builder
-    @NoArgsConstructor
-    @AllArgsConstructor
-    public static class ExchangeRequest {
-        /** 교환 요청 ID */
-        private Long requestId;
-        /** 주문 ID */
-        private String orderId;
-        /** 주문 번호 */
-        private String orderNumber;
-        /** 요청 타입 */
-        private String type;
-        /** 상태 */
-        private String status;
-        /** 상태 텍스트 */
-        private String statusText;
-        /** 요청 일시 */
-        private String requestDate;
-        /** 교환 사유 */
-        private String reason;
-        /** 고객 메시지 */
-        private String customerMessage;
-        /** 고객 정보 */
-        private Customer customer;
-        /** 주문 상품 정보 */
-        private OrderItem orderItem;
-        /** 교환 요청 정보 */
-        private ExchangeRequested exchangeRequested;
-        /** 권한 정보 */
-        private Permissions permissions;
-    }
+    public record ExchangeRequest(
+            /** 교환 요청 ID */
+            Long requestId,
+            /** 주문 ID */
+            String orderId,
+            /** 주문 번호 */
+            String orderNumber,
+            /** 요청 타입 */
+            String type,
+            /** 상태 */
+            String status,
+            /** 상태 텍스트 */
+            String statusText,
+            /** 요청 일시 */
+            String requestDate,
+            /** 교환 사유 */
+            String reason,
+            /** 고객 메시지 */
+            String customerMessage,
+            /** 고객 정보 */
+            Customer customer,
+            /** 주문 상품 정보 */
+            OrderItem orderItem,
+            /** 교환 요청 정보 */
+            ExchangeRequested exchangeRequested,
+            /** 권한 정보 */
+            Permissions permissions
+    ) {}
 
     /**
      * 고객 정보
      */
-    @Getter
-    @Setter
-    @Builder
-    @NoArgsConstructor
-    @AllArgsConstructor
-    public static class Customer {
-        /** 고객 ID */
-        private Long id;
-        /** 고객 닉네임 */
-        private String nickname;
-    }
+    public record Customer(
+            /** 고객 ID */
+            Long id,
+            /** 고객 닉네임 */
+            String nickname
+    ) {}
 
     /**
      * 주문 상품 정보
      */
-    @Getter
-    @Setter
-    @Builder
-    @NoArgsConstructor
-    @AllArgsConstructor
-    public static class OrderItem {
-        /** 상품 ID */
-        private Long productId;
-        /** 상품명 */
-        private String productName;
-        /** 수량 */
-        private int quantity;
-        /** 가격 */
-        private int price;
-    }
+    public record OrderItem(
+            /** 상품 ID */
+            Long productId,
+            /** 상품명 */
+            String productName,
+            /** 수량 */
+            int quantity,
+            /** 가격 */
+            int price
+    ) {}
 
     /**
      * 교환 요청 정보
      */
-    @Getter
-    @Setter
-    @Builder
-    @NoArgsConstructor
-    @AllArgsConstructor
-    public static class ExchangeRequested {
-        /** 교환 옵션 */
-        private String option;
-        /** 교환 수량 */
-        private int quantity;
-    }
+    public record ExchangeRequested(
+            /** 교환 옵션 */
+            String option,
+            /** 교환 수량 */
+            int quantity
+    ) {}
 
     /**
      * 권한 정보
      */
-    @Getter
-    @Setter
-    @Builder
-    @NoArgsConstructor
-    @AllArgsConstructor
-    public static class Permissions {
-        /** 승인 가능 여부 */
-        private boolean canApprove;
-        /** 거절 가능 여부 */
-        private boolean canReject;
-    }
+    public record Permissions(
+            /** 승인 가능 여부 */
+            boolean canApprove,
+            /** 거절 가능 여부 */
+            boolean canReject
+    ) {}
 
     /**
      * 일괄 작업 옵션
      */
-    @Getter
-    @Setter
-    @Builder
-    @NoArgsConstructor
-    @AllArgsConstructor
-    public static class BulkAction {
-        /** 액션 코드 */
-        private String action;
-        /** 액션 라벨 */
-        private String label;
-        /** 확인 필요 여부 */
-        private boolean requiresConfirmation;
-    }
+    public record BulkAction(
+            /** 액션 코드 */
+            String action,
+            /** 액션 라벨 */
+            String label,
+            /** 확인 필요 여부 */
+            boolean requiresConfirmation
+    ) {}
 }
