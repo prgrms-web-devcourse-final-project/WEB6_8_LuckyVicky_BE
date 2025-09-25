@@ -315,7 +315,6 @@ class ArtistDashboardControllerTest {
         ArtistCancellationResponse.List mockResponse = new ArtistCancellationResponse.List(
                 new ArtistCancellationResponse.Summary(8, 5, 2, 1),
                 List.of(mockRequest),
-                List.of(),
                 DEFAULT_PAGE, DEFAULT_SIZE, 8, 1, false, false
         );
 
@@ -350,7 +349,7 @@ class ArtistDashboardControllerTest {
 
         ArtistExchangeResponse.List mockResponse = new ArtistExchangeResponse.List(
                 new ArtistExchangeResponse.Summary(5, 3, 0, 0),
-                List.of(mockRequest), List.of(),
+                List.of(mockRequest),
                 DEFAULT_PAGE, DEFAULT_SIZE, 5, 1, false, false
         );
 
@@ -413,7 +412,8 @@ class ArtistDashboardControllerTest {
 
         ArtistFundingResponse.List mockResponse = new ArtistFundingResponse.List(
                 new ArtistFundingResponse.Summary(15, 0, 0, 0),
-                List.of(mockFunding), List.of(), DEFAULT_PAGE, DEFAULT_SIZE, 15, 1, false, false
+                List.of(mockFunding),
+                DEFAULT_PAGE, DEFAULT_SIZE, 15, 1, false, false
         );
 
         given(artistDashboardService.getFundings(

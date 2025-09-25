@@ -129,18 +129,16 @@ public class ArtistFundingResponseTest {
                 createSampleFunding(),
                 createSampleFunding()
         );
-        List<ArtistFundingResponse.BulkAction> bulkActions = List.of(createSampleBulkAction());
 
         // When
         ArtistFundingResponse.List response = new ArtistFundingResponse.List(
-                summary, fundings, bulkActions, 0, 20, 15L, 1, false, false
+                summary, fundings, 0, 20, 15L, 1, false, false
         );
 
         // Then - 페이징 로직 검증
         assertAll(
                 () -> assertThat(response.getSummary()).isNotNull(),
                 () -> assertThat(response.getContent()).hasSize(3),
-                () -> assertThat(response.getBulkActions()).hasSize(1),
                 () -> assertThat(response.getPage()).isNotNegative(),
                 () -> assertThat(response.getSize()).isPositive(),
                 () -> assertThat(response.getTotalElements()).isNotNegative(),
@@ -279,9 +277,5 @@ public class ArtistFundingResponseTest {
 
     private ArtistFundingResponse.Summary createSampleSummary() {
         return new ArtistFundingResponse.Summary(15, 8, 6, 1);
-    }
-
-    private ArtistFundingResponse.BulkAction createSampleBulkAction() {
-        return new ArtistFundingResponse.BulkAction("REQUEST_SALE", "판매 요청", true);
     }
 }

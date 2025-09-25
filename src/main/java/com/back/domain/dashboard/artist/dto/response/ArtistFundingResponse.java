@@ -19,24 +19,15 @@ public class ArtistFundingResponse {
          * 펀딩 요약 정보
          */
         private final Summary summary;
-        /**
-         * 일괄 작업 목록
-         */
-        private final java.util.List<BulkAction> bulkActions;
 
-        public List(Summary summary, java.util.List<Funding> content, java.util.List<BulkAction> bulkActions,
+        public List(Summary summary, java.util.List<Funding> content,
                     int page, int size, long totalElements, int totalPages, boolean hasNext, boolean hasPrevious) {
             super(content, page, size, totalElements, totalPages, hasNext, hasPrevious);
             this.summary = summary;
-            this.bulkActions = bulkActions;
         }
 
         public Summary getSummary() {
             return summary;
-        }
-
-        public java.util.List<BulkAction> getBulkActions() {
-            return bulkActions;
         }
     }
 
@@ -172,23 +163,5 @@ public class ArtistFundingResponse {
              * 마감 여부
              */
             boolean ended
-    ) {}
-
-    /**
-     * 일괄 작업 정보
-     */
-    public record BulkAction(
-            /**
-             * 작업 액션
-             */
-            String action,
-            /**
-             * 작업 라벨
-             */
-            String label,
-            /**
-             * 확인 필요 여부
-             */
-            boolean requiresConfirmation
     ) {}
 }

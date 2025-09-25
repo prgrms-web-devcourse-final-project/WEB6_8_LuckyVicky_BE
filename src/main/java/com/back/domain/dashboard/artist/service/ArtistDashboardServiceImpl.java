@@ -284,15 +284,9 @@ public class ArtistDashboardServiceImpl implements ArtistDashboardService {
                 )
         );
 
-        List<ArtistCancellationResponse.BulkAction> bulkActions = List.of(
-                new ArtistCancellationResponse.BulkAction("CANCEL_APPROVE", "취소 승인", true),
-                new ArtistCancellationResponse.BulkAction("CANCEL_REJECT", "취소 거절", true)
-        );
-
         return new ArtistCancellationResponse.List(
                 summary,
                 content,
-                bulkActions,
                 page,
                 size,
                 8,
@@ -331,15 +325,9 @@ public class ArtistDashboardServiceImpl implements ArtistDashboardService {
                 )
         );
 
-        List<ArtistExchangeResponse.BulkAction> bulkActions = List.of(
-                new ArtistExchangeResponse.BulkAction("EXCHANGE_APPROVE", "교환 승인", true),
-                new ArtistExchangeResponse.BulkAction("EXCHANGE_REJECT", "교환 거절", true)
-        );
-
         return new ArtistExchangeResponse.List(
                 summary,
                 content,
-                bulkActions,
                 page,
                 size,
                 5,
@@ -435,13 +423,8 @@ public class ArtistDashboardServiceImpl implements ArtistDashboardService {
                 )
         );
 
-        // 일괄 작업 목록
-        List<ArtistFundingResponse.BulkAction> bulkActions = List.of(
-                new ArtistFundingResponse.BulkAction("REQUEST_SALE", "판매 요청", true)
-        );
-
         return new ArtistFundingResponse.List(
-                summary, content, bulkActions,
+                summary, content,
                 page, size, 15, 1, false, false
         );
     }
