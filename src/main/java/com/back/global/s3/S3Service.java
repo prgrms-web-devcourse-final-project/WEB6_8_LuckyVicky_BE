@@ -36,17 +36,25 @@ public class S3Service {
     private String bucketName;
 
     /**
-     * 여러 파일 업로드
+     * s3에 파일 업로드 처리 메서드
      */
-    public List<UploadResult> uploadFiles(List<MultipartFile> files, String folder, List<FileType> types) {
-        if (types != null && files.size() != types.size()) {
-            throw new IllegalArgumentException("files와 types의 개수가 일치해야 합니다.");
+    public List<UploadResultResponse> uploadFiles(List<MultipartFile> files, String folder, List<FileType> types) {
+        if (files == null || files.isEmpty()) {
+            throw new IllegalArgumentException("업로드할 파일이 없습니다.");
+        }
+        if (types == null || files.size() != types.size()) {
+            throw new IllegalArgumentException("files와 types의 개수가 일치해야 하며, null일 수 없습니다.");
         }
 
-        List<CompletableFuture<UploadResult>> futures = new ArrayList<>();
+        List<CompletableFuture<UploadResultResponse>> futures = new ArrayList<>();
         for (int i = 0; i < files.size(); i++) {
             MultipartFile file = files.get(i);
-            FileType type = (types != null ? types.get(i) : null);
+            FileType type = types.get(i);
+
+            if (type == null) {
+                throw new IllegalArgumentException("파일 타입이 null일 수 없습니다.");
+            }
+
             futures.add(uploadFileAsync(file, folder, type));
         }
 
@@ -55,8 +63,11 @@ public class S3Service {
                 .collect(Collectors.toList());
     }
 
+    /**
+     *  파일 업로드 시 비동기 처리 담당
+     */
     @Async
-    public CompletableFuture<UploadResult> uploadFileAsync(MultipartFile file, String folder, FileType type) {
+    public CompletableFuture<UploadResultResponse> uploadFileAsync(MultipartFile file, String folder, FileType type) {
         try {
             return CompletableFuture.completedFuture(uploadFile(file, folder, type));
         } catch (Exception e) {
@@ -66,9 +77,9 @@ public class S3Service {
     }
 
     /**
-     * 단일 파일 업로드
+     * 실제 파일 업로드하고, key와 url 생성 담당
      */
-    public UploadResult uploadFile(MultipartFile file, String folder, FileType type) throws IOException {
+    public UploadResultResponse uploadFile(MultipartFile file, String folder, FileType type) throws IOException {
         String originalFilename = file.getOriginalFilename();
         if (originalFilename == null || originalFilename.isBlank()) {
             throw new IllegalArgumentException("파일 이름이 없습니다.");
@@ -83,7 +94,7 @@ public class S3Service {
         String key = folder + "/" + UUID.randomUUID() + "." + extension;
         putS3Object(file.getBytes(), key, contentType);
 
-        String originalUrl = s3Client.utilities().getUrl(b -> b.bucket(bucketName).key(key)).toString();
+        String url = s3Client.utilities().getUrl(b -> b.bucket(bucketName).key(key)).toString();
 
         String thumbnailUrl = null;
         if (category == FileCategory.IMAGE && type == FileType.MAIN) {
@@ -93,9 +104,11 @@ public class S3Service {
             thumbnailUrl = s3Client.utilities().getUrl(b -> b.bucket(bucketName).key(thumbKey)).toString();
         }
 
-        return new UploadResult(originalUrl, thumbnailUrl, type, category, key);
+        return new UploadResultResponse(url, thumbnailUrl, type, key, originalFilename);
     }
-
+    /**
+     * 실제 파일 업로드 담당
+     */
     private void putS3Object(byte[] data, String key, String contentType) {
         PutObjectRequest request = PutObjectRequest.builder()
                 .bucket(bucketName)
@@ -104,7 +117,9 @@ public class S3Service {
                 .build();
         s3Client.putObject(request, RequestBody.fromBytes(data));
     }
-
+    /**
+     * 썸네일 이미지 리사이징 담당
+     */
     private byte[] resizeImageSafe(byte[] originalImageBytes, int width, int height, String extension) throws IOException {
         BufferedImage originalImage = ImageIO.read(new ByteArrayInputStream(originalImageBytes));
         if (originalImage == null) throw new IOException("이미지 형식 오류");
@@ -121,7 +136,9 @@ public class S3Service {
         return bos.toByteArray();
     }
 
-    // 문서 다운로드 전용
+    /**
+     * 문서 전용 다운로드 메서드
+     */
     public byte[] downloadFile(String key) {
         try {
             ResponseBytes<GetObjectResponse> s3Object = s3Client.getObjectAsBytes(GetObjectRequest.builder()
@@ -134,7 +151,9 @@ public class S3Service {
             throw new RuntimeException("파일 다운로드 실패: " + key, e);
         }
     }
-
+    /**
+     * 파일 종류 구분 메서드
+     */
     public enum FileCategory {
         IMAGE, DOCUMENT, OTHER;
 
@@ -144,27 +163,5 @@ public class S3Service {
             if (List.of("pdf","doc","docx","xls","xlsx","ppt","pptx","hwp").contains(ext)) return DOCUMENT;
             return OTHER;
         }
-    }
-
-    public static class UploadResult {
-        private String originalUrl;
-        private String thumbnailUrl;
-        private FileType type;
-        private FileCategory category;
-        private String key;
-
-        public UploadResult(String originalUrl, String thumbnailUrl, FileType type, FileCategory category, String key) {
-            this.originalUrl = originalUrl;
-            this.thumbnailUrl = thumbnailUrl;
-            this.type = type;
-            this.category = category;
-            this.key = key;
-        }
-
-        public String getOriginalUrl() { return originalUrl; }
-        public String getThumbnailUrl() { return thumbnailUrl; }
-        public FileType getType() { return type; }
-        public FileCategory getCategory() { return category; }
-        public String getKey() { return key; }
     }
 }

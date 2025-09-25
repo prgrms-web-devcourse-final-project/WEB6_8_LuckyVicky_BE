@@ -24,4 +24,13 @@ public class ProductImage extends BaseEntity {
     @Column(nullable = false)
     @Enumerated(EnumType.STRING)
     private FileType imageType; // 이미지 종류 (MAIN, ADDITIONAL, THUMBNAIL)
+
+    //테스트용
+    @Column(nullable = false)
+    private String key;
+
+    //테스트용
+    @Column(nullable = false)
+    private String originalFilename;
+
 }
