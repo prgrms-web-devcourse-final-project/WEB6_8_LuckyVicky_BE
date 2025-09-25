@@ -27,8 +27,7 @@ public record SignUpRequest(
         String phone,
 
         Boolean privacyRequiredAgreed,
-        Boolean marketingAgreed,
-        String agreementIp
+        Boolean marketingAgreed
 ) {
     // 기본값 생성자
     public SignUpRequest {
