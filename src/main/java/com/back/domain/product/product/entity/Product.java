@@ -16,6 +16,7 @@ import java.util.Set;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
+@Table(name = "products")
 public class Product extends BaseEntity {
 
     @ManyToOne(fetch = FetchType.LAZY)

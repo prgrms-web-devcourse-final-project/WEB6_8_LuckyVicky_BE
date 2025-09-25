@@ -10,6 +10,7 @@ import lombok.*;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
+@Table(name = "options")
 public class Option extends BaseEntity {
 
     @ManyToOne(fetch = FetchType.LAZY)

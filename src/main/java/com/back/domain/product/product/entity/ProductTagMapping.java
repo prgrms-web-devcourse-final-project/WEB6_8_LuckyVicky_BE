@@ -11,7 +11,7 @@ import lombok.*;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-@Table(name = "product_tag_mapping", // 상품-태그 중간 테이블(N:M 관계라서 중간테이블이 필요함)
+@Table(name = "product_tag_mappings", // 상품-태그 중간 테이블(N:M 관계라서 중간테이블이 필요함)
         uniqueConstraints = {@UniqueConstraint(columnNames = {"product_id", "tag_id"})}) // 하나의 상품에 같은 태그 중복 방지를 위해.
 public class ProductTagMapping extends BaseEntity {
 
