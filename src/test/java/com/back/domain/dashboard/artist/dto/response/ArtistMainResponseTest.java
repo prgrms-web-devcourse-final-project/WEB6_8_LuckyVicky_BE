@@ -13,7 +13,7 @@ import static org.junit.jupiter.api.Assertions.assertAll;
 /**
  * ArtistMainResponse DTO 테스트
  * 전체 구조와 핵심 비즈니스 로직에 집중
- * 2025.09.23 생성
+ * 2025.09.25 수정
  */
 @DisplayName("ArtistMainResponse DTO 테스트")
 public class ArtistMainResponseTest {
@@ -29,12 +29,12 @@ public class ArtistMainResponseTest {
 
         // Then - 핵심 구조만 검증
         assertAll(
-                () -> assertThat(response.getProfile()).isNotNull(),
-                () -> assertThat(response.getStats()).isNotNull(),
-                () -> assertThat(response.getTrends()).isNotNull(),
-                () -> assertThat(response.getNotifications()).isNotNull(),
-                () -> assertThat(response.getServerTime()).isEqualTo(serverTime),
-                () -> assertThat(response.getTimezone()).isEqualTo("Asia/Seoul")
+                () -> assertThat(response.profile()).isNotNull(),
+                () -> assertThat(response.stats()).isNotNull(),
+                () -> assertThat(response.trends()).isNotNull(),
+                () -> assertThat(response.notifications()).isNotNull(),
+                () -> assertThat(response.serverTime()).isEqualTo(serverTime),
+                () -> assertThat(response.timezone()).isEqualTo("Asia/Seoul")
         );
     }
 
@@ -46,10 +46,10 @@ public class ArtistMainResponseTest {
 
         // Then - 중요한 중첩 구조만 검증
         assertAll(
-                () -> assertThat(response.getTrends().getMeta().getCompare()).isNotNull(),
-                () -> assertThat(response.getTrends().getSeries().getSales().getPoints()).isNotEmpty(),
-                () -> assertThat(response.getTrends().getChanges().getSales().getDelta()).isNotNull(),
-                () -> assertThat(response.getNotifications().getOrderAlerts()).isNotEmpty()
+                () -> assertThat(response.trends().meta().compare()).isNotNull(),
+                () -> assertThat(response.trends().series().sales().points()).isNotEmpty(),
+                () -> assertThat(response.trends().changes().sales().delta()).isNotNull(),
+                () -> assertThat(response.notifications().orderAlerts()).isNotEmpty()
         );
     }
 
@@ -58,15 +58,15 @@ public class ArtistMainResponseTest {
     void validateTimeSeriesData_Success() {
         // When
         ArtistMainResponse response = createSampleResponse(LocalDateTime.now());
-        ArtistMainResponse.SeriesData salesData = response.getTrends().getSeries().getSales();
+        ArtistMainResponse.SeriesData salesData = response.trends().series().sales();
 
         // Then - 시계열 데이터 구조 검증
         assertAll(
-                () -> assertThat(salesData.getUnit()).isEqualTo("KRW"),
-                () -> assertThat(salesData.getPoints()).hasSize(3),
-                () -> assertThat(salesData.getTotal()).isPositive(),
-                () -> assertThat(salesData.getPoints().get(0).getT()).isNotBlank(),
-                () -> assertThat(salesData.getPoints().get(0).getV()).isNotNegative()
+                () -> assertThat(salesData.unit()).isEqualTo("KRW"),
+                () -> assertThat(salesData.points()).hasSize(3),
+                () -> assertThat(salesData.total()).isPositive(),
+                () -> assertThat(salesData.points().get(0).t()).isNotBlank(),
+                () -> assertThat(salesData.points().get(0).v()).isNotNegative()
         );
     }
 
@@ -78,145 +78,85 @@ public class ArtistMainResponseTest {
 
         // Then - API 명세 호환성 검증
         assertAll(
-                () -> assertThat(response.getProfile().getUserId()).isPositive(),
-                () -> assertThat(response.getProfile().getNickname()).isNotBlank(),
-                () -> assertThat(response.getStats().getTotalSales()).isNotNegative(),
-                () -> assertThat(response.getTrends().getMeta().getRange()).isNotBlank(),
-                () -> assertThat(response.getNotifications().getOrderAlerts()).isNotNull(),
-                () -> assertThat(response.getNotifications().getFundingAlerts()).isNotNull()
+                () -> assertThat(response.profile().userId()).isPositive(),
+                () -> assertThat(response.profile().nickname()).isNotBlank(),
+                () -> assertThat(response.stats().totalSales()).isNotNegative(),
+                () -> assertThat(response.trends().meta().range()).isNotBlank(),
+                () -> assertThat(response.notifications().orderAlerts()).isNotNull(),
+                () -> assertThat(response.notifications().fundingAlerts()).isNotNull()
         );
     }
 
     // ---------- 헬퍼 메서드들 -------------
 
     private ArtistMainResponse createSampleResponse(LocalDateTime serverTime) {
-        return ArtistMainResponse.builder()
-                .profile(createSampleProfile())
-                .stats(createSampleStats())
-                .trends(createSampleTrends())
-                .notifications(createSampleNotifications())
-                .serverTime(serverTime)
-                .timezone("Asia/Seoul")
-                .build();
+        return new ArtistMainResponse(
+                createSampleProfile(),
+                createSampleStats(),
+                createSampleTrends(),
+                createSampleNotifications(),
+                serverTime,
+                "Asia/Seoul"
+        );
     }
 
     private ArtistMainResponse createApiResponse() {
-        return ArtistMainResponse.builder()
-                .profile(ArtistMainResponse.Profile.builder()
-                        .userId(20001L)
-                        .nickname("프로아티스트")
-                        .email("pro@artist.example.com")
-                        .profileImageUrl("https://cdn.example.com/u/20001/profile.jpg")
-                        .build())
-                .stats(ArtistMainResponse.Stats.builder()
-                        .followerCount(5000)
-                        .productCount(75)
-                        .todaysSales(1000000)
-                        .todaysOrders(25)
-                        .totalSales(50000000)
-                        .totalOrders(2000)
-                        .averageRating(4.9)
-                        .pendingOrders(12)
-                        .build())
-                .trends(createSampleTrends())
-                .notifications(createSampleNotifications())
-                .serverTime(LocalDateTime.of(2025, 9, 22, 15, 0))
-                .timezone("Asia/Seoul")
-                .build();
+        return new ArtistMainResponse(
+                new ArtistMainResponse.Profile(20001L, "프로아티스트", "pro@artist.example.com", "https://cdn.example.com/u/20001/profile.jpg"),
+                new ArtistMainResponse.Stats(5000, 75, 1000000, 25, 50000000, 2000, 4.9, 12),
+                createSampleTrends(),
+                createSampleNotifications(),
+                LocalDateTime.of(2025, 9, 22, 15, 0),
+                "Asia/Seoul"
+        );
     }
 
     private ArtistMainResponse.Profile createSampleProfile() {
-        return ArtistMainResponse.Profile.builder()
-                .userId(1L)
-                .nickname("테스트작가")
-                .email("test@example.com")
-                .profileImageUrl("https://example.com/profile.jpg")
-                .build();
+        return new ArtistMainResponse.Profile(1L, "테스트작가", "test@example.com", "https://example.com/profile.jpg");
     }
 
     private ArtistMainResponse.Stats createSampleStats() {
-        return ArtistMainResponse.Stats.builder()
-                .followerCount(1500)
-                .productCount(25)
-                .todaysSales(150000)
-                .todaysOrders(8)
-                .totalSales(5000000)
-                .totalOrders(350)
-                .averageRating(4.7)
-                .pendingOrders(3)
-                .build();
+        return new ArtistMainResponse.Stats(1500, 25, 150000, 8, 5000000, 350, 4.7, 3);
     }
 
     private ArtistMainResponse.Trends createSampleTrends() {
-        return ArtistMainResponse.Trends.builder()
-                .meta(createSampleMeta())
-                .series(createSampleSeries())
-                .changes(createSampleChanges())
-                .build();
+        return new ArtistMainResponse.Trends(createSampleMeta(), createSampleSeries(), createSampleChanges());
     }
 
     private ArtistMainResponse.Meta createSampleMeta() {
-        return ArtistMainResponse.Meta.builder()
-                .range("6M")
-                .from("2025-03-01")
-                .to("2025-09-01")
-                .interval("WEEK")
-                .timezone("Asia/Seoul")
-                .maxPoints(400)
-                .compare(ArtistMainResponse.Compare.builder()
-                        .from("2024-09-01")
-                        .to("2025-03-01")
-                        .build())
-                .build();
+        return new ArtistMainResponse.Meta(
+                "6M", "2025-03-01", "2025-09-01", "WEEK", "Asia/Seoul", 400,
+                new ArtistMainResponse.Compare("2024-09-01", "2025-03-01")
+        );
     }
 
     private ArtistMainResponse.Series createSampleSeries() {
         List<ArtistMainResponse.DataPoint> dataPoints = Arrays.asList(
-                ArtistMainResponse.DataPoint.builder().t("2025-09-22T10:00:00").v(50000).build(),
-                ArtistMainResponse.DataPoint.builder().t("2025-09-22T11:00:00").v(75000).build(),
-                ArtistMainResponse.DataPoint.builder().t("2025-09-22T12:00:00").v(60000).build()
+                new ArtistMainResponse.DataPoint("2025-09-22T10:00:00", 50000),
+                new ArtistMainResponse.DataPoint("2025-09-22T11:00:00", 75000),
+                new ArtistMainResponse.DataPoint("2025-09-22T12:00:00", 60000)
         );
 
-        return ArtistMainResponse.Series.builder()
-                .sales(ArtistMainResponse.SeriesData.builder()
-                        .unit("KRW")
-                        .points(dataPoints)
-                        .total(185000)
-                        .build())
-                .orders(ArtistMainResponse.SeriesData.builder()
-                        .unit("COUNT")
-                        .points(Arrays.asList())
-                        .total(156)
-                        .build())
-                .followers(ArtistMainResponse.SeriesData.builder()
-                        .unit("COUNT")
-                        .points(Arrays.asList())
-                        .total(1250)
-                        .build())
-                .build();
+        return new ArtistMainResponse.Series(
+                new ArtistMainResponse.SeriesData("KRW", dataPoints, 185000),
+                new ArtistMainResponse.SeriesData("COUNT", Arrays.asList(), 156),
+                new ArtistMainResponse.SeriesData("COUNT", Arrays.asList(), 1250)
+        );
     }
 
     private ArtistMainResponse.Changes createSampleChanges() {
-        return ArtistMainResponse.Changes.builder()
-                .sales(ArtistMainResponse.ChangeData.builder().delta(25000).rate(15.5).build())
-                .orders(ArtistMainResponse.ChangeData.builder().delta(1).rate(0.143).build())
-                .followers(ArtistMainResponse.ChangeData.builder().delta(70).rate(0.059).build())
-                .build();
+        return new ArtistMainResponse.Changes(
+                new ArtistMainResponse.ChangeData(25000, 15.5),
+                new ArtistMainResponse.ChangeData(1, 0.143),
+                new ArtistMainResponse.ChangeData(70, 0.059)
+        );
     }
 
     private ArtistMainResponse.Notifications createSampleNotifications() {
         List<ArtistMainResponse.Alert> orderAlerts = Arrays.asList(
-                ArtistMainResponse.Alert.builder()
-                        .type("NEW_ORDER")
-                        .message("새 주문")
-                        .count(3)
-                        .timestamp(LocalDateTime.now())
-                        .build()
+                new ArtistMainResponse.Alert("NEW_ORDER", "새 주문", 3, LocalDateTime.now())
         );
 
-        return ArtistMainResponse.Notifications.builder()
-                .orderAlerts(orderAlerts)
-                .fundingAlerts(Arrays.asList())
-                .build();
+        return new ArtistMainResponse.Notifications(orderAlerts, Arrays.asList());
     }
 }

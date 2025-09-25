@@ -130,99 +130,94 @@ class DashboardControllerTest {
     // =========================== 헬퍼 메서드들 ===========================
 
     private AccountResponse.Settings createMockAccountSettings() {
-        return AccountResponse.Settings.builder()
-                .profile(AccountResponse.Profile.builder()
-                        .userId(10025L)
-                        .nickname("테스트유저")
-                        .profileImageUrl("https://cdn.example.com/profile.jpg")
-                        .build())
-                .contact(AccountResponse.Contact.builder()
-                        .email("test@example.com")
-                        .emailVerified(true)
-                        .phone("+821012345678")
-                        .address("서울특별시 강남구 테헤란로 123")
-                        .build())
-                .security(AccountResponse.Security.builder()
-                        .lastPasswordChangedAt(LocalDateTime.of(2025, 8, 10, 11, 0))
-                        .build())
-                .build();
+        return new AccountResponse.Settings(
+                new AccountResponse.Profile(
+                        10025L,
+                        "테스트유저",
+                        "https://cdn.example.com/profile.jpg"
+                ),
+                new AccountResponse.Contact(
+                        "test@example.com",
+                        true,
+                        "+821012345678",
+                        "서울특별시 강남구 테헤란로 123"
+                ),
+                new AccountResponse.Security(
+                        LocalDateTime.of(2025, 8, 10, 11, 0)
+                )
+        );
     }
 
     private ArtistApplicationResponse.List createMockArtistApplicationList() {
-        ArtistApplicationResponse.SummaryDto summary = ArtistApplicationResponse.SummaryDto.builder()
-                .total(2)
-                .pending(1)
-                .approved(1)
-                .rejected(0)
-                .build();
+        ArtistApplicationResponse.SummaryDto summary = new ArtistApplicationResponse.SummaryDto(
+                2, 1, 1, 0
+        );
 
         List<ArtistApplicationResponse.Summary> content = List.of(
-                ArtistApplicationResponse.Summary.builder()
-                        .applicationId(1L)
-                        .artistName("테스트작가")
-                        .submittedAt("2025-09-20")
-                        .status("PENDING")
-                        .statusText("대기중")
-                        .permissions(ArtistApplicationResponse.Permission.builder()
-                                .canEdit(true)
-                                .canCancel(true)
-                                .build())
-                        .lastUpdatedAt(LocalDateTime.now())
-                        .build()
+                new ArtistApplicationResponse.Summary(
+                        1L,
+                        "테스트작가",
+                        "2025-09-20",
+                        "PENDING",
+                        "대기중",
+                        new ArtistApplicationResponse.Permission(true, true, null),
+                        LocalDateTime.now()
+                )
         );
 
         return new ArtistApplicationResponse.List(summary, content, 0, 10, 2, 1, false, false);
     }
 
     private OrderResponse.List createMockOrderList() {
-        OrderResponse.SummaryDto summary = OrderResponse.SummaryDto.builder()
-                .totalOrders(25)
-                .pending(3)
-                .confirmed(2)
-                .cancelRequested(2)
-                .exchangeRequested(1)
-                .build();
-
-        List<OrderResponse.Summary> content = List.of(
-                OrderResponse.Summary.builder()
-                        .orderId("test-order-123")
-                        .orderNumber("ORD001")
-                        .orderDate("2025-09-20T11:20:00+09:00")
-                        .status("PENDING")
-                        .statusText("발주 전")
-                        .totalAmount(47500)
-                        .itemCount(2)
-                        .representativeItem(OrderResponse.Product.builder()
-                                .productId(101L)
-                                .productName("테스트상품")
-                                .quantity(1)
-                                .price(25000)
-                                .imageUrl("https://cdn.example.com/product.jpg")
-                                .build())
-                        .aftersales(OrderResponse.Aftersales.builder()
-                                .cancel(OrderResponse.AftersalesItem.builder()
-                                        .status("REQUESTED")
-                                        .statusText("취소 요청 중")
-                                        .requestId(901L)
-                                        .build())
-                                .build())
-                        .items(List.of(
-                                OrderResponse.OrderItem.builder()
-                                        .orderItemId(1L)
-                                        .productId(101L)
-                                        .productName("테스트상품")
-                                        .quantity(1)
-                                        .price(25000)
-                                        .build()
-                        ))
-                        .build()
+        OrderResponse.SummaryDto summary = new OrderResponse.SummaryDto(
+                25, 3, 2, 0, 0, 0, 0, 2, 0, 0, 1, 0, 0
         );
 
-        OrderResponse.PeriodInfo periodInfo = OrderResponse.PeriodInfo.builder()
-                .type("MONTH")
-                .from("2025-09-01")
-                .to("2025-09-30")
-                .build();
+        List<OrderResponse.Summary> content = List.of(
+                new OrderResponse.Summary(
+                        "test-order-123",
+                        "ORD001",
+                        "2025-09-20T11:20:00+09:00",
+                        "PENDING",
+                        "발주 전",
+                        47500,
+                        2,
+                        new OrderResponse.Product(
+                                101L,
+                                "테스트상품",
+                                1,
+                                25000,
+                                "https://cdn.example.com/product.jpg"
+                        ),
+                        null, // shipping
+                        new OrderResponse.Aftersales(
+                                new OrderResponse.AftersalesItem(
+                                        "REQUESTED",
+                                        "취소 요청 중",
+                                        901L
+                                ),
+                                null // exchange
+                        ),
+                        null, // permissions
+                        null, // links
+                        List.of(
+                                new OrderResponse.OrderItem(
+                                        1L,
+                                        101L,
+                                        "테스트상품",
+                                        1,
+                                        25000,
+                                        null
+                                )
+                        )
+                )
+        );
+
+        OrderResponse.PeriodInfo periodInfo = new OrderResponse.PeriodInfo(
+                "MONTH",
+                "2025-09-01",
+                "2025-09-30"
+        );
 
         return new OrderResponse.List(summary, content, 0, 10, 25, 3, true, false, "Asia/Seoul", periodInfo);
     }

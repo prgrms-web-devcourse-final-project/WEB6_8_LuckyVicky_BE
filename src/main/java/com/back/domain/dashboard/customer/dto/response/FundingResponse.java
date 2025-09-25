@@ -2,8 +2,6 @@ package com.back.domain.dashboard.customer.dto.response;
 
 import com.back.global.util.PageResponse;
 
-import lombok.*;
-
 import java.time.LocalDateTime;
 
 /**
@@ -17,14 +15,13 @@ public class FundingResponse {
     /**
      * 참여한 펀딩 목록 응답
      */
-    @Getter
-    @Setter
     public static class List extends PageResponse<FundingResponse.Participation> {
         /** 펀딩 참여 현황 요약 정보 */
-        private SummaryDto summary;
+        private final SummaryDto summary;
         
         public List() {
             super();
+            this.summary = null;
         }
         
         public List(SummaryDto summary, java.util.List<Participation> content,
@@ -33,148 +30,117 @@ public class FundingResponse {
             super(content, page, size, totalElements, totalPages, hasNext, hasPrevious);
             this.summary = summary;
         }
+        
+        public SummaryDto getSummary() {
+            return summary;
+        }
     }
     
     /**
      * 펀딩 참여 현황 요약 정보
      */
-    @Getter
-    @Setter
-    @Builder
-    @NoArgsConstructor
-    @AllArgsConstructor
-    public static class SummaryDto {
-        /** 전체 참여 펀딩 수 */
-        private int totalParticipations;
-        /** 진행중인 펀딩 수 */
-        private int active;
-        /** 종료된 펀딩 수 (성공/실패 합) */
-        private int ended;
-        /** 발송준비중인 펀딩 수 */
-        private int fulfilling;
-        /** 발송완료된 펀딩 수 */
-        private int fulfilled;
-    }
+    public record SummaryDto(
+            /** 전체 참여 펀딩 수 */
+            int totalParticipations,
+            /** 진행중인 펀딩 수 */
+            int active,
+            /** 종료된 펀딩 수 (성공/실패 합) */
+            int ended,
+            /** 발송준비중인 펀딩 수 */
+            int fulfilling,
+            /** 발송완료된 펀딩 수 */
+            int fulfilled
+    ) {}
     
     /**
      * 펀딩 참여 정보
      */
-    @Getter
-    @Setter
-    @Builder
-    @NoArgsConstructor
-    @AllArgsConstructor
-    public static class Participation {
-        /** 참여번호 (리스트 표기용 짧은 번호) */
-        private String participationNumber;
-        /** 내부 식별자 */
-        private String participationId;
-        /** 이미지 URL */
-        private String imageUrl;
-        /** 펀딩 제목 */
-        private String title;
-        /** 작가 정보 */
-        private Artist artist;
-        /** 수량 */
-        private int quantity;
-        /** 후원 금액 */
-        private int pledgedAmount;
-        /** 상태 (ACTIVE | ENDED | FULFILLING | FULFILLED) */
-        private String status;
-        /** 상태 텍스트 */
-        private String statusText;
-        /** 후원 일자 (YYYY-MM-DD) */
-        private String pledgedDate;
-        /** 링크 정보 */
-        private Link links;
-        /** 메타 정보 (선택적) */
-        private Meta meta;
-    }
+    public record Participation(
+            /** 참여번호 (리스트 표기용 짧은 번호) */
+            String participationNumber,
+            /** 내부 식별자 */
+            String participationId,
+            /** 이미지 URL */
+            String imageUrl,
+            /** 펀딩 제목 */
+            String title,
+            /** 작가 정보 */
+            Artist artist,
+            /** 수량 */
+            int quantity,
+            /** 후원 금액 */
+            int pledgedAmount,
+            /** 상태 (ACTIVE | ENDED | FULFILLING | FULFILLED) */
+            String status,
+            /** 상태 텍스트 */
+            String statusText,
+            /** 후원 일자 (YYYY-MM-DD) */
+            String pledgedDate,
+            /** 링크 정보 */
+            Link links,
+            /** 메타 정보 (선택적) */
+            Meta meta
+    ) {}
     
     /**
      * 작가 정보
      */
-    @Getter
-    @Setter
-    @Builder
-    @NoArgsConstructor
-    @AllArgsConstructor
-    public static class Artist {
-        /** 작가 ID */
-        private String id;
-        /** 작가명 */
-        private String name;
-    }
+    public record Artist(
+            /** 작가 ID */
+            String id,
+            /** 작가명 */
+            String name
+    ) {}
     
     /**
      * 링크 정보
      */
-    @Getter
-    @Setter
-    @Builder
-    @NoArgsConstructor
-    @AllArgsConstructor
-    public static class Link {
-        /** 상세 페이지 URL */
-        private String detail;
-    }
+    public record Link(
+            /** 상세 페이지 URL */
+            String detail
+    ) {}
     
     /**
      * 메타 정보 (선택적)
      */
-    @Getter
-    @Setter
-    @Builder
-    @NoArgsConstructor
-    @AllArgsConstructor
-    public static class Meta {
-        /** 펀딩 ID */
-        private Long fundingId;
-        /** 펀딩 번호 */
-        private String fundingNumber;
-        /** 달성률 */
-        private int achievementRate;
-        /** 현재 모금액 */
-        private int currentAmount;
-        /** 목표 금액 */
-        private int targetAmount;
-        /** 서포터 수 */
-        private int supporterCount;
-        /** 사용자 후원 정보 */
-        private UserPledge userPledge;
-        /** 권한 정보 */
-        private Permission permissions;
-    }
+    public record Meta(
+            /** 펀딩 ID */
+            Long fundingId,
+            /** 펀딩 번호 */
+            String fundingNumber,
+            /** 달성률 */
+            int achievementRate,
+            /** 현재 모금액 */
+            int currentAmount,
+            /** 목표 금액 */
+            int targetAmount,
+            /** 서포터 수 */
+            int supporterCount,
+            /** 사용자 후원 정보 */
+            UserPledge userPledge,
+            /** 권한 정보 */
+            Permission permissions
+    ) {}
     
     /**
      * 사용자 후원 정보
      */
-    @Getter
-    @Setter
-    @Builder
-    @NoArgsConstructor
-    @AllArgsConstructor
-    public static class UserPledge {
-        /** 리워드 티어명 */
-        private String rewardTierName;
-        /** 후원 일시 */
-        private LocalDateTime pledgedAt;
-        /** 원시 상태 (내부용) */
-        private String rawStatus;
-    }
+    public record UserPledge(
+            /** 리워드 티어명 */
+            String rewardTierName,
+            /** 후원 일시 */
+            LocalDateTime pledgedAt,
+            /** 원시 상태 (내부용) */
+            String rawStatus
+    ) {}
     
     /**
      * 권한 정보
      */
-    @Getter
-    @Setter
-    @Builder
-    @NoArgsConstructor
-    @AllArgsConstructor
-    public static class Permission {
-        /** 후원 취소 가능 여부 */
-        private Boolean canCancelPledge;
-        /** 배송 정보 수정 가능 여부 */
-        private Boolean canEditShippingInfo;
-    }
+    public record Permission(
+            /** 후원 취소 가능 여부 */
+            Boolean canCancelPledge,
+            /** 배송 정보 수정 가능 여부 */
+            Boolean canEditShippingInfo
+    ) {}
 }

@@ -30,15 +30,11 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(IllegalArgumentException.class)
     public ResponseEntity<RsData<Void>> handleIllegalArgumentException(
             IllegalArgumentException e, HttpServletRequest request) {
-        
+
         log.warn("Bad Request: {} at {}", e.getMessage(), request.getRequestURI());
-        
+
         return ResponseEntity.badRequest()
-                .body(RsData.of(
-                        "400",
-                        e.getMessage(), 
-                        null
-                ));
+                .body(RsData.of("400", e.getMessage()));
     }
 
     /**
@@ -47,22 +43,18 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(MethodArgumentNotValidException.class)
     public ResponseEntity<RsData<Void>> handleValidationException(
             MethodArgumentNotValidException e, HttpServletRequest request) {
-        
+
         String errorMessage = e.getBindingResult()
                 .getFieldErrors()
                 .stream()
                 .map(error -> error.getField() + ": " + error.getDefaultMessage())
                 .findFirst()
                 .orElse("유효성 검증에 실패했습니다.");
-        
+
         log.warn("Validation Error: {} at {}", errorMessage, request.getRequestURI());
-        
+
         return ResponseEntity.badRequest()
-                .body(RsData.of(
-                        "400",
-                        errorMessage, 
-                        null
-                ));
+                .body(RsData.of("400", errorMessage));
     }
 
     /**
@@ -71,17 +63,13 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(MethodArgumentTypeMismatchException.class)
     public ResponseEntity<RsData<Void>> handleTypeMismatchException(
             MethodArgumentTypeMismatchException e, HttpServletRequest request) {
-        
+
         String message = String.format("파라미터 '%s'의 값이 올바르지 않습니다.", e.getName());
-        
+
         log.warn("Type Mismatch: {} at {}", message, request.getRequestURI());
-        
+
         return ResponseEntity.badRequest()
-                .body(RsData.of(
-                        "400",
-                        message, 
-                        null
-                ));
+                .body(RsData.of("400", message));
     }
 
     /**
@@ -90,15 +78,11 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(NoSuchElementException.class)
     public ResponseEntity<RsData<Void>> handleNoSuchElementException(
             NoSuchElementException e, HttpServletRequest request) {
-        
+
         log.warn("Not Found: {} at {}", e.getMessage(), request.getRequestURI());
-        
+
         return ResponseEntity.status(HttpStatus.NOT_FOUND)
-                .body(RsData.of(
-                        "404",
-                        "요청한 리소스를 찾을 수 없습니다.", 
-                        null
-                ));
+                .body(RsData.of("404", "요청한 리소스를 찾을 수 없습니다."));
     }
 
     /**
@@ -107,28 +91,20 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(Exception.class)
     public ResponseEntity<RsData<Void>> handleGeneralException(
             Exception e, HttpServletRequest request) {
-        
+
         log.error("Internal Server Error: {} at {}", e.getMessage(), request.getRequestURI(), e);
-        
+
         return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                .body(RsData.of(
-                        "500",
-                        "서버 내부 오류가 발생했습니다.", 
-                        null
-                ));
+                .body(RsData.of("500", "서버 내부 오류가 발생했습니다."));
     }
 
     /**
      * 커스텀 예외 클래스 - 비즈니스 로직 오류
-     * 1. 계정이 잠겨있는 경우
-     * 2. 잔액이 부족한 경우
-     * 3. 이미 신청한 작가인 경우
-     * 4. 주문을 취소할 수 없는 상태인 경우
      */
     @Getter
     public static class BusinessException extends RuntimeException {
         private final String code;
-        
+
         public BusinessException(String code, String message) {
             super(message);
             this.code = code;
@@ -145,11 +121,7 @@ public class GlobalExceptionHandler {
         log.warn("Business Exception: {} - {} at {}", e.getCode(), e.getMessage(), request.getRequestURI());
 
         return ResponseEntity.badRequest()
-                .body(RsData.of(
-                        e.getCode(),
-                        e.getMessage(),
-                        null
-                ));
+                .body(RsData.of(e.getCode(), e.getMessage()));
     }
 
     /**
@@ -161,9 +133,15 @@ public class GlobalExceptionHandler {
         log.warn("ServiceException: {} - {} at {}",
                 ex.getResultCode(), ex.getMsg(), request.getRequestURI());
 
-        return new ResponseEntity<>(
-                ex.getRsData(),
-                ResponseEntity.status(ex.getRsData().statusCode()).build().getStatusCode()
-        );
+        // resultCode에서 HTTP 상태 코드 추출 (예: "400" -> 400)
+        int statusCode;
+        try {
+            statusCode = Integer.parseInt(ex.getResultCode());
+        } catch (NumberFormatException e) {
+            statusCode = 400; // 기본값
+        }
+
+        return ResponseEntity.status(statusCode)
+                .body(ex.getRsData());
     }
 }
