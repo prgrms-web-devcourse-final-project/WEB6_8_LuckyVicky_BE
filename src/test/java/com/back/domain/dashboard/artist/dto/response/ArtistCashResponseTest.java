@@ -11,7 +11,7 @@ import static org.junit.jupiter.api.Assertions.assertAll;
 /**
  * ArtistCashResponse DTO 테스트
  * 핵심 비즈니스 로직에 집중
- * 2025.09.23 생성
+ * 2025.09.25 수정
  */
 @DisplayName("ArtistCashResponse DTO 테스트")
 public class ArtistCashResponseTest {
@@ -28,12 +28,12 @@ public class ArtistCashResponseTest {
         // Then - 기본 구조 검증
         assertAll(
                 () -> assertThat(balance).isNotNull(),
-                () -> assertThat(balance.getCurrentBalance()).isNotNegative(),
-                () -> assertThat(balance.getPendingSettlement()).isNotNegative(),
-                () -> assertThat(balance.getPendingWithdrawal()).isNotNegative(),
-                () -> assertThat(balance.getWithdrawable()).isNotNegative(),
-                () -> assertThat(balance.getCurrency()).isNotBlank(),
-                () -> assertThat(balance.getUpdatedAt()).isEqualTo(now)
+                () -> assertThat(balance.currentBalance()).isNotNegative(),
+                () -> assertThat(balance.pendingSettlement()).isNotNegative(),
+                () -> assertThat(balance.pendingWithdrawal()).isNotNegative(),
+                () -> assertThat(balance.withdrawable()).isNotNegative(),
+                () -> assertThat(balance.currency()).isNotBlank(),
+                () -> assertThat(balance.updatedAt()).isEqualTo(now)
         );
     }
 
@@ -46,11 +46,11 @@ public class ArtistCashResponseTest {
         // Then - 비즈니스 규칙 검증
         assertAll(
                 // 환전 가능 금액은 현재 잔액보다 클 수 없음
-                () -> assertThat(balance.getWithdrawable()).isLessThanOrEqualTo(balance.getCurrentBalance()),
+                () -> assertThat(balance.withdrawable()).isLessThanOrEqualTo(balance.currentBalance()),
                 // 통화는 KRW 또는 USD
-                () -> assertThat(balance.getCurrency()).isIn("KRW", "USD"),
+                () -> assertThat(balance.currency()).isIn("KRW", "USD"),
                 // 업데이트 시간은 현재보다 과거여야 함
-                () -> assertThat(balance.getUpdatedAt()).isBeforeOrEqualTo(LocalDateTime.now())
+                () -> assertThat(balance.updatedAt()).isBeforeOrEqualTo(LocalDateTime.now())
         );
     }
 
@@ -58,36 +58,36 @@ public class ArtistCashResponseTest {
     @DisplayName("API 명세와 일치하는 구조 생성")
     void createApiCompatibleStructure_Success() {
         // When
-        ArtistCashResponse.Balance response = ArtistCashResponse.Balance.builder()
-                .currentBalance(750000)
-                .pendingSettlement(250000)
-                .pendingWithdrawal(100000)
-                .withdrawable(400000)
-                .currency("KRW")
-                .updatedAt(LocalDateTime.of(2025, 9, 22, 14, 30, 0))
-                .build();
+        ArtistCashResponse.Balance response = new ArtistCashResponse.Balance(
+                750000,
+                250000,
+                100000,
+                400000,
+                "KRW",
+                LocalDateTime.of(2025, 9, 22, 14, 30, 0)
+        );
 
         // Then - API 응답 구조 검증
         assertAll(
-                () -> assertThat(response.getCurrentBalance()).isEqualTo(750000),
-                () -> assertThat(response.getPendingSettlement()).isEqualTo(250000),
-                () -> assertThat(response.getPendingWithdrawal()).isEqualTo(100000),
-                () -> assertThat(response.getWithdrawable()).isEqualTo(400000),
-                () -> assertThat(response.getCurrency()).isEqualTo("KRW"),
-                () -> assertThat(response.getUpdatedAt()).isNotNull()
+                () -> assertThat(response.currentBalance()).isEqualTo(750000),
+                () -> assertThat(response.pendingSettlement()).isEqualTo(250000),
+                () -> assertThat(response.pendingWithdrawal()).isEqualTo(100000),
+                () -> assertThat(response.withdrawable()).isEqualTo(400000),
+                () -> assertThat(response.currency()).isEqualTo("KRW"),
+                () -> assertThat(response.updatedAt()).isNotNull()
         );
     }
 
     // ------------ 헬퍼 메서드들 --------------
 
     private ArtistCashResponse.Balance createSampleBalance(LocalDateTime updatedAt) {
-        return ArtistCashResponse.Balance.builder()
-                .currentBalance(500000)
-                .pendingSettlement(150000)
-                .pendingWithdrawal(50000)
-                .withdrawable(300000)
-                .currency("KRW")
-                .updatedAt(updatedAt)
-                .build();
+        return new ArtistCashResponse.Balance(
+                500000,
+                150000,
+                50000,
+                300000,
+                "KRW",
+                updatedAt
+        );
     }
 }
