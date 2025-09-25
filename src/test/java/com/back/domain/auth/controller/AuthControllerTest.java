@@ -1,5 +1,16 @@
 package com.back.domain.auth.controller;
 
+import com.back.domain.auth.controller.AuthController;
+import com.back.domain.auth.dto.request.TokenRefreshRequest;
+import com.back.domain.auth.dto.response.AuthResponse;
+import com.back.domain.user.entity.Role;
+import com.back.global.rsData.RsData;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Test;
+import org.springframework.http.ResponseEntity;
+
+import java.util.List;
+
 import com.back.domain.auth.dto.request.LoginRequest;
 import com.back.domain.auth.dto.request.SignUpRequest;
 import com.back.domain.auth.dto.request.TokenRefreshRequest;
@@ -9,7 +20,6 @@ import com.back.domain.auth.service.AuthService;
 import com.back.domain.user.entity.Role;
 import com.back.global.rsData.RsData;
 import com.back.global.security.auth.CustomUserDetails;
-import com.back.global.util.IpUtils;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import org.junit.jupiter.api.DisplayName;
@@ -18,7 +28,6 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
-import org.mockito.MockedStatic;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -63,57 +72,25 @@ class AuthControllerTest {
             // given
             SignUpRequest request = new SignUpRequest(
                     "test@example.com", "Password123!", "Password123!",
-                    "testUser", "010-1234-5678", true, false, null
+                    "testUser", "010-1234-5678", true, false
             );
 
             SignUpResponse mockResponse = new SignUpResponse(1L, "test@example.com", "testUser");
+            given(authService.signUp(any(SignUpRequest.class))).willReturn(mockResponse);
 
-            try (MockedStatic<IpUtils> ipUtilsMock = mockStatic(IpUtils.class)) {
-                ipUtilsMock.when(() -> IpUtils.getClientIp(any(HttpServletRequest.class)))
-                        .thenReturn("127.0.0.1");
-                given(authService.signUp(any(SignUpRequest.class))).willReturn(mockResponse);
+            // when
+            ResponseEntity<RsData<SignUpResponse>> response =
+                    authController.signUp(request, httpServletRequest);
 
-                // when
-                ResponseEntity<RsData<SignUpResponse>> response =
-                        authController.signUp(request, httpServletRequest);
+            // then
+            assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
+            assertThat(response.getBody().resultCode()).isEqualTo("200-ok");
+            assertThat(response.getBody().msg()).isEqualTo("회원가입 성공");
+            assertThat(response.getBody().data().userId()).isEqualTo(1L);
+            assertThat(response.getBody().data().email()).isEqualTo("test@example.com");
+            assertThat(response.getBody().data().name()).isEqualTo("testUser");
 
-                // then
-                assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
-                assertThat(response.getBody().resultCode()).isEqualTo("200-ok");
-                assertThat(response.getBody().msg()).isEqualTo("회원가입 성공");
-                assertThat(response.getBody().data().userId()).isEqualTo(1L);
-                assertThat(response.getBody().data().email()).isEqualTo("test@example.com");
-                assertThat(response.getBody().data().name()).isEqualTo("testUser");
-
-                verify(authService).signUp(any(SignUpRequest.class));
-            }
-        }
-
-        @Test
-        @DisplayName("IP 주소가 올바르게 추가되어 서비스로 전달되는지 확인")
-        void signUp_IpAddressCorrectlyAdded() {
-            // given
-            String expectedIp = "192.168.1.100";
-            SignUpRequest request = new SignUpRequest(
-                    "test@example.com", "Password123!", "Password123!",
-                    "testUser", "010-1234-5678", true, false, null
-            );
-
-            SignUpResponse mockResponse = new SignUpResponse(1L, "test@example.com", "testUser");
-
-            try (MockedStatic<IpUtils> ipUtilsMock = mockStatic(IpUtils.class)) {
-                ipUtilsMock.when(() -> IpUtils.getClientIp(httpServletRequest))
-                        .thenReturn(expectedIp);
-                given(authService.signUp(any(SignUpRequest.class))).willReturn(mockResponse);
-
-                // when
-                authController.signUp(request, httpServletRequest);
-
-                // then
-                verify(authService).signUp(argThat(signUpRequest ->
-                        expectedIp.equals(signUpRequest.agreementIp())
-                ));
-            }
+            verify(authService).signUp(any(SignUpRequest.class));
         }
 
         @Test
@@ -122,19 +99,14 @@ class AuthControllerTest {
             // given
             SignUpRequest request = new SignUpRequest(
                     "test@example.com", "Password123!", "Password123!",
-                    "testUser", "010-1234-5678", false, false, null
+                    "testUser", "010-1234-5678", false, false
             );
 
-            try (MockedStatic<IpUtils> ipUtilsMock = mockStatic(IpUtils.class)) {
-                ipUtilsMock.when(() -> IpUtils.getClientIp(any(HttpServletRequest.class)))
-                        .thenReturn("127.0.0.1");
+            // when
+            authController.signUp(request, httpServletRequest);
 
-                // when
-                authController.signUp(request, httpServletRequest);
-
-                // then - Controller는 요청을 Service로 전달만 함
-                verify(authService).signUp(any(SignUpRequest.class));
-            }
+            // then - Controller는 요청을 Service로 전달만 함
+            verify(authService).signUp(any(SignUpRequest.class));
         }
 
         @Test
@@ -143,37 +115,33 @@ class AuthControllerTest {
             // given
             SignUpRequest requestWithMarketing = new SignUpRequest(
                     "test1@example.com", "Password123!", "Password123!",
-                    "testUser1", "010-1234-5678", true, true, null
+                    "testUser1", "010-1234-5678", true, true
             );
 
             SignUpRequest requestWithoutMarketing = new SignUpRequest(
                     "test2@example.com", "Password123!", "Password123!",
-                    "testUser2", "010-1234-5679", true, false, null
+                    "testUser2", "010-1234-5679", true, false
             );
 
             SignUpResponse mockResponse1 = new SignUpResponse(1L, "test1@example.com", "testUser1");
             SignUpResponse mockResponse2 = new SignUpResponse(2L, "test2@example.com", "testUser2");
 
-            try (MockedStatic<IpUtils> ipUtilsMock = mockStatic(IpUtils.class)) {
-                ipUtilsMock.when(() -> IpUtils.getClientIp(any(HttpServletRequest.class)))
-                        .thenReturn("127.0.0.1");
-                given(authService.signUp(any(SignUpRequest.class)))
-                        .willReturn(mockResponse1, mockResponse2);
+            given(authService.signUp(any(SignUpRequest.class)))
+                    .willReturn(mockResponse1, mockResponse2);
 
-                // when
-                ResponseEntity<RsData<SignUpResponse>> response1 =
-                        authController.signUp(requestWithMarketing, httpServletRequest);
-                ResponseEntity<RsData<SignUpResponse>> response2 =
-                        authController.signUp(requestWithoutMarketing, httpServletRequest);
+            // when
+            ResponseEntity<RsData<SignUpResponse>> response1 =
+                    authController.signUp(requestWithMarketing, httpServletRequest);
+            ResponseEntity<RsData<SignUpResponse>> response2 =
+                    authController.signUp(requestWithoutMarketing, httpServletRequest);
 
-                // then
-                assertThat(response1.getStatusCode()).isEqualTo(HttpStatus.OK);
-                assertThat(response2.getStatusCode()).isEqualTo(HttpStatus.OK);
-                assertThat(response1.getBody().data().name()).isEqualTo("testUser1");
-                assertThat(response2.getBody().data().name()).isEqualTo("testUser2");
+            // then
+            assertThat(response1.getStatusCode()).isEqualTo(HttpStatus.OK);
+            assertThat(response2.getStatusCode()).isEqualTo(HttpStatus.OK);
+            assertThat(response1.getBody().data().name()).isEqualTo("testUser1");
+            assertThat(response2.getBody().data().name()).isEqualTo("testUser2");
 
-                verify(authService, times(2)).signUp(any(SignUpRequest.class));
-            }
+            verify(authService, times(2)).signUp(any(SignUpRequest.class));
         }
 
         @Test
@@ -187,28 +155,23 @@ class AuthControllerTest {
             };
 
             SignUpResponse mockResponse = new SignUpResponse(1L, "test@example.com", "testUser");
+            given(authService.signUp(any(SignUpRequest.class))).willReturn(mockResponse);
 
-            try (MockedStatic<IpUtils> ipUtilsMock = mockStatic(IpUtils.class)) {
-                ipUtilsMock.when(() -> IpUtils.getClientIp(any(HttpServletRequest.class)))
-                        .thenReturn("127.0.0.1");
-                given(authService.signUp(any(SignUpRequest.class))).willReturn(mockResponse);
+            for (String email : emails) {
+                SignUpRequest request = new SignUpRequest(
+                        email, "Password123!", "Password123!",
+                        "testUser", "010-1234-5678", true, false
+                );
 
-                for (String email : emails) {
-                    SignUpRequest request = new SignUpRequest(
-                            email, "Password123!", "Password123!",
-                            "testUser", "010-1234-5678", true, false, null
-                    );
+                // when
+                ResponseEntity<RsData<SignUpResponse>> response =
+                        authController.signUp(request, httpServletRequest);
 
-                    // when
-                    ResponseEntity<RsData<SignUpResponse>> response =
-                            authController.signUp(request, httpServletRequest);
-
-                    // then
-                    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
-                }
-
-                verify(authService, times(emails.length)).signUp(any(SignUpRequest.class));
+                // then
+                assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
             }
+
+            verify(authService, times(emails.length)).signUp(any(SignUpRequest.class));
         }
     }
 
@@ -221,7 +184,7 @@ class AuthControllerTest {
         void login_Success() {
             // given
             LoginRequest request = new LoginRequest(
-                    "test@example.com", "Password123!", Role.USER, null
+                    "test@example.com", "Password123!", Role.USER
             );
 
             AuthResponse mockResponse = new AuthResponse(
@@ -229,26 +192,22 @@ class AuthControllerTest {
                     Role.USER, List.of(Role.USER), 1800L
             );
 
-            try (MockedStatic<IpUtils> ipUtilsMock = mockStatic(IpUtils.class)) {
-                ipUtilsMock.when(() -> IpUtils.getClientIp(any(HttpServletRequest.class)))
-                        .thenReturn("127.0.0.1");
-                given(authService.login(any(LoginRequest.class))).willReturn(mockResponse);
+            given(authService.login(any(LoginRequest.class))).willReturn(mockResponse);
 
-                // when
-                ResponseEntity<RsData<AuthResponse>> response =
-                        authController.login(request, httpServletRequest, httpServletResponse);
+            // when
+            ResponseEntity<RsData<AuthResponse>> response =
+                    authController.login(request, httpServletRequest, httpServletResponse);
 
-                // then
-                assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
-                assertThat(response.getBody().resultCode()).isEqualTo("200-ok");
-                assertThat(response.getBody().msg()).isEqualTo("로그인 성공");
-                assertThat(response.getBody().data().accessToken()).isEqualTo("accessToken");
-                assertThat(response.getBody().data().refreshToken()).isEqualTo("refreshToken");
-                assertThat(response.getBody().data().userId()).isEqualTo(1L);
-                assertThat(response.getBody().data().selectedRole()).isEqualTo(Role.USER);
+            // then
+            assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
+            assertThat(response.getBody().resultCode()).isEqualTo("200-ok");
+            assertThat(response.getBody().msg()).isEqualTo("로그인 성공");
+            assertThat(response.getBody().data().accessToken()).isEqualTo("accessToken");
+            assertThat(response.getBody().data().refreshToken()).isEqualTo("refreshToken");
+            assertThat(response.getBody().data().userId()).isEqualTo(1L);
+            assertThat(response.getBody().data().selectedRole()).isEqualTo(Role.USER);
 
-                verify(authService).login(any(LoginRequest.class));
-            }
+            verify(authService).login(any(LoginRequest.class));
         }
 
         @Test
@@ -256,7 +215,7 @@ class AuthControllerTest {
         void login_NullSelectedRole_DefaultsToUser() {
             // given
             LoginRequest request = new LoginRequest(
-                    "test@example.com", "Password123!", null, null
+                    "test@example.com", "Password123!", null
             );
 
             AuthResponse mockResponse = new AuthResponse(
@@ -264,23 +223,19 @@ class AuthControllerTest {
                     Role.USER, List.of(Role.USER), 1800L
             );
 
-            try (MockedStatic<IpUtils> ipUtilsMock = mockStatic(IpUtils.class)) {
-                ipUtilsMock.when(() -> IpUtils.getClientIp(any(HttpServletRequest.class)))
-                        .thenReturn("127.0.0.1");
-                given(authService.login(any(LoginRequest.class))).willReturn(mockResponse);
+            given(authService.login(any(LoginRequest.class))).willReturn(mockResponse);
 
-                // when
-                ResponseEntity<RsData<AuthResponse>> response =
-                        authController.login(request, httpServletRequest, httpServletResponse);
+            // when
+            ResponseEntity<RsData<AuthResponse>> response =
+                    authController.login(request, httpServletRequest, httpServletResponse);
 
-                // then
-                assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
-                assertThat(response.getBody().data().selectedRole()).isEqualTo(Role.USER);
+            // then
+            assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
+            assertThat(response.getBody().data().selectedRole()).isEqualTo(Role.USER);
 
-                verify(authService).login(argThat(loginRequest ->
-                        loginRequest.selectedRole() == Role.USER
-                ));
-            }
+            verify(authService).login(argThat(loginRequest ->
+                    loginRequest.selectedRole() == Role.USER
+            ));
         }
 
         @Test
@@ -291,7 +246,7 @@ class AuthControllerTest {
 
             for (Role role : roles) {
                 LoginRequest request = new LoginRequest(
-                        "test@example.com", "Password123!", role, null
+                        "test@example.com", "Password123!", role
                 );
 
                 AuthResponse mockResponse = new AuthResponse(
@@ -299,53 +254,21 @@ class AuthControllerTest {
                         role, List.of(role), 1800L
                 );
 
-                try (MockedStatic<IpUtils> ipUtilsMock = mockStatic(IpUtils.class)) {
-                    ipUtilsMock.when(() -> IpUtils.getClientIp(any(HttpServletRequest.class)))
-                            .thenReturn("127.0.0.1");
-                    given(authService.login(any(LoginRequest.class))).willReturn(mockResponse);
-
-                    // when
-                    ResponseEntity<RsData<AuthResponse>> response =
-                            authController.login(request, httpServletRequest, httpServletResponse);
-
-                    // then
-                    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
-                    assertThat(response.getBody().data().selectedRole()).isEqualTo(role);
-
-                    verify(authService).login(argThat(loginRequest ->
-                            loginRequest.selectedRole() == role
-                    ));
-                }
-                reset(authService);
-            }
-        }
-
-        @Test
-        @DisplayName("로그인 시 IP 주소가 올바르게 추가되는지 확인")
-        void login_IpAddressCorrectlyAdded() {
-            // given
-            String expectedIp = "203.0.113.1";
-            LoginRequest request = new LoginRequest(
-                    "test@example.com", "Password123!", Role.USER, null
-            );
-
-            AuthResponse mockResponse = new AuthResponse(
-                    "accessToken", "refreshToken", 1L, "test@example.com",
-                    Role.USER, List.of(Role.USER), 1800L
-            );
-
-            try (MockedStatic<IpUtils> ipUtilsMock = mockStatic(IpUtils.class)) {
-                ipUtilsMock.when(() -> IpUtils.getClientIp(httpServletRequest))
-                        .thenReturn(expectedIp);
                 given(authService.login(any(LoginRequest.class))).willReturn(mockResponse);
 
                 // when
-                authController.login(request, httpServletRequest, httpServletResponse);
+                ResponseEntity<RsData<AuthResponse>> response =
+                        authController.login(request, httpServletRequest, httpServletResponse);
 
                 // then
+                assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
+                assertThat(response.getBody().data().selectedRole()).isEqualTo(role);
+
                 verify(authService).login(argThat(loginRequest ->
-                        expectedIp.equals(loginRequest.loginIp())
+                        loginRequest.selectedRole() == role
                 ));
+
+                reset(authService);
             }
         }
 
@@ -354,7 +277,7 @@ class AuthControllerTest {
         void login_ResponseContainsCookies() {
             // given
             LoginRequest request = new LoginRequest(
-                    "test@example.com", "Password123!", Role.USER, null
+                    "test@example.com", "Password123!", Role.USER
             );
 
             AuthResponse mockResponse = new AuthResponse(
@@ -362,21 +285,17 @@ class AuthControllerTest {
                     Role.USER, List.of(Role.USER), 1800L
             );
 
-            try (MockedStatic<IpUtils> ipUtilsMock = mockStatic(IpUtils.class)) {
-                ipUtilsMock.when(() -> IpUtils.getClientIp(any(HttpServletRequest.class)))
-                        .thenReturn("127.0.0.1");
-                given(authService.login(any(LoginRequest.class))).willReturn(mockResponse);
+            given(authService.login(any(LoginRequest.class))).willReturn(mockResponse);
 
-                // when
-                ResponseEntity<RsData<AuthResponse>> response =
-                        authController.login(request, httpServletRequest, httpServletResponse);
+            // when
+            ResponseEntity<RsData<AuthResponse>> response =
+                    authController.login(request, httpServletRequest, httpServletResponse);
 
-                // then
-                assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
-                assertThat(response.getHeaders().get("Set-Cookie")).isNotNull();
-                // ResponseEntity를 직접 테스트할 때는 실제 Set-Cookie 헤더 확인은 어려움
-                // 하지만 Controller가 정상적으로 응답을 반환하는지 확인 가능
-            }
+            // then
+            assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
+            assertThat(response.getHeaders().get("Set-Cookie")).isNotNull();
+            // ResponseEntity를 직접 테스트할 때는 실제 Set-Cookie 헤더 확인은 어려움
+            // 하지만 Controller가 정상적으로 응답을 반환하는지 확인 가능
         }
 
         @Test
@@ -384,7 +303,7 @@ class AuthControllerTest {
         void login_UserWithMultipleRoles() {
             // given
             LoginRequest request = new LoginRequest(
-                    "admin@example.com", "Password123!", Role.ADMIN, null
+                    "admin@example.com", "Password123!", Role.ADMIN
             );
 
             AuthResponse mockResponse = new AuthResponse(
@@ -392,21 +311,17 @@ class AuthControllerTest {
                     Role.ADMIN, List.of(Role.USER, Role.ARTIST, Role.ADMIN), 1800L
             );
 
-            try (MockedStatic<IpUtils> ipUtilsMock = mockStatic(IpUtils.class)) {
-                ipUtilsMock.when(() -> IpUtils.getClientIp(any(HttpServletRequest.class)))
-                        .thenReturn("127.0.0.1");
-                given(authService.login(any(LoginRequest.class))).willReturn(mockResponse);
+            given(authService.login(any(LoginRequest.class))).willReturn(mockResponse);
 
-                // when
-                ResponseEntity<RsData<AuthResponse>> response =
-                        authController.login(request, httpServletRequest, httpServletResponse);
+            // when
+            ResponseEntity<RsData<AuthResponse>> response =
+                    authController.login(request, httpServletRequest, httpServletResponse);
 
-                // then
-                assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
-                assertThat(response.getBody().data().selectedRole()).isEqualTo(Role.ADMIN);
-                assertThat(response.getBody().data().availableRoles())
-                        .containsExactly(Role.USER, Role.ARTIST, Role.ADMIN);
-            }
+            // then
+            assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
+            assertThat(response.getBody().data().selectedRole()).isEqualTo(Role.ADMIN);
+            assertThat(response.getBody().data().availableRoles())
+                    .containsExactly(Role.USER, Role.ARTIST, Role.ADMIN);
         }
 
         @Test
@@ -414,7 +329,7 @@ class AuthControllerTest {
         void login_TokenExpirationIncluded() {
             // given
             LoginRequest request = new LoginRequest(
-                    "test@example.com", "Password123!", Role.USER, null
+                    "test@example.com", "Password123!", Role.USER
             );
 
             Long expectedExpiration = 3600L; // 1시간
@@ -423,19 +338,15 @@ class AuthControllerTest {
                     Role.USER, List.of(Role.USER), expectedExpiration
             );
 
-            try (MockedStatic<IpUtils> ipUtilsMock = mockStatic(IpUtils.class)) {
-                ipUtilsMock.when(() -> IpUtils.getClientIp(any(HttpServletRequest.class)))
-                        .thenReturn("127.0.0.1");
-                given(authService.login(any(LoginRequest.class))).willReturn(mockResponse);
+            given(authService.login(any(LoginRequest.class))).willReturn(mockResponse);
 
-                // when
-                ResponseEntity<RsData<AuthResponse>> response =
-                        authController.login(request, httpServletRequest, httpServletResponse);
+            // when
+            ResponseEntity<RsData<AuthResponse>> response =
+                    authController.login(request, httpServletRequest, httpServletResponse);
 
-                // then
-                assertThat(response.getBody().data().accessTokenExpiresIn())
-                        .isEqualTo(expectedExpiration);
-            }
+            // then
+            assertThat(response.getBody().data().accessTokenExpiresIn())
+                    .isEqualTo(expectedExpiration);
         }
     }
 

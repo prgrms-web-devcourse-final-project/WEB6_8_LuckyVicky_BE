@@ -9,7 +9,6 @@ import com.back.domain.auth.service.AuthService;
 import com.back.domain.user.entity.Role;
 import com.back.global.rsData.RsData;
 import com.back.global.security.auth.CustomUserDetails;
-import com.back.global.util.IpUtils;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -53,8 +52,7 @@ public class AuthController {
                 request.name(),
                 request.phone(),
                 request.privacyRequiredAgreed(),
-                request.marketingAgreed(),
-                IpUtils.getClientIp(httpServletRequest)
+                request.marketingAgreed()
         );
 
         SignUpResponse response = authService.signUp(requestWithIp);
@@ -82,8 +80,7 @@ public class AuthController {
         LoginRequest request = new LoginRequest(
                 loginRequest.email(),
                 loginRequest.password(),
-                selectedRole,
-                IpUtils.getClientIp(httpServletRequest)
+                selectedRole
         );
 
         AuthResponse response = authService.login(request);
