@@ -118,5 +118,46 @@ public class User extends BaseEntity {
     }
 
 
+    /**
+     * 개발용 임시 메서드들 (추후 삭제 예정)
+     * TODO: 작가 신청/승인 API 완성 후 삭제
+     */
+
+    // 개발용: 역할 변경 (임시)
+    public void changeRole(Role newRole) {
+        Role previousRole = this.role;
+        this.role = newRole;
+
+        switch (newRole) {
+            case ARTIST:
+                this.isArtistVerified = true;
+                this.artistVerifiedAt = LocalDateTime.now();
+                break;
+
+            case ADMIN:
+            case ROOT:
+                // 관리자 권한으로 변경 시 아티스트 인증은 유지하되,
+                // 기존에 ARTIST가 아니었다면 인증 해제
+                if (!Role.ARTIST.equals(previousRole)) {
+                    this.isArtistVerified = false;
+                    this.artistVerifiedAt = null;
+                }
+                break;
+
+            case USER:
+            default:
+                // 일반 사용자나 기타 역할로 변경 시 아티스트 인증 해제
+                this.isArtistVerified = false;
+                this.artistVerifiedAt = null;
+                break;
+        }
+    }
+
+    // 개발용: 돈 설정 (임시)
+    public void setMoney(int money) {
+        this.money = Math.max(0, money);
+    }
+
+
     // TODO: 정적 팩토리 메서드 - 소셜 로그인 구현
 }
