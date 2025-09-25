@@ -48,7 +48,7 @@ public class ArtistDashboardController {
                     authorization, range, from, to, interval, tz);
 
             return ResponseEntity.ok(
-                    RsData.of("200-OK", "작가 대시보드 메인 조회 성공", response)
+                    RsData.ok("작가 대시보드 메인 조회 성공", response)
             );
         } catch (Exception e) {
             log.error("작가 대시보드 메인 현황 조회 실패", e);
@@ -79,7 +79,7 @@ public class ArtistDashboardController {
                     authorization, page, size, keyword, selling, sort, order);
 
             return ResponseEntity.ok(
-                    RsData.of("200-OK", "내 상품 목록 조회 성공", response)
+                    RsData.ok("내 상품 목록 조회 성공", response)
             );
         } catch (Exception e) {
             log.error("작가 상품 목록 조회 실패", e);
@@ -102,7 +102,7 @@ public class ArtistDashboardController {
             ArtistCashResponse.Balance response = artistDashboardService.getCashBalance(authorization);
 
             return ResponseEntity.ok(
-                    RsData.of("200-OK", "작가지갑 요약 조회 성공", response)
+                    RsData.ok("작가지갑 요약 조회 성공", response)
             );
         } catch (Exception e) {
             log.error("작가 지갑 잔액 조회 실패", e);
@@ -135,7 +135,7 @@ public class ArtistDashboardController {
                     authorization, page, size, type, status, dateFrom, dateTo, sort, order);
 
             return ResponseEntity.ok(
-                    RsData.of("200-OK", "입금/환전 내역 조회 성공", response)
+                    RsData.ok("입금/환전 내역 조회 성공", response)
             );
         } catch (Exception e) {
             log.error("작가 캐시 내역 조회 실패", e);
@@ -168,7 +168,7 @@ public class ArtistDashboardController {
                     authorization, page, size, status, keyword, startDate, endDate, sort, order);
 
             return ResponseEntity.ok(
-                    RsData.of("200-OK", "주문 목록 조회 성공", response)
+                    RsData.ok("주문 목록 조회 성공", response)
             );
         } catch (Exception e) {
             log.error("작가 주문 내역 조회 실패", e);
@@ -202,7 +202,7 @@ public class ArtistDashboardController {
                     authorization, page, size, status, keyword, startDate, endDate, productId, sort, order);
 
             return ResponseEntity.ok(
-                    RsData.of("200-OK", "취소 요청 목록 조회 성공", response)
+                    RsData.ok("취소 요청 목록 조회 성공", response)
             );
         } catch (Exception e) {
             log.error("작가 취소 요청 목록 조회 실패", e);
@@ -236,7 +236,7 @@ public class ArtistDashboardController {
                     authorization, page, size, status, keyword, startDate, endDate, productId, sort, order);
 
             return ResponseEntity.ok(
-                    RsData.of("200-OK", "교환 요청 목록 조회 성공", response)
+                    RsData.ok("교환 요청 목록 조회 성공", response)
             );
         } catch (Exception e) {
             log.error("작가 교환 요청 목록 조회 실패", e);
@@ -259,7 +259,7 @@ public class ArtistDashboardController {
             ArtistSettingsResponse response = artistDashboardService.getSettings(authorization);
 
             return ResponseEntity.ok(
-                    RsData.of("200-OK", "판매자 설정 조회 성공", response)
+                    RsData.ok("판매자 설정 조회 성공", response)
             );
         } catch (Exception e) {
             log.error("작가 설정 정보 조회 실패", e);
@@ -298,7 +298,7 @@ public class ArtistDashboardController {
                     startDate, endDate, sort, order);
 
             return ResponseEntity.ok(
-                    RsData.of("200-OK", "내 펀딩 모니터링 조회 성공", response)
+                    RsData.ok("내 펀딩 모니터링 조회 성공", response)
             );
         } catch (Exception e) {
             log.error("작가 펀딩 목록 조회 실패", e);

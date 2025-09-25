@@ -1,18 +1,17 @@
 package com.back.domain.dashboard.customer.controller;
 
+import com.back.domain.dashboard.customer.dto.request.*;
 import com.back.domain.dashboard.customer.dto.response.*;
 import com.back.domain.dashboard.customer.service.DashboardService;
 import com.back.global.rsData.RsData;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
-import jakarta.validation.constraints.Max;
+import jakarta.validation.Valid;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.Pattern;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-
-import java.util.NoSuchElementException;
 
 /**
  * 고객용 대시보드 컨트롤러
@@ -29,7 +28,8 @@ import java.util.NoSuchElementException;
  *   <li>찜한 상품 목록 조회</li>
  *   <li>참여한 펀딩 목록 조회</li>
  * </ul>
- *  2025.09.23 수정
+ * 
+ * 2025.09.25 Request DTO 패턴 적용
  */
 @RestController
 @RequestMapping("/api/dashboard")
@@ -42,6 +42,7 @@ public class DashboardController {
     /**
      * 계정 설정 조회
      * 사용자의 계정 설정 정보를 조회합니다. include 파라미터를 통해 필요한 정보만 선택적으로 가져올 수 있다.
+     * 
      * @param authorization Bearer 토큰 (필수)
      * @param include 포함할 정보 (profile,contact,security 중 선택, 기본값: 전체)
      * @return 계정 설정 정보
@@ -52,85 +53,48 @@ public class DashboardController {
     @Operation(summary = "계정 설정 조회", description = "사용자의 계정 설정 정보를 조회합니다")
     public ResponseEntity<RsData<AccountResponse.Settings>> getAccountSettings(
             @RequestHeader("Authorization") String authorization,
-            @RequestParam(defaultValue = "profile,contact,security")  //HTTP 요청 파라미터 형식 검증
-            @Pattern(regexp = "^(profile|contact|security)(,(profile|contact|security))*$",//프로필, 연락처, 보안 중 하나 이상
+            @RequestParam(defaultValue = "profile,contact,security")
+            @Pattern(regexp = "^(profile|contact|security)(,(profile|contact|security))*$",
                     message = "include는 profile, contact, security 중 하나 이상이어야 합니다")
             String include) {
         
         AccountResponse.Settings response = dashboardService.getAccountSettings(authorization, include);
-        
-        return ResponseEntity.ok(RsData.of(
-                "200-OK",
-                "계정 설정 조회 성공",
-                response
-        ));
+        return ResponseEntity.ok(RsData.ok("계정 설정 조회 성공", response));
     }
     
     /**
      * 작가 신청 내역 목록 조회
      * 사용자가 신청한 작가 입점 신청 내역을 페이지 단위로 조회
      * 상태별 필터링과 날짜 범위 검색이 가능
-     * @param authorization Bearer 토큰 (필수)
-     * @param page 페이지 번호 (0부터 시작, 기본값: 0)
-     * @param size 페이지 크기 (1-100, 기본값: 8)
-     * @param status 상태 필터 (PENDING, APPROVED, REJECTED 중 선택, 선택사항)
-     * @param startDate 신청일 시작 날짜 (yyyy-MM-dd 형식, 선택사항)
-     * @param endDate 신청일 종료 날짜 (yyyy-MM-dd 형식, 선택사항)
-     * @param sort 정렬 기준 (applicationId, artistName, submittedAt, status 중 선택)
-     * @param order 정렬 방향 (ASC, DESC 중 선택)
-     * @return 작가 신청 내역 목록 (페이징 정보 포함)
      * 
+     * @param authorization Bearer 토큰 (필수)
+     * @param request 검색 조건 (페이징, 필터링, 정렬)
+     * @return 작가 신청 내역 목록 (페이징 정보 포함)
      * @throws SecurityException 인증 토큰이 유효하지 않은 경우
-     * @throws IllegalArgumentException 페이지 파라미터가 유효하지 않은 경우
+     * @throws IllegalArgumentException 검색 조건이 유효하지 않은 경우
      */
     @GetMapping("/artist-applications")
     @Operation(summary = "작가 신청 내역 목록 조회", description = "작가 입점 신청 내역을 페이지 단위로 조회합니다")
     public ResponseEntity<RsData<ArtistApplicationResponse.List>> getArtistApplications(
             @RequestHeader("Authorization") String authorization,
-            @RequestParam(defaultValue = "0") 
-            @Min(value = 0, message = "페이지는 0 이상이어야 합니다") 
-            int page,
-            @RequestParam(defaultValue = "10") 
-            @Min(value = 1, message = "페이지 크기는 1 이상이어야 합니다")
-            @Max(value = 100, message = "페이지 크기는 100 이하여야 합니다")
-            int size,
-            @RequestParam(required = false) 
-            @Pattern(regexp = "^(PENDING|APPROVED|REJECTED)$", message = "status는 PENDING, APPROVED, REJECTED 중 하나여야 합니다")
-            String status,
-            @RequestParam(required = false) 
-            @Pattern(regexp = "^\\d{4}-\\d{2}-\\d{2}$", message = "날짜는 yyyy-MM-dd 형식이어야 합니다")
-            String startDate,
-            @RequestParam(required = false) 
-            @Pattern(regexp = "^\\d{4}-\\d{2}-\\d{2}$", message = "날짜는 yyyy-MM-dd 형식이어야 합니다")
-            String endDate,
-            @RequestParam(defaultValue = "submittedAt") 
-            @Pattern(regexp = "^(applicationId|artistName|submittedAt|status)$", 
-                    message = "sort는 applicationId, artistName, submittedAt, status 중 하나여야 합니다")
-            String sort,
-            @RequestParam(defaultValue = "DESC") 
-            @Pattern(regexp = "^(ASC|DESC)$", message = "order는 ASC 또는 DESC여야 합니다")
-            String order) {
+            @Valid @ModelAttribute ArtistApplicationSearchRequest request) {
         
         ArtistApplicationResponse.List response = dashboardService.getArtistApplications(
-                authorization, page, size, status, startDate, endDate, sort, order);
+                authorization, request.page(), request.size(), request.status(), 
+                request.startDate(), request.endDate(), request.sort(), request.order());
         
-        return ResponseEntity.ok(RsData.of(
-                "200-OK",
-                "작가 신청 내역 조회 성공",
-                response
-        ));
+        return ResponseEntity.ok(RsData.ok("작가 신청 내역 조회 성공", response));
     }
     
     /**
      * 입점 신청 상세 조회
      * 특정 작가 입점 신청의 상세 정보를 조회
      * 신청서 내용, 첨부 파일, 심사 결과 등을 포함
+     * 
      * @param authorization Bearer 토큰 (필수)
      * @param applicationId 신청 ID (필수)
      * @return 입점 신청 상세 정보
-     * 
      * @throws SecurityException 인증 토큰이 유효하지 않은 경우
-     * @throws NoSuchElementException 해당 신청 ID가 존재하지 않는 경우
      * @throws IllegalArgumentException 신청 ID가 유효하지 않은 경우
      */
     @GetMapping("/artist-applications/{applicationId}")
@@ -143,130 +107,57 @@ public class DashboardController {
         
         ArtistApplicationResponse.Detail response = dashboardService.getArtistApplicationDetail(
                 authorization, applicationId);
-        
-        return ResponseEntity.ok(RsData.of(
-                "200-OK",
-                "입점 신청 상세 조회 성공",
-                response
-        ));
+        return ResponseEntity.ok(RsData.ok("입점 신청 상세 조회 성공", response));
     }
     
     /**
      * 주문 목록 조회
      * 사용자의 주문 내역을 페이지 단위로 조회
-     * 주문 상태별, A/S 상태별 필터링과 기간별 검색이 가능합니다.
+     * 주문 상태별, A/S 상태별 필터링과 기간별 검색이 가능
      * 
      * @param authorization Bearer 토큰 (필수)
-     * @param page 페이지 번호 (0부터 시작, 기본값: 0)
-     * @param size 페이지 크기 (1-100, 기본값: 10)
-     * @param status 주문 상태 필터 (PENDING, CONFIRMED, PREPARING, SHIPPED, DELIVERED, CANCELED 중 선택)
-     * @param aftersalesStatus A/S 상태 필터 (CANCEL_REQUESTED, CANCEL_PROCESSING, CANCEL_COMPLETED, EXCHANGE_REQUESTED, EXCHANGE_PROCESSING, EXCHANGE_COMPLETED 중 선택)
-     * @param from 시작 날짜 (yyyy-MM-dd 형식, 선택사항)
-     * @param to 종료 날짜 (yyyy-MM-dd 형식, 선택사항)
-     * @param period 기간 필터 (TODAY, WEEK, MONTH, QUARTER, YEAR, CUSTOM 중 선택)
-     * @param sort 정렬 기준 (orderDate, orderNumber, status, totalAmount 중 선택)
-     * @param order 정렬 방향 (ASC, DESC 중 선택)
+     * @param request 검색 조건 (페이징, 필터링, 정렬)
      * @return 주문 목록 (페이징 정보 포함)
-     * 
      * @throws SecurityException 인증 토큰이 유효하지 않은 경우
-     * @throws IllegalArgumentException 파라미터가 유효하지 않은 경우
+     * @throws IllegalArgumentException 검색 조건이 유효하지 않은 경우
      */
     @GetMapping("/orders")
     @Operation(summary = "주문 목록 조회", description = "사용자의 주문 내역을 페이지 단위로 조회합니다")
     public ResponseEntity<RsData<OrderResponse.List>> getOrders(
             @RequestHeader("Authorization") String authorization,
-            @RequestParam(defaultValue = "0") 
-            @Min(value = 0, message = "페이지는 0 이상이어야 합니다") 
-            int page,
-            @RequestParam(defaultValue = "10") 
-            @Min(value = 1, message = "페이지 크기는 1 이상이어야 합니다")
-            @Max(value = 100, message = "페이지 크기는 100 이하여야 합니다")
-            int size,
-            @RequestParam(required = false) 
-            @Pattern(regexp = "^(PENDING|CONFIRMED|PREPARING|SHIPPED|DELIVERED|CANCELED)$", 
-                    message = "status는 PENDING, CONFIRMED, PREPARING, SHIPPED, DELIVERED, CANCELED 중 하나여야 합니다")
-            String status,
-            @RequestParam(required = false) 
-            @Pattern(regexp = "^(CANCEL_REQUESTED|CANCEL_PROCESSING|CANCEL_COMPLETED|EXCHANGE_REQUESTED|EXCHANGE_PROCESSING|EXCHANGE_COMPLETED)$", 
-                    message = "aftersalesStatus는 CANCEL_REQUESTED, CANCEL_PROCESSING, CANCEL_COMPLETED, EXCHANGE_REQUESTED, EXCHANGE_PROCESSING, EXCHANGE_COMPLETED 중 하나여야 합니다")
-            String aftersalesStatus,
-            @RequestParam(required = false) 
-            @Pattern(regexp = "^\\d{4}-\\d{2}-\\d{2}$", message = "날짜는 yyyy-MM-dd 형식이어야 합니다")
-            String from,
-            @RequestParam(required = false) 
-            @Pattern(regexp = "^\\d{4}-\\d{2}-\\d{2}$", message = "날짜는 yyyy-MM-dd 형식이어야 합니다")
-            String to,
-            @RequestParam(defaultValue = "MONTH") 
-            @Pattern(regexp = "^(TODAY|WEEK|MONTH|QUARTER|YEAR|CUSTOM)$", 
-                    message = "period는 TODAY, WEEK, MONTH, QUARTER, YEAR, CUSTOM 중 하나여야 합니다")
-            String period,
-            @RequestParam(defaultValue = "orderDate") 
-            @Pattern(regexp = "^(orderDate|orderNumber|status|totalAmount)$", 
-                    message = "sort는 orderDate, orderNumber, status, totalAmount 중 하나여야 합니다")
-            String sort,
-            @RequestParam(defaultValue = "DESC") 
-            @Pattern(regexp = "^(ASC|DESC)$", message = "order는 ASC 또는 DESC여야 합니다")
-            String order) {
+            @Valid @ModelAttribute OrderSearchRequest request) {
         
         OrderResponse.List response = dashboardService.getOrders(
-                authorization, page, size, status, aftersalesStatus, from, to, period, sort, order);
+                authorization, request.page(), request.size(), request.status(), request.aftersalesStatus(),
+                request.from(), request.to(), request.period(), request.sort(), request.order());
         
-        return ResponseEntity.ok(RsData.of(
-                "200-OK",
-                "주문 목록 조회 성공",
-                response
-        ));
+        return ResponseEntity.ok(RsData.ok("주문 목록 조회 성공", response));
     }
     
     /**
      * 내가 팔로우한 작가 목록 조회
      * 사용자가 팔로우하고 있는 작가들의 목록을 페이지 단위로 조회
      * 작가명 검색과 다양한 정렬 기준을 지원
+     * 
      * @param userId 사용자 ID ("me" 또는 실제 사용자 ID)
      * @param authorization Bearer 토큰 (필수)
-     * @param page 페이지 번호 (0부터 시작, 기본값: 0)
-     * @param size 페이지 크기 (1-100, 기본값: 8)
-     * @param keyword 검색 키워드 (작가ID/작가명, 선택사항)
-     * @param status 관계 상태 (FOLLOWING 고정)
-     * @param sort 정렬 기준 (followedAt, artistName, followerCount, lastPublishedAt 중 선택)
-     * @param order 정렬 방향 (ASC, DESC 중 선택)
+     * @param request 검색 조건 (페이징, 필터링, 정렬)
      * @return 팔로우한 작가 목록 (페이징 정보 포함)
-     *
      * @throws SecurityException 인증 토큰이 유효하지 않은 경우
-     * @throws IllegalArgumentException 파라미터가 유효하지 않은 경우
+     * @throws IllegalArgumentException 검색 조건이 유효하지 않은 경우
      */
     @GetMapping("/following-artists/{userId}")
     @Operation(summary = "내가 팔로우한 작가 목록 조회", description = "팔로우하고 있는 작가들의 목록을 페이지 단위로 조회합니다")
     public ResponseEntity<RsData<FollowingResponse.List>> getFollowingArtists(
             @PathVariable String userId,
             @RequestHeader("Authorization") String authorization,
-            @RequestParam(defaultValue = "0") 
-            @Min(value = 0, message = "페이지는 0 이상이어야 합니다") 
-            int page,
-            @RequestParam(defaultValue = "10") 
-            @Min(value = 1, message = "페이지 크기는 1 이상이어야 합니다")
-            @Max(value = 100, message = "페이지 크기는 100 이하여야 합니다")
-            int size,
-            @RequestParam(required = false) String keyword,
-            @RequestParam(defaultValue = "FOLLOWING") 
-            @Pattern(regexp = "^FOLLOWING$", message = "status는 FOLLOWING이어야 합니다")
-            String status,
-            @RequestParam(defaultValue = "followedAt") 
-            @Pattern(regexp = "^(followedAt|artistName|followerCount|lastPublishedAt)$", 
-                    message = "sort는 followedAt, artistName, followerCount, lastPublishedAt 중 하나여야 합니다")
-            String sort,
-            @RequestParam(defaultValue = "DESC") 
-            @Pattern(regexp = "^(ASC|DESC)$", message = "order는 ASC 또는 DESC여야 합니다")
-            String order) {
+            @Valid @ModelAttribute FollowingSearchRequest request) {
         
         FollowingResponse.List response = dashboardService.getFollowingArtists(
-                userId, authorization, page, size, keyword, status, sort, order);
+                userId, authorization, request.page(), request.size(), request.keyword(),
+                request.status(), request.sort(), request.order());
         
-        return ResponseEntity.ok(RsData.of(
-                "200-OK",
-                "팔로우한 작가 목록 조회 성공",
-                response
-        ));
+        return ResponseEntity.ok(RsData.ok("팔로우한 작가 목록 조회 성공", response));
     }
     
     /**
@@ -275,50 +166,22 @@ public class DashboardController {
      * 상품명/작가명 검색, 특정 작가/카테고리 필터링이 가능
      * 
      * @param authorization Bearer 토큰 (필수)
-     * @param page 페이지 번호 (0부터 시작, 기본값: 0)
-     * @param size 페이지 크기 (1-100, 기본값: 8)
-     * @param keyword 검색 키워드 (상품명/작가명, 선택사항)
-     * @param artistId 특정 작가 필터 (선택사항)
-     * @param categoryId 카테고리 필터 (선택사항)
-     * @param sort 정렬 기준 (addedAt, productName, artistName, price 중 선택)
-     * @param order 정렬 방향 (ASC, DESC 중 선택)
+     * @param request 검색 조건 (페이징, 필터링, 정렬)
      * @return 찜한 상품 목록 (페이징 정보 포함)
-     * 
      * @throws SecurityException 인증 토큰이 유효하지 않은 경우
-     * @throws IllegalArgumentException 파라미터가 유효하지 않은 경우
+     * @throws IllegalArgumentException 검색 조건이 유효하지 않은 경우
      */
     @GetMapping("/wishlist")
     @Operation(summary = "찜한 상품 목록 조회", description = "찜한 상품들의 목록을 페이지 단위로 조회합니다")
     public ResponseEntity<RsData<WishlistResponse.List>> getWishlist(
             @RequestHeader("Authorization") String authorization,
-            @RequestParam(defaultValue = "0") 
-            @Min(value = 0, message = "페이지는 0 이상이어야 합니다") 
-            int page,
-            @RequestParam(defaultValue = "10") 
-            @Min(value = 1, message = "페이지 크기는 1 이상이어야 합니다")
-            @Max(value = 100, message = "페이지 크기는 100 이하여야 합니다")
-            int size,
-            @RequestParam(required = false) String keyword,
-            @RequestParam(required = false) String artistId,
-            @RequestParam(required = false) 
-            @Min(value = 1, message = "카테고리 ID는 1 이상이어야 합니다")
-            Long categoryId,
-            @RequestParam(defaultValue = "addedAt") 
-            @Pattern(regexp = "^(addedAt|productName|artistName|price)$", 
-                    message = "sort는 addedAt, productName, artistName, price 중 하나여야 합니다")
-            String sort,
-            @RequestParam(defaultValue = "DESC") 
-            @Pattern(regexp = "^(ASC|DESC)$", message = "order는 ASC 또는 DESC여야 합니다")
-            String order) {
+            @Valid @ModelAttribute WishlistSearchRequest request) {
         
         WishlistResponse.List response = dashboardService.getWishlist(
-                authorization, page, size, keyword, artistId, categoryId, sort, order);
+                authorization, request.page(), request.size(), request.keyword(),
+                request.artistId(), request.categoryId(), request.sort(), request.order());
         
-        return ResponseEntity.ok(RsData.of(
-                "200-OK",
-                "찜한 상품 목록 조회 성공",
-                response
-        ));
+        return ResponseEntity.ok(RsData.ok("찜한 상품 목록 조회 성공", response));
     }
     
     /**
@@ -327,49 +190,22 @@ public class DashboardController {
      * 펀딩 상태별 필터링과 제목/작가명 검색이 가능
      * 
      * @param authorization Bearer 토큰 (필수)
-     * @param page 페이지 번호 (0부터 시작, 기본값: 0)
-     * @param size 페이지 크기 (1-100, 기본값: 8)
-     * @param status 펀딩 상태 필터 (ACTIVE, ENDED, FULFILLING, FULFILLED 중 선택)
-     * @param keyword 검색 키워드 (펀딩 제목/작가명, 선택사항)
-     * @param sort 정렬 기준 (pledgedDate, pledgedAmount, title, artistName, status 중 선택)
-     * @param order 정렬 방향 (ASC, DESC 중 선택)
+     * @param request 검색 조건 (페이징, 필터링, 정렬)
      * @return 참여한 펀딩 목록 (페이징 정보 포함)
-     * 
      * @throws SecurityException 인증 토큰이 유효하지 않은 경우
-     * @throws IllegalArgumentException 파라미터가 유효하지 않은 경우
+     * @throws IllegalArgumentException 검색 조건이 유효하지 않은 경우
      */
     @GetMapping("/funding")
     @Operation(summary = "참여한 펀딩 목록 조회", description = "참여한 펀딩들의 목록을 페이지 단위로 조회합니다")
     public ResponseEntity<RsData<FundingResponse.List>> getFundingParticipations(
             @RequestHeader("Authorization") String authorization,
-            @RequestParam(defaultValue = "0") 
-            @Min(value = 0, message = "페이지는 0 이상이어야 합니다") 
-            int page,
-            @RequestParam(defaultValue = "10") 
-            @Min(value = 1, message = "페이지 크기는 1 이상이어야 합니다")
-            @Max(value = 100, message = "페이지 크기는 100 이하여야 합니다")
-            int size,
-            @RequestParam(required = false) 
-            @Pattern(regexp = "^(ACTIVE|ENDED|FULFILLING|FULFILLED)$", 
-                    message = "status는 ACTIVE, ENDED, FULFILLING, FULFILLED 중 하나여야 합니다")
-            String status,
-            @RequestParam(required = false) String keyword,
-            @RequestParam(defaultValue = "pledgedDate") 
-            @Pattern(regexp = "^(pledgedDate|pledgedAmount|title|artistName|status)$", 
-                    message = "sort는 pledgedDate, pledgedAmount, title, artistName, status 중 하나여야 합니다")
-            String sort,
-            @RequestParam(defaultValue = "DESC") 
-            @Pattern(regexp = "^(ASC|DESC)$", message = "order는 ASC 또는 DESC여야 합니다")
-            String order) {
+            @Valid @ModelAttribute FundingSearchRequest request) {
         
         FundingResponse.List response = dashboardService.getFundingParticipations(
-                authorization, page, size, status, keyword, sort, order);
+                authorization, request.page(), request.size(), request.status(),
+                request.keyword(), request.sort(), request.order());
         
-        return ResponseEntity.ok(RsData.of(
-                "200-OK",
-                "참여한 펀딩 목록 조회 성공",
-                response
-        ));
+        return ResponseEntity.ok(RsData.ok("참여한 펀딩 목록 조회 성공", response));
     }
     
     /**
@@ -380,9 +216,7 @@ public class DashboardController {
      * @param authorization Bearer 토큰 (필수)
      * @param returnId 교환/반품 ID (필수)
      * @return 교환/반품 폼 데이터
-     * 
      * @throws SecurityException 인증 토큰이 유효하지 않은 경우
-     * @throws NoSuchElementException 해당 교환/반품 ID가 존재하지 않는 경우
      * @throws IllegalArgumentException 교환/반품 ID가 유효하지 않은 경우
      */
     @GetMapping("/returns/{returnId}/form-data")
@@ -394,12 +228,7 @@ public class DashboardController {
             Long returnId) {
         
         ReturnResponse.FormData response = dashboardService.getReturnFormData(authorization, returnId);
-        
-        return ResponseEntity.ok(RsData.of(
-                "200-OK",
-                "교환/반품 폼 데이터 조회 성공",
-                response
-        ));
+        return ResponseEntity.ok(RsData.ok("교환/반품 폼 데이터 조회 성공", response));
     }
     
     /**
@@ -408,7 +237,6 @@ public class DashboardController {
      * 
      * @param authorization Bearer 토큰 (필수)
      * @return 캐시 정보
-     * 
      * @throws SecurityException 인증 토큰이 유효하지 않은 경우
      */
     @GetMapping("/cash")
@@ -417,12 +245,7 @@ public class DashboardController {
             @RequestHeader("Authorization") String authorization) {
         
         CashResponse.Balance response = dashboardService.getCashBalance(authorization);
-        
-        return ResponseEntity.ok(RsData.of(
-                "200-OK",
-                "캐시 정보 조회 성공",
-                response
-        ));
+        return ResponseEntity.ok(RsData.ok("캐시 정보 조회 성공", response));
     }
     
     /**
@@ -431,59 +254,21 @@ public class DashboardController {
      * 결제 수단, 상태, 기간별 필터링이 가능합니다.
      * 
      * @param authorization Bearer 토큰 (필수)
-     * @param page 페이지 번호 (0부터 시작, 기본값: 0)
-     * @param size 페이지 크기 (1-100, 기본값: 10)
-     * @param method 결제 수단 필터 (NAVERPAY, TOSS, CARD, ETC 중 선택)
-     * @param status 상태 필터 (PENDING, COMPLETED, FAILED, CANCELED 중 선택)
-     * @param dateFrom 시작 날짜 (yyyy-MM-dd 형식, 선택사항)
-     * @param dateTo 종료 날짜 (yyyy-MM-dd 형식, 선택사항)
-     * @param sort 정렬 기준 (occurredAt, amount 중 선택)
-     * @param order 정렬 방향 (ASC, DESC 중 선택)
+     * @param request 검색 조건 (페이징, 필터링, 정렬)
      * @return 캐시 충전 내역 목록 (페이징 정보 포함)
-     * 
      * @throws SecurityException 인증 토큰이 유효하지 않은 경우
-     * @throws IllegalArgumentException 파라미터가 유효하지 않은 경우
+     * @throws IllegalArgumentException 검색 조건이 유효하지 않은 경우
      */
     @GetMapping("/cash/history")
     @Operation(summary = "캐시 충전 내역 조회", description = "캐시 충전 내역을 페이지 단위로 조회합니다")
     public ResponseEntity<RsData<CashResponse.HistoryList>> getCashHistory(
             @RequestHeader("Authorization") String authorization,
-            @RequestParam(defaultValue = "0") 
-            @Min(value = 0, message = "페이지는 0 이상이어야 합니다") 
-            int page,
-            @RequestParam(defaultValue = "10") 
-            @Min(value = 1, message = "페이지 크기는 1 이상이어야 합니다")
-            @Max(value = 100, message = "페이지 크기는 100 이하여야 합니다")
-            int size,
-            @RequestParam(required = false) 
-            @Pattern(regexp = "^(NAVERPAY|TOSS|CARD|ETC)$", 
-                    message = "method는 NAVERPAY, TOSS, CARD, ETC 중 하나여야 합니다")
-            String method,
-            @RequestParam(required = false) 
-            @Pattern(regexp = "^(PENDING|COMPLETED|FAILED|CANCELED)$", 
-                    message = "status는 PENDING, COMPLETED, FAILED, CANCELED 중 하나여야 합니다")
-            String status,
-            @RequestParam(required = false) 
-            @Pattern(regexp = "^\\d{4}-\\d{2}-\\d{2}$", message = "날짜는 yyyy-MM-dd 형식이어야 합니다")
-            String dateFrom,
-            @RequestParam(required = false) 
-            @Pattern(regexp = "^\\d{4}-\\d{2}-\\d{2}$", message = "날짜는 yyyy-MM-dd 형식이어야 합니다")
-            String dateTo,
-            @RequestParam(defaultValue = "occurredAt") 
-            @Pattern(regexp = "^(occurredAt|amount)$", 
-                    message = "sort는 occurredAt, amount 중 하나여야 합니다")
-            String sort,
-            @RequestParam(defaultValue = "DESC") 
-            @Pattern(regexp = "^(ASC|DESC)$", message = "order는 ASC 또는 DESC여야 합니다")
-            String order) {
+            @Valid @ModelAttribute CashHistorySearchRequest request) {
         
         CashResponse.HistoryList response = dashboardService.getCashHistory(
-                authorization, page, size, method, status, dateFrom, dateTo, sort, order);
+                authorization, request.page(), request.size(), request.method(), request.status(),
+                request.dateFrom(), request.dateTo(), request.sort(), request.order());
         
-        return ResponseEntity.ok(RsData.of(
-                "200-OK",
-                "캐시 충전 내역 조회 성공",
-                response
-        ));
+        return ResponseEntity.ok(RsData.ok("캐시 충전 내역 조회 성공", response));
     }
 }
