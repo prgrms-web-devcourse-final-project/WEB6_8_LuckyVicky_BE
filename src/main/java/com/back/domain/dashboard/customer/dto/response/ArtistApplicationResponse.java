@@ -2,8 +2,6 @@ package com.back.domain.dashboard.customer.dto.response;
 
 import com.back.global.util.PageResponse;
 
-import lombok.*;
-
 import java.time.LocalDateTime;
 
 /**
@@ -19,14 +17,13 @@ public class ArtistApplicationResponse {
      * 작가 신청 목록 응답
      * 페이징된 작가 신청 목록과 요약 정보를 포함
      */
-    @Getter
-    @Setter
     public static class List extends PageResponse<ArtistApplicationResponse.Summary> {
         /** 신청 현황 요약 정보 */
-        private SummaryDto summary;
+        private final SummaryDto summary;
         
         public List() {
             super();
+            this.summary = null;
         }
         
         public List(SummaryDto summary, java.util.List<Summary> content,
@@ -35,210 +32,154 @@ public class ArtistApplicationResponse {
             super(content, page, size, totalElements, totalPages, hasNext, hasPrevious);
             this.summary = summary;
         }
+        
+        public SummaryDto getSummary() {
+            return summary;
+        }
     }
     
     /**
      * 작가 신청 상세 정보
      * 신청서의 모든 상세 정보를 포함
      */
-    @Getter
-    @Setter
-    @Builder
-    @NoArgsConstructor
-    @AllArgsConstructor
-    public static class Detail {
-        /** 신청 기본 정보 */
-        private Application application;
-        /** 신청자 정보 */
-        private Applicant applicant;
-        /** 연락처 정보 */
-        private Contact contact;
-        /** 사업자 정보 */
-        private Business business;
-        /** 작가 프로필 정보 */
-        private Profile profile;
-        /** 권한 정보 */
-        private Permission permissions;
-    }
+    public record Detail(
+            /** 신청 기본 정보 */
+            Application application,
+            /** 신청자 정보 */
+            Applicant applicant,
+            /** 연락처 정보 */
+            Contact contact,
+            /** 사업자 정보 */
+            Business business,
+            /** 작가 프로필 정보 */
+            Profile profile,
+            /** 권한 정보 */
+            Permission permissions
+    ) {}
     
     /**
      * 신청 현황 요약 정보
      *전체, 대기중, 승인, 거절 건수를 포함
      */
-    @Getter
-    @Setter
-    @Builder
-    @NoArgsConstructor
-    @AllArgsConstructor
-    public static class SummaryDto {
-        /** 전체 신청 건수 */
-        private int total;
-        /** 대기중인 신청 건수 */
-        private int pending;
-        /** 승인된 신청 건수 */
-        private int approved;
-        /** 거절된 신청 건수 */
-        private int rejected;
-    }
+    public record SummaryDto(
+            /** 전체 신청 건수 */
+            int total,
+            /** 대기중인 신청 건수 */
+            int pending,
+            /** 승인된 신청 건수 */
+            int approved,
+            /** 거절된 신청 건수 */
+            int rejected
+    ) {}
     
     /**
      * 작가 신청 요약 정보
      * 목록에서 표시되는 간략한 신청 정보
      */
-    @Getter
-    @Setter
-    @Builder
-    @NoArgsConstructor
-    @AllArgsConstructor
-    public static class Summary {
-        /** 신청 ID */
-        private Long applicationId;
-        /** 작가명 */
-        private String artistName;
-        /** 신청일 (yyyy-MM-dd) */
-        private String submittedAt;
-        /** 신청 상태 (PENDING/APPROVED/REJECTED) */
-        private String status;
-        /** 상태 텍스트 */
-        private String statusText;
-        /** 권한 정보 */
-        private Permission permissions;
-        /** 마지막 업데이트 일시 */
-        private LocalDateTime lastUpdatedAt;
-    }
+    public record Summary(
+            /** 신청 ID */
+            Long applicationId,
+            /** 작가명 */
+            String artistName,
+            /** 신청일 (yyyy-MM-dd) */
+            String submittedAt,
+            /** 신청 상태 (PENDING/APPROVED/REJECTED) */
+            String status,
+            /** 상태 텍스트 */
+            String statusText,
+            /** 권한 정보 */
+            Permission permissions,
+            /** 마지막 업데이트 일시 */
+            LocalDateTime lastUpdatedAt
+    ) {}
     
     /**
      * 신청 기본 정보
      */
-    @Getter
-    @Setter
-    @Builder
-    @NoArgsConstructor
-    @AllArgsConstructor
-    public static class Application {
-        private Long applicationId;
-        private String status;
-        private String statusText;
-        private LocalDateTime submittedAt;
-        private LocalDateTime decidedAt;
-        private String rejectionReason;
-        /** 검토자 정보 (선택적) */
-        private Reviewer reviewer;
-    }
+    public record Application(
+            Long applicationId,
+            String status,
+            String statusText,
+            LocalDateTime submittedAt,
+            LocalDateTime decidedAt,
+            String rejectionReason,
+            /** 검토자 정보 (선택적) */
+            Reviewer reviewer
+    ) {}
     
     /**
      * 신청자 정보
      */
-    @Getter
-    @Setter
-    @Builder
-    @NoArgsConstructor
-    @AllArgsConstructor
-    public static class Applicant {
-        private String memberId;
-        private String artistName;
-        private String avatarUrl;
-    }
+    public record Applicant(
+            String memberId,
+            String artistName,
+            String avatarUrl
+    ) {}
     
     /**
      * 연락처 정보
      */
-    @Getter
-    @Setter
-    @Builder
-    @NoArgsConstructor
-    @AllArgsConstructor
-    public static class Contact {
-        private String email;
-        private String phone;
-    }
+    public record Contact(
+            String email,
+            String phone
+    ) {}
     
     /**
      * 사업자 정보
      */
-    @Getter
-    @Setter
-    @Builder
-    @NoArgsConstructor
-    @AllArgsConstructor
-    public static class Business {
-        private String registrationNo;
-        private FileDto registrationProof;
-        private String telemarketingReportNo;
-        private FileDto telemarketingReportProof;
-        private String address;
-    }
+    public record Business(
+            String registrationNo,
+            FileDto registrationProof,
+            String telemarketingReportNo,
+            FileDto telemarketingReportProof,
+            String address
+    ) {}
     
     /**
      * 작가 프로필 정보
      */
-    @Getter
-    @Setter
-    @Builder
-    @NoArgsConstructor
-    @AllArgsConstructor
-    public static class Profile {
-        private String description;
-        private java.util.List<String> mainCategories;
-        private java.util.List<Sns> sns;
-        private java.util.List<FileDto> portfolio;
-    }
+    public record Profile(
+            String description,
+            java.util.List<String> mainCategories,
+            java.util.List<Sns> sns,
+            java.util.List<FileDto> portfolio
+    ) {}
     
     /**
      * 첨부 파일 정보
      */
-    @Getter
-    @Setter
-    @Builder
-    @NoArgsConstructor
-    @AllArgsConstructor
-    public static class FileDto {
-        private String fileId;
-        private String fileName;
-        private String url;
-        private LocalDateTime expiresAt;
-    }
+    public record FileDto(
+            String fileId,
+            String fileName,
+            String url,
+            LocalDateTime expiresAt
+    ) {}
     
     /**
      * SNS 정보
      */
-    @Getter
-    @Setter
-    @Builder
-    @NoArgsConstructor
-    @AllArgsConstructor
-    public static class Sns {
-        private String platform;
-        private String handle;
-    }
+    public record Sns(
+            String platform,
+            String handle
+    ) {}
     
     /**
      * 권한 정보
      */
-    @Getter
-    @Setter
-    @Builder
-    @NoArgsConstructor
-    @AllArgsConstructor
-    public static class Permission {
-        private Boolean canEdit;
-        private Boolean canCancel;
-        /** 재신청/이의제기 가능 여부 (선택적) */
-        private Boolean canAppeal;
-    }
+    public record Permission(
+            Boolean canEdit,
+            Boolean canCancel,
+            /** 재신청/이의제기 가능 여부 (선택적) */
+            Boolean canAppeal
+    ) {}
     
     /**
      * 검토자 정보 (선택적)
      */
-    @Getter
-    @Setter
-    @Builder
-    @NoArgsConstructor
-    @AllArgsConstructor
-    public static class Reviewer {
-        /** 관리자 ID */
-        private String id;
-        /** 관리자명 */
-        private String name;
-    }
+    public record Reviewer(
+            /** 관리자 ID */
+            String id,
+            /** 관리자명 */
+            String name
+    ) {}
 }

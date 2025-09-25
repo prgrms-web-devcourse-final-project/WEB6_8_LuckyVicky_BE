@@ -2,8 +2,6 @@ package com.back.domain.dashboard.customer.dto.response;
 
 import com.back.global.util.PageResponse;
 
-import lombok.*;
-
 /**
  * 주문 관련 응답 DTO
  * 
@@ -15,18 +13,19 @@ public class OrderResponse {
     /**
      * 주문 목록 응답
      */
-    @Getter
-    @Setter
     public static class List extends PageResponse<OrderResponse.Summary> {
         /** 주문 현황 요약 정보 */
-        private SummaryDto summary;
+        private final SummaryDto summary;
         /** 시간대 정보 */
-        private String timezone;
+        private final String timezone;
         /** 기간 정보 */
-        private PeriodInfo period;
+        private final PeriodInfo period;
         
         public List() {
             super();
+            this.summary = null;
+            this.timezone = null;
+            this.period = null;
         }
         
         public List(SummaryDto summary, java.util.List<Summary> content,
@@ -37,195 +36,155 @@ public class OrderResponse {
             this.timezone = timezone;
             this.period = period;
         }
+        
+        public SummaryDto getSummary() {
+            return summary;
+        }
+        
+        public String getTimezone() {
+            return timezone;
+        }
+        
+        public PeriodInfo getPeriod() {
+            return period;
+        }
     }
     
     /**
      * 주문 현황 요약 정보
      */
-    @Getter
-    @Setter
-    @Builder
-    @NoArgsConstructor
-    @AllArgsConstructor
-    public static class SummaryDto {
-        /** 전체 주문 건수 */
-        private int totalOrders;
-        /** 결제완료 건수 */
-        private int pending;
-        /** 발주 확인 건수 */
-        private int confirmed;
-        /** 배송준비중 건수 */
-        private int preparing;
-        /** 배송중 건수 */
-        private int shipped;
-        /** 배송완료 건수 */
-        private int delivered;
-        /** 취소된 건수 */
-        private int canceled;
-        
-        /** 취소 요청 건수 */
-        private int cancelRequested;
-        /** 취소 처리중 건수 */
-        private int cancelProcessing;
-        /** 취소 완료 건수 */
-        private int cancelCompleted;
-        
-        /** 교환 요청 건수 */
-        private int exchangeRequested;
-        /** 교환 처리중 건수 */
-        private int exchangeProcessing;
-        /** 교환 완료 건수 */
-        private int exchangeCompleted;
-    }
+    public record SummaryDto(
+            /** 전체 주문 건수 */
+            int totalOrders,
+            /** 결제완료 건수 */
+            int pending,
+            /** 발주 확인 건수 */
+            int confirmed,
+            /** 배송준비중 건수 */
+            int preparing,
+            /** 배송중 건수 */
+            int shipped,
+            /** 배송완료 건수 */
+            int delivered,
+            /** 취소된 건수 */
+            int canceled,
+            /** 취소 요청 건수 */
+            int cancelRequested,
+            /** 취소 처리중 건수 */
+            int cancelProcessing,
+            /** 취소 완료 건수 */
+            int cancelCompleted,
+            /** 교환 요청 건수 */
+            int exchangeRequested,
+            /** 교환 처리중 건수 */
+            int exchangeProcessing,
+            /** 교환 완료 건수 */
+            int exchangeCompleted
+    ) {}
     
     /**
      * 주문 요약 정보
      */
-    @Getter
-    @Setter
-    @Builder
-    @NoArgsConstructor
-    @AllArgsConstructor
-    public static class Summary {
-        private String orderId;
-        private String orderNumber;
-        private String orderDate;
-        private String status;
-        private String statusText;
-        private int totalAmount;
-        private int itemCount;
-        private Product representativeItem;
-        private Shipping shipping;
-        private Aftersales aftersales;
-        private Permission permissions;
-        private Link links;
-        private java.util.List<OrderItem> items;
-    }
+    public record Summary(
+            String orderId,
+            String orderNumber,
+            String orderDate,
+            String status,
+            String statusText,
+            int totalAmount,
+            int itemCount,
+            Product representativeItem,
+            Shipping shipping,
+            Aftersales aftersales,
+            Permission permissions,
+            Link links,
+            java.util.List<OrderItem> items
+    ) {}
     
     /**
      * 상품 정보
      */
-    @Getter
-    @Setter
-    @Builder
-    @NoArgsConstructor
-    @AllArgsConstructor
-    public static class Product {
-        private Long productId;
-        private String productName;
-        private int quantity;
-        private int price;
-        private String imageUrl;
-    }
+    public record Product(
+            Long productId,
+            String productName,
+            int quantity,
+            int price,
+            String imageUrl
+    ) {}
     
     /**
      * 배송 정보
      */
-    @Getter
-    @Setter
-    @Builder
-    @NoArgsConstructor
-    @AllArgsConstructor
-    public static class Shipping {
-        /** 축약된 주소 */
-        private String addressShort;
-        /** 수령인 */
-        private String recipient;
-    }
+    public record Shipping(
+            /** 축약된 주소 */
+            String addressShort,
+            /** 수령인 */
+            String recipient
+    ) {}
     
     /**
      * A/S 정보
      */
-    @Getter
-    @Setter
-    @Builder
-    @NoArgsConstructor
-    @AllArgsConstructor
-    public static class Aftersales {
-        /** 취소 정보 */
-        private AftersalesItem cancel;
-        /** 교환 정보 */
-        private AftersalesItem exchange;
-    }
+    public record Aftersales(
+            /** 취소 정보 */
+            AftersalesItem cancel,
+            /** 교환 정보 */
+            AftersalesItem exchange
+    ) {}
     
     /**
      * A/S 상세 정보
      */
-    @Getter
-    @Setter
-    @Builder
-    @NoArgsConstructor
-    @AllArgsConstructor
-    public static class AftersalesItem {
-        /** A/S 상태 */
-        private String status;
-        /** A/S 상태 텍스트 */
-        private String statusText;
-        /** A/S 요청 ID */
-        private Long requestId;
-    }
+    public record AftersalesItem(
+            /** A/S 상태 */
+            String status,
+            /** A/S 상태 텍스트 */
+            String statusText,
+            /** A/S 요청 ID */
+            Long requestId
+    ) {}
     
     /**
      * 기간 정보
      */
-    @Getter
-    @Setter
-    @Builder
-    @NoArgsConstructor
-    @AllArgsConstructor
-    public static class PeriodInfo {
-        /** 기간 타입 */
-        private String type;
-        /** 시작 날짜 */
-        private String from;
-        /** 종료 날짜 */
-        private String to;
-    }
+    public record PeriodInfo(
+            /** 기간 타입 */
+            String type,
+            /** 시작 날짜 */
+            String from,
+            /** 종료 날짜 */
+            String to
+    ) {}
     
     /**
      * 권한 정보
      */
-    @Getter
-    @Setter
-    @Builder
-    @NoArgsConstructor
-    @AllArgsConstructor
-    public static class Permission {
-        /** 취소 가능 여부 */
-        private Boolean canCancel;
-        /** 반품 가능 여부 */
-        private Boolean canReturn;
-        /** 교환 가능 여부 */
-        private Boolean canExchange;
-    }
+    public record Permission(
+            /** 취소 가능 여부 */
+            Boolean canCancel,
+            /** 반품 가능 여부 */
+            Boolean canReturn,
+            /** 교환 가능 여부 */
+            Boolean canExchange
+    ) {}
     
     /**
      * 링크 정보
      */
-    @Getter
-    @Setter
-    @Builder
-    @NoArgsConstructor
-    @AllArgsConstructor
-    public static class Link {
-        /** 상세 페이지 URL */
-        private String detail;
-    }
+    public record Link(
+            /** 상세 페이지 URL */
+            String detail
+    ) {}
     
     /**
      * 주문 상품 정보
      */
-    @Getter
-    @Setter
-    @Builder
-    @NoArgsConstructor
-    @AllArgsConstructor
-    public static class OrderItem {
-        private Long orderItemId;
-        private Long productId;
-        private String productName;
-        private int quantity;
-        private int price;
-        private String imageUrl;
-    }
+    public record OrderItem(
+            Long orderItemId,
+            Long productId,
+            String productName,
+            int quantity,
+            int price,
+            String imageUrl
+    ) {}
 }

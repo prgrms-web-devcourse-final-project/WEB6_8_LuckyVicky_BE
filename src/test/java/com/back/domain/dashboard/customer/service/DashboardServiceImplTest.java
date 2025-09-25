@@ -36,14 +36,14 @@ class DashboardServiceImplTest {
         // Then - 구조와 핵심 데이터 검증
         assertAll(
                 () -> assertThat(result).isNotNull(),
-                () -> assertThat(result.getProfile()).isNotNull(),
-                () -> assertThat(result.getContact()).isNotNull(),
-                () -> assertThat(result.getSecurity()).isNotNull(),
+                () -> assertThat(result.profile()).isNotNull(),
+                () -> assertThat(result.contact()).isNotNull(),
+                () -> assertThat(result.security()).isNotNull(),
                 // 비즈니스 로직 검증
-                () -> assertThat(result.getProfile().getUserId()).isEqualTo(10025L),
-                () -> assertThat(result.getContact().getEmail()).contains("@"),
-                () -> assertThat(result.getContact().getEmailVerified()).isTrue(),
-                () -> assertThat(result.getSecurity().getLastPasswordChangedAt()).isNotNull()
+                () -> assertThat(result.profile().userId()).isEqualTo(10025L),
+                () -> assertThat(result.contact().email()).contains("@"),
+                () -> assertThat(result.contact().emailVerified()).isTrue(),
+                () -> assertThat(result.security().lastPasswordChangedAt()).isNotNull()
         );
     }
 
@@ -60,12 +60,12 @@ class DashboardServiceImplTest {
 
         // Then - 부분 조회 로직 검증
         assertAll(
-                () -> assertThat(profileOnly.getProfile()).isNotNull(),
-                () -> assertThat(profileOnly.getContact()).isNull(),
-                () -> assertThat(profileOnly.getSecurity()).isNull(),
-                () -> assertThat(contactOnly.getProfile()).isNull(),
-                () -> assertThat(contactOnly.getContact()).isNotNull(),
-                () -> assertThat(contactOnly.getSecurity()).isNull()
+                () -> assertThat(profileOnly.profile()).isNotNull(),
+                () -> assertThat(profileOnly.contact()).isNull(),
+                () -> assertThat(profileOnly.security()).isNull(),
+                () -> assertThat(contactOnly.profile()).isNull(),
+                () -> assertThat(contactOnly.contact()).isNotNull(),
+                () -> assertThat(contactOnly.security()).isNull()
         );
     }
 
@@ -82,9 +82,9 @@ class DashboardServiceImplTest {
                 () -> assertThat(result.getSummary()).isNotNull(),
                 () -> assertThat(result.getContent()).isNotNull(),
                 // 통계 데이터 일관성
-                () -> assertThat(result.getSummary().getTotal()).isEqualTo(2),
-                () -> assertThat(result.getSummary().getPending() + result.getSummary().getApproved() + result.getSummary().getRejected())
-                        .isEqualTo(result.getSummary().getTotal()),
+                () -> assertThat(result.getSummary().total()).isEqualTo(2),
+                () -> assertThat(result.getSummary().pending() + result.getSummary().approved() + result.getSummary().rejected())
+                        .isEqualTo(result.getSummary().total()),
                 // 페이징 데이터
                 () -> assertThat(result.getContent()).hasSize(2),
                 () -> assertThat(result.getTotalElements()).isEqualTo(2),
@@ -108,14 +108,14 @@ class DashboardServiceImplTest {
                 () -> assertThat(result.getTimezone()).isEqualTo("Asia/Seoul"),
                 () -> assertThat(result.getPeriod()).isNotNull(),
                 // 통계 합계 검증
-                () -> assertThat(result.getSummary().getTotalOrders()).isEqualTo(25),
-                () -> assertThat(result.getSummary().getPending()).isNotNegative(),
-                () -> assertThat(result.getSummary().getCancelRequested()).isNotNegative(),
+                () -> assertThat(result.getSummary().totalOrders()).isEqualTo(25),
+                () -> assertThat(result.getSummary().pending()).isNotNegative(),
+                () -> assertThat(result.getSummary().cancelRequested()).isNotNegative(),
                 // 주문 구조 검증
                 () -> assertThat(result.getContent()).hasSize(1),
-                () -> assertThat(result.getContent().get(0).getOrderId()).isNotNull(),
-                () -> assertThat(result.getContent().get(0).getRepresentativeItem()).isNotNull(),
-                () -> assertThat(result.getContent().get(0).getItems()).isNotEmpty()
+                () -> assertThat(result.getContent().getFirst().orderId()).isNotNull(),
+                () -> assertThat(result.getContent().getFirst().representativeItem()).isNotNull(),
+                () -> assertThat(result.getContent().getFirst().items()).isNotEmpty()
         );
     }
 
@@ -133,13 +133,13 @@ class DashboardServiceImplTest {
                 () -> assertThat(result.getSummary()).isNotNull(),
                 () -> assertThat(result.getContent()).isNotNull(),
                 // 프로필 정보
-                () -> assertThat(result.getProfile().getUserId()).isEqualTo("abc123"),
-                () -> assertThat(result.getProfile().getNickname()).isNotBlank(),
+                () -> assertThat(result.getProfile().userId()).isEqualTo("abc123"),
+                () -> assertThat(result.getProfile().nickname()).isNotBlank(),
                 // 팔로우 관계 검증
-                () -> assertThat(result.getSummary().getTotalFollowing()).isEqualTo(5),
+                () -> assertThat(result.getSummary().totalFollowing()).isEqualTo(5),
                 () -> assertThat(result.getContent()).hasSize(2),
-                () -> assertThat(result.getContent().get(0).getFollowRelation().getStatus()).isEqualTo("FOLLOWING"),
-                () -> assertThat(result.getContent().get(0).getFollowerCount()).isNotNegative()
+                () -> assertThat(result.getContent().getFirst().followRelation().status()).isEqualTo("FOLLOWING"),
+                () -> assertThat(result.getContent().getFirst().followerCount()).isNotNegative()
         );
     }
 
@@ -156,7 +156,7 @@ class DashboardServiceImplTest {
                 () -> assertThat(result.getSummary()).isNotNull(),
                 () -> assertThat(result.getContent()).isNotNull(),
                 () -> assertThat(result.getBulkActions()).isNotNull(),
-                () -> assertThat(result.getSummary().getTotalWishItems()).isEqualTo(15),
+                () -> assertThat(result.getSummary().totalWishItems()).isEqualTo(15),
                 () -> assertThat(result.getContent()).hasSize(2),
                 () -> assertThat(result.getBulkActions()).hasSize(1)
         );
@@ -175,14 +175,14 @@ class DashboardServiceImplTest {
                 () -> assertThat(result.getSummary()).isNotNull(),
                 () -> assertThat(result.getContent()).isNotNull(),
                 // 통계 일관성 검증
-                () -> assertThat(result.getSummary().getTotalParticipations()).isEqualTo(8),
-                () -> assertThat(result.getSummary().getActive() + result.getSummary().getEnded() 
-                        + result.getSummary().getFulfilling() + result.getSummary().getFulfilled())
-                        .isLessThanOrEqualTo(result.getSummary().getTotalParticipations()),
+                () -> assertThat(result.getSummary().totalParticipations()).isEqualTo(8),
+                () -> assertThat(result.getSummary().active() + result.getSummary().ended() 
+                        + result.getSummary().fulfilling() + result.getSummary().fulfilled())
+                        .isLessThanOrEqualTo(result.getSummary().totalParticipations()),
                 // 메타데이터 구조 검증
-                () -> assertThat(result.getContent().get(0).getMeta()).isNotNull(),
-                () -> assertThat(result.getContent().get(0).getMeta().getUserPledge()).isNotNull(),
-                () -> assertThat(result.getContent().get(0).getMeta().getPermissions()).isNotNull()
+                () -> assertThat(result.getContent().getFirst().meta()).isNotNull(),
+                () -> assertThat(result.getContent().getFirst().meta().userPledge()).isNotNull(),
+                () -> assertThat(result.getContent().getFirst().meta().permissions()).isNotNull()
         );
     }
 
@@ -195,9 +195,9 @@ class DashboardServiceImplTest {
         // Then - 금액 일관성 검증
         assertAll(
                 () -> assertThat(result).isNotNull(),
-                () -> assertThat(result.getCurrentBalance()).isNotNegative(),
-                () -> assertThat(result.getCurrency()).isEqualTo("KRW"),
-                () -> assertThat(result.getUpdatedAt()).isBeforeOrEqualTo(LocalDateTime.now())
+                () -> assertThat(result.currentBalance()).isNotNegative(),
+                () -> assertThat(result.currency()).isEqualTo("KRW"),
+                () -> assertThat(result.updatedAt()).isBeforeOrEqualTo(LocalDateTime.now())
         );
     }
 
@@ -214,14 +214,14 @@ class DashboardServiceImplTest {
                 () -> assertThat(result.getSummary()).isNotNull(),
                 () -> assertThat(result.getContent()).isNotNull(),
                 // 금액 일관성 검증
-                () -> assertThat(result.getSummary().getCurrentBalance()).isEqualTo(5),
-                () -> assertThat(result.getSummary().getPeriodTotalRecharge()).isNotNegative(),
-                () -> assertThat(result.getSummary().getPeriodTotalBonus()).isNotNegative(),
+                () -> assertThat(result.getSummary().currentBalance()).isEqualTo(5),
+                () -> assertThat(result.getSummary().periodTotalRecharge()).isNotNegative(),
+                () -> assertThat(result.getSummary().periodTotalBonus()).isNotNegative(),
                 // 거래 내역 검증
                 () -> assertThat(result.getContent()).hasSize(2),
-                () -> assertThat(result.getContent().get(0).getAmount()).isPositive(),
-                () -> assertThat(result.getContent().get(0).getStatus()).isNotBlank(),
-                () -> assertThat(result.getContent().get(0).getOccurredAt()).isNotNull()
+                () -> assertThat(result.getContent().getFirst().amount()).isPositive(),
+                () -> assertThat(result.getContent().getFirst().status()).isNotBlank(),
+                () -> assertThat(result.getContent().getFirst().occurredAt()).isNotNull()
         );
     }
 }
