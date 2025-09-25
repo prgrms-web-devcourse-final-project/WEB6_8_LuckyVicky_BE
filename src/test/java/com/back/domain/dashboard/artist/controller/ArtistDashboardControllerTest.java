@@ -38,7 +38,7 @@ class ArtistDashboardControllerTest {
     private static final String BEARER_TOKEN = "Bearer test-artist-token-123";
 
     // 공통 상수들
-    private static final String SUCCESS_CODE = "200-OK";
+    private static final String SUCCESS_CODE = "200";
     private static final int DEFAULT_PAGE = 0;
     private static final int DEFAULT_SIZE = 20;
 
