@@ -158,6 +158,11 @@ public class User extends BaseEntity {
         this.money = Math.max(0, money);
     }
 
+    // 개발용: 등급 변경 (임시)
+    public void changeGrade(Grade newGrade) {
+        this.grade = newGrade;
+    }
+
 
     // TODO: 정적 팩토리 메서드 - 소셜 로그인 구현
 }
