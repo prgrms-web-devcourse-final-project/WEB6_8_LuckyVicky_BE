@@ -37,7 +37,7 @@ public interface FundingRepository extends JpaRepository<Funding, Long>, JpaSpec
 
     // 제목으로 펀딩 검색
     @EntityGraph(attributePaths = {"user"})
-    Page<Funding> findByTitleContainingIgnoreCase(String title, Pageable pageable);
+    Funding findByTitleContainingIgnoreCase(String title);
 
     // 사용자별 펀딩 목록
     @EntityGraph(attributePaths = {"user"})

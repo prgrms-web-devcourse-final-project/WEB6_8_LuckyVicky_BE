@@ -16,12 +16,17 @@ public record FundingDetailResponse(
         Long id, // 펀딩 ID
         String title, // 펀딩 제목
         String description, // 펀딩 설명
+        String imageUrl, // 펀딩 이미지 URL
+//        String categoryName, // 카테고리 이름
         long targetAmount, // 목표 금액
         long currentAmount, // 현재 모인 금액
         int participants, // 참여자 수
+        @JsonFormat(shape = JsonFormat.Shape.STRING, pattern = "yyyy-MM-dd HH:mm:ss")
+        LocalDateTime startDate, // 펀딩 시작일
+        @JsonFormat(shape = JsonFormat.Shape.STRING, pattern = "yyyy-MM-dd HH:mm:ss")
+        LocalDateTime endDate, // 펀딩 종료일
         int remainingDays, // 남은 일수
         double progress, // 진행률 (currentAmount / targetAmount * 100)
-        String imageUrl, // 펀딩 이미지 URL
         FundingStatus status, // 펀딩 상태
         AuthorDto author, // 작성자 정보
         List<FundingOptionDto> options, // 펀딩 옵션 목록
@@ -39,12 +44,15 @@ public record FundingDetailResponse(
                 funding.getId(),
                 funding.getTitle(),
                 funding.getDescription(),
+                funding.getImageUrl(),
+//                funding.getCategory().getCategoryName(),
                 funding.getTargetAmount(),
                 currentAmount,
                 participants,
+                funding.getStartDate(),
+                funding.getEndDate(),
                 remainingDays,
                 progress,
-                funding.getImageUrl(),
                 funding.getStatus(),
                 AuthorDto.from(funding.getUser()),
                 funding.getOptions().stream().map(FundingOptionDto::new).collect(Collectors.toList()),
@@ -77,7 +85,7 @@ public record FundingDetailResponse(
             LocalDateTime createDate
     ) {
         public FundingNewsDto(FundingNews update) {
-            this(update.getId(), update.getAuthor().getName(), update.getTitle(), update.getContent(), update.getImageUrl(), update.getCreateDate());
+            this(update.getId(), update.getArtist().getName(), update.getTitle(), update.getContent(), update.getImageUrl(), update.getCreateDate());
         }
     }
 

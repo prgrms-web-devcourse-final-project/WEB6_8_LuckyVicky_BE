@@ -7,9 +7,9 @@ import com.back.domain.auth.dto.response.AuthResponse;
 import com.back.domain.auth.dto.response.SignUpResponse;
 import com.back.domain.auth.service.AuthService;
 import com.back.domain.user.entity.Role;
+import com.back.global.exception.ServiceException;
 import com.back.global.rsData.RsData;
 import com.back.global.security.auth.CustomUserDetails;
-import com.back.global.util.IpUtils;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -53,14 +53,13 @@ public class AuthController {
                 request.name(),
                 request.phone(),
                 request.privacyRequiredAgreed(),
-                request.marketingAgreed(),
-                IpUtils.getClientIp(httpServletRequest)
+                request.marketingAgreed()
         );
 
         SignUpResponse response = authService.signUp(requestWithIp);
 
         return ResponseEntity.ok(
-                RsData.of("200-ok", "회원가입 성공", response)
+                RsData.of("201", "회원가입 성공", response)
         );
     }
 
@@ -82,8 +81,7 @@ public class AuthController {
         LoginRequest request = new LoginRequest(
                 loginRequest.email(),
                 loginRequest.password(),
-                selectedRole,
-                IpUtils.getClientIp(httpServletRequest)
+                selectedRole
         );
 
         AuthResponse response = authService.login(request);
@@ -95,7 +93,7 @@ public class AuthController {
         return ResponseEntity.ok()
                 .header("Set-Cookie", refreshTokenCookie.toString())
                 .header("Set-Cookie", accessTokenCookie.toString())
-                .body(RsData.of("200-ok", "로그인 성공", response));
+                .body(RsData.of("200", "로그인 성공", response));
     }
 
     /**
@@ -111,7 +109,7 @@ public class AuthController {
         return ResponseEntity.ok()
                 .header("Set-Cookie", deleteCookie("refreshToken").toString())
                 .header("Set-Cookie", deleteCookie("accessToken").toString())
-                .body(RsData.of("200-ok", "로그아웃 성공"));
+                .body(RsData.of("200", "로그아웃 성공"));
     }
 
     /**
@@ -125,9 +123,7 @@ public class AuthController {
     ) {
         // null 체크 및 인증 여부 확인
         if (authentication == null || !authentication.isAuthenticated()) {
-            return ResponseEntity.status(401).body(
-                    RsData.of("401-unauthorized", "인증이 필요합니다.")
-            );
+            throw new ServiceException("401", "인증이 필요합니다.");
         }
 
         CustomUserDetails userDetails = (CustomUserDetails) authentication.getPrincipal();
@@ -137,7 +133,7 @@ public class AuthController {
         return ResponseEntity.ok()
                 .header("Set-Cookie", deleteCookie("refreshToken").toString())
                 .header("Set-Cookie", deleteCookie("accessToken").toString())
-                .body(RsData.of("200-ok", "전체 로그아웃 성공"));
+                .body(RsData.of("200", "전체 로그아웃 성공"));
     }
 
     /**
@@ -157,7 +153,7 @@ public class AuthController {
         return ResponseEntity.ok()
                 .header("Set-Cookie", refreshTokenCookie.toString())
                 .header("Set-Cookie", accessTokenCookie.toString())
-                .body(RsData.of("200-ok", "토큰 재발급 성공", response));
+                .body(RsData.of("200", "토큰 재발급 성공", response));
     }
 
 
