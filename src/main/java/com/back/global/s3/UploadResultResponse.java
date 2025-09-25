@@ -5,7 +5,7 @@ public record UploadResultResponse(
         String url,
         String thumbnailUrl,
         FileType type,
-        String key,
+        String s3Key,
         String originalFileName
 ) {
 }

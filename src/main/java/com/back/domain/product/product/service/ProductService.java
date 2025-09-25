@@ -7,14 +7,20 @@ import com.back.domain.product.product.entity.*;
 import com.back.domain.product.product.repository.ProductRepository;
 import com.back.domain.product.tag.entity.Tag;
 import com.back.domain.product.tag.repository.TagRepository;
+import com.back.domain.user.entity.Role;
 import com.back.domain.user.entity.User;
+import com.back.domain.user.repository.UserRepository;
+import com.back.global.s3.FileType;
 import com.back.global.s3.S3ValidationService;
 import com.back.global.security.auth.CustomUserDetails;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 @Service
@@ -25,17 +31,22 @@ public class ProductService {
     private final CategoryRepository categoryRepository;
     private final TagRepository TagRepository;
     private final S3ValidationService s3ValidationService;
+    private final UserRepository userRepository;
 
     // 상품 등록
     @Transactional
     public Long createProduct(CreateProductRequest request, CustomUserDetails customUserDetails) {
 
+        // 현재 로그인한 사용자 (=상품 등록한 작가)
+        User user = customUserDetails.getUser();
+        // 권한 체크(ARTIST,ADMIN,ROOT만 상품 등록 가능)
+        if (!Set.of(Role.ARTIST, Role.ADMIN, Role.ROOT).contains(user.getRole())) {
+            throw new IllegalStateException("상품 등록 권한이 없습니다.");
+        }
+
         // 존재하는 카테고리인지 검증
         Category category = categoryRepository.findById(request.categoryId())
                 .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 카테고리입니다."));
-
-        // 현재 로그인한 사용자 (=상품 등록한 작가)
-        User user = customUserDetails.getUser();
 
         // Product 생성
         Product product = Product.builder()
@@ -79,6 +90,9 @@ public class ProductService {
                             .optionAdditionalPrice(o.optionAdditionalPrice())
                             .build())
                     .collect(Collectors.toList());
+            if (product.getOptions() == null) {
+                product.setOptions(new ArrayList<>());
+            }
             product.getOptions().addAll(options);
         }
 
@@ -92,6 +106,9 @@ public class ProductService {
                             .additionalPrice(a.additionalProductPrice())
                             .build())
                     .collect(Collectors.toList());
+            if (product.getAdditionalProducts() == null) {
+                product.setAdditionalProducts(new ArrayList<>());
+            }
             product.getAdditionalProducts().addAll(additionalProducts);
         }
 
@@ -108,25 +125,30 @@ public class ProductService {
                                 .build();
                     })
                     .toList();
+            if (product.getProductTags() == null) {
+                product.setProductTags(new HashSet<>());
+            }
             product.getProductTags().addAll(tagMappings);
         }
 
         // 이미지 저장
         if (request.images() != null && !request.images().isEmpty()) {
             for (var img : request.images()) {
-                s3ValidationService.validateFileExists(img.key()); // S3에 파일 존재 여부 검증
+                s3ValidationService.validateFileExists(img.s3Key());
 
-                ProductImage productImage = new ProductImage(
-                        product,
-                        img.url(),
-                        img.type(),
-                        img.key() != null ? img.key() : "",
-                        img.originalFileName() != null ? img.originalFileName() : ""
-                );
+                ProductImage productImage = ProductImage.builder()
+                        .product(product)
+                        .fileUrl(img.url())
+                        .fileType(img.type())
+                        .s3Key(img.s3Key() != null ? img.s3Key() : "")
+                        .originalFilename(img.originalFileName() != null ? img.originalFileName() : "")
+                        .build();
+                if (product.getImages() == null) {
+                    product.setImages(new ArrayList<>());
+                }
                 product.getImages().add(productImage);
             }
         }
-
 
         // cascade로 옵션, 추가상품, 이미지, 태그까지 같이 저장됨
         productRepository.save(product);
@@ -134,4 +156,16 @@ public class ProductService {
         // 등록된 상품의 pk 반환
         return product.getId();
     }
+
+
+    @Transactional(readOnly = true)
+    public ProductImage getProductDocument(Long productId) {
+        Product product = productRepository.findById(productId)
+                .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 상품입니다. ID: " + productId));
+        return product.getImages().stream()
+                .filter(img -> img.getFileType() == FileType.DOCUMENT)
+                .findFirst()
+                .orElseThrow(() -> new IllegalArgumentException("다운로드할 문서가 존재하지 않습니다."));
+    }
+
 }

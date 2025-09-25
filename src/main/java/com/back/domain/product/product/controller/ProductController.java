@@ -1,6 +1,7 @@
 package com.back.domain.product.product.controller;
 
 import com.back.domain.product.product.dto.CreateProductRequest;
+import com.back.domain.product.product.entity.ProductImage;
 import com.back.domain.product.product.service.ProductService;
 import com.back.global.rsData.RsData;
 import com.back.global.s3.FileType;
@@ -45,4 +46,16 @@ public class ProductController {
         return ResponseEntity.ok(RsData.of("200","이미지 업로드 성공",uploaded));
     }
 
+    @GetMapping("/images/download/{productId}")
+    @Operation(summary = "상품 문서 다운로드(테스트용)")
+    public ResponseEntity<byte[]> downloadProductDocument(@PathVariable Long productId) {
+        ProductImage document = productService.getProductDocument(productId);
+        // s3에서 파일 다운로드
+        byte[] fileBytes = s3Service.downloadFile(document.getS3Key());
+        //원본 파일명으로 응담
+        return ResponseEntity.ok()
+                .header("Content-Disposition", "attachment; filename=\"" + document.getOriginalFilename() + "\"") // 브라우저가 파일 다운로드 처리하게함
+                .header("Content-Type", "application/octet-stream") // 바이너리 데이터임을 나타냄
+                .body(fileBytes); // 실제 파일 바이트
+    }
 }

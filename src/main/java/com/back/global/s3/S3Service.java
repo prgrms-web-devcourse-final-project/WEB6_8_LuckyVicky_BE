@@ -91,10 +91,10 @@ public class S3Service {
         String contentType = file.getContentType() != null ? file.getContentType() : "application/octet-stream";
 
         // S3 Key 생성 (UUID 사용)
-        String key = folder + "/" + UUID.randomUUID() + "." + extension;
-        putS3Object(file.getBytes(), key, contentType);
+        String s3Key = folder + "/" + UUID.randomUUID() + "." + extension;
+        putS3Object(file.getBytes(), s3Key, contentType);
 
-        String url = s3Client.utilities().getUrl(b -> b.bucket(bucketName).key(key)).toString();
+        String url = s3Client.utilities().getUrl(b -> b.bucket(bucketName).key(s3Key)).toString();
 
         String thumbnailUrl = null;
         if (category == FileCategory.IMAGE && type == FileType.MAIN) {
@@ -104,7 +104,7 @@ public class S3Service {
             thumbnailUrl = s3Client.utilities().getUrl(b -> b.bucket(bucketName).key(thumbKey)).toString();
         }
 
-        return new UploadResultResponse(url, thumbnailUrl, type, key, originalFilename);
+        return new UploadResultResponse(url, thumbnailUrl, type, s3Key, originalFilename);
     }
     /**
      * 실제 파일 업로드 담당

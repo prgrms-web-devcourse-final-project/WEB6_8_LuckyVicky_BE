@@ -18,21 +18,21 @@ public class S3ValidationService {
 
     /**
      * S3에 해당 key의 파일이 존재하는지 확인하는 메서드
-     * @param key S3 객체 키
+     * @param s3Key S3 객체 키
      * @return 존재하면 true
      * @throws IllegalArgumentException 존재하지 않으면 예외 발생
      */
-    public boolean validateFileExists(String key) {
+    public boolean validateFileExists(String s3Key) {
         try {
             HeadObjectRequest request = HeadObjectRequest.builder()
                     .bucket(bucketName)
-                    .key(key)
+                    .key(s3Key)
                     .build();
 
             s3Client.headObject(request);
             return true;
         } catch (NoSuchKeyException e) {
-            throw new IllegalArgumentException("S3에 파일이 존재하지 않습니다. key=" + key);
+            throw new IllegalArgumentException("S3에 파일이 존재하지 않습니다. key=" + s3Key);
         }
     }
 }
