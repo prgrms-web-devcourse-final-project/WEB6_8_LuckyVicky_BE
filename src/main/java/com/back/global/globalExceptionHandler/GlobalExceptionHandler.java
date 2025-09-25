@@ -1,5 +1,6 @@
 package com.back.global.globalExceptionHandler;
 
+import com.back.global.exception.ServiceException;
 import com.back.global.rsData.RsData;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
@@ -33,7 +34,12 @@ public class GlobalExceptionHandler {
         log.warn("Bad Request: {} at {}", e.getMessage(), request.getRequestURI());
 
         return ResponseEntity.badRequest()
-                .body(RsData.of("400", e.getMessage()));
+                .body(RsData.of(
+                        "400",
+                        e.getMessage(), 
+                        null
+                ));
+
     }
 
     /**
@@ -53,7 +59,12 @@ public class GlobalExceptionHandler {
         log.warn("Validation Error: {} at {}", errorMessage, request.getRequestURI());
 
         return ResponseEntity.badRequest()
-                .body(RsData.of("400", errorMessage));
+
+                .body(RsData.of(
+                        "400",
+                        errorMessage, 
+                        null
+                ));
     }
 
     /**
@@ -68,7 +79,12 @@ public class GlobalExceptionHandler {
         log.warn("Type Mismatch: {} at {}", message, request.getRequestURI());
 
         return ResponseEntity.badRequest()
-                .body(RsData.of("400", message));
+
+                .body(RsData.of(
+                        "400",
+                        message, 
+                        null
+                ));
     }
 
     /**
@@ -81,7 +97,11 @@ public class GlobalExceptionHandler {
         log.warn("Not Found: {} at {}", e.getMessage(), request.getRequestURI());
 
         return ResponseEntity.status(HttpStatus.NOT_FOUND)
-                .body(RsData.of("404", "요청한 리소스를 찾을 수 없습니다."));
+                .body(RsData.of(
+                        "404",
+                        "요청한 리소스를 찾을 수 없습니다.", 
+                        null
+                ));
     }
 
     /**
@@ -94,7 +114,11 @@ public class GlobalExceptionHandler {
         log.error("Internal Server Error: {} at {}", e.getMessage(), request.getRequestURI(), e);
 
         return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                .body(RsData.of("500", "서버 내부 오류가 발생했습니다."));
+                .body(RsData.of(
+                        "500",
+                        "서버 내부 오류가 발생했습니다.", 
+                        null
+                ));
     }
 
     /**
@@ -120,6 +144,25 @@ public class GlobalExceptionHandler {
         log.warn("Business Exception: {} - {} at {}", e.getCode(), e.getMessage(), request.getRequestURI());
 
         return ResponseEntity.badRequest()
-                .body(RsData.of(e.getCode(), e.getMessage()));
+                .body(RsData.of(
+                        e.getCode(),
+                        e.getMessage(),
+                        null
+                ));
+    }
+
+    /**
+     * ServiceException 처리 - 비즈니스 로직 예외를 적절한 HTTP 상태 코드로 변환
+     */
+    @ExceptionHandler(ServiceException.class)
+    public ResponseEntity<RsData<Void>> handleServiceException(ServiceException ex, HttpServletRequest request) {
+
+        log.warn("ServiceException: {} - {} at {}",
+                ex.getResultCode(), ex.getMsg(), request.getRequestURI());
+
+        return new ResponseEntity<>(
+                ex.getRsData(),
+                ResponseEntity.status(ex.getRsData().statusCode()).build().getStatusCode()
+        );
     }
 }

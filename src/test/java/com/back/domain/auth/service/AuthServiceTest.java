@@ -35,13 +35,13 @@ import static org.mockito.Mockito.never;
 
 @ExtendWith(MockitoExtension.class)
 @DisplayName("AuthService 단위 테스트")
-class AuthServiceImplTest {
+class AuthServiceTest {
 
     @Mock private UserRepository userRepository;
     @Mock private UserTokenRepository userTokenRepository;
     @Mock private JwtTokenProvider jwtTokenProvider;
     @Mock private PasswordEncoder passwordEncoder;
-    @InjectMocks private AuthServiceImpl authService;
+    @InjectMocks private AuthService authService;
 
     @BeforeEach
     void setUp() {
@@ -57,7 +57,7 @@ class AuthServiceImplTest {
         void setUp() {
             validSignUpRequest = new SignUpRequest(
                     "test@example.com", "password123!", "password123!",
-                    "testUser", "010-1234-5678", true, false, "127.0.0.1"
+                    "testUser", "010-1234-5678", true, false
             );
         }
 
@@ -70,7 +70,7 @@ class AuthServiceImplTest {
             given(userRepository.existsByPhone(validSignUpRequest.phone())).willReturn(false);
             given(passwordEncoder.encode(validSignUpRequest.password())).willReturn("encodedPassword");
             
-            User savedUser = User.createLocalUser("test@example.com", "encodedPassword", "testUser", "010-1234-5678", "127.0.0.1");
+            User savedUser = User.createLocalUser("test@example.com", "encodedPassword", "testUser", "010-1234-5678");
             ReflectionTestUtils.setField(savedUser, "id", 1L);
             given(userRepository.save(any(User.class))).willReturn(savedUser);
 
@@ -96,7 +96,7 @@ class AuthServiceImplTest {
                     .isInstanceOf(ServiceException.class)
                     .satisfies(ex -> {
                         ServiceException serviceEx = (ServiceException) ex;
-                        assertThat(serviceEx.getResultCode()).isEqualTo("EMAIL_ALREADY_EXISTS");
+                        assertThat(serviceEx.getResultCode()).isEqualTo("409");
                         assertThat(serviceEx.getMsg()).isEqualTo("이미 사용 중인 이메일입니다.");
                     });
         }
@@ -107,7 +107,7 @@ class AuthServiceImplTest {
             // given
             SignUpRequest request = new SignUpRequest(
                     "test@example.com", "password123!", "differentPassword!",
-                    "testUser", "010-1234-5678", true, false, "127.0.0.1"
+                    "testUser", "010-1234-5678", true, false
             );
 
             // when & then
@@ -115,7 +115,7 @@ class AuthServiceImplTest {
                     .isInstanceOf(ServiceException.class)
                     .satisfies(ex -> {
                         ServiceException serviceEx = (ServiceException) ex;
-                        assertThat(serviceEx.getResultCode()).isEqualTo("PASSWORD_MISMATCH");
+                        assertThat(serviceEx.getResultCode()).isEqualTo("400");
                         assertThat(serviceEx.getMsg()).isEqualTo("비밀번호가 일치하지 않습니다.");
                     });
         }
@@ -126,7 +126,7 @@ class AuthServiceImplTest {
             // given
             SignUpRequest request = new SignUpRequest(
                     "test@example.com", "password123!", "password123!",
-                    "testUser", "010-1234-5678", false, false, "127.0.0.1"
+                    "testUser", "010-1234-5678", false, false
             );
 
             // when & then
@@ -134,7 +134,7 @@ class AuthServiceImplTest {
                     .isInstanceOf(ServiceException.class)
                     .satisfies(ex -> {
                         ServiceException serviceEx = (ServiceException) ex;
-                        assertThat(serviceEx.getResultCode()).isEqualTo("REQUIRED_TERMS_NOT_AGREED");
+                        assertThat(serviceEx.getResultCode()).isEqualTo("400");
                         assertThat(serviceEx.getMsg()).isEqualTo("필수 약관에 동의해야 합니다.");
                     });
         }
@@ -147,8 +147,8 @@ class AuthServiceImplTest {
         @DisplayName("정상적인 로그인 성공")
         void login_Success() {
             // given
-            LoginRequest loginRequest = new LoginRequest("test@example.com", "password123!", Role.USER, "127.0.0.1");
-            User testUser = User.createLocalUser("test@example.com", "encodedPassword", "testUser", "010-1234-5678", "127.0.0.1");
+            LoginRequest loginRequest = new LoginRequest("test@example.com", "password123!", Role.USER);
+            User testUser = User.createLocalUser("test@example.com", "encodedPassword", "testUser", "010-1234-5678");
             ReflectionTestUtils.setField(testUser, "id", 1L);
 
             given(userRepository.findByEmail(loginRequest.email())).willReturn(Optional.of(testUser));
@@ -170,7 +170,7 @@ class AuthServiceImplTest {
         @DisplayName("존재하지 않는 사용자로 로그인 실패")
         void login_UserNotFound() {
             // given
-            LoginRequest loginRequest = new LoginRequest("test@example.com", "password123!", Role.USER, "127.0.0.1");
+            LoginRequest loginRequest = new LoginRequest("test@example.com", "password123!", Role.USER);
             given(userRepository.findByEmail(loginRequest.email())).willReturn(Optional.empty());
 
             // when & then
@@ -178,7 +178,7 @@ class AuthServiceImplTest {
                     .isInstanceOf(ServiceException.class)
                     .satisfies(ex -> {
                         ServiceException serviceEx = (ServiceException) ex;
-                        assertThat(serviceEx.getResultCode()).isEqualTo("USER_NOT_FOUND");
+                        assertThat(serviceEx.getResultCode()).isEqualTo("401");
                         assertThat(serviceEx.getMsg()).isEqualTo("사용자를 찾을 수 없습니다.");
                     });
         }
@@ -187,8 +187,8 @@ class AuthServiceImplTest {
         @DisplayName("잘못된 비밀번호로 로그인 실패")
         void login_WrongPassword() {
             // given
-            LoginRequest loginRequest = new LoginRequest("test@example.com", "wrongPassword!", Role.USER, "127.0.0.1");
-            User testUser = User.createLocalUser("test@example.com", "encodedPassword", "testUser", "010-1234-5678", "127.0.0.1");
+            LoginRequest loginRequest = new LoginRequest("test@example.com", "wrongPassword!", Role.USER);
+            User testUser = User.createLocalUser("test@example.com", "encodedPassword", "testUser", "010-1234-5678");
             ReflectionTestUtils.setField(testUser, "id", 1L);
 
             given(userRepository.findByEmail(loginRequest.email())).willReturn(Optional.of(testUser));
@@ -199,7 +199,7 @@ class AuthServiceImplTest {
                     .isInstanceOf(ServiceException.class)
                     .satisfies(ex -> {
                         ServiceException serviceEx = (ServiceException) ex;
-                        assertThat(serviceEx.getResultCode()).isEqualTo("INVALID_CREDENTIALS");
+                        assertThat(serviceEx.getResultCode()).isEqualTo("401");
                         assertThat(serviceEx.getMsg()).isEqualTo("이메일 또는 비밀번호가 잘못되었습니다.");
                     });
         }
@@ -213,7 +213,7 @@ class AuthServiceImplTest {
         void logout_Success() {
             // given
             String refreshToken = "validRefreshToken";
-            User testUser = User.createLocalUser("test@example.com", "encodedPassword", "testUser", "010-1234-5678", "127.0.0.1");
+            User testUser = User.createLocalUser("test@example.com", "encodedPassword", "testUser", "010-1234-5678");
             ReflectionTestUtils.setField(testUser, "id", 1L);
 
             UserToken userToken = UserToken.createRefreshToken(
@@ -274,7 +274,7 @@ class AuthServiceImplTest {
         void refreshToken_Success() {
             // given
             TokenRefreshRequest request = new TokenRefreshRequest("validRefreshToken");
-            User testUser = User.createLocalUser("test@example.com", "encodedPassword", "testUser", "010-1234-5678", "127.0.0.1");
+            User testUser = User.createLocalUser("test@example.com", "encodedPassword", "testUser", "010-1234-5678");
             ReflectionTestUtils.setField(testUser, "id", 1L);
 
             UserToken userToken = UserToken.createRefreshToken(
@@ -318,7 +318,7 @@ class AuthServiceImplTest {
                     .isInstanceOf(ServiceException.class)
                     .satisfies(ex -> {
                         ServiceException serviceEx = (ServiceException) ex;
-                        assertThat(serviceEx.getResultCode()).isEqualTo("INVALID_REFRESH_TOKEN");
+                        assertThat(serviceEx.getResultCode()).isEqualTo("401");
                         assertThat(serviceEx.getMsg()).isEqualTo("유효하지 않은 RefreshToken 입니다.");
                     });
         }
@@ -328,7 +328,7 @@ class AuthServiceImplTest {
         void refreshToken_ExpiredToken() {
             // given
             TokenRefreshRequest request = new TokenRefreshRequest("expiredRefreshToken");
-            User testUser = User.createLocalUser("test@example.com", "encodedPassword", "testUser", "010-1234-5678", "127.0.0.1");
+            User testUser = User.createLocalUser("test@example.com", "encodedPassword", "testUser", "010-1234-5678");
             ReflectionTestUtils.setField(testUser, "id", 1L);
 
             // 만료된 토큰 생성 (과거 시간으로 설정)
@@ -341,19 +341,18 @@ class AuthServiceImplTest {
 
             given(userTokenRepository.findByRefreshTokenAndIsActiveTrue(request.refreshToken()))
                     .willReturn(Optional.of(expiredToken));
-            given(userTokenRepository.save(any(UserToken.class))).willReturn(expiredToken);
 
             // when & then
             assertThatThrownBy(() -> authService.refreshToken(request))
                     .isInstanceOf(ServiceException.class)
                     .satisfies(ex -> {
                         ServiceException serviceEx = (ServiceException) ex;
-                        assertThat(serviceEx.getResultCode()).isEqualTo("EXPIRED_REFRESH_TOKEN");
+                        assertThat(serviceEx.getResultCode()).isEqualTo("401");
                         assertThat(serviceEx.getMsg()).isEqualTo("RefreshToken이 만료되었습니다.");
                     });
 
-            // 만료된 토큰이 비활성화되는지 확인
-            verify(userTokenRepository).save(expiredToken);
+            // 만료된 토큰이 삭제되는지 확인
+            verify(userTokenRepository).delete(expiredToken);
         }
     }
 }
