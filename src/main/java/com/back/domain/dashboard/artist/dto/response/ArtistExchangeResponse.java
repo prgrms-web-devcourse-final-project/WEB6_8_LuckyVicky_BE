@@ -16,11 +16,6 @@ public class ArtistExchangeResponse {
             Summary summary,
             /** 교환 요청 목록 */
             java.util.List<ExchangeRequest> content,
-<<<<<<< HEAD
-=======
-            /** 일괄 작업 옵션 */
-            java.util.List<BulkAction> bulkActions,
->>>>>>> e499333441d970159deadf1ba41779f3128785e8
             /** 페이지 번호 */
             int page,
             /** 페이지 크기 */
@@ -124,19 +119,4 @@ public class ArtistExchangeResponse {
             /** 거절 가능 여부 */
             boolean canReject
     ) {}
-<<<<<<< HEAD
-=======
-
-    /**
-     * 일괄 작업 옵션
-     */
-    public record BulkAction(
-            /** 액션 코드 */
-            String action,
-            /** 액션 라벨 */
-            String label,
-            /** 확인 필요 여부 */
-            boolean requiresConfirmation
-    ) {}
->>>>>>> e499333441d970159deadf1ba41779f3128785e8
 }

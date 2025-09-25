@@ -129,10 +129,6 @@ public class ArtistFundingResponseTest {
                 createSampleFunding(),
                 createSampleFunding()
         );
-<<<<<<< HEAD
-=======
-        List<ArtistFundingResponse.BulkAction> bulkActions = List.of(createSampleBulkAction());
->>>>>>> e499333441d970159deadf1ba41779f3128785e8
 
         // When
         ArtistFundingResponse.List response = new ArtistFundingResponse.List(
@@ -281,12 +277,5 @@ public class ArtistFundingResponseTest {
 
     private ArtistFundingResponse.Summary createSampleSummary() {
         return new ArtistFundingResponse.Summary(15, 8, 6, 1);
-<<<<<<< HEAD
-=======
-    }
-
-    private ArtistFundingResponse.BulkAction createSampleBulkAction() {
-        return new ArtistFundingResponse.BulkAction("REQUEST_SALE", "판매 요청", true);
->>>>>>> e499333441d970159deadf1ba41779f3128785e8
     }
 }

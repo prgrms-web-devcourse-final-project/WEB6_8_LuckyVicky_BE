@@ -16,11 +16,6 @@ public class ArtistCancellationResponse {
             Summary summary,
             /** 취소 요청 목록 */
             java.util.List<CancellationRequest> content,
-<<<<<<< HEAD
-=======
-            /** 일괄 작업 옵션 */
-            java.util.List<BulkAction> bulkActions,
->>>>>>> e499333441d970159deadf1ba41779f3128785e8
             /** 현재 페이지 */
             int page,
             /** 페이지 크기 */
@@ -114,19 +109,4 @@ public class ArtistCancellationResponse {
             /** 거절 가능 여부 */
             boolean canReject
     ) {}
-<<<<<<< HEAD
-=======
-
-    /**
-     * 일괄 작업 정보
-     */
-    public record BulkAction(
-            /** 작업 유형 */
-            String action,
-            /** 작업 라벨 */
-            String label,
-            /** 확인 필요 여부 */
-            boolean requiresConfirmation
-    ) {}
->>>>>>> e499333441d970159deadf1ba41779f3128785e8
 }
