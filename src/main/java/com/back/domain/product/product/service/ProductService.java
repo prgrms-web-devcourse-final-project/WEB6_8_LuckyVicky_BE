@@ -133,21 +133,24 @@ public class ProductService {
 
         // 이미지 저장
         if (request.images() != null && !request.images().isEmpty()) {
-            for (var img : request.images()) {
-                s3ValidationService.validateFileExists(img.s3Key());
+            List<ProductImage> images = request.images().stream()
+                    .map(imgRequest -> {
+                        s3ValidationService.validateFileExists(imgRequest.s3Key());
 
-                ProductImage productImage = ProductImage.builder()
-                        .product(product)
-                        .fileUrl(img.url())
-                        .fileType(img.type())
-                        .s3Key(img.s3Key() != null ? img.s3Key() : "")
-                        .originalFilename(img.originalFileName() != null ? img.originalFileName() : "")
-                        .build();
-                if (product.getImages() == null) {
-                    product.setImages(new ArrayList<>());
-                }
-                product.getImages().add(productImage);
+                        return ProductImage.builder()
+                                .product(product)
+                                .fileUrl(imgRequest.url())
+                                .fileType(imgRequest.type())
+                                .s3Key(imgRequest.s3Key())
+                                .originalFilename(imgRequest.originalFileName())
+                                .build();
+                    })
+                    .collect(Collectors.toList());
+
+            if (product.getImages() == null) {
+                product.setImages(new ArrayList<>());
             }
+            product.getImages().addAll(images);
         }
 
         // cascade로 옵션, 추가상품, 이미지, 태그까지 같이 저장됨

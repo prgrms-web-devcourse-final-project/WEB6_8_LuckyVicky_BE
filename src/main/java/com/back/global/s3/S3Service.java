@@ -9,6 +9,7 @@ import org.springframework.web.multipart.MultipartFile;
 import software.amazon.awssdk.core.ResponseBytes;
 import software.amazon.awssdk.core.sync.RequestBody;
 import software.amazon.awssdk.services.s3.S3Client;
+import software.amazon.awssdk.services.s3.model.DeleteObjectRequest;
 import software.amazon.awssdk.services.s3.model.GetObjectRequest;
 import software.amazon.awssdk.services.s3.model.GetObjectResponse;
 import software.amazon.awssdk.services.s3.model.PutObjectRequest;
@@ -63,6 +64,7 @@ public class S3Service {
                 .flatMap(List::stream)
                 .collect(Collectors.toList());
     }
+
 
     /**
      *  파일 업로드 시 비동기 처리 담당
@@ -146,7 +148,21 @@ public class S3Service {
     }
 
     /**
-     * 문서 전용 다운로드 메서드
+     * 파일 종류 구분 메서드
+     */
+    public enum FileCategory {
+        IMAGE, DOCUMENT, OTHER;
+
+        public static FileCategory fromExtension(String extension) {
+            String ext = extension.toLowerCase();
+            if (List.of("jpg","jpeg","png","gif","bmp","webp").contains(ext)) return IMAGE;
+            if (List.of("pdf","doc","docx","xls","xlsx","ppt","pptx","hwp").contains(ext)) return DOCUMENT;
+            return OTHER;
+        }
+    }
+
+    /**
+     * 다운로드 메서드 (문서 전용)
      */
     public byte[] downloadFile(String key) {
         try {
@@ -160,17 +176,18 @@ public class S3Service {
             throw new RuntimeException("파일 다운로드 실패: " + key, e);
         }
     }
-    /**
-     * 파일 종류 구분 메서드
-     */
-    public enum FileCategory {
-        IMAGE, DOCUMENT, OTHER;
 
-        public static FileCategory fromExtension(String extension) {
-            String ext = extension.toLowerCase();
-            if (List.of("jpg","jpeg","png","gif","bmp","webp").contains(ext)) return IMAGE;
-            if (List.of("pdf","doc","docx","xls","xlsx","ppt","pptx","hwp").contains(ext)) return DOCUMENT;
-            return OTHER;
+    /**
+     * S3에서 파일 삭제
+     */
+    public void deleteFile(String key) {
+        try {
+            s3Client.deleteObject(DeleteObjectRequest.builder()
+                    .bucket(bucketName)
+                    .key(key)
+                    .build());
+        } catch (Exception e) {
+            log.error("S3 파일 삭제 실패. key: {}", key, e);
         }
     }
 }
