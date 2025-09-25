@@ -34,12 +34,7 @@ public class GlobalExceptionHandler {
         log.warn("Bad Request: {} at {}", e.getMessage(), request.getRequestURI());
 
         return ResponseEntity.badRequest()
-                .body(RsData.of(
-                        "400",
-                        e.getMessage(), 
-                        null
-                ));
-
+                .body(RsData.of("400", e.getMessage()));
     }
 
     /**
@@ -59,12 +54,7 @@ public class GlobalExceptionHandler {
         log.warn("Validation Error: {} at {}", errorMessage, request.getRequestURI());
 
         return ResponseEntity.badRequest()
-
-                .body(RsData.of(
-                        "400",
-                        errorMessage, 
-                        null
-                ));
+                .body(RsData.of("400", errorMessage));
     }
 
     /**
@@ -79,12 +69,7 @@ public class GlobalExceptionHandler {
         log.warn("Type Mismatch: {} at {}", message, request.getRequestURI());
 
         return ResponseEntity.badRequest()
-
-                .body(RsData.of(
-                        "400",
-                        message, 
-                        null
-                ));
+                .body(RsData.of("400", message));
     }
 
     /**
@@ -97,11 +82,7 @@ public class GlobalExceptionHandler {
         log.warn("Not Found: {} at {}", e.getMessage(), request.getRequestURI());
 
         return ResponseEntity.status(HttpStatus.NOT_FOUND)
-                .body(RsData.of(
-                        "404",
-                        "요청한 리소스를 찾을 수 없습니다.", 
-                        null
-                ));
+                .body(RsData.of("404", "요청한 리소스를 찾을 수 없습니다."));
     }
 
     /**
@@ -114,11 +95,7 @@ public class GlobalExceptionHandler {
         log.error("Internal Server Error: {} at {}", e.getMessage(), request.getRequestURI(), e);
 
         return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                .body(RsData.of(
-                        "500",
-                        "서버 내부 오류가 발생했습니다.", 
-                        null
-                ));
+                .body(RsData.of("500", "서버 내부 오류가 발생했습니다."));
     }
 
     /**
@@ -144,11 +121,7 @@ public class GlobalExceptionHandler {
         log.warn("Business Exception: {} - {} at {}", e.getCode(), e.getMessage(), request.getRequestURI());
 
         return ResponseEntity.badRequest()
-                .body(RsData.of(
-                        e.getCode(),
-                        e.getMessage(),
-                        null
-                ));
+                .body(RsData.of(e.getCode(), e.getMessage()));
     }
 
     /**
@@ -160,9 +133,15 @@ public class GlobalExceptionHandler {
         log.warn("ServiceException: {} - {} at {}",
                 ex.getResultCode(), ex.getMsg(), request.getRequestURI());
 
-        return new ResponseEntity<>(
-                ex.getRsData(),
-                ResponseEntity.status(ex.getRsData().statusCode()).build().getStatusCode()
-        );
+        // resultCode에서 HTTP 상태 코드 추출 (예: "400" -> 400)
+        int statusCode;
+        try {
+            statusCode = Integer.parseInt(ex.getResultCode());
+        } catch (NumberFormatException e) {
+            statusCode = 400; // 기본값
+        }
+
+        return ResponseEntity.status(statusCode)
+                .body(ex.getRsData());
     }
 }
