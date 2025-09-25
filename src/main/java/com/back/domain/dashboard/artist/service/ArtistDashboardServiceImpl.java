@@ -7,6 +7,8 @@ import com.back.domain.dashboard.artist.dto.response.ArtistCashHistoryResponse;
 import com.back.domain.dashboard.artist.dto.response.ArtistOrderResponse;
 import com.back.domain.dashboard.artist.dto.response.ArtistCancellationResponse;
 import com.back.domain.dashboard.artist.dto.response.ArtistExchangeResponse;
+import com.back.domain.dashboard.artist.dto.response.ArtistSettingsResponse;
+import com.back.domain.dashboard.artist.dto.response.ArtistFundingResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -195,8 +197,8 @@ public class ArtistDashboardServiceImpl implements ArtistDashboardService {
 
     @Override
     public ArtistCashHistoryResponse.List getCashHistory(String authorization, int page, int size,
-                                                        String type, String status, String dateFrom,
-                                                        String dateTo, String sort, String order) {
+                                                         String type, String status, String dateFrom,
+                                                         String dateTo, String sort, String order) {
         // TODO: JWT 토큰에서 작가 정보 추출
         // TODO: 실제 데이터베이스에서 캐시 거래 내역 조회
 
@@ -249,8 +251,8 @@ public class ArtistDashboardServiceImpl implements ArtistDashboardService {
 
     @Override
     public ArtistOrderResponse.List getOrders(String authorization, int page, int size,
-                                             String status, String keyword, String startDate,
-                                             String endDate, String sort, String order) {
+                                              String status, String keyword, String startDate,
+                                              String endDate, String sort, String order) {
         // TODO: JWT 토큰에서 작가 정보 추출
         // TODO: 실제 데이터베이스에서 주문 목록 조회
 
@@ -304,8 +306,8 @@ public class ArtistDashboardServiceImpl implements ArtistDashboardService {
 
     @Override
     public ArtistCancellationResponse.List getCancellationRequests(String authorization, int page, int size,
-                                                                  String status, String keyword, String startDate,
-                                                                  String endDate, Long productId, String sort, String order) {
+                                                                   String status, String keyword, String startDate,
+                                                                   String endDate, Long productId, String sort, String order) {
         // TODO: JWT 토큰에서 작가 정보 추출
         // TODO: 실제 데이터베이스에서 취소 요청 목록 조회
 
@@ -373,8 +375,8 @@ public class ArtistDashboardServiceImpl implements ArtistDashboardService {
 
     @Override
     public ArtistExchangeResponse.List getExchangeRequests(String authorization, int page, int size,
-                                                          String status, String keyword, String startDate,
-                                                          String endDate, Long productId, String sort, String order) {
+                                                           String status, String keyword, String startDate,
+                                                           String endDate, Long productId, String sort, String order) {
         // TODO: JWT 토큰에서 작가 정보 추출
         // TODO: 실제 데이터베이스에서 교환 요청 목록 조회
 
@@ -441,5 +443,143 @@ public class ArtistDashboardServiceImpl implements ArtistDashboardService {
                 .hasNext(false)
                 .hasPrevious(false)
                 .build();
+    }
+
+    @Override
+    public ArtistSettingsResponse getSettings(String authorization) {
+        // TODO: JWT 토큰에서 작가 정보 추출
+        // TODO: 실제 데이터베이스에서 작가 설정 정보 조회
+
+        // 프로필 정보
+        ArtistSettingsResponse.Profile profile = ArtistSettingsResponse.Profile.builder()
+                .nickname("작가명입니다")
+                .bio("자신을 소개하는 글을 입력해주세요.")
+                .sns(Arrays.asList(
+                        ArtistSettingsResponse.Sns.builder()
+                                .platform("Instagram")
+                                .handle("@mori_official")
+                                .build()
+                ))
+                .profileImageUrl("https://cdn.example.com/u/5/profile.jpg")
+                .build();
+
+        // 사업자 정보
+        ArtistSettingsResponse.Business business = ArtistSettingsResponse.Business.builder()
+                .address("서울특별시 강남구 테헤란로 123 2층")
+                .businessRegistrationNo("123-45-67890")
+                .telemarketingReportNo("2025-서울강남-1234")
+                .verified(true)
+                .build();
+
+        // 정산 계좌 정보
+        ArtistSettingsResponse.Payout payout = ArtistSettingsResponse.Payout.builder()
+                .bankCode("088")
+                .bankName("신한")
+                .accountHolder("홍길동")
+                .accountMasked("****-****-**3456")
+                .status("VERIFIED")
+                .build();
+
+        // 권한 정보
+        ArtistSettingsResponse.Permissions permissions = ArtistSettingsResponse.Permissions.builder()
+                .canEditProfile(true)
+                .canEditBusiness(true)
+                .canEditPayout(true)
+                .build();
+
+        return ArtistSettingsResponse.builder()
+                .profile(profile)
+                .business(business)
+                .payout(payout)
+                .permissions(permissions)
+                .build();
+    }
+
+    @Override
+    public ArtistFundingResponse.List getFundings(String authorization, int page, int size, String keyword,
+                                                  String status, Long categoryId, Integer minAchievement, Integer maxAchievement,
+                                                  String startDate, String endDate, String sort, String order) {
+        // TODO: JWT 토큰에서 작가 정보 추출
+        // TODO: 실제 데이터베이스에서 펀딩 목록 조회
+
+        // 펀딩 요약 정보
+        ArtistFundingResponse.Summary summary = ArtistFundingResponse.Summary.builder()
+                .totalFundings(15)
+                .activeFundings(8)
+                .completedFundings(6)
+                .cancelledFundings(1)
+                .build();
+
+        // 펀딩 목록
+        List<ArtistFundingResponse.Funding> content = Arrays.asList(
+                ArtistFundingResponse.Funding.builder()
+                        .fundingId(456789L)
+                        .title("펀딩 제목입니다 펀딩 제목입니다")
+                        .status("ACTIVE")
+                        .targetAmount(900000)
+                        .currentAmount(900000)
+                        .achievementRate(100)
+                        .supporterCount(800)
+                        .startDate("2025-08-01")
+                        .endDate("2025-09-18")
+                        .registeredAt("2025-09-01")
+                        .mainImage("https://example.com/image.jpg")
+                        .category(ArtistFundingResponse.Category.builder()
+                                .id(1L)
+                                .name("스티커")
+                                .build())
+                        .permissions(ArtistFundingResponse.Permissions.builder()
+                                .canEdit(true)
+                                .canCancel(true)
+                                .canRequestSale(true)
+                                .build())
+                        .flags(ArtistFundingResponse.Flags.builder()
+                                .goalAchieved(true)
+                                .dueSoon(false)
+                                .ended(true)
+                                .build())
+                        .build(),
+                ArtistFundingResponse.Funding.builder()
+                        .fundingId(456788L)
+                        .title("펀딩 제목입니다")
+                        .status("ACTIVE")
+                        .targetAmount(600000)
+                        .currentAmount(9000000)
+                        .achievementRate(1500)
+                        .supporterCount(820)
+                        .startDate("2025-08-10")
+                        .endDate("2025-09-18")
+                        .registeredAt("2025-08-20")
+                        .mainImage("https://example.com/image2.jpg")
+                        .category(ArtistFundingResponse.Category.builder()
+                                .id(2L)
+                                .name("다이어리")
+                                .build())
+                        .permissions(ArtistFundingResponse.Permissions.builder()
+                                .canEdit(true)
+                                .canCancel(true)
+                                .canRequestSale(true)
+                                .build())
+                        .flags(ArtistFundingResponse.Flags.builder()
+                                .goalAchieved(true)
+                                .dueSoon(true)
+                                .ended(false)
+                                .build())
+                        .build()
+        );
+
+        // 일괄 작업 목록
+        List<ArtistFundingResponse.BulkAction> bulkActions = Arrays.asList(
+                ArtistFundingResponse.BulkAction.builder()
+                        .action("REQUEST_SALE")
+                        .label("판매 요청")
+                        .requiresConfirmation(true)
+                        .build()
+        );
+
+        return new ArtistFundingResponse.List(
+                summary, content, bulkActions,
+                page, size, 15, 1, false, false
+        );
     }
 }
