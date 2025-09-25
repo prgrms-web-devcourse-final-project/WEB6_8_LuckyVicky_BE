@@ -86,7 +86,7 @@ class AuthControllerTest {
 
             // then
             assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
-            assertThat(response.getBody().resultCode()).isEqualTo("200");
+            assertThat(response.getBody().resultCode()).isEqualTo("201");
             assertThat(response.getBody().msg()).isEqualTo("회원가입 성공");
             assertThat(response.getBody().data().userId()).isEqualTo(1L);
             assertThat(response.getBody().data().email()).isEqualTo("test@example.com");

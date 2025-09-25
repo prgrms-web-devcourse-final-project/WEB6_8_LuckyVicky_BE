@@ -59,7 +59,7 @@ public class AuthController {
         SignUpResponse response = authService.signUp(requestWithIp);
 
         return ResponseEntity.ok(
-                RsData.of("200", "회원가입 성공", response)
+                RsData.of("201", "회원가입 성공", response)
         );
     }
 
