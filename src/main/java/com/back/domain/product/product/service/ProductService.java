@@ -17,8 +17,6 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.ArrayList;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -63,7 +61,7 @@ public class ProductService {
                 .conditionalFreeAmount(request.conditionalFreeAmount()) //조건부 배송일 경우 무료배송 조건 금액
                 .stock(request.stock()) //재고
                 .description(request.description()) // 상품 정보(텍스트+이미지 태그로 이루어진 HTML?)
-                .sellingStatus(SellingStatus.valueOf(request.sellingStatus())) //판매상태
+                .sellingStatus(request.sellingStatus() != null ? SellingStatus.valueOf(request.sellingStatus()) : SellingStatus.SELLING) //판매상태(null이면 기본값 판매중으로)
                 .displayStatus(DisplayStatus.valueOf(request.displayStatus())) // 전시상태
                 .minQuantity(request.minQuantity()) // 최소 구매수량
                 .maxQuantity(request.maxQuantity()) // 최대 구매수량
@@ -90,9 +88,6 @@ public class ProductService {
                             .optionAdditionalPrice(o.optionAdditionalPrice())
                             .build())
                     .collect(Collectors.toList());
-            if (product.getOptions() == null) {
-                product.setOptions(new ArrayList<>());
-            }
             product.getOptions().addAll(options);
         }
 
@@ -106,9 +101,6 @@ public class ProductService {
                             .additionalPrice(a.additionalProductPrice())
                             .build())
                     .collect(Collectors.toList());
-            if (product.getAdditionalProducts() == null) {
-                product.setAdditionalProducts(new ArrayList<>());
-            }
             product.getAdditionalProducts().addAll(additionalProducts);
         }
 
@@ -125,9 +117,6 @@ public class ProductService {
                                 .build();
                     })
                     .toList();
-            if (product.getProductTags() == null) {
-                product.setProductTags(new HashSet<>());
-            }
             product.getProductTags().addAll(tagMappings);
         }
 
@@ -146,10 +135,6 @@ public class ProductService {
                                 .build();
                     })
                     .collect(Collectors.toList());
-
-            if (product.getImages() == null) {
-                product.setImages(new ArrayList<>());
-            }
             product.getImages().addAll(images);
         }
 
