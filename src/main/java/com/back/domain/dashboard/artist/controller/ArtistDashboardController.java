@@ -200,4 +200,23 @@ public class ArtistDashboardController {
 
         return ResponseEntity.ok(RsData.ok("내 펀딩 모니터링 조회 성공", response));
     }
+
+    /**
+     * 작가 정산내역 조회
+     */
+    @GetMapping("/settlements")
+    @Operation(summary = "작가 정산내역 조회", description = "작가의 정산 내역을 조회하며, 월별/일별 차트와 상세 테이블을 제공합니다")
+    public ResponseEntity<RsData<ArtistSettlementResponse>> getSettlements(
+            @RequestHeader("Authorization") String authorization,
+            @Valid @ModelAttribute ArtistSettlementSearchRequest request) {
+
+        log.info("작가 정산내역 조회 - year: {}, month: {}, granularity: {}, page: {}, size: {}", 
+                request.year(), request.month(), request.granularity(), request.page(), request.size());
+
+        ArtistSettlementResponse response = artistDashboardService.getSettlements(
+                authorization, request.year(), request.month(), request.granularity(), request.status(),
+                request.productId(), request.page(), request.size(), request.sort(), request.order());
+
+        return ResponseEntity.ok(RsData.ok("정산 내역 조회 성공", response));
+    }
 }

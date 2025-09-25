@@ -436,4 +436,133 @@ class ArtistDashboardControllerTest {
                 () -> assertThat(data.getContent().getFirst().status()).isEqualTo("ACTIVE")
         );
     }
+
+    @Test
+    @DisplayName("작가 정산내역 조회 성공")
+    void getSettlements_Success() {
+        // Given
+        ArtistSettlementResponse.Summary mockSummary = new ArtistSettlementResponse.Summary(
+                new ArtistSettlementResponse.AmountInfo(128000, "총 매출"),
+                new ArtistSettlementResponse.AmountInfo(51264, "수수료"),
+                new ArtistSettlementResponse.AmountInfo(64000, "순수익")
+        );
+
+        ArtistSettlementResponse.Settlement mockSettlement = new ArtistSettlementResponse.Settlement(
+                910004L,
+                "2025-09-18",
+                new ArtistSettlementResponse.Product(101L, "상품명입니다 상품명입니다"),
+                18000,
+                200,
+                17800,
+                "PENDING",
+                "미지급"
+        );
+
+        ArtistSettlementResponse.Table mockTable = new ArtistSettlementResponse.Table(
+                List.of(mockSettlement),
+                DEFAULT_PAGE, DEFAULT_SIZE, 124, 7, true, false
+        );
+
+        ArtistSettlementResponse mockResponse = new ArtistSettlementResponse(
+                new ArtistSettlementResponse.Scope(2025, null),
+                "MONTH",
+                "Asia/Seoul",
+                mockSummary,
+                new ArtistSettlementResponse.Chart(
+                        new ArtistSettlementResponse.ChartSeries(List.of()),
+                        new ArtistSettlementResponse.YDomain(0, 1100000)
+                ),
+                mockTable,
+                LocalDateTime.now()
+        );
+
+        given(artistDashboardService.getSettlements(
+                anyString(), any(), any(), anyString(), any(), any(), anyInt(), anyInt(), anyString(), anyString()))
+                .willReturn(mockResponse);
+
+        ArtistSettlementSearchRequest request = new ArtistSettlementSearchRequest(
+                2025, null, "MONTH", null, null, DEFAULT_PAGE, DEFAULT_SIZE, "date", "DESC");
+
+        // When
+        ResponseEntity<RsData<ArtistSettlementResponse>> response =
+                artistDashboardController.getSettlements(BEARER_TOKEN, request);
+
+        // Then
+        ArtistSettlementResponse data = assertSuccessResponse(response, "정산 내역 조회 성공");
+        
+        assertAll(
+                // 기본 구조 검증
+                () -> assertThat(data.scope()).isNotNull(),
+                () -> assertThat(data.summary()).isNotNull(),
+                () -> assertThat(data.chart()).isNotNull(),
+                () -> assertThat(data.table()).isNotNull(),
+                // 범위 정보 검증
+                () -> assertThat(data.scope().year()).isEqualTo(2025),
+                () -> assertThat(data.scope().month()).isNull(),
+                () -> assertThat(data.granularity()).isEqualTo("MONTH"),
+                // 요약 정보 검증
+                () -> assertThat(data.summary().totalSales().amount()).isEqualTo(128000),
+                () -> assertThat(data.summary().totalCommission().amount()).isEqualTo(51264),
+                () -> assertThat(data.summary().totalNetIncome().amount()).isEqualTo(64000),
+                // 테이블 정보 검증
+                () -> assertThat(data.table().getContent()).hasSize(1),
+                () -> assertThat(data.table().getContent().getFirst().settlementId()).isEqualTo(910004L),
+                () -> assertThat(data.table().getContent().getFirst().status()).isEqualTo("PENDING"),
+                () -> assertThat(data.table().getContent().getFirst().grossAmount()).isEqualTo(18000),
+                () -> assertThat(data.table().getContent().getFirst().commission()).isEqualTo(200),
+                () -> assertThat(data.table().getContent().getFirst().netAmount()).isEqualTo(17800),
+                // 페이징 정보 검증
+                () -> assertThat(data.table().getTotalElements()).isEqualTo(124),
+                () -> assertThat(data.table().getTotalPages()).isEqualTo(7),
+                () -> assertThat(data.table().isHasNext()).isTrue(),
+                () -> assertThat(data.table().isHasPrevious()).isFalse(),
+                // 차트 정보 검증
+                () -> assertThat(data.chart().yDomain().min()).isEqualTo(0),
+                () -> assertThat(data.chart().yDomain().max()).isEqualTo(1100000)
+        );
+    }
+
+    @Test
+    @DisplayName("작가 정산내역 조회 - 월별 필터 적용")
+    void getSettlements_WithMonthFilter() {
+        // Given
+        ArtistSettlementResponse mockResponse = new ArtistSettlementResponse(
+                new ArtistSettlementResponse.Scope(2025, 9),
+                "DAY",
+                "Asia/Seoul",
+                new ArtistSettlementResponse.Summary(
+                        new ArtistSettlementResponse.AmountInfo(50000, "총 매출"),
+                        new ArtistSettlementResponse.AmountInfo(5000, "수수료"),
+                        new ArtistSettlementResponse.AmountInfo(45000, "순수익")
+                ),
+                new ArtistSettlementResponse.Chart(
+                        new ArtistSettlementResponse.ChartSeries(List.of()),
+                        new ArtistSettlementResponse.YDomain(0, 100000)
+                ),
+                new ArtistSettlementResponse.Table(List.of(), DEFAULT_PAGE, DEFAULT_SIZE, 0, 0, false, false),
+                LocalDateTime.now()
+        );
+
+        given(artistDashboardService.getSettlements(
+                eq(BEARER_TOKEN), eq(2025), eq(9), eq("DAY"), eq("COMPLETED"), 
+                eq(101L), eq(DEFAULT_PAGE), eq(DEFAULT_SIZE), eq("grossAmount"), eq("ASC")))
+                .willReturn(mockResponse);
+
+        ArtistSettlementSearchRequest request = new ArtistSettlementSearchRequest(
+                2025, 9, "DAY", "COMPLETED", 101L, DEFAULT_PAGE, DEFAULT_SIZE, "grossAmount", "ASC");
+
+        // When
+        ResponseEntity<RsData<ArtistSettlementResponse>> response =
+                artistDashboardController.getSettlements(BEARER_TOKEN, request);
+
+        // Then
+        ArtistSettlementResponse data = assertSuccessResponse(response, "정산 내역 조회 성공");
+        assertAll(
+                () -> assertThat(data.scope().year()).isEqualTo(2025),
+                () -> assertThat(data.scope().month()).isEqualTo(9),
+                () -> assertThat(data.granularity()).isEqualTo("DAY"),
+                () -> assertThat(data.summary().totalSales().amount()).isEqualTo(50000),
+                () -> assertThat(data.table().getContent()).isEmpty()
+        );
+    }
 }
