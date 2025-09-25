@@ -4,6 +4,7 @@ import com.back.domain.auth.controller.AuthController;
 import com.back.domain.auth.dto.request.TokenRefreshRequest;
 import com.back.domain.auth.dto.response.AuthResponse;
 import com.back.domain.user.entity.Role;
+import com.back.global.exception.ServiceException;
 import com.back.global.rsData.RsData;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -36,6 +37,7 @@ import org.springframework.security.core.Authentication;
 import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.AssertionsForClassTypes.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.*;
@@ -84,7 +86,7 @@ class AuthControllerTest {
 
             // then
             assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
-            assertThat(response.getBody().resultCode()).isEqualTo("200-ok");
+            assertThat(response.getBody().resultCode()).isEqualTo("200");
             assertThat(response.getBody().msg()).isEqualTo("회원가입 성공");
             assertThat(response.getBody().data().userId()).isEqualTo(1L);
             assertThat(response.getBody().data().email()).isEqualTo("test@example.com");
@@ -200,7 +202,7 @@ class AuthControllerTest {
 
             // then
             assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
-            assertThat(response.getBody().resultCode()).isEqualTo("200-ok");
+            assertThat(response.getBody().resultCode()).isEqualTo("200");
             assertThat(response.getBody().msg()).isEqualTo("로그인 성공");
             assertThat(response.getBody().data().accessToken()).isEqualTo("accessToken");
             assertThat(response.getBody().data().refreshToken()).isEqualTo("refreshToken");
@@ -365,7 +367,7 @@ class AuthControllerTest {
 
             // then
             assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
-            assertThat(response.getBody().resultCode()).isEqualTo("200-ok");
+            assertThat(response.getBody().resultCode()).isEqualTo("200");
             assertThat(response.getBody().msg()).isEqualTo("로그아웃 성공");
             assertThat(response.getBody().data()).isNull();
 
@@ -515,7 +517,7 @@ class AuthControllerTest {
 
             // then
             assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
-            assertThat(response.getBody().resultCode()).isEqualTo("200-ok");
+            assertThat(response.getBody().resultCode()).isEqualTo("200");
             assertThat(response.getBody().msg()).isEqualTo("전체 로그아웃 성공");
             assertThat(response.getBody().data()).isNull();
 
@@ -528,14 +530,16 @@ class AuthControllerTest {
             // given
             given(authentication.isAuthenticated()).willReturn(false);
 
-            // when
-            ResponseEntity<RsData<Void>> response =
-                    authController.logoutAll(httpServletRequest, authentication);
-
-            // then
-            assertThat(response.getStatusCode().value()).isEqualTo(401);
-            assertThat(response.getBody().resultCode()).isEqualTo("401-unauthorized");
-            assertThat(response.getBody().msg()).isEqualTo("인증이 필요합니다.");
+            // when & then
+            assertThatThrownBy(() ->
+                    authController.logoutAll(httpServletRequest, authentication)
+            )
+                    .isInstanceOf(ServiceException.class)
+                    .satisfies(exception -> {
+                        ServiceException serviceException = (ServiceException) exception;
+                        assertThat(serviceException.getResultCode()).isEqualTo("401");
+                        assertThat(serviceException.getMsg()).isEqualTo("인증이 필요합니다.");
+                    });
 
             verify(authService, never()).logoutAll(any());
         }
@@ -543,14 +547,12 @@ class AuthControllerTest {
         @Test
         @DisplayName("Authentication 객체가 null인 경우 실패")
         void logoutAll_NullAuthentication() {
-            // when
-            ResponseEntity<RsData<Void>> response =
-                    authController.logoutAll(httpServletRequest, null);
-
-            // then
-            assertThat(response.getStatusCode().value()).isEqualTo(401);
-            assertThat(response.getBody().resultCode()).isEqualTo("401-unauthorized");
-            assertThat(response.getBody().msg()).isEqualTo("인증이 필요합니다.");
+            // when & then
+            assertThatThrownBy(() ->
+                    authController.logoutAll(httpServletRequest, null)
+            )
+                    .isInstanceOf(ServiceException.class)
+                    .hasMessage("401 : 인증이 필요합니다.");
 
             verify(authService, never()).logoutAll(any());
         }
@@ -656,7 +658,7 @@ class AuthControllerTest {
 
             // then
             assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
-            assertThat(response.getBody().resultCode()).isEqualTo("200-ok");
+            assertThat(response.getBody().resultCode()).isEqualTo("200");
             assertThat(response.getBody().msg()).isEqualTo("토큰 재발급 성공");
             assertThat(response.getBody().data().accessToken()).isEqualTo("newAccessToken");
             assertThat(response.getBody().data().refreshToken()).isEqualTo("newRefreshToken");

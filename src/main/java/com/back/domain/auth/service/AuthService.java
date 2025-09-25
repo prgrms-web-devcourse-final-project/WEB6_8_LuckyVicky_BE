@@ -192,11 +192,11 @@ public class AuthService {
      */
     private void validateInput(SignUpRequest request) {
         if (!request.isPasswordMatching()) {
-            throw new ServiceException("PASSWORD_MISMATCH", "비밀번호가 일치하지 않습니다.");
+            throw new ServiceException("400", "비밀번호가 일치하지 않습니다.");
         }
 
         if (!request.isRequiredTermsAgreed()) {
-            throw new ServiceException("REQUIRED_TERMS_NOT_AGREED", "필수 약관에 동의해야 합니다.");
+            throw new ServiceException("400", "필수 약관에 동의해야 합니다.");
         }
     }
 
@@ -206,15 +206,15 @@ public class AuthService {
     private void validateDuplication(SignUpRequest request) {
         validateFieldDuplication("email", request.email(),
                 () -> userRepository.existsByEmail(request.email()),
-                "EMAIL_ALREADY_EXISTS", "이미 사용 중인 이메일입니다.");
+                "409", "이미 사용 중인 이메일입니다.");
 
         validateFieldDuplication("name", request.name(),
                 () -> userRepository.existsByName(request.name()),
-                "NAME_ALREADY_EXISTS", "이미 사용 중인 닉네임입니다.");
+                "409", "이미 사용 중인 닉네임입니다.");
 
         validateFieldDuplication("phone", request.phone(),
                 () -> userRepository.existsByPhone(request.phone()),
-                "PHONE_ALREADY_EXISTS", "이미 사용 중인 전화번호입니다.");
+                "409", "이미 사용 중인 전화번호입니다.");
     }
 
     /**
@@ -246,14 +246,14 @@ public class AuthService {
      */
     private User validateLoginCredentials(LoginRequest request) {
         User user = userRepository.findByEmail(request.email())
-                .orElseThrow(() -> new ServiceException("USER_NOT_FOUND", "사용자를 찾을 수 없습니다."));
+                .orElseThrow(() -> new ServiceException("401", "이메일 또는 비밀번호가 잘못되었습니다."));
 
         if (!passwordEncoder.matches(request.password(), user.getPassword())) {
-            throw new ServiceException("INVALID_CREDENTIALS", "이메일 또는 비밀번호가 잘못되었습니다.");
+            throw new ServiceException("401", "이메일 또는 비밀번호가 잘못되었습니다.");
         }
 
         if (!user.getRole().canLoginAs(request.selectedRole())) {
-            throw new ServiceException("ROLE_MISMATCH", "선택한 역할로 로그인할 수 없습니다.");
+            throw new ServiceException("403", "선택한 역할로 로그인할 수 없습니다.");
         }
 
         return user;
@@ -264,11 +264,11 @@ public class AuthService {
      */
     private UserToken validateAndGetRefreshToken(String refreshToken) {
         UserToken userToken = userTokenRepository.findByRefreshTokenAndIsActiveTrue(refreshToken)
-                .orElseThrow(() -> new ServiceException("INVALID_REFRESH_TOKEN", "유효하지 않은 RefreshToken 입니다."));
+                .orElseThrow(() -> new ServiceException("401", "유효하지 않은 RefreshToken 입니다."));
 
         if (userToken.isExpired()) {
             userTokenRepository.delete(userToken);
-            throw new ServiceException("EXPIRED_REFRESH_TOKEN", "RefreshToken이 만료되었습니다.");
+            throw new ServiceException("401", "RefreshToken이 만료되었습니다.");
         }
 
         return userToken;
