@@ -284,6 +284,7 @@ public class ArtistDashboardServiceImpl implements ArtistDashboardService {
                 )
         );
 
+<<<<<<< HEAD
         return new ArtistCancellationResponse.List(
                 summary,
                 content,
@@ -295,6 +296,25 @@ public class ArtistDashboardServiceImpl implements ArtistDashboardService {
                 false
         );
 
+=======
+        List<ArtistCancellationResponse.BulkAction> bulkActions = List.of(
+                new ArtistCancellationResponse.BulkAction("CANCEL_APPROVE", "취소 승인", true),
+                new ArtistCancellationResponse.BulkAction("CANCEL_REJECT", "취소 거절", true)
+        );
+
+        return new ArtistCancellationResponse.List(
+                summary,
+                content,
+                bulkActions,
+                page,
+                size,
+                8,
+                1,
+                false,
+                false
+        );
+
+>>>>>>> e499333441d970159deadf1ba41779f3128785e8
 
     }
 
@@ -325,6 +345,7 @@ public class ArtistDashboardServiceImpl implements ArtistDashboardService {
                 )
         );
 
+<<<<<<< HEAD
         return new ArtistExchangeResponse.List(
                 summary,
                 content,
@@ -335,6 +356,24 @@ public class ArtistDashboardServiceImpl implements ArtistDashboardService {
                 false,
                 false
         );
+=======
+        List<ArtistExchangeResponse.BulkAction> bulkActions = List.of(
+                new ArtistExchangeResponse.BulkAction("EXCHANGE_APPROVE", "교환 승인", true),
+                new ArtistExchangeResponse.BulkAction("EXCHANGE_REJECT", "교환 거절", true)
+        );
+
+        return new ArtistExchangeResponse.List(
+                summary,
+                content,
+                bulkActions,
+                page,
+                size,
+                5,
+                1,
+                false,
+                false
+        );
+>>>>>>> e499333441d970159deadf1ba41779f3128785e8
     }
 
     @Override
@@ -421,6 +460,14 @@ public class ArtistDashboardServiceImpl implements ArtistDashboardService {
                         new ArtistFundingResponse.Permissions(true, true, true),
                         new ArtistFundingResponse.Flags(true, true, false)
                 )
+<<<<<<< HEAD
+=======
+        );
+
+        // 일괄 작업 목록
+        List<ArtistFundingResponse.BulkAction> bulkActions = List.of(
+                new ArtistFundingResponse.BulkAction("REQUEST_SALE", "판매 요청", true)
+>>>>>>> e499333441d970159deadf1ba41779f3128785e8
         );
 
         return new ArtistFundingResponse.List(

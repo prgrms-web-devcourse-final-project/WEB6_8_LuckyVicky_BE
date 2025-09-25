@@ -315,6 +315,10 @@ class ArtistDashboardControllerTest {
         ArtistCancellationResponse.List mockResponse = new ArtistCancellationResponse.List(
                 new ArtistCancellationResponse.Summary(8, 5, 2, 1),
                 List.of(mockRequest),
+<<<<<<< HEAD
+=======
+                List.of(),
+>>>>>>> e499333441d970159deadf1ba41779f3128785e8
                 DEFAULT_PAGE, DEFAULT_SIZE, 8, 1, false, false
         );
 
@@ -349,7 +353,11 @@ class ArtistDashboardControllerTest {
 
         ArtistExchangeResponse.List mockResponse = new ArtistExchangeResponse.List(
                 new ArtistExchangeResponse.Summary(5, 3, 0, 0),
+<<<<<<< HEAD
                 List.of(mockRequest),
+=======
+                List.of(mockRequest), List.of(),
+>>>>>>> e499333441d970159deadf1ba41779f3128785e8
                 DEFAULT_PAGE, DEFAULT_SIZE, 5, 1, false, false
         );
 
@@ -412,8 +420,12 @@ class ArtistDashboardControllerTest {
 
         ArtistFundingResponse.List mockResponse = new ArtistFundingResponse.List(
                 new ArtistFundingResponse.Summary(15, 0, 0, 0),
+<<<<<<< HEAD
                 List.of(mockFunding),
                 DEFAULT_PAGE, DEFAULT_SIZE, 15, 1, false, false
+=======
+                List.of(mockFunding), List.of(), DEFAULT_PAGE, DEFAULT_SIZE, 15, 1, false, false
+>>>>>>> e499333441d970159deadf1ba41779f3128785e8
         );
 
         given(artistDashboardService.getFundings(
@@ -434,6 +446,7 @@ class ArtistDashboardControllerTest {
                 () -> assertThat(data.getContent()).hasSize(1),
                 () -> assertThat(data.getContent().getFirst().fundingId()).isEqualTo(456789L),
                 () -> assertThat(data.getContent().getFirst().status()).isEqualTo("ACTIVE")
+<<<<<<< HEAD
         );
     }
 
@@ -563,6 +576,8 @@ class ArtistDashboardControllerTest {
                 () -> assertThat(data.granularity()).isEqualTo("DAY"),
                 () -> assertThat(data.summary().totalSales().amount()).isEqualTo(50000),
                 () -> assertThat(data.table().getContent()).isEmpty()
+=======
+>>>>>>> e499333441d970159deadf1ba41779f3128785e8
         );
     }
 }

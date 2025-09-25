@@ -200,6 +200,7 @@ public class ArtistDashboardController {
 
         return ResponseEntity.ok(RsData.ok("내 펀딩 모니터링 조회 성공", response));
     }
+<<<<<<< HEAD
 
     /**
      * 작가 정산내역 조회
@@ -219,4 +220,6 @@ public class ArtistDashboardController {
 
         return ResponseEntity.ok(RsData.ok("정산 내역 조회 성공", response));
     }
+=======
+>>>>>>> e499333441d970159deadf1ba41779f3128785e8
 }

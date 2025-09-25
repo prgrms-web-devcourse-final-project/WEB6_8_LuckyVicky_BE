@@ -73,10 +73,13 @@ public interface ArtistDashboardService {
     ArtistFundingResponse.List getFundings(String authorization, int page, int size, String keyword,
                                            String status, Long categoryId, Integer minAchievement, Integer maxAchievement,
                                            String startDate, String endDate, String sort, String order);
+<<<<<<< HEAD
 
     /**
      * 작가 정산내역 조회
      */
     ArtistSettlementResponse getSettlements(String authorization, Integer year, Integer month, String granularity,
                                             String status, Long productId, int page, int size, String sort, String order);
+=======
+>>>>>>> e499333441d970159deadf1ba41779f3128785e8
 }

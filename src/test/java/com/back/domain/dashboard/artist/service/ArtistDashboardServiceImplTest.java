@@ -135,6 +135,10 @@ class ArtistDashboardServiceImplTest {
                 () -> assertThat(result).isNotNull(),
                 () -> assertThat(result.summary()).isNotNull(),
                 () -> assertThat(result.content()).hasSize(1),
+<<<<<<< HEAD
+=======
+                () -> assertThat(result.bulkActions()).hasSize(2),
+>>>>>>> e499333441d970159deadf1ba41779f3128785e8
                 // 핵심 비즈니스 규칙 - 상태별 합계가 전체와 일치
                 () -> assertThat(result.summary().pending() + result.summary().approved()
                         + result.summary().rejected()).isEqualTo(result.summary().total()),
@@ -155,6 +159,10 @@ class ArtistDashboardServiceImplTest {
                 () -> assertThat(result).isNotNull(),
                 () -> assertThat(result.summary()).isNotNull(),
                 () -> assertThat(result.content()).hasSize(1),
+<<<<<<< HEAD
+=======
+                () -> assertThat(result.bulkActions()).hasSize(2),
+>>>>>>> e499333441d970159deadf1ba41779f3128785e8
                 // 핵심 비즈니스 규칙 - 상태별 합계가 전체와 일치
                 () -> assertThat(result.summary().pending() + result.summary().approved()
                         + result.summary().rejected()).isEqualTo(result.summary().total()),
