@@ -39,6 +39,8 @@ public class QFunding extends EntityPathBase<Funding> {
     //inherited
     public final NumberPath<Long> id = _super.id;
 
+    public final ListPath<FundingImage, QFundingImage> images = this.<FundingImage, QFundingImage>createList("images", FundingImage.class, QFundingImage.class, PathInits.DIRECT2);
+
     public final StringPath imageUrl = createString("imageUrl");
 
     //inherited

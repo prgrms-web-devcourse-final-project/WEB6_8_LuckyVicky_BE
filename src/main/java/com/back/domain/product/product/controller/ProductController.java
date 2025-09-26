@@ -11,6 +11,7 @@ import com.back.global.s3.S3ValidationService;
 import com.back.global.s3.UploadResultResponse;
 import com.back.global.security.auth.CustomUserDetails;
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
@@ -102,18 +103,17 @@ public class ProductController {
     @Operation(
             summary = "상품 이미지 업로드",
             requestBody = @io.swagger.v3.oas.annotations.parameters.RequestBody(
-                    description = "파일과 파일타입을 multipart/form-data 형식으로 전송",
+                    description = "files -> 업로드할 파일 리스트.  이미지(jpg, png 등), 문서(pdf, doc 등)<br>" +
+                            "types -> 업로드할 파일 타입.  대표 이미지(MAIN), 그 외 이미지(ADDITIONAL), 썸네일 이미지(THUMBNAIL), 문서(DOCUMENT)",
                     required = true,
                     content = @io.swagger.v3.oas.annotations.media.Content(
                             mediaType = "multipart/form-data",
                             schema = @Schema(
                                     type = "object",
-                                    example = """
-{
-  "files": ["image1.jpg", "image2.jpg"],
-  "types": ["MAIN", "THUMBNAIL"]
-}
-"""
+                                    example = "{\n" +
+                                            "  \"files\": [\"image1.jpg\", \"image2.jpg\"],\n" +
+                                            "  \"types\": [\"MAIN\", \"THUMBNAIL\"]\n" +
+                                            "}"
                             )
                     )
             ),
@@ -167,6 +167,8 @@ public class ProductController {
     )
     public ResponseEntity<RsData<List<UploadResultResponse>>> uploadProductImages(
             @RequestPart List<MultipartFile> files,
+
+            @Parameter(hidden = true)
             @RequestParam List<FileType> types) {
         List<UploadResultResponse> uploaded = s3Service.uploadFiles(files,"product-images", types);
         return ResponseEntity.ok(RsData.of("200","이미지 업로드 성공",uploaded));
@@ -176,7 +178,8 @@ public class ProductController {
     @GetMapping("/images/download/{productId}")
     @Operation(
             summary = "상품 문서 다운로드 (테스트용)",
-            description = "DOCUMENT 타입의 문서 파일을 다운로드. 브라우저는 Content-Disposition 헤더를 보고 파일을 다운로드 처리합니다.",
+            description = "DOCUMENT 타입의 문서 파일 다운로드.<br>"+
+                    "브라우저는 Content-Disposition 헤더를 보고 파일 다운로드 처리합니다.",
             responses = {
                     @io.swagger.v3.oas.annotations.responses.ApiResponse(
                             responseCode = "200",
@@ -222,7 +225,8 @@ public class ProductController {
     @GetMapping
     @Operation(
             summary = "상품 목록 조회",
-            description = "필터링(카테고리,태그,가격대,배송 유형) / 정렬 / 페이징 가능",
+            description = "전체 또는 카테고리별 상품 조회<br>" +
+                    "필터링 [태그,가격대,배송 유형] / 정렬 [신상품순,가격낮은순,가격높은순,인기순] / 페이징",
             responses = {
                     @ApiResponse(
                             responseCode = "200",
@@ -260,14 +264,29 @@ public class ProductController {
             }
     )
     public ResponseEntity<RsData<ProductListResponse>> getProducts(
-            @RequestParam(required = false) Long categoryId, // 카테고리(필터링)
-            @RequestParam(required = false) List<Long> tagIds, // 태그(필터링)
-            @RequestParam(required = false) Integer minPrice, // 최소가격(필터링)
-            @RequestParam(required = false) Integer maxPrice, // 최대가격(필터링)
-            @RequestParam(required = false) String deliveryType, // 배송비유형(필터링)
-            @RequestParam(defaultValue = "newest") String sort, // 정렬(기본값은 신상품순)
-            @RequestParam(defaultValue = "1") int page, // 프론트는 페이지번호 1부터 시작해서 보내주면됨
-            @RequestParam(defaultValue = "10") int size // 한 페이지에 보여줄 상품 개수
+            @Parameter(description = "[필터링]카테고리 ID.  상위 / 하위 카테고리 각 조회 가능", example = "1")
+            @RequestParam(required = false) Long categoryId,
+
+            @Parameter(description = "[필터링]태그 ID 목록", example = "1,2")
+            @RequestParam(required = false) List<Long> tagIds,
+
+            @Parameter(description = "[필터링]최소 가격 설정", example = "3000")
+            @RequestParam(required = false) Integer minPrice,
+
+            @Parameter(description = "[필터링]최대 가격 설정",  example = "15000")
+            @RequestParam(required = false) Integer maxPrice,
+
+            @Parameter(description = "[필터링]배송비 유형.  유료 배송(PAID), 무료 배송(FREE), 조건부 무료 배송(CONDITIONAL)", example = "FREE")
+            @RequestParam(required = false) String deliveryType,
+
+            @Parameter(description = "[정렬]신상품순(newest), 가격 낮은순(priceAsc), 가격 높은순(priceDesc), 인기순(popular)")
+            @RequestParam(defaultValue = "newest") String sort,
+
+            @Parameter(description = "[페이징]조회할 페이지 번호 (1부터 시작)", example = "1")
+            @RequestParam(required = false) int page,
+
+            @Parameter(description = "[페이징]한 페이지에 보여줄 상품 수", example = "10")
+            @RequestParam(required = false) int size
     ) {
         // 프론트는 1부터 시작 -> Spring Pageable은 0부터 시작하므로 -1 처리
         Pageable pageable = PageRequest.of(page - 1, size);
