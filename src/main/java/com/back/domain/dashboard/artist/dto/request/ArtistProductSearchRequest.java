@@ -25,8 +25,8 @@ public record ArtistProductSearchRequest(
         Boolean selling,
 
         /** 정렬 기준 */
-        @Pattern(regexp = "^(registrationDate|productName|price|status|salesCount)$",
-                message = "sort는 registrationDate, productName, price, status, salesCount 중 하나여야 합니다")
+        @Pattern(regexp = "^(registrationDate|productName|price|sellingStatus|salesCount)$",
+                message = "sort는 registrationDate, productName, price, sellingStatus, salesCount 중 하나여야 합니다")
         String sort,
 
         /** 정렬 방향 */

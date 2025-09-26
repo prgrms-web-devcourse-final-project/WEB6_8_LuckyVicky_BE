@@ -82,7 +82,7 @@ class DashboardControllerTest {
                         .param("status", "PENDING"))
                 .andDo(print())
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.resultCode").value("200-OK"))
+                .andExpect(jsonPath("$.resultCode").value("200"))
                 .andExpect(jsonPath("$.data.summary.total").value(2))
                 .andExpect(jsonPath("$.data.content").isArray())
                 .andExpect(jsonPath("$.data.content[0].applicationId").value(1))

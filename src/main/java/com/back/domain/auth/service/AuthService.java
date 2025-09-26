@@ -184,6 +184,7 @@ public class AuthService {
      */
     private void validateSignUpRequest(SignUpRequest request) {
         validateInput(request);
+        // 중복 검증은 이제 ValidationService에서 처리하지만, 일단 회원가입시 최종 검증을 위해 체크
         validateDuplication(request);
     }
 
