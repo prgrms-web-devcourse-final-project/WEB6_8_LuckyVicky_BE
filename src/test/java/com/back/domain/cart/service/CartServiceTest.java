@@ -7,7 +7,7 @@ import com.back.domain.cart.dto.response.CartResponseDto;
 import com.back.domain.cart.entity.Cart;
 import com.back.domain.cart.repository.CartRepository;
 import com.back.domain.product.product.entity.Product;
-// import com.back.domain.product.product.repository.ProductRepository;
+import com.back.domain.product.product.repository.ProductRepository;
 import com.back.domain.user.entity.User;
 import com.back.global.exception.ServiceException;
 import org.junit.jupiter.api.BeforeEach;
@@ -40,8 +40,8 @@ class CartServiceTest {
     @Mock
     private CartCalculator cartCalculator;
     
-    // @Mock
-    // private ProductRepository productRepository;
+    @Mock
+    private ProductRepository productRepository;
     
     @InjectMocks
     private CartService cartService;
@@ -116,8 +116,7 @@ class CartServiceTest {
     @DisplayName("장바구니에 새 상품 추가 성공")
     void addToCart_NewProduct_Success() {
         // Given
-        // TODO: ProductRepository 구현 후 활성화
-        // given(productRepository.findById(1L)).willReturn(Optional.of(testProduct));
+        given(productRepository.findById(1L)).willReturn(Optional.of(testProduct));
         given(cartRepository.findByUserAndProductAndCartType(eq(testUser), any(Product.class), eq(Cart.CartType.NORMAL)))
                 .willReturn(Optional.empty());
         given(cartRepository.save(any(Cart.class))).willReturn(testNormalCart);
@@ -131,7 +130,7 @@ class CartServiceTest {
         assertThat(result.cartType()).isEqualTo("NORMAL");
         assertThat(result.optionInfo()).isEqualTo("일반 상품 옵션");
 
-        // verify(productRepository).findById(1L); // ProductRepository 구현 후 활성화
+        verify(productRepository).findById(1L);
         verify(cartRepository).findByUserAndProductAndCartType(eq(testUser), any(Product.class), eq(Cart.CartType.NORMAL));
         verify(cartRepository).save(any(Cart.class));
     }
@@ -149,7 +148,7 @@ class CartServiceTest {
                 .optionInfo("기존 옵션")
                 .build();
 
-        // given(productRepository.findById(1L)).willReturn(Optional.of(testProduct));
+        given(productRepository.findById(1L)).willReturn(Optional.of(testProduct));
         given(cartRepository.findByUserAndProductAndCartType(eq(testUser), any(Product.class), eq(Cart.CartType.NORMAL)))
                 .willReturn(Optional.of(existingCart));
         given(cartRepository.save(existingCart)).willReturn(existingCart);
@@ -167,15 +166,14 @@ class CartServiceTest {
     @DisplayName("존재하지 않는 상품 추가 실패")
     void addToCart_ProductNotFound_ThrowException() {
         // Given
-        // TODO: ProductRepository 구현 후 활성화
-        // given(productRepository.findById(1L)).willReturn(Optional.empty());
+        given(productRepository.findById(1L)).willReturn(Optional.empty());
 
         // When & Then
-        // assertThatThrownBy(() -> cartService.addToCart(testUser, normalCartRequestDto))
-        //         .isInstanceOf(ServiceException.class)
-        //         .hasMessage("PRODUCT_NOT_FOUND : 존재하지 않는 상품입니다.");
+        assertThatThrownBy(() -> cartService.addToCart(testUser, normalCartRequestDto))
+                .isInstanceOf(ServiceException.class)
+                .hasMessage("PRODUCT_NOT_FOUND : 존재하지 않는 상품입니다.");
 
-        // verify(cartRepository, never()).save(any(Cart.class));
+        verify(cartRepository, never()).save(any(Cart.class));
     }
 
     @Test
@@ -189,7 +187,7 @@ class CartServiceTest {
                 "INVALID"
         );
 
-        // given(productRepository.findById(1L)).willReturn(Optional.of(testProduct));
+        given(productRepository.findById(1L)).willReturn(Optional.of(testProduct));
 
         // When & Then
         assertThatThrownBy(() -> cartService.addToCart(testUser, invalidDto))
@@ -461,5 +459,27 @@ class CartServiceTest {
         // Then
         assertThat(result).isEmpty();
         verify(cartRepository).findByUserAndIsSelectedTrue(testUser);
+    }
+
+    @Test
+    @DisplayName("펀딩 장바구니에 상품 추가 성공")
+    void addToCart_FundingCart_Success() {
+        // Given
+        given(productRepository.findById(1L)).willReturn(Optional.of(testProduct));
+        given(cartRepository.findByUserAndProductAndCartType(eq(testUser), any(Product.class), eq(Cart.CartType.FUNDING)))
+                .willReturn(Optional.empty());
+        given(cartRepository.save(any(Cart.class))).willReturn(testFundingCart);
+
+        // When
+        CartResponseDto result = cartService.addToCart(testUser, fundingCartRequestDto);
+
+        // Then
+        assertThat(result).isNotNull();
+        assertThat(result.cartType()).isEqualTo("FUNDING");
+        assertThat(result.optionInfo()).isEqualTo("펀딩 상품 옵션");
+
+        verify(productRepository).findById(1L);
+        verify(cartRepository).findByUserAndProductAndCartType(eq(testUser), any(Product.class), eq(Cart.CartType.FUNDING));
+        verify(cartRepository).save(any(Cart.class));
     }
 }

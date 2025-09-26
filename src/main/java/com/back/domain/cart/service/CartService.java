@@ -7,7 +7,7 @@ import com.back.domain.cart.dto.response.CartResponseDto;
 import com.back.domain.cart.entity.Cart;
 import com.back.domain.cart.repository.CartRepository;
 import com.back.domain.product.product.entity.Product;
-// import com.back.domain.product.product.repository.ProductRepository;
+import com.back.domain.product.product.repository.ProductRepository;
 import com.back.domain.user.entity.User;
 import com.back.global.exception.ServiceException;
 import lombok.RequiredArgsConstructor;
@@ -25,23 +25,16 @@ public class CartService {
 
     private final CartRepository cartRepository;
     private final CartCalculator cartCalculator;
-    // private final ProductRepository productRepository;
+    private final ProductRepository productRepository;
 
     /**
      * 장바구니에 상품 추가
      */
     @Transactional
     public CartResponseDto addToCart(User user, CartRequestDto requestDto) {
-        // 1. 상품 존재 확인 (ProductRepository 구현 후 활성화)
-        // Product product = productRepository.findById(requestDto.getProductId())
-        //         .orElseThrow(() -> new ServiceException("PRODUCT_NOT_FOUND", "존재하지 않는 상품입니다."));
-        
-        // 임시로 더미 Product 객체 생성 (id는 BaseEntity에서 자동 생성되므로 Builder에서 설정 불가)
-        // TODO: ProductRepository 구현 후 실제 Product 조회로 대체
-        Product product = new Product(); // 기본 생성자 사용
-        // setter로 필수 필드들만 임시 설정
-        product.setName("임시 상품명");
-        product.setPrice(10000);
+        // 1. 상품 존재 확인
+        Product product = productRepository.findById(requestDto.productId())
+                .orElseThrow(() -> new ServiceException("PRODUCT_NOT_FOUND", "존재하지 않는 상품입니다."));
 
         // 2. 장바구니 타입 변환 (도메인에서 처리)
         Cart.CartType cartType = Cart.CartType.fromString(requestDto.cartType());
