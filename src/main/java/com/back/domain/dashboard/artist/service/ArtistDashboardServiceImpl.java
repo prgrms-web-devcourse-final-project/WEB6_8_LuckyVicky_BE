@@ -126,8 +126,9 @@ public class ArtistDashboardServiceImpl implements ArtistDashboardService {
                                                   Boolean selling, String sort, String order) {
         // TODO: JWT 토큰에서 작가 정보 추출
         // TODO: 실제 데이터베이스에서 상품 목록 조회
-
-        List<ArtistProductResponse.Product> content = Arrays.asList(
+        
+        // Mock 데이터 (더 많은 샘플 추가)
+        List<ArtistProductResponse.Product> allProducts = Arrays.asList(
                 new ArtistProductResponse.Product(
                         "0123157",
                         "감성 일러스트 포스터",
@@ -143,10 +144,70 @@ public class ArtistDashboardServiceImpl implements ArtistDashboardService {
                         "SELLING",
                         "판매중",
                         "2025. 09. 17"
+                ),
+                new ArtistProductResponse.Product(
+                        "0123155",
+                        "빈티지 엽서 세트",
+                        12000,
+                        "SELLING",
+                        "판매중",
+                        "2025. 09. 16"
+                ),
+                new ArtistProductResponse.Product(
+                        "0123154",
+                        "아크릴 키링",
+                        8000,
+                        "SELLING",
+                        "판매중",
+                        "2025. 09. 15"
                 )
         );
+        
+        // 1. 검색 필터링
+        List<ArtistProductResponse.Product> filtered = allProducts;
+        if (keyword != null && !keyword.trim().isEmpty()) {
+            filtered = allProducts.stream()
+                    .filter(p -> p.productName().contains(keyword))
+                    .toList();
+            log.info("검색 키워드 '{}' 적용 - 결과: {}개", keyword, filtered.size());
+        }
+        
+        // 2. 정렬
+        List<ArtistProductResponse.Product> sorted = filtered;
+        if (sort != null && order != null) {
+            sorted = filtered.stream()
+                    .sorted((p1, p2) -> {
+                        int comparison = switch (sort) {
+                            case "productName" -> p1.productName().compareTo(p2.productName());
+                            case "price" -> Integer.compare(p1.price(), p2.price());
+                            case "sellingStatus" -> p1.sellingStatus().compareTo(p2.sellingStatus());
+                            case "registrationDate" -> p1.registrationDate().compareTo(p2.registrationDate());
+                            default -> 0;
+                        };
+                        return "ASC".equals(order) ? comparison : -comparison;
+                    })
+                    .toList();
+            log.info("정렬 적용 - sort: {}, order: {}", sort, order);
+        }
+        
+        // 3. 페이징
+        int totalElements = sorted.size();
+        int totalPages = (int) Math.ceil((double) totalElements / size);
+        int start = page * size;
+        int end = Math.min(start + size, totalElements);
+        
+        List<ArtistProductResponse.Product> content = start < totalElements 
+                ? sorted.subList(start, end) 
+                : List.of();
+        
+        boolean hasNext = (page + 1) * size < totalElements;
+        boolean hasPrevious = page > 0;
+        
+        log.info("페이징 적용 - page: {}, size: {}, total: {}, content: {}개", 
+                page, size, totalElements, content.size());
 
-        return new ArtistProductResponse.List(content, page, size, content.size(), 1, false, false);
+        return new ArtistProductResponse.List(
+                content, page, size, totalElements, totalPages, hasNext, hasPrevious);
     }
 
     @Override
