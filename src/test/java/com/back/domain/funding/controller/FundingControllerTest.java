@@ -80,4 +80,77 @@ public class FundingControllerTest {
                 .andExpect(jsonPath("$.data.options[1].stock").value(50))
                 .andExpect(jsonPath("$.data.options[1].sortOrder").value(2));
     }
+
+    @Test
+    @WithUserDetails("user2@user.com")
+    @DisplayName("2. 펀딩 생성 실패 - 권한 없음")
+    void t2() throws Exception {
+        ResultActions resultActions = mvc.perform(post("/api/fundings")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "title": "테스트 펀딩",
+                                  "description": "테스트 펀딩 설명",
+                                  "imageUrl": "http://example.com/image.jpg",
+                                  "targetAmount": 1000000,
+                                  "startDate": "2025-10-01 00:00:00",
+                                  "endDate": "2025-12-31 23:59:59",
+                                  "options": [
+                                    {
+                                      "name": "옵션 1",
+                                      "price": 50000,
+                                      "stock": 100,
+                                      "sortOrder": 1
+                                    },
+                                    {
+                                      "name": "옵션 2",
+                                      "price": 100000,
+                                      "stock": 50,
+                                      "sortOrder": 2
+                                    }
+                                  ]
+                                }
+                                """))
+                .andDo(print());
+
+        // then (권한 없음)
+        resultActions.andExpect(status().isInternalServerError());
+
+    }
+
+    @Test
+    @WithUserDetails("user1@user.com")
+    @DisplayName("3. 펀딩 생성 실패 - 제목 누락")
+    void t4() throws Exception {
+        ResultActions resultActions = mvc.perform(post("/api/fundings")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "description": "테스트 펀딩 설명",
+                                  "imageUrl": "http://example.com/image.jpg",
+                                  "targetAmount": 1000000,
+                                  "startDate": "2025-10-01 00:00:00",
+                                  "endDate": "2025-12-31 23:59:59",
+                                  "options": [
+                                    {
+                                      "name": "옵션 1",
+                                      "price": 50000,
+                                      "stock": 100,
+                                      "sortOrder": 1
+                                    },
+                                    {
+                                      "name": "옵션 2",
+                                      "price": 100000,
+                                      "stock": 50,
+                                      "sortOrder": 2
+                                    }
+                                  ]
+                                }
+                                """))
+                .andDo(print());
+
+        // then (필수 입력값 누락 - title)
+        resultActions.andExpect(status().isBadRequest())
+        .andExpect(jsonPath("$.msg").value("title: 펀딩 제목은 필수입니다."));
+    }
 }

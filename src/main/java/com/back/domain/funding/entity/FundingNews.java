@@ -2,10 +2,8 @@ package com.back.domain.funding.entity;
 
 import com.back.domain.user.entity.User;
 import com.back.global.jpa.entity.BaseEntity;
-import jakarta.persistence.Column;
-import jakarta.persistence.Entity;
-import jakarta.persistence.FetchType;
-import jakarta.persistence.ManyToOne;
+import jakarta.persistence.*;
+
 import lombok.*;
 
 @Entity
@@ -13,6 +11,7 @@ import lombok.*;
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @AllArgsConstructor
 @Builder
+@Table(name = "funding_news")
 public class FundingNews extends BaseEntity {
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
