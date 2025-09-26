@@ -9,6 +9,7 @@ import lombok.*;
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @AllArgsConstructor
 @Builder
+@Table(name = "funding_options")
 public class FundingOption extends BaseEntity {
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)

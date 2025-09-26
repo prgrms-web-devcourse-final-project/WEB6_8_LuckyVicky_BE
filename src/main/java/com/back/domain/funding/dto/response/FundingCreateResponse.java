@@ -12,6 +12,7 @@ public record FundingCreateResponse(
         Long fundingId,
         String title,
         String description,
+//        String categoryName,
         String imageUrl,
         long targetAmount,
         @JsonFormat(shape = JsonFormat.Shape.STRING, pattern = "yyyy-MM-dd HH:mm:ss")
@@ -25,6 +26,7 @@ public record FundingCreateResponse(
                 funding.getId(),
                 funding.getTitle(),
                 funding.getDescription(),
+//                funding.getCategory().getCategoryName(),
                 funding.getImageUrl(),
                 funding.getTargetAmount(),
                 funding.getStartDate(),
