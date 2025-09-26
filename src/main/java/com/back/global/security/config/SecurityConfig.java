@@ -54,6 +54,9 @@ public class SecurityConfig {
                         // 에러 페이지
                         .requestMatchers("/error", "/").permitAll()
 
+                        // 대시보드 API - 임시로 테스트용 허용 (TODO: 나중에 인증 추가)
+                        .requestMatchers("/api/dashboard/**").permitAll()
+
                         // 역할별 API 권한
                         .requestMatchers("/user/**").hasRole("USER")
                         .requestMatchers("/artist/**").hasRole("ARTIST")
