@@ -3,7 +3,7 @@ package com.back.domain.product.product.controller;
 
 import com.back.domain.product.category.entity.Category;
 import com.back.domain.product.category.repository.CategoryRepository;
-import com.back.domain.product.product.dto.CreateProductRequest;
+import com.back.domain.product.product.dto.request.CreateProductRequest;
 import com.back.domain.product.product.entity.ProductImage;
 import com.back.domain.product.product.service.ProductService;
 import com.back.global.rsData.RsData;

@@ -1,6 +1,7 @@
 package com.back.domain.product.product.controller;
 
-import com.back.domain.product.product.dto.CreateProductRequest;
+import com.back.domain.product.product.dto.request.CreateProductRequest;
+import com.back.domain.product.product.dto.response.ProductListResponse;
 import com.back.domain.product.product.entity.ProductImage;
 import com.back.domain.product.product.service.ProductService;
 import com.back.global.rsData.RsData;
@@ -16,6 +17,7 @@ import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Pageable;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
@@ -215,4 +217,60 @@ public class ProductController {
                 .header("Content-Type", "application/octet-stream") // 바이너리 데이터임을 나타냄
                 .body(fileBytes); // 실제 파일 바이트
     }
+
+    @GetMapping
+    @Operation(
+            summary = "상품 목록 조회",
+            description = "필터링(카테고리,태그,가격대,배송 유형) / 정렬 / 페이징 가능",
+            responses = {
+                    @ApiResponse(
+                            responseCode = "200",
+                            description = "상품 목록 조회 성공",
+                            content = @Content(
+                                    mediaType = "application/json",
+                                    schema = @Schema(
+                                            example = """
+                                                {
+                                                  "resultCode": "200",
+                                                  "msg": "상품 목록 조회 성공",
+                                                  "data": {
+                                                    "page": 1,
+                                                    "size": 10,
+                                                    "totalElements": 23,
+                                                    "totalPages": 3,
+                                                    "products": [
+                                                      {
+                                                        "productId": 1,
+                                                        "url": "https://bucket.s3.amazonaws.com/product-images/uuid1.png",
+                                                        "brandName": "브랜드1",
+                                                        "name": "상품1",
+                                                        "price": 10000,
+                                                        "discountRate": 10,
+                                                        "discountPrice": 9000,
+                                                        "rating": 4.6
+                                                      }
+                                                    ]
+                                                  }
+                                                }
+                                                """
+                                    )
+                            )
+                    )
+            }
+    )
+    public ResponseEntity<RsData<ProductListResponse>> getProducts(
+            @RequestParam(required = false) Long categoryId, // 카테고리(필터링)
+            @RequestParam(required = false) List<Long> tagIds, // 태그(필터링)
+            @RequestParam(required = false) Integer minPrice, // 최소가격(필터링)
+            @RequestParam(required = false) Integer maxPrice, // 최대가격(필터링)
+            @RequestParam(required = false) String deliveryType, // 배송비유형(필터링)
+            @RequestParam(defaultValue = "newest") String sort, // 정렬(기본값은 신상품순)
+            Pageable pageable // 페이징
+    ) {
+        ProductListResponse products = productService.getProducts(
+                categoryId, tagIds, minPrice, maxPrice, deliveryType, sort, pageable
+        );
+        return ResponseEntity.ok(RsData.of("200", "상품 목록 조회 성공", products));
+    }
+
 }
