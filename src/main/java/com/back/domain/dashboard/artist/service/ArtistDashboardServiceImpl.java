@@ -9,6 +9,7 @@ import com.back.domain.dashboard.artist.dto.response.ArtistCancellationResponse;
 import com.back.domain.dashboard.artist.dto.response.ArtistExchangeResponse;
 import com.back.domain.dashboard.artist.dto.response.ArtistSettingsResponse;
 import com.back.domain.dashboard.artist.dto.response.ArtistFundingResponse;
+import com.back.domain.dashboard.artist.dto.response.ArtistSettlementResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -283,15 +284,9 @@ public class ArtistDashboardServiceImpl implements ArtistDashboardService {
                 )
         );
 
-        List<ArtistCancellationResponse.BulkAction> bulkActions = List.of(
-                new ArtistCancellationResponse.BulkAction("CANCEL_APPROVE", "취소 승인", true),
-                new ArtistCancellationResponse.BulkAction("CANCEL_REJECT", "취소 거절", true)
-        );
-
         return new ArtistCancellationResponse.List(
                 summary,
                 content,
-                bulkActions,
                 page,
                 size,
                 8,
@@ -299,8 +294,6 @@ public class ArtistDashboardServiceImpl implements ArtistDashboardService {
                 false,
                 false
         );
-
-
     }
 
     @Override
@@ -330,15 +323,9 @@ public class ArtistDashboardServiceImpl implements ArtistDashboardService {
                 )
         );
 
-        List<ArtistExchangeResponse.BulkAction> bulkActions = List.of(
-                new ArtistExchangeResponse.BulkAction("EXCHANGE_APPROVE", "교환 승인", true),
-                new ArtistExchangeResponse.BulkAction("EXCHANGE_REJECT", "교환 거절", true)
-        );
-
         return new ArtistExchangeResponse.List(
                 summary,
                 content,
-                bulkActions,
                 page,
                 size,
                 5,
@@ -434,14 +421,114 @@ public class ArtistDashboardServiceImpl implements ArtistDashboardService {
                 )
         );
 
-        // 일괄 작업 목록
-        List<ArtistFundingResponse.BulkAction> bulkActions = List.of(
-                new ArtistFundingResponse.BulkAction("REQUEST_SALE", "판매 요청", true)
+        return new ArtistFundingResponse.List(
+                summary, content,
+                page, size, 15, 1, false, false
+        );
+    }
+
+    @Override
+    public ArtistSettlementResponse getSettlements(String authorization, Integer year, Integer month, String granularity,
+                                                   String status, Long productId, int page, int size, String sort, String order) {
+        // TODO: JWT 토큰에서 작가 정보 추출
+        // TODO: 실제 데이터베이스에서 정산 내역 조회
+        // TODO: 연도가 null이면 서버 현재 연도 사용
+
+        // 조회 범위 - month 파라미터를 그대로 전달
+        ArtistSettlementResponse.Scope scope = new ArtistSettlementResponse.Scope(
+                year != null ? year : 2025, month
         );
 
-        return new ArtistFundingResponse.List(
-                summary, content, bulkActions,
-                page, size, 15, 1, false, false
+        // 요약 정보
+        ArtistSettlementResponse.Summary summary = new ArtistSettlementResponse.Summary(
+                new ArtistSettlementResponse.AmountInfo(128000, "총 매출"),
+                new ArtistSettlementResponse.AmountInfo(51264, "수수료"),
+                new ArtistSettlementResponse.AmountInfo(64000, "순수익")
+        );
+
+        // 차트 데이터 (월별)
+        List<ArtistSettlementResponse.ChartDataPoint> salesData = Arrays.asList(
+                new ArtistSettlementResponse.ChartDataPoint("2025-01-01", 500000),
+                new ArtistSettlementResponse.ChartDataPoint("2025-02-01", 750000),
+                new ArtistSettlementResponse.ChartDataPoint("2025-03-01", 650000),
+                new ArtistSettlementResponse.ChartDataPoint("2025-04-01", 650000),
+                new ArtistSettlementResponse.ChartDataPoint("2025-05-01", 550000),
+                new ArtistSettlementResponse.ChartDataPoint("2025-06-01", 800000),
+                new ArtistSettlementResponse.ChartDataPoint("2025-07-01", 850000),
+                new ArtistSettlementResponse.ChartDataPoint("2025-08-01", 450000),
+                new ArtistSettlementResponse.ChartDataPoint("2025-09-01", 800000),
+                new ArtistSettlementResponse.ChartDataPoint("2025-10-01", 950000),
+                new ArtistSettlementResponse.ChartDataPoint("2025-11-01", 1000000),
+                new ArtistSettlementResponse.ChartDataPoint("2025-12-01", 1100000)
+        );
+
+        ArtistSettlementResponse.Chart chart = new ArtistSettlementResponse.Chart(
+                new ArtistSettlementResponse.ChartSeries(salesData),
+                new ArtistSettlementResponse.YDomain(0, 1100000)
+        );
+
+        // 테이블 데이터
+        List<ArtistSettlementResponse.Settlement> settlements = Arrays.asList(
+                new ArtistSettlementResponse.Settlement(
+                        910004L,
+                        "2025-09-18",
+                        new ArtistSettlementResponse.Product(101L, "상품명입니다 상품명입니다"),
+                        18000,
+                        200,
+                        17800,
+                        "PENDING",
+                        "미지급"
+                ),
+                new ArtistSettlementResponse.Settlement(
+                        910003L,
+                        "2025-09-18",
+                        new ArtistSettlementResponse.Product(102L, "상품명입니다 상품명입니다"),
+                        50000,
+                        500,
+                        49500,
+                        "COMPLETED",
+                        "정산 완료"
+                ),
+                new ArtistSettlementResponse.Settlement(
+                        910002L,
+                        "2025-09-18",
+                        new ArtistSettlementResponse.Product(103L, "상품명입니다 상품명입니다"),
+                        30000,
+                        1000,
+                        29000,
+                        "COMPLETED",
+                        "정산 완료"
+                ),
+                new ArtistSettlementResponse.Settlement(
+                        910001L,
+                        "2025-09-18",
+                        new ArtistSettlementResponse.Product(104L, "상품명입니다 상품명입니다"),
+                        5000,
+                        100,
+                        4900,
+                        "PENDING",
+                        "미지급"
+                )
+        );
+
+        ArtistSettlementResponse.Table table = new ArtistSettlementResponse.Table(
+                settlements,
+                page,
+                size,
+                124,
+                7,
+                true,
+                false
+        );
+
+        return new ArtistSettlementResponse(
+                scope,
+                granularity,
+                "Asia/Seoul",
+                summary,
+                chart,
+                table,
+                LocalDateTime.now()
         );
     }
 }

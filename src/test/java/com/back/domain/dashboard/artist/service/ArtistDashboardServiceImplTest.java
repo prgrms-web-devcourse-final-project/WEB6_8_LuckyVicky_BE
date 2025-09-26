@@ -135,7 +135,6 @@ class ArtistDashboardServiceImplTest {
                 () -> assertThat(result).isNotNull(),
                 () -> assertThat(result.summary()).isNotNull(),
                 () -> assertThat(result.content()).hasSize(1),
-                () -> assertThat(result.bulkActions()).hasSize(2),
                 // 핵심 비즈니스 규칙 - 상태별 합계가 전체와 일치
                 () -> assertThat(result.summary().pending() + result.summary().approved()
                         + result.summary().rejected()).isEqualTo(result.summary().total()),
@@ -156,7 +155,6 @@ class ArtistDashboardServiceImplTest {
                 () -> assertThat(result).isNotNull(),
                 () -> assertThat(result.summary()).isNotNull(),
                 () -> assertThat(result.content()).hasSize(1),
-                () -> assertThat(result.bulkActions()).hasSize(2),
                 // 핵심 비즈니스 규칙 - 상태별 합계가 전체와 일치
                 () -> assertThat(result.summary().pending() + result.summary().approved()
                         + result.summary().rejected()).isEqualTo(result.summary().total()),
@@ -214,7 +212,6 @@ class ArtistDashboardServiceImplTest {
                 () -> assertThat(result).isNotNull(),
                 () -> assertThat(result.getSummary()).isNotNull(),
                 () -> assertThat(result.getContent()).isNotEmpty(),
-                () -> assertThat(result.getBulkActions()).isNotEmpty(),
                 // 요약 정보 검증
                 () -> assertThat(result.getSummary().totalFundings()).isEqualTo(15),
                 () -> assertThat(result.getSummary().activeFundings()).isEqualTo(8),
@@ -232,6 +229,90 @@ class ArtistDashboardServiceImplTest {
                 () -> assertThat(result.getTotalElements()).isEqualTo(15),
                 () -> assertThat(result.getTotalPages()).isEqualTo(1),
                 () -> assertThat(result.isHasNext()).isFalse()
+        );
+    }
+
+    @Test
+    @DisplayName("정산내역 조회 - 완전한 응답 구조 반환")
+    void getSettlements_ReturnsCompleteStructure() {
+        // When
+        ArtistSettlementResponse result = artistDashboardService.getSettlements(
+                TEST_AUTHORIZATION, 2025, null, "MONTH", null, null, 0, 20, "date", "DESC");
+
+        // Then - 핵심 구조와 비즈니스 로직 검증
+        assertAll(
+                () -> assertThat(result).isNotNull(),
+                () -> assertThat(result.scope()).isNotNull(),
+                () -> assertThat(result.summary()).isNotNull(),
+                () -> assertThat(result.chart()).isNotNull(),
+                () -> assertThat(result.table()).isNotNull(),
+                // 범위 정보 검증
+                () -> assertThat(result.scope().year()).isEqualTo(2025),
+                () -> assertThat(result.scope().month()).isNull(),
+                () -> assertThat(result.granularity()).isEqualTo("MONTH"),
+                () -> assertThat(result.timezone()).isEqualTo("Asia/Seoul"),
+                // 요약 정보 검증
+                () -> assertThat(result.summary().totalSales().amount()).isEqualTo(128000),
+                () -> assertThat(result.summary().totalCommission().amount()).isEqualTo(51264),
+                () -> assertThat(result.summary().totalNetIncome().amount()).isEqualTo(64000),
+                // 차트 데이터 검증
+                () -> assertThat(result.chart().series().sales()).hasSize(12),
+                () -> assertThat(result.chart().yDomain().min()).isEqualTo(0),
+                () -> assertThat(result.chart().yDomain().max()).isEqualTo(1100000),
+                // 테이블 데이터 검증
+                () -> assertThat(result.table().getContent()).hasSize(4),
+                () -> assertThat(result.table().getTotalElements()).isEqualTo(124),
+                () -> assertThat(result.table().getTotalPages()).isEqualTo(7),
+                () -> assertThat(result.table().isHasNext()).isTrue(),
+                () -> assertThat(result.serverTime()).isNotNull()
+        );
+    }
+
+    @Test
+    @DisplayName("정산내역 조회 - 월별 필터 적용 시 일별 집계")
+    void getSettlements_WithMonthFilter_ReturnsDailyGranularity() {
+        // When
+        ArtistSettlementResponse result = artistDashboardService.getSettlements(
+                TEST_AUTHORIZATION, 2025, 9, "DAY", "COMPLETED", 101L, 0, 10, "grossAmount", "ASC");
+
+        // Then - 월별 필터 시 동작 검증
+        assertAll(
+                () -> assertThat(result).isNotNull(),
+                () -> assertThat(result.scope().year()).isEqualTo(2025),
+                () -> assertThat(result.scope().month()).isEqualTo(9), // 파라미터로 전달된 월 반환
+                () -> assertThat(result.granularity()).isEqualTo("DAY"),
+                () -> assertThat(result.table().getContent()).isNotEmpty(),
+                () -> assertThat(result.summary().totalSales().amount()).isNotNegative(),
+                () -> assertThat(result.chart().series().sales()).isNotEmpty()
+        );
+    }
+
+    @Test
+    @DisplayName("정산내역 조회 - 비즈니스 로직 검증")
+    void getSettlements_ValidatesBusinessLogic() {
+        // When
+        ArtistSettlementResponse result = artistDashboardService.getSettlements(
+                TEST_AUTHORIZATION, 2025, null, "MONTH", null, null, 0, 20, "date", "DESC");
+
+        // Then - 핵심 비즈니스 규칙 검증
+        assertAll(
+                // 정산 내역의 순수익 = 총액 - 수수료 검증
+                () -> {
+                    ArtistSettlementResponse.Settlement firstSettlement = result.table().getContent().getFirst();
+                    int expectedNet = firstSettlement.grossAmount() - firstSettlement.commission();
+                    assertThat(firstSettlement.netAmount()).isEqualTo(expectedNet);
+                },
+                // 모든 금액이 음수가 아님
+                () -> assertThat(result.summary().totalSales().amount()).isNotNegative(),
+                () -> assertThat(result.summary().totalCommission().amount()).isNotNegative(),
+                () -> assertThat(result.summary().totalNetIncome().amount()).isNotNegative(),
+                // 차트 Y축 도메인 검증
+                () -> assertThat(result.chart().yDomain().min()).isNotNegative(),
+                () -> assertThat(result.chart().yDomain().max()).isPositive(),
+                () -> assertThat(result.chart().yDomain().max()).isGreaterThan(result.chart().yDomain().min()),
+                // 페이징 논리 검증
+                () -> assertThat(result.table().getTotalPages()).isPositive(),
+                () -> assertThat(result.table().getTotalElements()).isGreaterThanOrEqualTo(result.table().getContent().size())
         );
     }
 }
