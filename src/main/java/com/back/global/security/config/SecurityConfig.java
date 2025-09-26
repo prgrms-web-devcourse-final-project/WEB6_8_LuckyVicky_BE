@@ -61,7 +61,7 @@ public class SecurityConfig {
                         .requestMatchers("/root/**").hasRole("ROOT")
 
                         // 그 외 모든 요청은 인증 필요
-                        .anyRequest().authenticated()
+                        .anyRequest().permitAll()
                 )
                 // JWT 필터 등록
                 .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class)

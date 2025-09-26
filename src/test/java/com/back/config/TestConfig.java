@@ -16,7 +16,8 @@ import static org.springframework.test.web.servlet.setup.MockMvcBuilders.webAppC
  */
 @TestConfiguration
 @Profile("test")
-public class TestConfig {
+public class
+TestConfig {
 
     /**
      * 테스트용 MockMvc 설정

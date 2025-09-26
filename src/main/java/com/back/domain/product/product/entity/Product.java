@@ -7,6 +7,8 @@ import jakarta.persistence.*;
 import lombok.*;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
@@ -16,6 +18,7 @@ import java.util.Set;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
+@Table(name = "products")
 public class Product extends BaseEntity {
 
     @ManyToOne(fetch = FetchType.LAZY)
@@ -59,11 +62,9 @@ public class Product extends BaseEntity {
     @Column(columnDefinition = "TEXT", nullable = false)
     private String description; // 상품 정보 (텍스트+이미지 태그)
 
-    @Column(nullable = false)
     @Enumerated(EnumType.STRING)
     private SellingStatus sellingStatus; // 판매 상태(판매전, 판매중, 품절, 판매종료)
 
-    @Column(nullable = false)
     @Enumerated(EnumType.STRING)
     private DisplayStatus displayStatus; // 전시 상태(전시 전, 전시 중, 전시 종료)
 
@@ -103,16 +104,16 @@ public class Product extends BaseEntity {
 
 
     @OneToMany(mappedBy = "product", cascade = CascadeType.ALL, orphanRemoval = true) // 상품이 저장/삭제되면 모든 옵션도 저장/삭제됨, 상품에서 옵션을 제거하면 DB에서 해당 옵션도 삭제됨.
-    private List<Option> options; // 해당 상품의 옵션들
+    private List<Option> options = new ArrayList<>();; // 해당 상품의 옵션들
 
     @OneToMany(mappedBy = "product", cascade = CascadeType.ALL, orphanRemoval = true) // 상품이 저장/삭제되면 모든 추가상품도 저장/삭제됨, 상품에서 추가상품을 제거하면 DB에서 해당 추가상품도 삭제됨.
-    private List<AdditionalProduct> additionalProducts; // 해당 상품의 추가상품들
+    private List<AdditionalProduct> additionalProducts = new ArrayList<>();; // 해당 상품의 추가상품들
 
     @OneToMany(mappedBy = "product", cascade = CascadeType.ALL, orphanRemoval = true)// 상품이 저장/삭제되면 모든 상품이미지도 저장/삭제됨, 상품에서 이미지를 제거하면 DB에서 해당 이미지도 삭제됨.
-    private List<ProductImage> images; // 해당 상품의 이미지들(대표/추가/썸네일 이미지)
+    private List<ProductImage> images = new ArrayList<>();; // 해당 상품의 이미지들(대표/추가/썸네일 이미지)
 
     @OneToMany(mappedBy = "product", cascade = CascadeType.ALL, orphanRemoval = true)// 상품이 저장/삭제되면 매핑 중간테이블의 해당 데이터도 저장/삭제됨, 상품에서 특정 태그를 제거하면 DB에서 해당 매핑 데이터도 삭제됨.
-    private Set<ProductTagMapping> productTags; // 상품과 태그(스타일)의 중간 테이블. 하나의 상품에 동일한 태그를 중복으로 붙이는 걸 허용하지 않으므로 List말고 Set 사용
+    private Set<ProductTagMapping> productTags= new HashSet<>();; // 상품과 태그(스타일)의 중간 테이블. 하나의 상품에 동일한 태그를 중복으로 붙이는 걸 허용하지 않으므로 List말고 Set 사용
 
     // 할인된 가격 계산
     public int getDiscountPrice() {
