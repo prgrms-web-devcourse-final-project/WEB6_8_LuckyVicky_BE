@@ -13,13 +13,13 @@ import lombok.*;
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @AllArgsConstructor
 @Builder
-public class FundingUpdate extends BaseEntity {
+public class FundingNews extends BaseEntity {
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     private Funding funding;
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
-    private User author;
+    private User artist;
 
     @Column(nullable = false)
     private String title;

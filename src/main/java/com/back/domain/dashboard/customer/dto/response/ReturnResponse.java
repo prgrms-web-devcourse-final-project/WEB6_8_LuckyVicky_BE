@@ -1,7 +1,5 @@
 package com.back.domain.dashboard.customer.dto.response;
 
-import lombok.*;
-
 /**
  * 교환/반품 관련 응답 DTO
  * 
@@ -13,114 +11,84 @@ public class ReturnResponse {
     /**
      * 교환/반품 폼 데이터 응답
      */
-    @Getter
-    @Setter
-    @Builder
-    @NoArgsConstructor
-    @AllArgsConstructor
-    public static class FormData {
-        /** 주문 요약 정보 */
-        private Summary summary;
-        /** 폼 데이터 */
-        private Form form;
-        /** 권한 정보 */
-        private Permission permissions;
-    }
+    public record FormData(
+            /** 주문 요약 정보 */
+            Summary summary,
+            /** 폼 데이터 */
+            Form form,
+            /** 권한 정보 */
+            Permission permissions
+    ) {}
     
     /**
      * 주문 요약 정보
      */
-    @Getter
-    @Setter
-    @Builder
-    @NoArgsConstructor
-    @AllArgsConstructor
-    public static class Summary {
-        /** 주문 번호 */
-        private String orderNo;
-        /** 브랜드명 */
-        private String brandName;
-        /** 상품명 */
-        private String title;
-        /** 가격 */
-        private int price;
-        /** 수량 */
-        private int quantity;
-        /** 썸네일 URL */
-        private String thumbnailUrl;
-    }
+    public record Summary(
+            /** 주문 번호 */
+            String orderNo,
+            /** 브랜드명 */
+            String brandName,
+            /** 상품명 */
+            String title,
+            /** 가격 */
+            int price,
+            /** 수량 */
+            int quantity,
+            /** 썸네일 URL */
+            String thumbnailUrl
+    ) {}
     
     /**
      * 폼 데이터
      */
-    @Getter
-    @Setter
-    @Builder
-    @NoArgsConstructor
-    @AllArgsConstructor
-    public static class Form {
-        /** 타입 (EXCHANGE | RETURN) */
-        private String type;
-        /** 방법 (PICKUP | CONSIGN) */
-        private String method;
-        /** 사유 코드 */
-        private String reasonCode;
-        /** 상세 사유 */
-        private String detail;
-        /** 첨부 이미지 */
-        private java.util.List<Image> images;
-        /** 픽업 정보 (method=PICKUP일 때만) */
-        private Pickup pickup;
-    }
+    public record Form(
+            /** 타입 (EXCHANGE | RETURN) */
+            String type,
+            /** 방법 (PICKUP | CONSIGN) */
+            String method,
+            /** 사유 코드 */
+            String reasonCode,
+            /** 상세 사유 */
+            String detail,
+            /** 첨부 이미지 */
+            java.util.List<Image> images,
+            /** 픽업 정보 (method=PICKUP일 때만) */
+            Pickup pickup
+    ) {}
     
     /**
      * 첨부 이미지 정보
      */
-    @Getter
-    @Setter
-    @Builder
-    @NoArgsConstructor
-    @AllArgsConstructor
-    public static class Image {
-        /** 파일 ID */
-        private String fileId;
-        /** 파일명 */
-        private String fileName;
-    }
+    public record Image(
+            /** 파일 ID */
+            String fileId,
+            /** 파일명 */
+            String fileName
+    ) {}
     
     /**
      * 픽업 정보
      */
-    @Getter
-    @Setter
-    @Builder
-    @NoArgsConstructor
-    @AllArgsConstructor
-    public static class Pickup {
-        /** 우편번호 */
-        private String zip;
-        /** 주소1 */
-        private String address1;
-        /** 주소2 */
-        private String address2;
-        /** 수령인명 */
-        private String name;
-        /** 전화번호 */
-        private String phone;
-    }
+    public record Pickup(
+            /** 우편번호 */
+            String zip,
+            /** 주소1 */
+            String address1,
+            /** 주소2 */
+            String address2,
+            /** 수령인명 */
+            String name,
+            /** 전화번호 */
+            String phone
+    ) {}
     
     /**
      * 권한 정보
      */
-    @Getter
-    @Setter
-    @Builder
-    @NoArgsConstructor
-    @AllArgsConstructor
-    public static class Permission {
-        /** 편집 가능 여부 */
-        private Boolean canEdit;
-        /** 취소 가능 여부 */
-        private Boolean canCancel;
-    }
+    public record Permission(
+            /** 편집 가능 여부 */
+            Boolean canEdit,
+            /** 취소 가능 여부 */
+            Boolean canCancel
+    ) {}
 }

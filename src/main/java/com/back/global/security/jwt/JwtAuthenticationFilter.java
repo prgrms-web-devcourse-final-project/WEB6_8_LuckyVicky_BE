@@ -1,6 +1,9 @@
 package com.back.global.security.jwt;
 
 import com.back.domain.user.entity.Role;
+import com.back.domain.user.entity.User;
+import com.back.domain.user.repository.UserRepository;
+import com.back.global.security.auth.CustomUserDetails;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.Cookie;
@@ -10,16 +13,12 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
-import org.springframework.security.core.GrantedAuthority;
-import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
-import java.util.Collections;
-import java.util.List;
 import java.util.Set;
 
 @Slf4j
@@ -28,10 +27,12 @@ import java.util.Set;
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
     private final JwtTokenProvider jwtTokenProvider;
+    private final UserRepository userRepository;
 
     // JWT 필터를 적용하지 않을 경로들
     private static final Set<String> EXCLUDED_PATH_PREFIXES = Set.of(
-            "/auth/", "/h2-console/", "/v3/api-docs", "/swagger-ui",
+            "/api/auth/signup", "/api/auth/login", "/api/auth/refresh",
+            "/h2-console/", "/v3/api-docs", "/swagger-ui",
             "/swagger-resources", "/webjars/", "/ws/", "/chat/",
             "/topic/", "/app/", "/css/", "/js/", "/images/"
     );
@@ -51,14 +52,16 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                 String email = jwtTokenProvider.getEmailFromToken(token);
                 Role currentRole = jwtTokenProvider.getRoleFromToken(token);
 
-                // 4. Spring Security 권한 생성
-                List<GrantedAuthority> authorities = Collections.singletonList(
-                        new SimpleGrantedAuthority("ROLE_" + currentRole.name())
-                );
+                // 4. DB에서 사용자 조회
+                User user = userRepository.findById(userId)
+                        .orElseThrow(() -> new RuntimeException("사용자를 찾을 수 없습니다: " + userId));
 
-                // 5. 인증 객체 생성 및 SecurityContext에 설정
+                // 5. CustomUserDetails 생성
+                CustomUserDetails userDetails = new CustomUserDetails(user, currentRole);
+
+                // 6. Authentication 객체 생성 - Principal에 CustomUserDetails 설정
                 Authentication authentication = new UsernamePasswordAuthenticationToken(
-                        userId, null, authorities
+                        userDetails, null, userDetails.getAuthorities()
                 );
 
                 SecurityContextHolder.getContext().setAuthentication(authentication);
@@ -71,7 +74,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             SecurityContextHolder.clearContext();
         }
 
-        // 6. 다음 필터로 진행
+        // 7. 다음 필터로 진행
         filterChain.doFilter(request, response);
     }
 

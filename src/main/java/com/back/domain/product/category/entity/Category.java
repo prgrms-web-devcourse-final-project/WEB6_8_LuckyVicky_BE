@@ -13,6 +13,7 @@ import java.util.List;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
+@Table(name = "categories")
 public class Category extends BaseEntity {
 
     @Column(nullable = false)

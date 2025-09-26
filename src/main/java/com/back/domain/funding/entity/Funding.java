@@ -13,6 +13,7 @@ import java.util.List;
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @AllArgsConstructor
+@Table(name = "fundings")
 @Builder
 public class Funding extends BaseEntity {
 
@@ -23,19 +24,26 @@ public class Funding extends BaseEntity {
     @Column(nullable = false)
     private String title;
 
-//    private FundingCategory category;  카테고리 추후 구현
+    @Column(nullable = false, columnDefinition = "TEXT")
+    private String description;
+
+//    @ManyToOne(fetch = FetchType.LAZY, optional = false)
+//    @JoinColumn(name = "category_id", nullable = true)
+//    private Category category; // parent == null 인 상위 카테고리만 사용
+
+    private String imageUrl;
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     @Builder.Default
-    private FundingStatus status = FundingStatus.DRAFT;
+    private FundingStatus status = FundingStatus.OPEN;
 
     @Column(nullable = false)
-    private Long targetAmount;
+    private long targetAmount;
 
     @Column(nullable = false)
     @Builder.Default
-    private Long collectedAmount = 0L;
+    private long collectedAmount = 0L;
 
     @Column(nullable = false)
     private LocalDateTime startDate;
@@ -47,10 +55,7 @@ public class Funding extends BaseEntity {
     @Builder.Default
     private int participantCount = 0;
 
-    @Column(nullable = false, columnDefinition = "TEXT")
-    private String description;
 
-    private String imageUrl;
 
     @Builder.Default
     @OneToMany(mappedBy = "funding", cascade = CascadeType.ALL, orphanRemoval = true)
@@ -62,11 +67,49 @@ public class Funding extends BaseEntity {
         this.options.add(option);
     }
 
-    public void increaseCollectedAmount(Long delta) {
+    public void increaseCollectedAmount(long delta) {
         this.collectedAmount += delta;
     }
 
     public void increaseParticipantCount(int delta) {
         this.participantCount = this.participantCount + delta;
+    }
+
+    public static Funding create(
+            User user,
+            String title,
+            String description,
+            String imageUrl,
+            long targetAmount,
+            LocalDateTime startDate,
+            LocalDateTime endDate,
+            FundingStatus initialStatus,
+            List<FundingOption> options
+    ) {
+        // --- 도메인 규칙 검증 ---
+        if (user == null) throw new IllegalArgumentException("작성자는 필수입니다.");
+        if (title == null || title.isBlank()) throw new IllegalArgumentException("제목은 필수입니다.");
+        if (description == null || description.isBlank()) throw new IllegalArgumentException("설명은 필수입니다.");
+        if (targetAmount <= 0) throw new IllegalArgumentException("목표 금액은 0보다 커야 합니다.");
+        if (startDate == null || endDate == null) throw new IllegalArgumentException("시작/종료일은 필수입니다.");
+        if (endDate.isBefore(startDate)) throw new IllegalArgumentException("종료일은 시작일 이후여야 합니다.");
+
+        Funding f = Funding.builder()
+                .user(user)
+                .title(title)
+                .description(description)
+                .imageUrl(imageUrl)
+                .targetAmount(targetAmount)
+                .startDate(startDate)
+                .endDate(endDate)
+                .status(initialStatus != null ? initialStatus : FundingStatus.OPEN)
+                .build();
+
+        if (options != null) {
+            for (FundingOption o : options) {
+                f.attachOption(o); // 양방향 세팅
+            }
+        }
+        return f;
     }
 }

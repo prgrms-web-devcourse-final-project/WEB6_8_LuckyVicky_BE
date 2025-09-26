@@ -10,6 +10,7 @@ import lombok.*;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
+@Table(name = "additional_products")
 public class AdditionalProduct extends BaseEntity {
 
     @ManyToOne(fetch = FetchType.LAZY)

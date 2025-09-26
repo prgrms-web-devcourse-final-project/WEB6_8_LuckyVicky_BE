@@ -2,8 +2,6 @@ package com.back.domain.dashboard.customer.dto.response;
 
 import com.back.global.util.PageResponse;
 
-import lombok.*;
-
 import java.time.LocalDateTime;
 
 /**
@@ -16,16 +14,16 @@ public class WishlistResponse {
     /**
      * 찜한 상품 목록 응답
      */
-    @Getter
-    @Setter
     public static class List extends PageResponse<WishlistResponse.Item> {
         /** 찜하기 현황 요약 정보 */
-        private SummaryDto summary;
+        private final SummaryDto summary;
         /** 일괄 작업 옵션 */
-        private java.util.List<BulkAction> bulkActions;
+        private final java.util.List<BulkAction> bulkActions;
         
         public List() {
             super();
+            this.summary = null;
+            this.bulkActions = null;
         }
         
         public List(SummaryDto summary, java.util.List<BulkAction> bulkActions, 
@@ -35,84 +33,67 @@ public class WishlistResponse {
             this.summary = summary;
             this.bulkActions = bulkActions;
         }
+        
+        public SummaryDto getSummary() {
+            return summary;
+        }
+        
+        public java.util.List<BulkAction> getBulkActions() {
+            return bulkActions;
+        }
     }
     
     /**
      * 찜하기 현황 요약 정보
      */
-    @Getter
-    @Setter
-    @Builder
-    @NoArgsConstructor
-    @AllArgsConstructor
-    public static class SummaryDto {
-        /** 전체 찜한 상품 수 */
-        private int totalWishItems;
-    }
+    public record SummaryDto(
+            /** 전체 찜한 상품 수 */
+            int totalWishItems
+    ) {}
     
     /**
      * 찜한 상품 정보
      */
-    @Getter
-    @Setter
-    @Builder
-    @NoArgsConstructor
-    @AllArgsConstructor
-    public static class Item {
-        private String wishId;
-        private Long productId;
-        private String productNumber;
-        private String productName;
-        private int price;
-        private Artist artist;
-        private String imageUrl;
-        private String sellingStatus;
-        private String registeredDate;
-        private LocalDateTime addedAt;
-        private String productPageUrl;
-        private Permission permissions;
-    }
+    public record Item(
+            String wishId,
+            Long productId,
+            String productNumber,
+            String productName,
+            int price,
+            Artist artist,
+            String imageUrl,
+            String sellingStatus,
+            String registeredDate,
+            LocalDateTime addedAt,
+            String productPageUrl,
+            Permission permissions
+    ) {}
     
     /**
      * 작가 정보
      */
-    @Getter
-    @Setter
-    @Builder
-    @NoArgsConstructor
-    @AllArgsConstructor
-    public static class Artist {
-        private String id;
-        private String name;
-    }
+    public record Artist(
+            String id,
+            String name
+    ) {}
     
     /**
      * 권한 정보
      */
-    @Getter
-    @Setter
-    @Builder
-    @NoArgsConstructor
-    @AllArgsConstructor
-    public static class Permission {
-        /** 찜 해제 가능 여부 */
-        private Boolean canUnwish;
-    }
+    public record Permission(
+            /** 찜 해제 가능 여부 */
+            Boolean canUnwish
+    ) {}
     
     /**
      * 일괄 작업 옵션
      */
-    @Getter
-    @Setter
-    @Builder
-    @NoArgsConstructor
-    @AllArgsConstructor
-    public static class BulkAction {
-        /** 작업 종류 */
-        private String action;
-        /** 표시 라벨 */
-        private String label;
-        /** 확인 필요 여부 */
-        private Boolean requiresConfirmation;
-    }
+    public record BulkAction(
+            /** 작업 종류 */
+            String action,
+            /** 표시 라벨 */
+            String label,
+            /** 확인 필요 여부 */
+            Boolean requiresConfirmation
+    ) {}
 }

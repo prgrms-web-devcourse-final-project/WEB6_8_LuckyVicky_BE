@@ -22,7 +22,7 @@ public class FundingOption extends BaseEntity {
     private long price;
 
     @Column
-    private Integer availableQuantity;
+    private Integer stock;
 
     @Column
     @Builder.Default
@@ -33,7 +33,20 @@ public class FundingOption extends BaseEntity {
     }
 
     public void decreaseStock(int qty) {
-        if (availableQuantity == null) return;
-        this.availableQuantity = this.availableQuantity - qty;
+        if (stock == null) return;
+        this.stock = this.stock - qty;
+    }
+
+    public static FundingOption create(String name, long price, Integer stock, Integer sortOrder) {
+        if (name == null || name.isBlank()) throw new IllegalArgumentException("옵션명은 필수입니다.");
+        if (price <= 0) throw new IllegalArgumentException("옵션 가격은 0보다 커야 합니다.");
+        if (stock == null || stock <= 0) throw new IllegalArgumentException("옵션 재고는 0보다 커야 합니다.");
+        if (sortOrder == null) throw new IllegalArgumentException("옵션 정렬 순서는 필수입니다.");
+        return FundingOption.builder()
+                .name(name)
+                .price(price)
+                .stock(stock)
+                .sortOrder(sortOrder)
+                .build();
     }
 }

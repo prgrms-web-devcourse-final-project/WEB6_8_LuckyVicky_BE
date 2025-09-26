@@ -2,8 +2,6 @@ package com.back.domain.dashboard.customer.dto.response;
 
 import com.back.global.util.PageResponse;
 
-import lombok.*;
-
 import java.time.LocalDateTime;
 
 /**
@@ -17,16 +15,16 @@ public class FollowingResponse {
     /**
      * 팔로우한 작가 목록 응답
      */
-    @Getter
-    @Setter
     public static class List extends PageResponse<FollowingResponse.Artist> {
         /** 조회 대상 사용자 프로필 */
-        private Profile profile;
+        private final Profile profile;
         /** 팔로우 현황 요약 정보 */
-        private SummaryDto summary;
+        private final SummaryDto summary;
         
         public List() {
             super();
+            this.profile = null;
+            this.summary = null;
         }
         
         public List(Profile profile, SummaryDto summary, java.util.List<Artist> content,
@@ -36,88 +34,71 @@ public class FollowingResponse {
             this.profile = profile;
             this.summary = summary;
         }
+        
+        public Profile getProfile() {
+            return profile;
+        }
+        
+        public SummaryDto getSummary() {
+            return summary;
+        }
     }
     
     /**
      * 조회 대상 사용자 프로필 정보
      */
-    @Getter
-    @Setter
-    @Builder
-    @NoArgsConstructor
-    @AllArgsConstructor
-    public static class Profile {
-        /** 사용자 ID */
-        private String userId;
-        /** 닉네임 */
-        private String nickname;
-        /** 프로필 이미지 URL */
-        private String profileImageUrl;
-    }
+    public record Profile(
+            /** 사용자 ID */
+            String userId,
+            /** 닉네임 */
+            String nickname,
+            /** 프로필 이미지 URL */
+            String profileImageUrl
+    ) {}
     
     /**
      * 팔로우 현황 요약 정보
      */
-    @Getter
-    @Setter
-    @Builder
-    @NoArgsConstructor
-    @AllArgsConstructor
-    public static class SummaryDto {
-        /** 전체 팔로우 작가 수 */
-        private int totalFollowing;
-    }
+    public record SummaryDto(
+            /** 전체 팔로우 작가 수 */
+            int totalFollowing
+    ) {}
     
     /**
      * 작가 정보
      */
-    @Getter
-    @Setter
-    @Builder
-    @NoArgsConstructor
-    @AllArgsConstructor
-    public static class Artist {
-        /** 작가 ID */
-        private String artistId;
-        /** 작가명 */
-        private String artistName;
-        /** 프로필 이미지 URL */
-        private String profileImageUrl;
-        /** 팔로워 수 */
-        private int followerCount;
-        /** 작가 페이지 URL */
-        private String artistPageUrl;
-        /** 팔로우 관계 정보 */
-        private FollowRelation followRelation;
-        /** 배지 정보 */
-        private Badge badges;
-    }
+    public record Artist(
+            /** 작가 ID */
+            String artistId,
+            /** 작가명 */
+            String artistName,
+            /** 프로필 이미지 URL */
+            String profileImageUrl,
+            /** 팔로워 수 */
+            int followerCount,
+            /** 작가 페이지 URL */
+            String artistPageUrl,
+            /** 팔로우 관계 정보 */
+            FollowRelation followRelation,
+            /** 배지 정보 */
+            Badge badges
+    ) {}
     
     /**
      * 팔로우 관계 정보
      */
-    @Getter
-    @Setter
-    @Builder
-    @NoArgsConstructor
-    @AllArgsConstructor
-    public static class FollowRelation {
-        /** 관계 상태 (FOLLOWING) */
-        private String status;
-        /** 팔로우한 날짜 */
-        private LocalDateTime followedAt;
-    }
+    public record FollowRelation(
+            /** 관계 상태 (FOLLOWING) */
+            String status,
+            /** 팔로우한 날짜 */
+            LocalDateTime followedAt
+    ) {}
     
     /**
      * 작가 배지 정보
      */
-    @Getter
-    @Setter
-    @Builder
-    @NoArgsConstructor
-    @AllArgsConstructor
-    public static class Badge {
-        /** 인증 작가 여부 */
-        private Boolean verified;
-    }
+    public record Badge(
+            /** 인증 작가 여부 */
+            Boolean verified
+    ) {}
 }
