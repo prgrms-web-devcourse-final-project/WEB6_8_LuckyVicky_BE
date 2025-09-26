@@ -1,6 +1,7 @@
 package com.back.domain.dashboard.admin.service;
 
 import com.back.domain.dashboard.admin.dto.response.AdminOverviewResponse;
+import com.back.domain.dashboard.admin.dto.response.AdminProductResponse;
 
 /**
  * 관리자용 대시보드 서비스 인터페이스
@@ -13,4 +14,11 @@ public interface AdminDashboardService {
      */
     AdminOverviewResponse getOverview(String authorization, String adminRole, String range, 
                                       String granularity, String period, String timezone);
+
+    /**
+     * 관리자 상품 목록 조회
+     */
+    AdminProductResponse getProducts(String authorization, String adminRole, int page, int size,
+                                     String keyword, String sellingStatus, Long categoryId, Long artistId,
+                                     String startDate, String endDate, String sort, String order, boolean metrics);
 }

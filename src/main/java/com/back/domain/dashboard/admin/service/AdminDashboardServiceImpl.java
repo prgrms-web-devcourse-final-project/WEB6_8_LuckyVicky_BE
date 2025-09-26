@@ -1,10 +1,12 @@
 package com.back.domain.dashboard.admin.service;
 
 import com.back.domain.dashboard.admin.dto.response.AdminOverviewResponse;
+import com.back.domain.dashboard.admin.dto.response.AdminProductResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
 
@@ -108,5 +110,64 @@ public class AdminDashboardServiceImpl implements AdminDashboardService {
         );
 
         return new AdminOverviewResponse(overview, charts, alerts, LocalDateTime.now(), timezone);
+    }
+
+    @Override
+    public AdminProductResponse getProducts(String authorization, String adminRole, int page, int size,
+                                            String keyword, String sellingStatus, Long categoryId, Long artistId,
+                                            String startDate, String endDate, String sort, String order, boolean metrics) {
+        // TODO: JWT 토큰에서 관리자 정보 추출 및 권한 검증
+        // TODO: 실제 데이터베이스에서 상품 데이터 조회 및 필터링
+        // TODO: 동적 정렬 및 페이징 처리
+
+        log.info("관리자 상품 목록 조회 - page: {}, size: {}, keyword: {}, sellingStatus: {}, categoryId: {}, artistId: {}, metrics: {}, adminRole: {}",
+                page, size, keyword, sellingStatus, categoryId, artistId, metrics, adminRole);
+
+        // 요약 정보 (더미 데이터)
+        AdminProductResponse.Summary summary = new AdminProductResponse.Summary(
+                2340, 2105, 235
+        );
+
+        // 상품 목록 (더미 데이터)
+        List<AdminProductResponse.Product> products = List.of(
+                new AdminProductResponse.Product(
+                        123357L,
+                        "0123357",
+                        "상품명입니다 상품명입니다",
+                        new AdminProductResponse.Artist(9001L, "작가이름입니다"),
+                        "SELLING",
+                        new AdminProductResponse.Category(1L, "스티커"),
+                        LocalDate.of(2025, 9, 18),
+                        new AdminProductResponse.Permissions(true, true, true),
+                        metrics ? 4.5 : null,
+                        metrics ? 12 : null,
+                        metrics ? 2250000L : null,
+                        new AdminProductResponse.Moderation(false, null)
+                ),
+                new AdminProductResponse.Product(
+                        123356L,
+                        "0123356",
+                        "상품명입니다 상품명입니다",
+                        new AdminProductResponse.Artist(9002L, "작가가나다"),
+                        "STOPPED",
+                        new AdminProductResponse.Category(3L, "포스터"),
+                        LocalDate.of(2025, 9, 18),
+                        new AdminProductResponse.Permissions(true, true, true),
+                        metrics ? 4.2 : null,
+                        metrics ? 8 : null,
+                        metrics ? 1800000L : null,
+                        new AdminProductResponse.Moderation(false, null)
+                )
+        );
+
+        // 페이지 정보
+        int totalElements = 2340;
+        int totalPages = (int) Math.ceil((double) totalElements / size);
+        boolean hasNext = page < totalPages - 1;
+        boolean hasPrevious = page > 0;
+
+        return new AdminProductResponse(
+                summary, products, page, size, totalElements, totalPages, hasNext, hasPrevious
+        );
     }
 }

@@ -1,7 +1,9 @@
 package com.back.domain.dashboard.admin.controller;
 
 import com.back.domain.dashboard.admin.dto.request.AdminOverviewRequest;
+import com.back.domain.dashboard.admin.dto.request.AdminProductSearchRequest;
 import com.back.domain.dashboard.admin.dto.response.AdminOverviewResponse;
+import com.back.domain.dashboard.admin.dto.response.AdminProductResponse;
 import com.back.domain.dashboard.admin.service.AdminDashboardService;
 import com.back.global.rsData.RsData;
 import org.junit.jupiter.api.DisplayName;
@@ -13,6 +15,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
 
@@ -215,6 +218,155 @@ class AdminDashboardControllerTest {
                 () -> assertThat(data.charts().meta().range()).isEqualTo("1M"),
                 () -> assertThat(data.charts().meta().granularity()).isEqualTo("DAY"),
                 () -> assertThat(data.timezone()).isEqualTo("Asia/Seoul")
+        );
+    }
+
+    /**
+     * Mock 상품 응답 데이터 생성 헬퍼 메서드 (metrics=false)
+     */
+    private AdminProductResponse createMockProductResponse() {
+        return createMockProductResponse(false);
+    }
+
+    /**
+     * Mock 상품 응답 데이터 생성 헬퍼 메서드
+     */
+    private AdminProductResponse createMockProductResponse(boolean includeMetrics) {
+        AdminProductResponse.Summary summary = new AdminProductResponse.Summary(
+                2340, 2105, 235
+        );
+
+        List<AdminProductResponse.Product> products = List.of(
+                new AdminProductResponse.Product(
+                        123357L,
+                        "0123357",
+                        "상품명입니다 상품명입니다",
+                        new AdminProductResponse.Artist(9001L, "작가이름입니다"),
+                        "SELLING",
+                        new AdminProductResponse.Category(1L, "스티커"),
+                        LocalDate.of(2025, 9, 18),
+                        new AdminProductResponse.Permissions(true, true, true),
+                        includeMetrics ? 4.5 : null,
+                        includeMetrics ? 12 : null,
+                        includeMetrics ? 2250000L : null,
+                        new AdminProductResponse.Moderation(false, null)
+                ),
+                new AdminProductResponse.Product(
+                        123356L,
+                        "0123356",
+                        "상품명입니다 상품명입니다",
+                        new AdminProductResponse.Artist(9002L, "작가가나다"),
+                        "STOPPED",
+                        new AdminProductResponse.Category(3L, "포스터"),
+                        LocalDate.of(2025, 9, 18),
+                        new AdminProductResponse.Permissions(true, true, true),
+                        includeMetrics ? 4.2 : null,
+                        includeMetrics ? 8 : null,
+                        includeMetrics ? 1800000L : null,
+                        new AdminProductResponse.Moderation(false, null)
+                )
+        );
+
+        return new AdminProductResponse(
+                summary, products, 0, 10, 2340, 234, true, false
+        );
+    }
+
+    @Test
+    @DisplayName("관리자 상품 목록 조회 성공 - 기본 파라미터")
+    void getProducts_Success_WithDefaultParameters() {
+        // Given
+        AdminProductResponse mockResponse = createMockProductResponse();
+        given(adminDashboardService.getProducts(
+                anyString(), anyString(), anyInt(), anyInt(),
+                any(), any(), any(), any(), any(), any(), anyString(), anyString(), anyBoolean()))
+                .willReturn(mockResponse);
+
+        AdminProductSearchRequest request = new AdminProductSearchRequest(
+                null, null, null, null, null, null, null, null, null, null, null
+        );
+
+        // When
+        ResponseEntity<RsData<AdminProductResponse>> response =
+                adminDashboardController.getProducts(BEARER_TOKEN, ADMIN_ROLE, request);
+
+        // Then
+        AdminProductResponse data = assertSuccessResponse(response, "관리자 상품 목록 조회 성공");
+
+        assertAll(
+                // 요약 정보 검증
+                () -> assertThat(data.summary()).isNotNull(),
+                () -> assertThat(data.summary().totalProducts()).isEqualTo(2340),
+                () -> assertThat(data.summary().sellingProducts()).isEqualTo(2105),
+                () -> assertThat(data.summary().stoppedProducts()).isEqualTo(235),
+
+                // 상품 목록 검증
+                () -> assertThat(data.content()).hasSize(2),
+                () -> assertThat(data.content().get(0).productId()).isEqualTo(123357L),
+                () -> assertThat(data.content().get(0).productNumber()).isEqualTo("0123357"),
+                () -> assertThat(data.content().get(0).name()).isEqualTo("상품명입니다 상품명입니다"),
+                () -> assertThat(data.content().get(0).sellingStatus()).isEqualTo("SELLING"),
+
+                // 작가 정보 검증
+                () -> assertThat(data.content().get(0).artist().id()).isEqualTo(9001L),
+                () -> assertThat(data.content().get(0).artist().name()).isEqualTo("작가이름입니다"),
+
+                // 카테고리 정보 검증
+                () -> assertThat(data.content().get(0).category().id()).isEqualTo(1L),
+                () -> assertThat(data.content().get(0).category().name()).isEqualTo("스티커"),
+
+                // 권한 정보 검증
+                () -> assertThat(data.content().get(0).permissions().moderate()).isTrue(),
+                () -> assertThat(data.content().get(0).permissions().delete()).isTrue(),
+                () -> assertThat(data.content().get(0).permissions().statusChange()).isTrue(),
+
+                // metrics=false일 때 null 검증
+                () -> assertThat(data.content().get(0).averageRating()).isNull(),
+                () -> assertThat(data.content().get(0).reviewCount()).isNull(),
+                () -> assertThat(data.content().get(0).revenue()).isNull(),
+
+                // 페이지 정보 검증
+                () -> assertThat(data.page()).isEqualTo(0),
+                () -> assertThat(data.size()).isEqualTo(10),
+                () -> assertThat(data.totalElements()).isEqualTo(2340),
+                () -> assertThat(data.totalPages()).isEqualTo(234),
+                () -> assertThat(data.hasNext()).isTrue(),
+                () -> assertThat(data.hasPrevious()).isFalse()
+        );
+    }
+
+    @Test
+    @DisplayName("관리자 상품 목록 조회 성공 - metrics 포함")
+    void getProducts_Success_WithMetrics() {
+        // Given
+        AdminProductResponse mockResponse = createMockProductResponse(true);
+        given(adminDashboardService.getProducts(
+                eq(BEARER_TOKEN), eq(ADMIN_ROLE), eq(0), eq(20),
+                any(), any(), any(), any(), any(), any(), eq("registeredAt"), eq("DESC"), eq(true)))
+                .willReturn(mockResponse);
+
+        AdminProductSearchRequest request = new AdminProductSearchRequest(
+                0, 20, null, null, null, null, null, null, "registeredAt", "DESC", true
+        );
+
+        // When
+        ResponseEntity<RsData<AdminProductResponse>> response =
+                adminDashboardController.getProducts(BEARER_TOKEN, ADMIN_ROLE, request);
+
+        // Then
+        AdminProductResponse data = assertSuccessResponse(response, "관리자 상품 목록 조회 성공");
+
+        assertAll(
+                () -> assertThat(data.content()).hasSize(2),
+
+                // metrics=true일 때 데이터 검증
+                () -> assertThat(data.content().get(0).averageRating()).isEqualTo(4.5),
+                () -> assertThat(data.content().get(0).reviewCount()).isEqualTo(12),
+                () -> assertThat(data.content().get(0).revenue()).isEqualTo(2250000L),
+
+                () -> assertThat(data.content().get(1).averageRating()).isEqualTo(4.2),
+                () -> assertThat(data.content().get(1).reviewCount()).isEqualTo(8),
+                () -> assertThat(data.content().get(1).revenue()).isEqualTo(1800000L)
         );
     }
 

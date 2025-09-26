@@ -1,6 +1,7 @@
 package com.back.domain.dashboard.admin.service;
 
 import com.back.domain.dashboard.admin.dto.response.AdminOverviewResponse;
+import com.back.domain.dashboard.admin.dto.response.AdminProductResponse;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -111,6 +112,151 @@ class AdminDashboardServiceImplTest {
                 () -> assertThat(alerts.artistApprovalPending().getFirst().artistId()).isEqualTo(1001L),
                 () -> assertThat(alerts.fundingApprovalPending()).hasSize(1),
                 () -> assertThat(alerts.fundingApprovalPending().getFirst().fundingId()).isEqualTo(456789L)
+        );
+    }
+
+    @Test
+    @DisplayName("상품 목록 조회 - 완전한 응답 구조 반환")
+    void getProducts_ReturnsCompleteStructure() {
+        // When
+        AdminProductResponse result = adminDashboardService.getProducts(
+                TEST_AUTHORIZATION, TEST_ADMIN_ROLE, 0, 20,
+                null, null, null, null, null, null, "registeredAt", "DESC", false);
+
+        // Then - 핵심 구조 검증
+        assertAll(
+                () -> assertThat(result).isNotNull(),
+                () -> assertThat(result.summary()).isNotNull(),
+                () -> assertThat(result.content()).isNotNull(),
+                () -> assertThat(result.page()).isNotNegative(),
+                () -> assertThat(result.size()).isPositive(),
+                () -> assertThat(result.totalElements()).isNotNegative(),
+                () -> assertThat(result.totalPages()).isNotNegative()
+        );
+    }
+
+    @Test
+    @DisplayName("상품 목록 조회 - 요약 정보 검증")
+    void getProducts_ValidatesSummary() {
+        // When
+        AdminProductResponse result = adminDashboardService.getProducts(
+                TEST_AUTHORIZATION, TEST_ADMIN_ROLE, 0, 20,
+                null, null, null, null, null, null, "registeredAt", "DESC", false);
+
+        // Then - 요약 정보 검증
+        AdminProductResponse.Summary summary = result.summary();
+        assertAll(
+                () -> assertThat(summary.totalProducts()).isEqualTo(2340),
+                () -> assertThat(summary.sellingProducts()).isEqualTo(2105),
+                () -> assertThat(summary.stoppedProducts()).isEqualTo(235),
+
+                // 비즈니스 규칙 검증 - 전체 = 판매중 + 판매중지
+                () -> assertThat(summary.totalProducts())
+                        .isEqualTo(summary.sellingProducts() + summary.stoppedProducts())
+        );
+    }
+
+    @Test
+    @DisplayName("상품 목록 조회 - 상품 데이터 구조 검증")
+    void getProducts_ValidatesProductStructure() {
+        // When
+        AdminProductResponse result = adminDashboardService.getProducts(
+                TEST_AUTHORIZATION, TEST_ADMIN_ROLE, 0, 20,
+                null, null, null, null, null, null, "registeredAt", "DESC", false);
+
+        // Then - 상품 데이터 구조 검증
+        assertAll(
+                () -> assertThat(result.content()).isNotEmpty(),
+                () -> assertThat(result.content()).hasSize(2)
+        );
+
+        AdminProductResponse.Product firstProduct = result.content().get(0);
+        assertAll(
+                // 기본 정보 검증
+                () -> assertThat(firstProduct.productId()).isEqualTo(123357L),
+                () -> assertThat(firstProduct.productNumber()).isEqualTo("0123357"),
+                () -> assertThat(firstProduct.name()).isNotBlank(),
+                () -> assertThat(firstProduct.sellingStatus()).isIn("SELLING", "STOPPED"),
+                () -> assertThat(firstProduct.registeredAt()).isNotNull(),
+
+                // 작가 정보 검증
+                () -> assertThat(firstProduct.artist()).isNotNull(),
+                () -> assertThat(firstProduct.artist().id()).isPositive(),
+                () -> assertThat(firstProduct.artist().name()).isNotBlank(),
+
+                // 카테고리 정보 검증
+                () -> assertThat(firstProduct.category()).isNotNull(),
+                () -> assertThat(firstProduct.category().id()).isPositive(),
+                () -> assertThat(firstProduct.category().name()).isNotBlank(),
+
+                // 권한 정보 검증
+                () -> assertThat(firstProduct.permissions()).isNotNull(),
+                () -> assertThat(firstProduct.permissions().moderate()).isNotNull(),
+                () -> assertThat(firstProduct.permissions().delete()).isNotNull(),
+                () -> assertThat(firstProduct.permissions().statusChange()).isNotNull(),
+
+                // 모더레이션 정보 검증
+                () -> assertThat(firstProduct.moderation()).isNotNull(),
+                () -> assertThat(firstProduct.moderation().hasPendingRequest()).isNotNull()
+        );
+    }
+
+    @Test
+    @DisplayName("상품 목록 조회 - metrics=false 시 메트릭 null 검증")
+    void getProducts_MetricsFalse_ReturnsNullMetrics() {
+        // When
+        AdminProductResponse result = adminDashboardService.getProducts(
+                TEST_AUTHORIZATION, TEST_ADMIN_ROLE, 0, 20,
+                null, null, null, null, null, null, "registeredAt", "DESC", false);
+
+        // Then - metrics=false일 때 null 검증
+        AdminProductResponse.Product firstProduct = result.content().get(0);
+        assertAll(
+                () -> assertThat(firstProduct.averageRating()).isNull(),
+                () -> assertThat(firstProduct.reviewCount()).isNull(),
+                () -> assertThat(firstProduct.revenue()).isNull()
+        );
+    }
+
+    @Test
+    @DisplayName("상품 목록 조회 - metrics=true 시 메트릭 포함 검증")
+    void getProducts_MetricsTrue_IncludesMetrics() {
+        // When
+        AdminProductResponse result = adminDashboardService.getProducts(
+                TEST_AUTHORIZATION, TEST_ADMIN_ROLE, 0, 20,
+                null, null, null, null, null, null, "registeredAt", "DESC", true);
+
+        // Then - metrics=true일 때 값 검증
+        AdminProductResponse.Product firstProduct = result.content().get(0);
+        assertAll(
+                () -> assertThat(firstProduct.averageRating()).isNotNull(),
+                () -> assertThat(firstProduct.averageRating()).isGreaterThanOrEqualTo(0.0),
+                () -> assertThat(firstProduct.averageRating()).isLessThanOrEqualTo(5.0),
+                () -> assertThat(firstProduct.reviewCount()).isNotNull(),
+                () -> assertThat(firstProduct.reviewCount()).isNotNegative(),
+                () -> assertThat(firstProduct.revenue()).isNotNull(),
+                () -> assertThat(firstProduct.revenue()).isNotNegative()
+        );
+    }
+
+    @Test
+    @DisplayName("상품 목록 조회 - 페이지네이션 로직 검증")
+    void getProducts_ValidatesPagination() {
+        // When
+        AdminProductResponse result = adminDashboardService.getProducts(
+                TEST_AUTHORIZATION, TEST_ADMIN_ROLE, 0, 20,
+                null, null, null, null, null, null, "registeredAt", "DESC", false);
+
+        // Then - 페이지네이션 비즈니스 로직 검증
+        assertAll(
+                () -> assertThat(result.page()).isEqualTo(0),
+                () -> assertThat(result.size()).isEqualTo(20),
+                () -> assertThat(result.totalPages())
+                        .isEqualTo((int) Math.ceil((double) result.totalElements() / result.size())),
+
+                // 첫 페이지 검증
+                () -> assertThat(result.hasPrevious()).isFalse(),
+                () -> assertThat(result.hasNext()).isTrue()
         );
     }
 }

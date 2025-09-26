@@ -1,7 +1,9 @@
 package com.back.domain.dashboard.admin.controller;
 
 import com.back.domain.dashboard.admin.dto.request.AdminOverviewRequest;
+import com.back.domain.dashboard.admin.dto.request.AdminProductSearchRequest;
 import com.back.domain.dashboard.admin.dto.response.AdminOverviewResponse;
+import com.back.domain.dashboard.admin.dto.response.AdminProductResponse;
 import com.back.domain.dashboard.admin.service.AdminDashboardService;
 import com.back.global.rsData.RsData;
 import io.swagger.v3.oas.annotations.Operation;
@@ -25,6 +27,7 @@ import org.springframework.web.bind.annotation.*;
  *   <li>사용자 증가 현황 조회</li>
  *   <li>카테고리별 상품 분포 조회</li>
  *   <li>승인 대기 알림 조회</li>
+ *   <li>상품 목록 조회 및 관리</li>
  * </ul>
  * 
  * 2025.09.26 신규 생성
@@ -57,5 +60,27 @@ public class AdminDashboardController {
                 request.period(), request.timezone());
 
         return ResponseEntity.ok(RsData.ok("관리자 메인 현황 조회 성공", response));
+    }
+
+    /**
+     * 관리자 상품 목록 조회
+     */
+    @GetMapping("/products")
+    @Operation(summary = "관리자 상품 목록 조회",
+               description = "전체 상품을 페이지 단위로 조회하고 필터링/정렬할 수 있습니다. metrics=true 시 평균평점/리뷰/매출 포함")
+    public ResponseEntity<RsData<AdminProductResponse>> getProducts(
+            @RequestHeader("Authorization") String authorization,
+            @RequestHeader(value = "X-Admin-Role", required = false) String adminRole,
+            @Valid @ModelAttribute AdminProductSearchRequest request) {
+
+        log.info("관리자 상품 목록 조회 - page: {}, size: {}, keyword: {}, sellingStatus: {}, metrics: {}, adminRole: {}",
+                request.page(), request.size(), request.keyword(), request.sellingStatus(), request.metrics(), adminRole);
+
+        AdminProductResponse response = adminDashboardService.getProducts(
+                authorization, adminRole, request.page(), request.size(),
+                request.keyword(), request.sellingStatus(), request.categoryId(), request.artistId(),
+                request.startDate(), request.endDate(), request.sort(), request.order(), request.metrics());
+
+        return ResponseEntity.ok(RsData.ok("관리자 상품 목록 조회 성공", response));
     }
 }
