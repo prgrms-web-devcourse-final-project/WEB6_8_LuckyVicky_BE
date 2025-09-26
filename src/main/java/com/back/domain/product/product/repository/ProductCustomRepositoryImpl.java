@@ -112,7 +112,7 @@ public class ProductCustomRepositoryImpl implements ProductCustomRepository {
 
         // 최종 DTO 반환
         return new ProductListResponse(
-                pageable.getPageNumber() + 1, // 현재 페이지(pageable은 0부터 시작해서, 페이지 1부터 시작하기 위해 +1 함)
+                pageable.getPageNumber(), // 현재 페이지 번호
                 pageable.getPageSize(), // 한 페이지에 보여줄 상품 수
                 total, // 전체 상품 수
                 totalPages, // 전체 페이지 수

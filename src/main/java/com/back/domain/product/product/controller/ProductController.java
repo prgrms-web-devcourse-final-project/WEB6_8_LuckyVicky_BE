@@ -17,6 +17,7 @@ import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -265,8 +266,12 @@ public class ProductController {
             @RequestParam(required = false) Integer maxPrice, // 최대가격(필터링)
             @RequestParam(required = false) String deliveryType, // 배송비유형(필터링)
             @RequestParam(defaultValue = "newest") String sort, // 정렬(기본값은 신상품순)
-            Pageable pageable // 페이징
+            @RequestParam(defaultValue = "1") int page, // 프론트는 페이지번호 1부터 시작해서 보내주면됨
+            @RequestParam(defaultValue = "10") int size // 한 페이지에 보여줄 상품 개수
     ) {
+        // 프론트는 1부터 시작 -> Spring Pageable은 0부터 시작하므로 -1 처리
+        Pageable pageable = PageRequest.of(page - 1, size);
+
         ProductListResponse products = productService.getProducts(
                 categoryId, tagIds, minPrice, maxPrice, deliveryType, sort, pageable
         );
