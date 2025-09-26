@@ -3,7 +3,6 @@ package com.back.domain.cart.entity;
 import com.back.domain.product.product.entity.Product;
 import com.back.domain.user.entity.User;
 import com.back.global.jpa.entity.BaseEntity;
-import com.back.domain.product.product.entity.Product;
 import jakarta.persistence.*;
 import lombok.AccessLevel;
 import lombok.Builder;
@@ -39,7 +38,7 @@ public class Cart extends BaseEntity {
     public enum CartType {
         NORMAL,    // 일반 장바구니
         FUNDING;    // 펀딩 장바구니
-        
+
         public static CartType fromString(String cartTypeStr) {
             if (cartTypeStr == null) {
                 return NORMAL; // 기본값
@@ -117,12 +116,17 @@ public class Cart extends BaseEntity {
      * 상품 정보를 반환 (디미터의 법칙 적용)
      */
     public ProductInfo getProductInfo() {
+        String imageUrl = this.product.getImages().stream()
+                .filter(image -> "THUMBNAIL".equals(image.getFileType().name()))
+                .findFirst()
+                .map(image -> image.getFileUrl())
+                .orElse(null);
+
         return new ProductInfo(
-            this.product.getId(),
-            this.product.getName(),
-            this.product.getPrice(),
-            // this.product.getImages().stream()// ProductImage 엔티티에서 메인 이미지 URL 가져오기
-            null // 임시로 null 처리
+                this.product.getId(),
+                this.product.getName(),
+                this.product.getPrice(),
+                imageUrl
         );
     }
 
