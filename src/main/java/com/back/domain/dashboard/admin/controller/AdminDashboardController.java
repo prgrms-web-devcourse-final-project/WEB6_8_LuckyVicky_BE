@@ -2,9 +2,11 @@ package com.back.domain.dashboard.admin.controller;
 
 import com.back.domain.dashboard.admin.dto.request.AdminOverviewRequest;
 import com.back.domain.dashboard.admin.dto.request.AdminProductSearchRequest;
+import com.back.domain.dashboard.admin.dto.request.AdminSettlementRequest;
 import com.back.domain.dashboard.admin.dto.request.AdminUserSearchRequest;
 import com.back.domain.dashboard.admin.dto.response.AdminOverviewResponse;
 import com.back.domain.dashboard.admin.dto.response.AdminProductResponse;
+import com.back.domain.dashboard.admin.dto.response.AdminSettlementResponse;
 import com.back.domain.dashboard.admin.dto.response.AdminUserResponse;
 import com.back.domain.dashboard.admin.service.AdminDashboardService;
 import com.back.global.rsData.RsData;
@@ -109,5 +111,26 @@ public class AdminDashboardController {
                 request.sort(), request.order());
 
         return ResponseEntity.ok(RsData.ok("관리자 사용자 목록 조회 성공", response));
+    }
+
+    /**
+     * 관리자 매출/정산 집계 조회
+     */
+    @GetMapping("/settlements")
+    @Operation(summary = "관리자 매출/정산 집계 조회",
+               description = "연도 또는 월별 매출/정산 데이터를 조회합니다. month 전달 시 일별 집계로 전환됩니다")
+    public ResponseEntity<RsData<AdminSettlementResponse>> getSettlements(
+            @RequestHeader("Authorization") String authorization,
+            @RequestHeader(value = "X-Admin-Role", required = false) String adminRole,
+            @Valid @ModelAttribute AdminSettlementRequest request) {
+
+        log.info("관리자 매출/정산 조회 - year: {}, month: {}, granularity: {}, timezone: {}, adminRole: {}",
+                request.year(), request.month(), request.granularity(), request.timezone(), adminRole);
+
+        AdminSettlementResponse response = adminDashboardService.getSettlements(
+                authorization, adminRole, request.year(), request.month(),
+                request.granularity(), request.timezone());
+
+        return ResponseEntity.ok(RsData.ok("관리자 매출/정산 조회 성공", response));
     }
 }

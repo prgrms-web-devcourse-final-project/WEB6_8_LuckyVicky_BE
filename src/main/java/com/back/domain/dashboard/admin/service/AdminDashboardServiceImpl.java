@@ -2,6 +2,7 @@ package com.back.domain.dashboard.admin.service;
 
 import com.back.domain.dashboard.admin.dto.response.AdminOverviewResponse;
 import com.back.domain.dashboard.admin.dto.response.AdminProductResponse;
+import com.back.domain.dashboard.admin.dto.response.AdminSettlementResponse;
 import com.back.domain.dashboard.admin.dto.response.AdminUserResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -9,6 +10,8 @@ import org.springframework.stereotype.Service;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.Year;
+import java.util.ArrayList;
 import java.util.List;
 
 /**
@@ -82,9 +85,7 @@ public class AdminDashboardServiceImpl implements AdminDashboardService {
                         List.of(
                                 new AdminOverviewResponse.CategoryBucket(1L, "스티커", 820, 0.35),
                                 new AdminOverviewResponse.CategoryBucket(2L, "다이어리", 420, 0.179),
-                                new AdminOverviewResponse.CategoryBucket(3L, "포스터", 360, 0.154),
-                                new AdminOverviewResponse.CategoryBucket(4L, "엽서", 300, 0.128),
-                                new AdminOverviewResponse.CategoryBucket(5L, "굿즈", 440, 0.188)
+                                new AdminOverviewResponse.CategoryBucket(3L, "포스터", 360, 0.154)
                         )
                 );
 
@@ -100,9 +101,7 @@ public class AdminDashboardServiceImpl implements AdminDashboardService {
         AdminOverviewResponse.Alerts alerts = new AdminOverviewResponse.Alerts(
                 List.of(
                         new AdminOverviewResponse.ArtistApproval(1001L, "작가A", 
-                                LocalDateTime.of(2025, 12, 23, 9, 10)),
-                        new AdminOverviewResponse.ArtistApproval(1002L, "작가B", 
-                                LocalDateTime.of(2025, 12, 23, 11, 5))
+                                LocalDateTime.of(2025, 12, 23, 9, 10))
                 ),
                 List.of(
                         new AdminOverviewResponse.FundingApproval(456789L, "한정 제품", 
@@ -204,21 +203,9 @@ public class AdminDashboardServiceImpl implements AdminDashboardService {
                         new AdminUserResponse.Permissions(true, false)
                 ),
                 new AdminUserResponse.User(
-                        100135L,
-                        "abc135",
-                        "닉네임입니다",
-                        "USER",
-                        new AdminUserResponse.Artist(null, null),
-                        new AdminUserResponse.Grade("SEED", "새싹"),
-                        "ACTIVE",
-                        LocalDate.of(2025, 9, 18),
-                        LocalDateTime.of(2025, 9, 18, 9, 40, 0),
-                        new AdminUserResponse.Permissions(true, false)
-                ),
-                new AdminUserResponse.User(
                         100131L,
                         "abc131",
-                        "닉네임입니다",
+                        "작가명입니다",
                         "ARTIST",
                         new AdminUserResponse.Artist(90031L, "작가명입니다"),
                         new AdminUserResponse.Grade("SEED", "새싹"),
@@ -261,6 +248,83 @@ public class AdminDashboardServiceImpl implements AdminDashboardService {
 
         return new AdminUserResponse(
                 summary, users, page, size, totalElements, totalPages, hasNext, hasPrevious
+        );
+    }
+
+    @Override
+    public AdminSettlementResponse getSettlements(String authorization, String adminRole, Integer year,
+                                                  Integer month, String granularity, String timezone) {
+        // TODO: JWT 토큰에서 관리자 정보 추출 및 권한 검증
+        // TODO: 실제 데이터베이스에서 매출/정산 데이터 조회
+
+        // 연도 기본값 설정 (현재 연도)
+        if (year == null) {
+            year = Year.now().getValue();
+        }
+
+        log.info("관리자 매출/정산 조회 - year: {}, month: {}, granularity: {}, timezone: {}, adminRole: {}",
+                year, month, granularity, timezone, adminRole);
+
+        // 조회 범위
+        AdminSettlementResponse.Scope scope = new AdminSettlementResponse.Scope(year, month);
+
+        // 요약 정보
+        AdminSettlementResponse.Summary summary = new AdminSettlementResponse.Summary(
+                108000000L,  // 총 매출액
+                12000000L,   // 총 작가 정산금
+                96000000L    // 총 순수익
+        );
+
+        // 차트 데이터 생성
+        List<AdminSettlementResponse.DataPoint> grossSalesData = new ArrayList<>();
+        List<AdminSettlementResponse.DataPoint> artistPayoutData = new ArrayList<>();
+        List<AdminSettlementResponse.DataPoint> netIncomeData = new ArrayList<>();
+        List<AdminSettlementResponse.TableRow> tableData = new ArrayList<>();
+
+        if (month != null) {
+            // 일별 집계 (해당 월의 모든 일자)
+            LocalDate startDate = LocalDate.of(year, month, 1);
+            int daysInMonth = startDate.lengthOfMonth();
+
+            for (int day = 1; day <= daysInMonth; day++) {
+                String bucketStart = String.format("%d-%02d-%02d", year, month, day);
+                long dailyGrossSales = 3000000L + (day * 50000L);
+                long dailyArtistPayout = dailyGrossSales / 10;
+                long dailyNetIncome = dailyGrossSales - dailyArtistPayout;
+
+                grossSalesData.add(new AdminSettlementResponse.DataPoint(bucketStart, dailyGrossSales));
+                artistPayoutData.add(new AdminSettlementResponse.DataPoint(bucketStart, dailyArtistPayout));
+                netIncomeData.add(new AdminSettlementResponse.DataPoint(bucketStart, dailyNetIncome));
+
+                tableData.add(new AdminSettlementResponse.TableRow(
+                        bucketStart, dailyGrossSales, dailyArtistPayout, dailyNetIncome
+                ));
+            }
+        } else {
+            // 월별 집계 (해당 연도의 모든 월)
+            for (int m = 1; m <= 12; m++) {
+                String bucketStart = String.format("%d-%02d-01", year, m);
+                long monthlyGrossSales = 10000000L + (m * 500000L);
+                long monthlyArtistPayout = monthlyGrossSales / 10;
+                long monthlyNetIncome = monthlyGrossSales - monthlyArtistPayout;
+
+                grossSalesData.add(new AdminSettlementResponse.DataPoint(bucketStart, monthlyGrossSales));
+                artistPayoutData.add(new AdminSettlementResponse.DataPoint(bucketStart, monthlyArtistPayout));
+                netIncomeData.add(new AdminSettlementResponse.DataPoint(bucketStart, monthlyNetIncome));
+
+                tableData.add(new AdminSettlementResponse.TableRow(
+                        bucketStart, monthlyGrossSales, monthlyArtistPayout, monthlyNetIncome
+                ));
+            }
+        }
+
+        // 차트 데이터 통합
+        AdminSettlementResponse.Chart chart = new AdminSettlementResponse.Chart(
+                new AdminSettlementResponse.Series(grossSalesData, artistPayoutData, netIncomeData)
+        );
+
+        return new AdminSettlementResponse(
+                scope, granularity, timezone, summary, chart, tableData, LocalDateTime.now()
         );
     }
 }

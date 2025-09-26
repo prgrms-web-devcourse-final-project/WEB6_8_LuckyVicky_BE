@@ -2,6 +2,7 @@ package com.back.domain.dashboard.admin.service;
 
 import com.back.domain.dashboard.admin.dto.response.AdminOverviewResponse;
 import com.back.domain.dashboard.admin.dto.response.AdminProductResponse;
+import com.back.domain.dashboard.admin.dto.response.AdminSettlementResponse;
 import com.back.domain.dashboard.admin.dto.response.AdminUserResponse;
 
 /**
@@ -30,4 +31,10 @@ public interface AdminDashboardService {
                                String keyword, String role, String accountStatus, String grade,
                                String joinedStartDate, String joinedEndDate, Long artistId,
                                String sort, String order);
+
+    /**
+     * 관리자 매출/정산 집계 조회
+     */
+    AdminSettlementResponse getSettlements(String authorization, String adminRole, Integer year,
+                                           Integer month, String granularity, String timezone);
 }
