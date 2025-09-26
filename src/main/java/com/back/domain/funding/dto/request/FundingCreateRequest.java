@@ -18,11 +18,11 @@ public record FundingCreateRequest(
         @NotBlank(message = "펀딩 설명은 필수입니다.")
         String description,
 
-        @NotBlank(message = "대표 이미지 URL은 필수입니다.")
-        String imageUrl,
-
 //        @NotNull(message = "카테고리는 필수입니다.")
 //        Long categoryId, // 상위 카테고리만 가능 (parent == null)
+
+        @NotBlank(message = "대표 이미지 URL은 필수입니다.")
+        String imageUrl,
 
         @NotNull(message = "목표 금액은 필수입니다.")
         @Positive(message = "목표 금액은 0보다 커야 합니다.")

@@ -2,7 +2,9 @@ package com.back.global.initData;
 
 import com.back.domain.auth.dto.request.SignUpRequest;
 import com.back.domain.auth.service.AuthService;
+import com.back.domain.user.entity.Role;
 import com.back.domain.user.repository.UserRepository;
+import com.back.domain.user.user.DevUserService;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -40,6 +42,8 @@ public class TestInitData {
         safeSignup("user1@user.com", "1234qwer!", "1234qwer!", "유저1", "010-1234-5678");
         safeSignup("user2@user.com", "1234qwer!", "1234qwer!", "유저2", "010-2345-6789");
         safeSignup("user3@user.com", "1234qwer!", "1234qwer!", "유저3", "010-3456-7890");
+
+        devUserService.changeUserRoleByEmail("user1@user.com", Role.ARTIST);
     }
 
     private void safeSignup(String email, String password, String passwordConfirm ,String name, String phone) {
@@ -60,5 +64,8 @@ public class TestInitData {
             log.debug("Skip creating member ({}): {}", email, e.getMessage());
         }
     }
+
+    @Autowired
+    private DevUserService devUserService;
 }
 
