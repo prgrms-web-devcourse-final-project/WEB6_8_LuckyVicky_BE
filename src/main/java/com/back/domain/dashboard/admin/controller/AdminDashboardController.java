@@ -2,8 +2,10 @@ package com.back.domain.dashboard.admin.controller;
 
 import com.back.domain.dashboard.admin.dto.request.AdminOverviewRequest;
 import com.back.domain.dashboard.admin.dto.request.AdminProductSearchRequest;
+import com.back.domain.dashboard.admin.dto.request.AdminUserSearchRequest;
 import com.back.domain.dashboard.admin.dto.response.AdminOverviewResponse;
 import com.back.domain.dashboard.admin.dto.response.AdminProductResponse;
+import com.back.domain.dashboard.admin.dto.response.AdminUserResponse;
 import com.back.domain.dashboard.admin.service.AdminDashboardService;
 import com.back.global.rsData.RsData;
 import io.swagger.v3.oas.annotations.Operation;
@@ -28,6 +30,7 @@ import org.springframework.web.bind.annotation.*;
  *   <li>카테고리별 상품 분포 조회</li>
  *   <li>승인 대기 알림 조회</li>
  *   <li>상품 목록 조회 및 관리</li>
+ *   <li>사용자 목록 조회 및 관리</li>
  * </ul>
  * 
  * 2025.09.26 신규 생성
@@ -82,5 +85,29 @@ public class AdminDashboardController {
                 request.startDate(), request.endDate(), request.sort(), request.order(), request.metrics());
 
         return ResponseEntity.ok(RsData.ok("관리자 상품 목록 조회 성공", response));
+    }
+
+    /**
+     * 관리자 사용자 목록 조회
+     */
+    @GetMapping("/users")
+    @Operation(summary = "관리자 사용자 목록 조회",
+               description = "전체 사용자를 페이지 단위로 조회하고 필터링/정렬할 수 있습니다")
+    public ResponseEntity<RsData<AdminUserResponse>> getUsers(
+            @RequestHeader("Authorization") String authorization,
+            @RequestHeader(value = "X-Admin-Role", required = false) String adminRole,
+            @Valid @ModelAttribute AdminUserSearchRequest request) {
+
+        log.info("관리자 사용자 목록 조회 - page: {}, size: {}, keyword: {}, role: {}, accountStatus: {}, grade: {}, adminRole: {}",
+                request.page(), request.size(), request.keyword(), request.role(), 
+                request.accountStatus(), request.grade(), adminRole);
+
+        AdminUserResponse response = adminDashboardService.getUsers(
+                authorization, adminRole, request.page(), request.size(),
+                request.keyword(), request.role(), request.accountStatus(), request.grade(),
+                request.joinedStartDate(), request.joinedEndDate(), request.artistId(),
+                request.sort(), request.order());
+
+        return ResponseEntity.ok(RsData.ok("관리자 사용자 목록 조회 성공", response));
     }
 }

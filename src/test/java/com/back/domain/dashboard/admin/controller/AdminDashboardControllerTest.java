@@ -2,8 +2,10 @@ package com.back.domain.dashboard.admin.controller;
 
 import com.back.domain.dashboard.admin.dto.request.AdminOverviewRequest;
 import com.back.domain.dashboard.admin.dto.request.AdminProductSearchRequest;
+import com.back.domain.dashboard.admin.dto.request.AdminUserSearchRequest;
 import com.back.domain.dashboard.admin.dto.response.AdminOverviewResponse;
 import com.back.domain.dashboard.admin.dto.response.AdminProductResponse;
+import com.back.domain.dashboard.admin.dto.response.AdminUserResponse;
 import com.back.domain.dashboard.admin.service.AdminDashboardService;
 import com.back.global.rsData.RsData;
 import org.junit.jupiter.api.DisplayName;
@@ -367,6 +369,86 @@ class AdminDashboardControllerTest {
                 () -> assertThat(data.content().get(1).averageRating()).isEqualTo(4.2),
                 () -> assertThat(data.content().get(1).reviewCount()).isEqualTo(8),
                 () -> assertThat(data.content().get(1).revenue()).isEqualTo(1800000L)
+        );
+    }
+
+    /**
+     * Mock 사용자 응답 데이터 생성 헬퍼 메서드
+     */
+    private AdminUserResponse createMockUserResponse() {
+        AdminUserResponse.Summary summary = new AdminUserResponse.Summary(
+                13240, 12810, 280, 150, 1000
+        );
+
+        List<AdminUserResponse.User> users = List.of(
+                new AdminUserResponse.User(
+                        100136L, "abc136", "닉네임입니다", "USER",
+                        new AdminUserResponse.Artist(null, null),
+                        new AdminUserResponse.Grade("SEED", "새싹"),
+                        "ACTIVE", LocalDate.of(2025, 9, 18),
+                        LocalDateTime.of(2025, 9, 18, 10, 20, 0),
+                        new AdminUserResponse.Permissions(true, false)
+                ),
+                new AdminUserResponse.User(
+                        100131L, "abc131", "닉네임입니다", "ARTIST",
+                        new AdminUserResponse.Artist(90031L, "작가명입니다"),
+                        new AdminUserResponse.Grade("SEED", "새싹"),
+                        "ACTIVE", LocalDate.of(2025, 9, 18),
+                        LocalDateTime.of(2025, 9, 18, 8, 5, 0),
+                        new AdminUserResponse.Permissions(true, false)
+                ),
+                new AdminUserResponse.User(
+                        100123L, "abc123", "작가명입니다", "ARTIST",
+                        new AdminUserResponse.Artist(90023L, "작가명입니다"),
+                        new AdminUserResponse.Grade("SEED", "새싹"),
+                        "BLACKLISTED", LocalDate.of(2025, 9, 18),
+                        LocalDateTime.of(2025, 9, 16, 13, 30, 0),
+                        new AdminUserResponse.Permissions(false, true)
+                )
+        );
+
+        return new AdminUserResponse(
+                summary, users, 0, 10, 13240, 1324, true, false
+        );
+    }
+
+    @Test
+    @DisplayName("관리자 사용자 목록 조회 성공 - 기본 파라미터")
+    void getUsers_Success_WithDefaultParameters() {
+        // Given
+        AdminUserResponse mockResponse = createMockUserResponse();
+        given(adminDashboardService.getUsers(
+                anyString(), anyString(), anyInt(), anyInt(),
+                any(), any(), any(), any(), any(), any(), any(), anyString(), anyString()))
+                .willReturn(mockResponse);
+
+        AdminUserSearchRequest request = new AdminUserSearchRequest(
+                null, null, null, null, null, null, null, null, null, null, null
+        );
+
+        // When
+        ResponseEntity<RsData<AdminUserResponse>> response =
+                adminDashboardController.getUsers(BEARER_TOKEN, ADMIN_ROLE, request);
+
+        // Then
+        AdminUserResponse data = assertSuccessResponse(response, "관리자 사용자 목록 조회 성공");
+
+        assertAll(
+                // 요약 정보 검증
+                () -> assertThat(data.summary()).isNotNull(),
+                () -> assertThat(data.summary().totalUsers()).isEqualTo(13240),
+                () -> assertThat(data.summary().activeUsers()).isEqualTo(12810),
+                () -> assertThat(data.summary().blacklistedUsers()).isEqualTo(150),
+
+                // 사용자 목록 검증
+                () -> assertThat(data.content()).hasSize(3),
+                () -> assertThat(data.content().get(0).role()).isEqualTo("USER"),
+                () -> assertThat(data.content().get(1).role()).isEqualTo("ARTIST"),
+                () -> assertThat(data.content().get(2).accountStatus()).isEqualTo("BLACKLISTED"),
+
+                // 페이지 정보 검증
+                () -> assertThat(data.page()).isEqualTo(0),
+                () -> assertThat(data.totalElements()).isEqualTo(13240)
         );
     }
 

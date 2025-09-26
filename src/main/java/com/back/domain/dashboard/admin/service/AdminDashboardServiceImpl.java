@@ -2,6 +2,7 @@ package com.back.domain.dashboard.admin.service;
 
 import com.back.domain.dashboard.admin.dto.response.AdminOverviewResponse;
 import com.back.domain.dashboard.admin.dto.response.AdminProductResponse;
+import com.back.domain.dashboard.admin.dto.response.AdminUserResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -168,6 +169,98 @@ public class AdminDashboardServiceImpl implements AdminDashboardService {
 
         return new AdminProductResponse(
                 summary, products, page, size, totalElements, totalPages, hasNext, hasPrevious
+        );
+    }
+
+    @Override
+    public AdminUserResponse getUsers(String authorization, String adminRole, int page, int size,
+                                      String keyword, String role, String accountStatus, String grade,
+                                      String joinedStartDate, String joinedEndDate, Long artistId,
+                                      String sort, String order) {
+        // TODO: JWT 토큰에서 관리자 정보 추출 및 권한 검증
+        // TODO: 실제 데이터베이스에서 사용자 데이터 조회 및 필터링
+        // TODO: 동적 정렬 및 페이징 처리
+
+        log.info("관리자 사용자 목록 조회 - page: {}, size: {}, keyword: {}, role: {}, accountStatus: {}, grade: {}, artistId: {}, adminRole: {}",
+                page, size, keyword, role, accountStatus, grade, artistId, adminRole);
+
+        // 요약 정보 (더미 데이터)
+        AdminUserResponse.Summary summary = new AdminUserResponse.Summary(
+                13240, 12810, 280, 150, 1000
+        );
+
+        // 사용자 목록 (더미 데이터)
+        List<AdminUserResponse.User> users = List.of(
+                new AdminUserResponse.User(
+                        100136L,
+                        "abc136",
+                        "닉네임입니다",
+                        "USER",
+                        new AdminUserResponse.Artist(null, null),
+                        new AdminUserResponse.Grade("SEED", "새싹"),
+                        "ACTIVE",
+                        LocalDate.of(2025, 9, 18),
+                        LocalDateTime.of(2025, 9, 18, 10, 20, 0),
+                        new AdminUserResponse.Permissions(true, false)
+                ),
+                new AdminUserResponse.User(
+                        100135L,
+                        "abc135",
+                        "닉네임입니다",
+                        "USER",
+                        new AdminUserResponse.Artist(null, null),
+                        new AdminUserResponse.Grade("SEED", "새싹"),
+                        "ACTIVE",
+                        LocalDate.of(2025, 9, 18),
+                        LocalDateTime.of(2025, 9, 18, 9, 40, 0),
+                        new AdminUserResponse.Permissions(true, false)
+                ),
+                new AdminUserResponse.User(
+                        100131L,
+                        "abc131",
+                        "닉네임입니다",
+                        "ARTIST",
+                        new AdminUserResponse.Artist(90031L, "작가명입니다"),
+                        new AdminUserResponse.Grade("SEED", "새싹"),
+                        "ACTIVE",
+                        LocalDate.of(2025, 9, 18),
+                        LocalDateTime.of(2025, 9, 18, 8, 5, 0),
+                        new AdminUserResponse.Permissions(true, false)
+                ),
+                new AdminUserResponse.User(
+                        100129L,
+                        "abc129",
+                        "작가명입니다",
+                        "ARTIST",
+                        new AdminUserResponse.Artist(90029L, "작가명입니다"),
+                        new AdminUserResponse.Grade("SEED", "새싹"),
+                        "SUSPENDED",
+                        LocalDate.of(2025, 9, 18),
+                        LocalDateTime.of(2025, 9, 17, 22, 10, 0),
+                        new AdminUserResponse.Permissions(true, false)
+                ),
+                new AdminUserResponse.User(
+                        100123L,
+                        "abc123",
+                        "작가명입니다",
+                        "ARTIST",
+                        new AdminUserResponse.Artist(90023L, "작가명입니다"),
+                        new AdminUserResponse.Grade("SEED", "새싹"),
+                        "BLACKLISTED",
+                        LocalDate.of(2025, 9, 18),
+                        LocalDateTime.of(2025, 9, 16, 13, 30, 0),
+                        new AdminUserResponse.Permissions(false, true)
+                )
+        );
+
+        // 페이지 정보
+        int totalElements = 13240;
+        int totalPages = (int) Math.ceil((double) totalElements / size);
+        boolean hasNext = page < totalPages - 1;
+        boolean hasPrevious = page > 0;
+
+        return new AdminUserResponse(
+                summary, users, page, size, totalElements, totalPages, hasNext, hasPrevious
         );
     }
 }

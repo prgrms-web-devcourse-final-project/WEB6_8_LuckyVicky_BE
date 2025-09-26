@@ -2,6 +2,7 @@ package com.back.domain.dashboard.admin.service;
 
 import com.back.domain.dashboard.admin.dto.response.AdminOverviewResponse;
 import com.back.domain.dashboard.admin.dto.response.AdminProductResponse;
+import com.back.domain.dashboard.admin.dto.response.AdminUserResponse;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -257,6 +258,95 @@ class AdminDashboardServiceImplTest {
                 // 첫 페이지 검증
                 () -> assertThat(result.hasPrevious()).isFalse(),
                 () -> assertThat(result.hasNext()).isTrue()
+        );
+    }
+
+    @Test
+    @DisplayName("사용자 목록 조회 - 완전한 응답 구조 반환")
+    void getUsers_ReturnsCompleteStructure() {
+        // When
+        AdminUserResponse result = adminDashboardService.getUsers(
+                TEST_AUTHORIZATION, TEST_ADMIN_ROLE, 0, 20,
+                null, null, null, null, null, null, null, "joinedAt", "DESC");
+
+        // Then - 핵심 구조 검증
+        assertAll(
+                () -> assertThat(result).isNotNull(),
+                () -> assertThat(result.summary()).isNotNull(),
+                () -> assertThat(result.content()).isNotNull(),
+                () -> assertThat(result.page()).isNotNegative(),
+                () -> assertThat(result.size()).isPositive(),
+                () -> assertThat(result.totalElements()).isNotNegative(),
+                () -> assertThat(result.totalPages()).isNotNegative()
+        );
+    }
+
+    @Test
+    @DisplayName("사용자 목록 조회 - 요약 정보 검증")
+    void getUsers_ValidatesSummary() {
+        // When
+        AdminUserResponse result = adminDashboardService.getUsers(
+                TEST_AUTHORIZATION, TEST_ADMIN_ROLE, 0, 20,
+                null, null, null, null, null, null, null, "joinedAt", "DESC");
+
+        // Then - 요약 정보 검증
+        AdminUserResponse.Summary summary = result.summary();
+        assertAll(
+                () -> assertThat(summary.totalUsers()).isEqualTo(13240),
+                () -> assertThat(summary.activeUsers()).isEqualTo(12810),
+                () -> assertThat(summary.suspendedUsers()).isEqualTo(280),
+                () -> assertThat(summary.blacklistedUsers()).isEqualTo(150),
+                () -> assertThat(summary.artistUsers()).isEqualTo(1000),
+
+                // 비즈니스 규칙 검증 - 전체 = 활동중 + 정지 + 블랙리스트
+                () -> assertThat(summary.totalUsers())
+                        .isEqualTo(summary.activeUsers() + summary.suspendedUsers() + summary.blacklistedUsers())
+        );
+    }
+
+    @Test
+    @DisplayName("사용자 목록 조회 - 사용자 데이터 구조 검증")
+    void getUsers_ValidatesUserStructure() {
+        // When
+        AdminUserResponse result = adminDashboardService.getUsers(
+                TEST_AUTHORIZATION, TEST_ADMIN_ROLE, 0, 20,
+                null, null, null, null, null, null, null, "joinedAt", "DESC");
+
+        // Then - 사용자 데이터 구조 검증
+        assertAll(
+                () -> assertThat(result.content()).isNotEmpty(),
+                () -> assertThat(result.content()).hasSize(5)
+        );
+
+        // 일반 USER 검증
+        AdminUserResponse.User regularUser = result.content().get(0);
+        assertAll(
+                () -> assertThat(regularUser.userId()).isPositive(),
+                () -> assertThat(regularUser.role()).isEqualTo("USER"),
+                () -> assertThat(regularUser.artist().id()).isNull(),
+                () -> assertThat(regularUser.artist().name()).isNull(),
+                () -> assertThat(regularUser.permissions().canBlacklist()).isTrue(),
+                () -> assertThat(regularUser.permissions().canUnblacklist()).isFalse()
+        );
+
+        // ARTIST 검증
+        AdminUserResponse.User artistUser = result.content().stream()
+                .filter(u -> "ARTIST".equals(u.role()))
+                .findFirst()
+                .orElseThrow();
+        assertAll(
+                () -> assertThat(artistUser.artist().id()).isNotNull(),
+                () -> assertThat(artistUser.artist().name()).isNotBlank()
+        );
+
+        // BLACKLISTED 검증
+        AdminUserResponse.User blacklistedUser = result.content().stream()
+                .filter(u -> "BLACKLISTED".equals(u.accountStatus()))
+                .findFirst()
+                .orElseThrow();
+        assertAll(
+                () -> assertThat(blacklistedUser.permissions().canBlacklist()).isFalse(),
+                () -> assertThat(blacklistedUser.permissions().canUnblacklist()).isTrue()
         );
     }
 }
