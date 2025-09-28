@@ -1,5 +1,6 @@
 package com.back.domain.dashboard.admin.service;
 
+import com.back.domain.dashboard.admin.dto.response.AdminFundingResponse;
 import com.back.domain.dashboard.admin.dto.response.AdminOverviewResponse;
 import com.back.domain.dashboard.admin.dto.response.AdminProductResponse;
 import com.back.domain.dashboard.admin.dto.response.AdminSettlementResponse;
@@ -325,6 +326,73 @@ public class AdminDashboardServiceImpl implements AdminDashboardService {
 
         return new AdminSettlementResponse(
                 scope, granularity, timezone, summary, chart, tableData, LocalDateTime.now()
+        );
+    }
+
+    @Override
+    public AdminFundingResponse getFundings(String authorization, String adminRole, int page, int size,
+                                            String keyword, String status, Long categoryId, Long artistId,
+                                            Integer minAchievement, Integer maxAchievement,
+                                            String registeredFrom, String registeredTo,
+                                            String dueFrom, String dueTo, String sort, String order) {
+        // TODO: JWT 토큰에서 관리자 정보 추출 및 권한 검증
+        // TODO: 실제 데이터베이스에서 펀딩 데이터 조회 및 필터링
+        // TODO: 동적 정렬 및 페이징 처리
+
+        log.info("관리자 펀딩 목록 조회 - page: {}, size: {}, keyword: {}, status: {}, categoryId: {}, artistId: {}, adminRole: {}",
+                page, size, keyword, status, categoryId, artistId, adminRole);
+
+        // 요약 정보 (더미 데이터)
+        AdminFundingResponse.Summary summary = new AdminFundingResponse.Summary(
+                120, 86, 5, 23, 6
+        );
+
+        // 펀딩 목록 (더미 데이터)
+        List<AdminFundingResponse.Funding> fundings = List.of(
+                new AdminFundingResponse.Funding(
+                        456789L,
+                        "펀딩 제목입니다 펀딩 제목입니다",
+                        new AdminFundingResponse.Artist(90036L, "abc136", "작가명입니다"),
+                        new AdminFundingResponse.Category(1L, "스티커"),
+                        "ACTIVE",
+                        1000000L,
+                        1000000L,
+                        100,
+                        45,
+                        "2025-09-18",
+                        "2025-09-01",
+                        15,
+                        "https://example.com/image.jpg",
+                        new AdminFundingResponse.Permissions(true, true),
+                        new AdminFundingResponse.Flags(true, false)
+                ),
+                new AdminFundingResponse.Funding(
+                        456788L,
+                        "펀딩 제목입니다",
+                        new AdminFundingResponse.Artist(90035L, "abc135", "작가명입니다"),
+                        new AdminFundingResponse.Category(2L, "다이어리"),
+                        "ACTIVE",
+                        600000L,
+                        9000000L,
+                        1500,
+                        220,
+                        "2025-09-18",
+                        "2025-08-20",
+                        12,
+                        "https://example.com/image2.jpg",
+                        new AdminFundingResponse.Permissions(true, true),
+                        new AdminFundingResponse.Flags(true, true)
+                )
+        );
+
+        // 페이지 정보
+        int totalElements = 120;
+        int totalPages = (int) Math.ceil((double) totalElements / size);
+        boolean hasNext = page < totalPages - 1;
+        boolean hasPrevious = page > 0;
+
+        return new AdminFundingResponse(
+                summary, fundings, page, size, totalElements, totalPages, hasNext, hasPrevious
         );
     }
 }

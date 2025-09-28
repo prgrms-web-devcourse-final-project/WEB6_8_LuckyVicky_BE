@@ -1,5 +1,6 @@
 package com.back.domain.dashboard.admin.service;
 
+import com.back.domain.dashboard.admin.dto.response.AdminFundingResponse;
 import com.back.domain.dashboard.admin.dto.response.AdminOverviewResponse;
 import com.back.domain.dashboard.admin.dto.response.AdminProductResponse;
 import com.back.domain.dashboard.admin.dto.response.AdminSettlementResponse;
@@ -229,5 +230,64 @@ class AdminDashboardServiceImplTest {
 
         // Then
         assertThat(result.scope().year()).isEqualTo(java.time.Year.now().getValue());
+    }
+
+    @Test
+    @DisplayName("펀딩 목록 조회 - 응답 구조 및 비즈니스 규칙 검증")
+    void getFundings_ValidatesStructureAndBusinessRules() {
+        // When
+        AdminFundingResponse result = adminDashboardService.getFundings(
+                TEST_AUTHORIZATION, TEST_ADMIN_ROLE, 0, 20,
+                null, null, null, null, null, null, null, null, null, null, "endDate", "ASC");
+
+        // Then
+        assertAll(
+                // 구조 검증
+                () -> assertThat(result).isNotNull(),
+                () -> assertThat(result.summary()).isNotNull(),
+                () -> assertThat(result.content()).isNotNull(),
+                () -> assertThat(result.content()).isNotEmpty(),
+
+                // 페이지네이션 검증
+                () -> assertThat(result.page()).isNotNegative(),
+                () -> assertThat(result.size()).isPositive(),
+                () -> assertThat(result.totalElements()).isNotNegative(),
+                () -> assertThat(result.totalPages()).isNotNegative(),
+
+                // 비즈니스 규칙 - 전체 = 진행중 + 일시정지 + 완료 + 취소
+                () -> assertThat(result.summary().totalFundings())
+                        .isEqualTo(result.summary().activeFundings() + 
+                                  result.summary().pausedFundings() + 
+                                  result.summary().completedFundings() + 
+                                  result.summary().cancelledFundings())
+        );
+    }
+
+    @Test
+    @DisplayName("펀딩 목록 조회 - 달성률 및 플래그 일관성 검증")
+    void getFundings_ValidatesAchievementAndFlags() {
+        // When
+        AdminFundingResponse result = adminDashboardService.getFundings(
+                TEST_AUTHORIZATION, TEST_ADMIN_ROLE, 0, 20,
+                null, null, null, null, null, null, null, null, null, null, "endDate", "ASC");
+
+        // Then - 달성률과 플래그 일관성 검증
+        result.content().forEach(funding -> {
+            assertAll(
+                    // 달성률 계산 검증
+                    () -> assertThat(funding.achievementRate())
+                            .isEqualTo((int) ((funding.currentAmount() * 100) / funding.targetAmount())),
+                    
+                    // 목표 달성 플래그 일관성
+                    () -> assertThat(funding.flags().goalAchieved())
+                            .isEqualTo(funding.achievementRate() >= 100),
+                    
+                    // 금액 및 카운트 음수 방지
+                    () -> assertThat(funding.targetAmount()).isPositive(),
+                    () -> assertThat(funding.currentAmount()).isNotNegative(),
+                    () -> assertThat(funding.supporterCount()).isNotNegative(),
+                    () -> assertThat(funding.remainingDays()).isNotNegative()
+            );
+        });
     }
 }

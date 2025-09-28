@@ -1,5 +1,6 @@
 package com.back.domain.dashboard.admin.service;
 
+import com.back.domain.dashboard.admin.dto.response.AdminFundingResponse;
 import com.back.domain.dashboard.admin.dto.response.AdminOverviewResponse;
 import com.back.domain.dashboard.admin.dto.response.AdminProductResponse;
 import com.back.domain.dashboard.admin.dto.response.AdminSettlementResponse;
@@ -37,4 +38,13 @@ public interface AdminDashboardService {
      */
     AdminSettlementResponse getSettlements(String authorization, String adminRole, Integer year,
                                            Integer month, String granularity, String timezone);
+
+    /**
+     * 관리자 펀딩 모니터링 목록 조회
+     */
+    AdminFundingResponse getFundings(String authorization, String adminRole, int page, int size,
+                                     String keyword, String status, Long categoryId, Long artistId,
+                                     Integer minAchievement, Integer maxAchievement,
+                                     String registeredFrom, String registeredTo,
+                                     String dueFrom, String dueTo, String sort, String order);
 }

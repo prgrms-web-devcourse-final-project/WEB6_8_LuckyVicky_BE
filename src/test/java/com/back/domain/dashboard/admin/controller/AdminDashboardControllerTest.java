@@ -1,9 +1,11 @@
 package com.back.domain.dashboard.admin.controller;
 
+import com.back.domain.dashboard.admin.dto.request.AdminFundingSearchRequest;
 import com.back.domain.dashboard.admin.dto.request.AdminOverviewRequest;
 import com.back.domain.dashboard.admin.dto.request.AdminProductSearchRequest;
 import com.back.domain.dashboard.admin.dto.request.AdminSettlementRequest;
 import com.back.domain.dashboard.admin.dto.request.AdminUserSearchRequest;
+import com.back.domain.dashboard.admin.dto.response.AdminFundingResponse;
 import com.back.domain.dashboard.admin.dto.response.AdminOverviewResponse;
 import com.back.domain.dashboard.admin.dto.response.AdminProductResponse;
 import com.back.domain.dashboard.admin.dto.response.AdminSettlementResponse;
@@ -148,6 +150,28 @@ class AdminDashboardControllerTest {
         assertThat(data).isNotNull();
     }
 
+    @Test
+    @DisplayName("관리자 펀딩 목록 조회 성공")
+    void getFundings_Success() {
+        // Given
+        AdminFundingResponse mockResponse = createMockFundingResponse();
+        given(adminDashboardService.getFundings(
+                anyString(), anyString(), anyInt(), anyInt(),
+                any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any()))
+                .willReturn(mockResponse);
+
+        AdminFundingSearchRequest request = new AdminFundingSearchRequest(
+                0, 20, null, null, null, null, null, null, null, null, null, null, null, null);
+
+        // When
+        ResponseEntity<RsData<AdminFundingResponse>> response =
+                adminDashboardController.getFundings(BEARER_TOKEN, ADMIN_ROLE, request);
+
+        // Then
+        AdminFundingResponse data = assertSuccessResponse(response, "관리자 펀딩 모니터링 조회 성공");
+        assertThat(data).isNotNull();
+    }
+
     // Mock 데이터 생성 헬퍼 메서드들
     private AdminOverviewResponse createMockOverviewResponse() {
         AdminOverviewResponse.Overview overview = new AdminOverviewResponse.Overview(
@@ -242,5 +266,21 @@ class AdminDashboardControllerTest {
                 new AdminSettlementResponse.TableRow("2025-01-01", 1000000L, 100000L, 900000L));
 
         return new AdminSettlementResponse(scope, "MONTH", "Asia/Seoul", summary, chart, table, LocalDateTime.now());
+    }
+
+    private AdminFundingResponse createMockFundingResponse() {
+        AdminFundingResponse.Summary summary = new AdminFundingResponse.Summary(120, 86, 5, 23, 6);
+        List<AdminFundingResponse.Funding> fundings = List.of(
+                new AdminFundingResponse.Funding(
+                        456789L, "테스트 펀딩", 
+                        new AdminFundingResponse.Artist(1L, "test01", "테스트 작가"),
+                        new AdminFundingResponse.Category(1L, "스티커"), "ACTIVE",
+                        1000000L, 500000L, 50, 10, "2025-12-31", "2025-09-01", 30,
+                        "https://example.com/image.jpg",
+                        new AdminFundingResponse.Permissions(true, false),
+                        new AdminFundingResponse.Flags(false, false)
+                )
+        );
+        return new AdminFundingResponse(summary, fundings, 0, 20, 120, 6, true, false);
     }
 }
