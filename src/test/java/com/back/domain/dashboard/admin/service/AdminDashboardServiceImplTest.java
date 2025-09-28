@@ -1,5 +1,6 @@
 package com.back.domain.dashboard.admin.service;
 
+import com.back.domain.dashboard.admin.dto.response.AdminArtistApplicationDetailResponse;
 import com.back.domain.dashboard.admin.dto.response.AdminArtistApplicationResponse;
 import com.back.domain.dashboard.admin.dto.response.AdminFundingResponse;
 import com.back.domain.dashboard.admin.dto.response.AdminOverviewResponse;
@@ -346,5 +347,55 @@ class AdminDashboardServiceImplTest {
                 );
             }
         });
+    }
+
+    @Test
+    @DisplayName("입점 신청 상세 조회 - 응답 구조 검증")
+    void getArtistApplicationDetail_ValidatesStructure() {
+        // When
+        AdminArtistApplicationDetailResponse result = adminDashboardService.getArtistApplicationDetail(
+                TEST_AUTHORIZATION, TEST_ADMIN_ROLE, 80123L);
+
+        // Then
+        assertAll(
+                // 구조 검증
+                () -> assertThat(result).isNotNull(),
+                () -> assertThat(result.applicationId()).isEqualTo(80123L),
+                () -> assertThat(result.status()).isEqualTo("PENDING"),
+                () -> assertThat(result.submittedAt()).isNotNull(),
+                () -> assertThat(result.artist()).isNotNull(),
+                () -> assertThat(result.contact()).isNotNull(),
+                () -> assertThat(result.business()).isNotNull(),
+                () -> assertThat(result.profile()).isNotNull(),
+                () -> assertThat(result.review()).isNotNull(),
+                () -> assertThat(result.decision()).isNotNull(),
+                () -> assertThat(result.permissions()).isNotNull(),
+
+                // 필수 정보 검증
+                () -> assertThat(result.artist().userId()).isPositive(),
+                () -> assertThat(result.artist().memberId()).isNotBlank(),
+                () -> assertThat(result.artist().name()).isNotBlank(),
+                () -> assertThat(result.contact().email()).contains("@"),
+                () -> assertThat(result.business().registrationNo()).isNotBlank()
+        );
+    }
+
+    @Test
+    @DisplayName("입점 신청 상세 조회 - PENDING 상태별 권한 검증")
+    void getArtistApplicationDetail_ValidatesPendingPermissions() {
+        // When
+        AdminArtistApplicationDetailResponse result = adminDashboardService.getArtistApplicationDetail(
+                TEST_AUTHORIZATION, TEST_ADMIN_ROLE, 80123L);
+
+        // Then - PENDING 상태의 권한 검증
+        assertAll(
+                () -> assertThat(result.status()).isEqualTo("PENDING"),
+                () -> assertThat(result.permissions().canApprove()).isTrue(),
+                () -> assertThat(result.permissions().canReject()).isTrue(),
+                () -> assertThat(result.decision().status()).isNull(),
+                () -> assertThat(result.decision().reason()).isNull(),
+                () -> assertThat(result.decision().decidedAt()).isNull(),
+                () -> assertThat(result.decision().decidedBy()).isNull()
+        );
     }
 }

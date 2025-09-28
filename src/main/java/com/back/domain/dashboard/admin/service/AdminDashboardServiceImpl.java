@@ -1,5 +1,6 @@
 package com.back.domain.dashboard.admin.service;
 
+import com.back.domain.dashboard.admin.dto.response.AdminArtistApplicationDetailResponse;
 import com.back.domain.dashboard.admin.dto.response.AdminArtistApplicationResponse;
 import com.back.domain.dashboard.admin.dto.response.AdminFundingResponse;
 import com.back.domain.dashboard.admin.dto.response.AdminOverviewResponse;
@@ -454,6 +455,54 @@ public class AdminDashboardServiceImpl implements AdminDashboardService {
 
         return new AdminArtistApplicationResponse(
                 summary, applications, page, size, totalElements, totalPages, hasNext, hasPrevious
+        );
+    }
+
+    @Override
+    public AdminArtistApplicationDetailResponse getArtistApplicationDetail(String authorization, String adminRole, Long applicationId) {
+        // TODO: JWT 토큰에서 관리자 정보 추출 및 권한 검증
+        // TODO: 실제 데이터베이스에서 입점 신청 상세 데이터 조회
+        // TODO: 신청 ID 존재 여부 검증
+
+        log.info("관리자 입점 신청 상세 조회 - applicationId: {}, adminRole: {}", applicationId, adminRole);
+
+        // 작가 정보
+        AdminArtistApplicationDetailResponse.Artist artist = new AdminArtistApplicationDetailResponse.Artist(
+                100123L, "abc123", "작가명입니다", null);
+
+        // 연락처 정보
+        AdminArtistApplicationDetailResponse.Contact contact = new AdminArtistApplicationDetailResponse.Contact(
+                "abc123@abc.com", "010-1234-5678");
+
+        // 사업자 정보
+        AdminArtistApplicationDetailResponse.Business business = new AdminArtistApplicationDetailResponse.Business(
+                "123-45-67890", "2025-서울강남-1234", "서울특별시 강남구 테헤란로 123 2층");
+
+        // 프로필 정보
+        AdminArtistApplicationDetailResponse.Profile profile = new AdminArtistApplicationDetailResponse.Profile(
+                List.of("스티커", "메모지"),
+                List.of(new AdminArtistApplicationDetailResponse.SnsInfo("Instagram", "@moriomori_official")),
+                List.of(new AdminArtistApplicationDetailResponse.PortfolioFile(
+                        "pf-1", "포트폴리오.pdf", "https://example.com/signed/pf-1"))
+        );
+
+        // 검토 정보
+        AdminArtistApplicationDetailResponse.Review review = new AdminArtistApplicationDetailResponse.Review(
+                null,
+                new AdminArtistApplicationDetailResponse.Verifications(true, true)
+        );
+
+        // 결정 정보 (PENDING 상태이므로 null)
+        AdminArtistApplicationDetailResponse.Decision decision = new AdminArtistApplicationDetailResponse.Decision(
+                null, null, null, null);
+
+        // 권한 정보 (PENDING 상태이므로 승인/거절 가능)
+        AdminArtistApplicationDetailResponse.Permissions permissions = new AdminArtistApplicationDetailResponse.Permissions(
+                true, true);
+
+        return new AdminArtistApplicationDetailResponse(
+                80123L, "PENDING", LocalDateTime.of(2025, 9, 18, 10, 20, 0),
+                artist, contact, business, profile, review, decision, permissions
         );
     }
 }

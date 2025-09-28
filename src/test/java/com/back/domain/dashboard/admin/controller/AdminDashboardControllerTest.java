@@ -6,6 +6,7 @@ import com.back.domain.dashboard.admin.dto.request.AdminOverviewRequest;
 import com.back.domain.dashboard.admin.dto.request.AdminProductSearchRequest;
 import com.back.domain.dashboard.admin.dto.request.AdminSettlementRequest;
 import com.back.domain.dashboard.admin.dto.request.AdminUserSearchRequest;
+import com.back.domain.dashboard.admin.dto.response.AdminArtistApplicationDetailResponse;
 import com.back.domain.dashboard.admin.dto.response.AdminArtistApplicationResponse;
 import com.back.domain.dashboard.admin.dto.response.AdminFundingResponse;
 import com.back.domain.dashboard.admin.dto.response.AdminOverviewResponse;
@@ -196,6 +197,24 @@ class AdminDashboardControllerTest {
         assertThat(data).isNotNull();
     }
 
+    @Test
+    @DisplayName("관리자 입점 신청 상세 조회 성공")
+    void getArtistApplicationDetail_Success() {
+        // Given
+        AdminArtistApplicationDetailResponse mockResponse = createMockArtistApplicationDetailResponse();
+        given(adminDashboardService.getArtistApplicationDetail(
+                anyString(), anyString(), anyLong()))
+                .willReturn(mockResponse);
+
+        // When
+        ResponseEntity<RsData<AdminArtistApplicationDetailResponse>> response =
+                adminDashboardController.getArtistApplicationDetail(BEARER_TOKEN, ADMIN_ROLE, 80123L);
+
+        // Then
+        AdminArtistApplicationDetailResponse data = assertSuccessResponse(response, "입점 신청 상세 조회 성공");
+        assertThat(data).isNotNull();
+    }
+
     // Mock 데이터 생성 헬퍼 메서드들
     private AdminOverviewResponse createMockOverviewResponse() {
         AdminOverviewResponse.Overview overview = new AdminOverviewResponse.Overview(
@@ -319,5 +338,26 @@ class AdminDashboardControllerTest {
                 )
         );
         return new AdminArtistApplicationResponse(summary, applications, 0, 20, 120, 6, true, false);
+    }
+
+    private AdminArtistApplicationDetailResponse createMockArtistApplicationDetailResponse() {
+        AdminArtistApplicationDetailResponse.Artist artist = new AdminArtistApplicationDetailResponse.Artist(
+                100123L, "test01", "테스트 작가", null);
+        AdminArtistApplicationDetailResponse.Contact contact = new AdminArtistApplicationDetailResponse.Contact(
+                "test@example.com", "010-1234-5678");
+        AdminArtistApplicationDetailResponse.Business business = new AdminArtistApplicationDetailResponse.Business(
+                "123-45-67890", "2025-서울강남-1234", "서울특별시 강남구 테헤란로 123");
+        AdminArtistApplicationDetailResponse.Profile profile = new AdminArtistApplicationDetailResponse.Profile(
+                List.of("스티커"), List.of(), List.of());
+        AdminArtistApplicationDetailResponse.Review review = new AdminArtistApplicationDetailResponse.Review(
+                null, new AdminArtistApplicationDetailResponse.Verifications(true, true));
+        AdminArtistApplicationDetailResponse.Decision decision = new AdminArtistApplicationDetailResponse.Decision(
+                null, null, null, null);
+        AdminArtistApplicationDetailResponse.Permissions permissions = new AdminArtistApplicationDetailResponse.Permissions(
+                true, true);
+
+        return new AdminArtistApplicationDetailResponse(
+                80123L, "PENDING", LocalDateTime.of(2025, 9, 18, 10, 20),
+                artist, contact, business, profile, review, decision, permissions);
     }
 }

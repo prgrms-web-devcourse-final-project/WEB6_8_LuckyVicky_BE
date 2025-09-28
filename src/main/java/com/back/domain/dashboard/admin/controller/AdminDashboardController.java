@@ -6,6 +6,7 @@ import com.back.domain.dashboard.admin.dto.request.AdminOverviewRequest;
 import com.back.domain.dashboard.admin.dto.request.AdminProductSearchRequest;
 import com.back.domain.dashboard.admin.dto.request.AdminSettlementRequest;
 import com.back.domain.dashboard.admin.dto.request.AdminUserSearchRequest;
+import com.back.domain.dashboard.admin.dto.response.AdminArtistApplicationDetailResponse;
 import com.back.domain.dashboard.admin.dto.response.AdminArtistApplicationResponse;
 import com.back.domain.dashboard.admin.dto.response.AdminFundingResponse;
 import com.back.domain.dashboard.admin.dto.response.AdminOverviewResponse;
@@ -186,5 +187,24 @@ public class AdminDashboardController {
                 request.sort(), request.order());
 
         return ResponseEntity.ok(RsData.ok("입점 신청 목록 조회 성공", response));
+    }
+
+    /**
+     * 관리자 입점 신청 상세 조회
+     */
+    @GetMapping("/artist-applications/{applicationId}")
+    @Operation(summary = "관리자 입점 신청 상세 조회",
+               description = "특정 입점 신청의 상세 정보를 조회합니다")
+    public ResponseEntity<RsData<AdminArtistApplicationDetailResponse>> getArtistApplicationDetail(
+            @RequestHeader("Authorization") String authorization,
+            @RequestHeader(value = "X-Admin-Role", required = false) String adminRole,
+            @PathVariable Long applicationId) {
+
+        log.info("관리자 입점 신청 상세 조회 - applicationId: {}, adminRole: {}", applicationId, adminRole);
+
+        AdminArtistApplicationDetailResponse response = adminDashboardService.getArtistApplicationDetail(
+                authorization, adminRole, applicationId);
+
+        return ResponseEntity.ok(RsData.ok("입점 신청 상세 조회 성공", response));
     }
 }

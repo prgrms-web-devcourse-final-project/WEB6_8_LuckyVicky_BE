@@ -1,5 +1,6 @@
 package com.back.domain.dashboard.admin.service;
 
+import com.back.domain.dashboard.admin.dto.response.AdminArtistApplicationDetailResponse;
 import com.back.domain.dashboard.admin.dto.response.AdminArtistApplicationResponse;
 import com.back.domain.dashboard.admin.dto.response.AdminFundingResponse;
 import com.back.domain.dashboard.admin.dto.response.AdminOverviewResponse;
@@ -56,4 +57,9 @@ public interface AdminDashboardService {
                                                          String keyword, String status,
                                                          String submittedFrom, String submittedTo,
                                                          String sort, String order);
+
+    /**
+     * 관리자 입점 신청 상세 조회
+     */
+    AdminArtistApplicationDetailResponse getArtistApplicationDetail(String authorization, String adminRole, Long applicationId);
 }
