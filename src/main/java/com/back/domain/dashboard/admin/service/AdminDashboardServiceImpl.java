@@ -1,5 +1,6 @@
 package com.back.domain.dashboard.admin.service;
 
+import com.back.domain.dashboard.admin.dto.response.AdminArtistApplicationResponse;
 import com.back.domain.dashboard.admin.dto.response.AdminFundingResponse;
 import com.back.domain.dashboard.admin.dto.response.AdminOverviewResponse;
 import com.back.domain.dashboard.admin.dto.response.AdminProductResponse;
@@ -17,7 +18,7 @@ import java.util.List;
 
 /**
  * 관리자용 대시보드 서비스 구현체
- * 2025.09.26 생성
+ * 2025.09.28 수정
  */
 @Service
 @RequiredArgsConstructor
@@ -393,6 +394,66 @@ public class AdminDashboardServiceImpl implements AdminDashboardService {
 
         return new AdminFundingResponse(
                 summary, fundings, page, size, totalElements, totalPages, hasNext, hasPrevious
+        );
+    }
+
+    @Override
+    public AdminArtistApplicationResponse getArtistApplications(String authorization, String adminRole, int page, int size,
+                                                                String keyword, String status,
+                                                                String submittedFrom, String submittedTo,
+                                                                String sort, String order) {
+        // TODO: JWT 토큰에서 관리자 정보 추출 및 권한 검증
+        // TODO: 실제 데이터베이스에서 입점 신청 데이터 조회 및 필터링
+        // TODO: 동적 정렬 및 페이징 처리
+
+        log.info("관리자 입점 신청 목록 조회 - page: {}, size: {}, keyword: {}, status: {}, adminRole: {}",
+                page, size, keyword, status, adminRole);
+
+        // 요약 정보 (더미 데이터)
+        AdminArtistApplicationResponse.Summary summary = new AdminArtistApplicationResponse.Summary(
+                120, 86, 23, 11
+        );
+
+        // 입점 신청 목록 (더미 데이터)
+        List<AdminArtistApplicationResponse.Application> applications = List.of(
+                new AdminArtistApplicationResponse.Application(
+                        80136L,
+                        new AdminArtistApplicationResponse.Artist("abc136", "작가명입니다"),
+                        "PENDING",
+                        "2025-09-18",
+                        new AdminArtistApplicationResponse.Permissions(true, true)
+                ),
+                new AdminArtistApplicationResponse.Application(
+                        80135L,
+                        new AdminArtistApplicationResponse.Artist("abc135", "작가명입니다"),
+                        "PENDING",
+                        "2025-09-18",
+                        new AdminArtistApplicationResponse.Permissions(true, true)
+                ),
+                new AdminArtistApplicationResponse.Application(
+                        80134L,
+                        new AdminArtistApplicationResponse.Artist("abc134", "승인된작가"),
+                        "APPROVED",
+                        "2025-09-17",
+                        new AdminArtistApplicationResponse.Permissions(false, false)
+                ),
+                new AdminArtistApplicationResponse.Application(
+                        80133L,
+                        new AdminArtistApplicationResponse.Artist("abc133", "거절된작가"),
+                        "REJECTED",
+                        "2025-09-16",
+                        new AdminArtistApplicationResponse.Permissions(false, false)
+                )
+        );
+
+        // 페이지 정보
+        int totalElements = 120;
+        int totalPages = (int) Math.ceil((double) totalElements / size);
+        boolean hasNext = page < totalPages - 1;
+        boolean hasPrevious = page > 0;
+
+        return new AdminArtistApplicationResponse(
+                summary, applications, page, size, totalElements, totalPages, hasNext, hasPrevious
         );
     }
 }

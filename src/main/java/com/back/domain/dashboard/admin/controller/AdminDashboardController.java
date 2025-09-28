@@ -1,10 +1,12 @@
 package com.back.domain.dashboard.admin.controller;
 
+import com.back.domain.dashboard.admin.dto.request.AdminArtistApplicationSearchRequest;
 import com.back.domain.dashboard.admin.dto.request.AdminFundingSearchRequest;
 import com.back.domain.dashboard.admin.dto.request.AdminOverviewRequest;
 import com.back.domain.dashboard.admin.dto.request.AdminProductSearchRequest;
 import com.back.domain.dashboard.admin.dto.request.AdminSettlementRequest;
 import com.back.domain.dashboard.admin.dto.request.AdminUserSearchRequest;
+import com.back.domain.dashboard.admin.dto.response.AdminArtistApplicationResponse;
 import com.back.domain.dashboard.admin.dto.response.AdminFundingResponse;
 import com.back.domain.dashboard.admin.dto.response.AdminOverviewResponse;
 import com.back.domain.dashboard.admin.dto.response.AdminProductResponse;
@@ -36,9 +38,10 @@ import org.springframework.web.bind.annotation.*;
  *   <li>상품 목록 조회 및 관리</li>
  *   <li>사용자 목록 조회 및 관리</li>
  *   <li>펀딩 모니터링 목록 조회</li>
+ *   <li>입점 신청 목록 조회 및 관리</li>
  * </ul>
  * 
- * 2025.09.26 신규 생성
+ * 2025.09.28 수정
  */
 @RestController
 @RequestMapping("/api/dashboard/admin")
@@ -160,5 +163,28 @@ public class AdminDashboardController {
                 request.dueFrom(), request.dueTo(), request.sort(), request.order());
 
         return ResponseEntity.ok(RsData.ok("관리자 펀딩 모니터링 조회 성공", response));
+    }
+
+    /**
+     * 관리자 입점 신청 목록 조회
+     */
+    @GetMapping("/artist-applications")
+    @Operation(summary = "관리자 입점 신청 목록 조회",
+               description = "전체 입점 신청을 페이지 단위로 조회하고 필터링/정렬할 수 있습니다")
+    public ResponseEntity<RsData<AdminArtistApplicationResponse>> getArtistApplications(
+            @RequestHeader("Authorization") String authorization,
+            @RequestHeader(value = "X-Admin-Role", required = false) String adminRole,
+            @Valid @ModelAttribute AdminArtistApplicationSearchRequest request) {
+
+        log.info("관리자 입점 신청 목록 조회 - page: {}, size: {}, keyword: {}, status: {}, adminRole: {}",
+                request.page(), request.size(), request.keyword(), request.status(), adminRole);
+
+        AdminArtistApplicationResponse response = adminDashboardService.getArtistApplications(
+                authorization, adminRole, request.page(), request.size(),
+                request.keyword(), request.status(),
+                request.submittedFrom(), request.submittedTo(),
+                request.sort(), request.order());
+
+        return ResponseEntity.ok(RsData.ok("입점 신청 목록 조회 성공", response));
     }
 }

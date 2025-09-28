@@ -1,5 +1,6 @@
 package com.back.domain.dashboard.admin.service;
 
+import com.back.domain.dashboard.admin.dto.response.AdminArtistApplicationResponse;
 import com.back.domain.dashboard.admin.dto.response.AdminFundingResponse;
 import com.back.domain.dashboard.admin.dto.response.AdminOverviewResponse;
 import com.back.domain.dashboard.admin.dto.response.AdminProductResponse;
@@ -17,7 +18,7 @@ import static org.junit.jupiter.api.Assertions.assertAll;
 /**
  * AdminDashboardServiceImpl 테스트
  * 비즈니스 로직과 데이터 일관성에 집중
- * 2025.09.26 생성
+ * 2025.09.28 수정
  */
 @ExtendWith(MockitoExtension.class)
 @DisplayName("관리자 대시보드 서비스 구현체 테스트")
@@ -187,15 +188,15 @@ class AdminDashboardServiceImplTest {
         );
 
         // 비즈니스 규칙 검증 - 순수익 = 매출 - 정산금
-        result.table().forEach(row -> {
+        result.table().forEach(row -> 
             assertAll(
                     () -> assertThat(row.netIncome())
                             .isEqualTo(row.grossSales() - row.artistPayout()),
                     () -> assertThat(row.grossSales()).isNotNegative(),
                     () -> assertThat(row.artistPayout()).isNotNegative(),
                     () -> assertThat(row.netIncome()).isNotNegative()
-            );
-        });
+            )
+        );
     }
 
     @Test
@@ -272,7 +273,7 @@ class AdminDashboardServiceImplTest {
                 null, null, null, null, null, null, null, null, null, null, "endDate", "ASC");
 
         // Then - 달성률과 플래그 일관성 검증
-        result.content().forEach(funding -> {
+        result.content().forEach(funding -> 
             assertAll(
                     // 달성률 계산 검증
                     () -> assertThat(funding.achievementRate())
@@ -287,7 +288,63 @@ class AdminDashboardServiceImplTest {
                     () -> assertThat(funding.currentAmount()).isNotNegative(),
                     () -> assertThat(funding.supporterCount()).isNotNegative(),
                     () -> assertThat(funding.remainingDays()).isNotNegative()
-            );
+            )
+        );
+    }
+
+    @Test
+    @DisplayName("입점 신청 목록 조회 - 응답 구조 및 비즈니스 규칙 검증")
+    void getArtistApplications_ValidatesStructureAndBusinessRules() {
+        // When
+        AdminArtistApplicationResponse result = adminDashboardService.getArtistApplications(
+                TEST_AUTHORIZATION, TEST_ADMIN_ROLE, 0, 20,
+                null, null, null, null, "submittedAt", "DESC");
+
+        // Then
+        assertAll(
+                // 구조 검증
+                () -> assertThat(result).isNotNull(),
+                () -> assertThat(result.summary()).isNotNull(),
+                () -> assertThat(result.content()).isNotNull(),
+                () -> assertThat(result.content()).isNotEmpty(),
+
+                // 페이지네이션 검증
+                () -> assertThat(result.page()).isNotNegative(),
+                () -> assertThat(result.size()).isPositive(),
+                () -> assertThat(result.totalElements()).isNotNegative(),
+                () -> assertThat(result.totalPages()).isNotNegative(),
+
+                // 비즈니스 규칙 - 전체 = 대기 + 승인 + 거절
+                () -> assertThat(result.summary().totalApplications())
+                        .isEqualTo(result.summary().pending() + 
+                                  result.summary().approved() + 
+                                  result.summary().rejected())
+        );
+    }
+
+    @Test
+    @DisplayName("입점 신청 목록 조회 - 상태별 권한 일관성 검증")
+    void getArtistApplications_ValidatesStatusPermissions() {
+        // When
+        AdminArtistApplicationResponse result = adminDashboardService.getArtistApplications(
+                TEST_AUTHORIZATION, TEST_ADMIN_ROLE, 0, 20,
+                null, null, null, null, "submittedAt", "DESC");
+
+        // Then - 상태별 권한 일관성 검증
+        result.content().forEach(application -> {
+            if ("PENDING".equals(application.status())) {
+                // PENDING 상태는 승인/거절 가능
+                assertAll(
+                        () -> assertThat(application.permissions().canApprove()).isTrue(),
+                        () -> assertThat(application.permissions().canReject()).isTrue()
+                );
+            } else if ("APPROVED".equals(application.status()) || "REJECTED".equals(application.status())) {
+                // 처리 완료된 신청은 권한 없음
+                assertAll(
+                        () -> assertThat(application.permissions().canApprove()).isFalse(),
+                        () -> assertThat(application.permissions().canReject()).isFalse()
+                );
+            }
         });
     }
 }

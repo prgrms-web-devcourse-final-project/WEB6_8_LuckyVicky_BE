@@ -1,10 +1,12 @@
 package com.back.domain.dashboard.admin.controller;
 
+import com.back.domain.dashboard.admin.dto.request.AdminArtistApplicationSearchRequest;
 import com.back.domain.dashboard.admin.dto.request.AdminFundingSearchRequest;
 import com.back.domain.dashboard.admin.dto.request.AdminOverviewRequest;
 import com.back.domain.dashboard.admin.dto.request.AdminProductSearchRequest;
 import com.back.domain.dashboard.admin.dto.request.AdminSettlementRequest;
 import com.back.domain.dashboard.admin.dto.request.AdminUserSearchRequest;
+import com.back.domain.dashboard.admin.dto.response.AdminArtistApplicationResponse;
 import com.back.domain.dashboard.admin.dto.response.AdminFundingResponse;
 import com.back.domain.dashboard.admin.dto.response.AdminOverviewResponse;
 import com.back.domain.dashboard.admin.dto.response.AdminProductResponse;
@@ -31,7 +33,7 @@ import static org.mockito.BDDMockito.given;
 /**
  * AdminDashboardController 테스트
  * 컨트롤러 레이어의 HTTP 응답과 서비스 호출에 집중
- * 2025.09.26 생성
+ * 2025.09.28 수정
  */
 @ExtendWith(MockitoExtension.class)
 @DisplayName("관리자 대시보드 컨트롤러 테스트")
@@ -172,6 +174,28 @@ class AdminDashboardControllerTest {
         assertThat(data).isNotNull();
     }
 
+    @Test
+    @DisplayName("관리자 입점 신청 목록 조회 성공")
+    void getArtistApplications_Success() {
+        // Given
+        AdminArtistApplicationResponse mockResponse = createMockArtistApplicationResponse();
+        given(adminDashboardService.getArtistApplications(
+                anyString(), anyString(), anyInt(), anyInt(),
+                any(), any(), any(), any(), any(), any()))
+                .willReturn(mockResponse);
+
+        AdminArtistApplicationSearchRequest request = new AdminArtistApplicationSearchRequest(
+                0, 20, null, null, null, null, null, null);
+
+        // When
+        ResponseEntity<RsData<AdminArtistApplicationResponse>> response =
+                adminDashboardController.getArtistApplications(BEARER_TOKEN, ADMIN_ROLE, request);
+
+        // Then
+        AdminArtistApplicationResponse data = assertSuccessResponse(response, "입점 신청 목록 조회 성공");
+        assertThat(data).isNotNull();
+    }
+
     // Mock 데이터 생성 헬퍼 메서드들
     private AdminOverviewResponse createMockOverviewResponse() {
         AdminOverviewResponse.Overview overview = new AdminOverviewResponse.Overview(
@@ -282,5 +306,18 @@ class AdminDashboardControllerTest {
                 )
         );
         return new AdminFundingResponse(summary, fundings, 0, 20, 120, 6, true, false);
+    }
+
+    private AdminArtistApplicationResponse createMockArtistApplicationResponse() {
+        AdminArtistApplicationResponse.Summary summary = new AdminArtistApplicationResponse.Summary(120, 86, 23, 11);
+        List<AdminArtistApplicationResponse.Application> applications = List.of(
+                new AdminArtistApplicationResponse.Application(
+                        80136L,
+                        new AdminArtistApplicationResponse.Artist("test01", "테스트 작가"),
+                        "PENDING", "2025-09-18",
+                        new AdminArtistApplicationResponse.Permissions(true, true)
+                )
+        );
+        return new AdminArtistApplicationResponse(summary, applications, 0, 20, 120, 6, true, false);
     }
 }

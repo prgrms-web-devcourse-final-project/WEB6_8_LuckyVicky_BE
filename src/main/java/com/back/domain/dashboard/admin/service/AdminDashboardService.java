@@ -1,5 +1,6 @@
 package com.back.domain.dashboard.admin.service;
 
+import com.back.domain.dashboard.admin.dto.response.AdminArtistApplicationResponse;
 import com.back.domain.dashboard.admin.dto.response.AdminFundingResponse;
 import com.back.domain.dashboard.admin.dto.response.AdminOverviewResponse;
 import com.back.domain.dashboard.admin.dto.response.AdminProductResponse;
@@ -8,7 +9,7 @@ import com.back.domain.dashboard.admin.dto.response.AdminUserResponse;
 
 /**
  * 관리자용 대시보드 서비스 인터페이스
- * 2025.09.26 생성
+ * 2025.09.28 수정
  */
 public interface AdminDashboardService {
 
@@ -47,4 +48,12 @@ public interface AdminDashboardService {
                                      Integer minAchievement, Integer maxAchievement,
                                      String registeredFrom, String registeredTo,
                                      String dueFrom, String dueTo, String sort, String order);
+
+    /**
+     * 관리자 입점 신청 목록 조회
+     */
+    AdminArtistApplicationResponse getArtistApplications(String authorization, String adminRole, int page, int size,
+                                                         String keyword, String status,
+                                                         String submittedFrom, String submittedTo,
+                                                         String sort, String order);
 }
