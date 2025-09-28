@@ -34,7 +34,7 @@ public class AdminDashboardServiceImpl implements AdminDashboardService {
 
         log.info("관리자 현황 조회 - range: {}, granularity: {}, adminRole: {}", range, granularity, adminRole);
 
-        // 전체 현황 통계
+        // 전체 현황 통계 (최소한의 더미 데이터)
         AdminOverviewResponse.Overview overview = new AdminOverviewResponse.Overview(
                 new AdminOverviewResponse.StatInfo(12450L, "가입자 수", "명", 234L, 0.019),
                 new AdminOverviewResponse.StatInfo(8945L, "주문", "건", 156L, 0.018),
@@ -44,72 +44,37 @@ public class AdminDashboardServiceImpl implements AdminDashboardService {
                 new AdminOverviewResponse.StatInfo(156L, "작가수", "명", 12L, 0.083)
         );
 
-        // 매출 트렌드 (간소화)
-        AdminOverviewResponse.SalesTrend salesTrend = new AdminOverviewResponse.SalesTrend(
-                new AdminOverviewResponse.SalesSeries(
-                        List.of(
-                                new AdminOverviewResponse.DataPoint("2025-12-18", 1250000L),
-                                new AdminOverviewResponse.DataPoint("2025-12-24", 2340000L)
-                        ),
-                        List.of(
-                                new AdminOverviewResponse.DataPoint("2025-12-18", 125L),
-                                new AdminOverviewResponse.DataPoint("2025-12-24", 234L)
-                        )
-                ),
-                new AdminOverviewResponse.SalesDelta(
-                        new AdminOverviewResponse.DeltaInfo(480000L, 0.23),
-                        new AdminOverviewResponse.DeltaInfo(18L, 0.084)
-                )
-        );
-
-        // 사용자 증가 현황 (간소화)
-        AdminOverviewResponse.UserGrowth userGrowth = new AdminOverviewResponse.UserGrowth(
-                new AdminOverviewResponse.UserSeries(
-                        List.of(
-                                new AdminOverviewResponse.DataPoint("2025-07-01", 10200L),
-                                new AdminOverviewResponse.DataPoint("2025-12-01", 12450L)
-                        ),
-                        List.of(
-                                new AdminOverviewResponse.DataPoint("2025-07-01", 120L),
-                                new AdminOverviewResponse.DataPoint("2025-12-01", 156L)
-                        )
-                ),
-                new AdminOverviewResponse.UserDelta(
-                        new AdminOverviewResponse.DeltaInfo(450L, 0.037),
-                        new AdminOverviewResponse.DeltaInfo(36L, 0.30)
-                )
-        );
-
-        // 카테고리 분포 (간소화)
-        AdminOverviewResponse.CategoryDistribution categoryDistribution = 
-                new AdminOverviewResponse.CategoryDistribution(
-                        "2025-12-24", 
-                        2340, 
-                        List.of(
-                                new AdminOverviewResponse.CategoryBucket(1L, "스티커", 820, 0.35),
-                                new AdminOverviewResponse.CategoryBucket(2L, "다이어리", 420, 0.179),
-                                new AdminOverviewResponse.CategoryBucket(3L, "포스터", 360, 0.154)
-                        )
-                );
-
-        // 차트 데이터 통합
+        // 차트 데이터 (최소한)
         AdminOverviewResponse.Charts charts = new AdminOverviewResponse.Charts(
                 new AdminOverviewResponse.ChartMeta(range, granularity, timezone),
-                salesTrend, 
-                userGrowth, 
-                categoryDistribution
+                new AdminOverviewResponse.SalesTrend(
+                        new AdminOverviewResponse.SalesSeries(
+                                List.of(new AdminOverviewResponse.DataPoint("2025-12-24", 2340000L)),
+                                List.of(new AdminOverviewResponse.DataPoint("2025-12-24", 234L))
+                        ),
+                        new AdminOverviewResponse.SalesDelta(
+                                new AdminOverviewResponse.DeltaInfo(480000L, 0.23),
+                                new AdminOverviewResponse.DeltaInfo(18L, 0.084)
+                        )
+                ),
+                new AdminOverviewResponse.UserGrowth(
+                        new AdminOverviewResponse.UserSeries(
+                                List.of(new AdminOverviewResponse.DataPoint("2025-12-01", 12450L)),
+                                List.of(new AdminOverviewResponse.DataPoint("2025-12-01", 156L))
+                        ),
+                        new AdminOverviewResponse.UserDelta(
+                                new AdminOverviewResponse.DeltaInfo(450L, 0.037),
+                                new AdminOverviewResponse.DeltaInfo(36L, 0.30)
+                        )
+                ),
+                new AdminOverviewResponse.CategoryDistribution("2025-12-24", 2340,
+                        List.of(new AdminOverviewResponse.CategoryBucket(1L, "스티커", 820, 0.35)))
         );
 
-        // 승인 대기 알림 (간소화)
+        // 승인 대기 알림 (최소한)
         AdminOverviewResponse.Alerts alerts = new AdminOverviewResponse.Alerts(
-                List.of(
-                        new AdminOverviewResponse.ArtistApproval(1001L, "작가A", 
-                                LocalDateTime.of(2025, 12, 23, 9, 10))
-                ),
-                List.of(
-                        new AdminOverviewResponse.FundingApproval(456789L, "한정 제품", 
-                                LocalDateTime.of(2025, 12, 23, 10, 15))
-                )
+                List.of(new AdminOverviewResponse.ArtistApproval(1001L, "작가A", LocalDateTime.of(2025, 12, 23, 9, 10))),
+                List.of(new AdminOverviewResponse.FundingApproval(456789L, "한정 제품", LocalDateTime.of(2025, 12, 23, 10, 15)))
         );
 
         return new AdminOverviewResponse(overview, charts, alerts, LocalDateTime.now(), timezone);
@@ -131,34 +96,22 @@ public class AdminDashboardServiceImpl implements AdminDashboardService {
                 2340, 2105, 235
         );
 
-        // 상품 목록 (더미 데이터)
+        // 상품 목록 (최소한의 더미 데이터)
         List<AdminProductResponse.Product> products = List.of(
                 new AdminProductResponse.Product(
-                        123357L,
-                        "0123357",
-                        "상품명입니다 상품명입니다",
+                        123357L, "0123357", "상품명입니다",
                         new AdminProductResponse.Artist(9001L, "작가이름입니다"),
-                        "SELLING",
-                        new AdminProductResponse.Category(1L, "스티커"),
-                        LocalDate.of(2025, 9, 18),
-                        new AdminProductResponse.Permissions(true, true, true),
-                        metrics ? 4.5 : null,
-                        metrics ? 12 : null,
-                        metrics ? 2250000L : null,
+                        "SELLING", new AdminProductResponse.Category(1L, "스티커"),
+                        LocalDate.of(2025, 9, 18), new AdminProductResponse.Permissions(true, true, true),
+                        metrics ? 4.5 : null, metrics ? 12 : null, metrics ? 2250000L : null,
                         new AdminProductResponse.Moderation(false, null)
                 ),
                 new AdminProductResponse.Product(
-                        123356L,
-                        "0123356",
-                        "상품명입니다 상품명입니다",
+                        123356L, "0123356", "상품명입니다2",
                         new AdminProductResponse.Artist(9002L, "작가가나다"),
-                        "STOPPED",
-                        new AdminProductResponse.Category(3L, "포스터"),
-                        LocalDate.of(2025, 9, 18),
-                        new AdminProductResponse.Permissions(true, true, true),
-                        metrics ? 4.2 : null,
-                        metrics ? 8 : null,
-                        metrics ? 1800000L : null,
+                        "STOPPED", new AdminProductResponse.Category(3L, "포스터"),
+                        LocalDate.of(2025, 9, 18), new AdminProductResponse.Permissions(true, true, true),
+                        metrics ? 4.2 : null, metrics ? 8 : null, metrics ? 1800000L : null,
                         new AdminProductResponse.Moderation(false, null)
                 )
         );
@@ -191,54 +144,27 @@ public class AdminDashboardServiceImpl implements AdminDashboardService {
                 13240, 12810, 280, 150, 1000
         );
 
-        // 사용자 목록 (더미 데이터)
+        // 사용자 목록 (최소한의 더미 데이터)
         List<AdminUserResponse.User> users = List.of(
                 new AdminUserResponse.User(
-                        100136L,
-                        "abc136",
-                        "닉네임입니다",
-                        "USER",
+                        100136L, "abc136", "닉네임입니다", "USER",
                         new AdminUserResponse.Artist(null, null),
-                        new AdminUserResponse.Grade("SEED", "새싹"),
-                        "ACTIVE",
-                        LocalDate.of(2025, 9, 18),
-                        LocalDateTime.of(2025, 9, 18, 10, 20, 0),
+                        new AdminUserResponse.Grade("SEED", "새싹"), "ACTIVE",
+                        LocalDate.of(2025, 9, 18), LocalDateTime.of(2025, 9, 18, 10, 20, 0),
                         new AdminUserResponse.Permissions(true, false)
                 ),
                 new AdminUserResponse.User(
-                        100131L,
-                        "abc131",
-                        "작가명입니다",
-                        "ARTIST",
+                        100131L, "abc131", "작가명입니다", "ARTIST",
                         new AdminUserResponse.Artist(90031L, "작가명입니다"),
-                        new AdminUserResponse.Grade("SEED", "새싹"),
-                        "ACTIVE",
-                        LocalDate.of(2025, 9, 18),
-                        LocalDateTime.of(2025, 9, 18, 8, 5, 0),
+                        new AdminUserResponse.Grade("SEED", "새싹"), "ACTIVE",
+                        LocalDate.of(2025, 9, 18), LocalDateTime.of(2025, 9, 18, 8, 5, 0),
                         new AdminUserResponse.Permissions(true, false)
                 ),
                 new AdminUserResponse.User(
-                        100129L,
-                        "abc129",
-                        "작가명입니다",
-                        "ARTIST",
-                        new AdminUserResponse.Artist(90029L, "작가명입니다"),
-                        new AdminUserResponse.Grade("SEED", "새싹"),
-                        "SUSPENDED",
-                        LocalDate.of(2025, 9, 18),
-                        LocalDateTime.of(2025, 9, 17, 22, 10, 0),
-                        new AdminUserResponse.Permissions(true, false)
-                ),
-                new AdminUserResponse.User(
-                        100123L,
-                        "abc123",
-                        "작가명입니다",
-                        "ARTIST",
-                        new AdminUserResponse.Artist(90023L, "작가명입니다"),
-                        new AdminUserResponse.Grade("SEED", "새싹"),
-                        "BLACKLISTED",
-                        LocalDate.of(2025, 9, 18),
-                        LocalDateTime.of(2025, 9, 16, 13, 30, 0),
+                        100123L, "abc123", "블랙리스트사용자", "ARTIST",
+                        new AdminUserResponse.Artist(90023L, "블랙리스트작가"),
+                        new AdminUserResponse.Grade("SEED", "새싹"), "BLACKLISTED",
+                        LocalDate.of(2025, 9, 18), LocalDateTime.of(2025, 9, 16, 13, 30, 0),
                         new AdminUserResponse.Permissions(false, true)
                 )
         );
@@ -278,7 +204,7 @@ public class AdminDashboardServiceImpl implements AdminDashboardService {
                 96000000L    // 총 순수익
         );
 
-        // 차트 데이터 생성
+        // 차트 데이터 생성 (간소화)
         List<AdminSettlementResponse.DataPoint> grossSalesData = new ArrayList<>();
         List<AdminSettlementResponse.DataPoint> artistPayoutData = new ArrayList<>();
         List<AdminSettlementResponse.DataPoint> netIncomeData = new ArrayList<>();
@@ -288,36 +214,13 @@ public class AdminDashboardServiceImpl implements AdminDashboardService {
             // 일별 집계 (해당 월의 모든 일자)
             LocalDate startDate = LocalDate.of(year, month, 1);
             int daysInMonth = startDate.lengthOfMonth();
-
             for (int day = 1; day <= daysInMonth; day++) {
-                String bucketStart = String.format("%d-%02d-%02d", year, month, day);
-                long dailyGrossSales = 3000000L + (day * 50000L);
-                long dailyArtistPayout = dailyGrossSales / 10;
-                long dailyNetIncome = dailyGrossSales - dailyArtistPayout;
-
-                grossSalesData.add(new AdminSettlementResponse.DataPoint(bucketStart, dailyGrossSales));
-                artistPayoutData.add(new AdminSettlementResponse.DataPoint(bucketStart, dailyArtistPayout));
-                netIncomeData.add(new AdminSettlementResponse.DataPoint(bucketStart, dailyNetIncome));
-
-                tableData.add(new AdminSettlementResponse.TableRow(
-                        bucketStart, dailyGrossSales, dailyArtistPayout, dailyNetIncome
-                ));
+                addDataPoint(year, month, day, grossSalesData, artistPayoutData, netIncomeData, tableData);
             }
         } else {
             // 월별 집계 (해당 연도의 모든 월)
             for (int m = 1; m <= 12; m++) {
-                String bucketStart = String.format("%d-%02d-01", year, m);
-                long monthlyGrossSales = 10000000L + (m * 500000L);
-                long monthlyArtistPayout = monthlyGrossSales / 10;
-                long monthlyNetIncome = monthlyGrossSales - monthlyArtistPayout;
-
-                grossSalesData.add(new AdminSettlementResponse.DataPoint(bucketStart, monthlyGrossSales));
-                artistPayoutData.add(new AdminSettlementResponse.DataPoint(bucketStart, monthlyArtistPayout));
-                netIncomeData.add(new AdminSettlementResponse.DataPoint(bucketStart, monthlyNetIncome));
-
-                tableData.add(new AdminSettlementResponse.TableRow(
-                        bucketStart, monthlyGrossSales, monthlyArtistPayout, monthlyNetIncome
-                ));
+                addDataPoint(year, m, 1, grossSalesData, artistPayoutData, netIncomeData, tableData);
             }
         }
 
@@ -329,6 +232,25 @@ public class AdminDashboardServiceImpl implements AdminDashboardService {
         return new AdminSettlementResponse(
                 scope, granularity, timezone, summary, chart, tableData, LocalDateTime.now()
         );
+    }
+
+    /**
+     * 정산 데이터 포인트 생성 헬퍼 메서드
+     */
+    private void addDataPoint(int year, int monthOrMonth, int dayOrOne,
+                              List<AdminSettlementResponse.DataPoint> grossSalesData,
+                              List<AdminSettlementResponse.DataPoint> artistPayoutData,
+                              List<AdminSettlementResponse.DataPoint> netIncomeData,
+                              List<AdminSettlementResponse.TableRow> tableData) {
+        String bucketStart = String.format("%d-%02d-%02d", year, monthOrMonth, dayOrOne);
+        long grossSales = 3000000L + (monthOrMonth * 50000L) + (dayOrOne * 10000L);
+        long artistPayout = grossSales / 10;
+        long netIncome = grossSales - artistPayout;
+
+        grossSalesData.add(new AdminSettlementResponse.DataPoint(bucketStart, grossSales));
+        artistPayoutData.add(new AdminSettlementResponse.DataPoint(bucketStart, artistPayout));
+        netIncomeData.add(new AdminSettlementResponse.DataPoint(bucketStart, netIncome));
+        tableData.add(new AdminSettlementResponse.TableRow(bucketStart, grossSales, artistPayout, netIncome));
     }
 
     @Override
@@ -349,38 +271,22 @@ public class AdminDashboardServiceImpl implements AdminDashboardService {
                 120, 86, 5, 23, 6
         );
 
-        // 펀딩 목록 (더미 데이터)
+        // 펀딩 목록 (최소한의 더미 데이터)
         List<AdminFundingResponse.Funding> fundings = List.of(
                 new AdminFundingResponse.Funding(
-                        456789L,
-                        "펀딩 제목입니다 펀딩 제목입니다",
+                        456789L, "펀딩 제목입니다",
                         new AdminFundingResponse.Artist(90036L, "abc136", "작가명입니다"),
-                        new AdminFundingResponse.Category(1L, "스티커"),
-                        "ACTIVE",
-                        1000000L,
-                        1000000L,
-                        100,
-                        45,
-                        "2025-09-18",
-                        "2025-09-01",
-                        15,
+                        new AdminFundingResponse.Category(1L, "스티커"), "ACTIVE",
+                        1000000L, 1000000L, 100, 45, "2025-09-18", "2025-09-01", 15,
                         "https://example.com/image.jpg",
                         new AdminFundingResponse.Permissions(true, true),
                         new AdminFundingResponse.Flags(true, false)
                 ),
                 new AdminFundingResponse.Funding(
-                        456788L,
-                        "펀딩 제목입니다",
-                        new AdminFundingResponse.Artist(90035L, "abc135", "작가명입니다"),
-                        new AdminFundingResponse.Category(2L, "다이어리"),
-                        "ACTIVE",
-                        600000L,
-                        9000000L,
-                        1500,
-                        220,
-                        "2025-09-18",
-                        "2025-08-20",
-                        12,
+                        456788L, "펀딩 제목2",
+                        new AdminFundingResponse.Artist(90035L, "abc135", "작가명2"),
+                        new AdminFundingResponse.Category(2L, "다이어리"), "ACTIVE",
+                        600000L, 900000L, 150, 220, "2025-09-18", "2025-08-20", 12,
                         "https://example.com/image2.jpg",
                         new AdminFundingResponse.Permissions(true, true),
                         new AdminFundingResponse.Flags(true, true)
@@ -415,35 +321,23 @@ public class AdminDashboardServiceImpl implements AdminDashboardService {
                 120, 86, 23, 11
         );
 
-        // 입점 신청 목록 (더미 데이터)
+        // 입점 신청 목록 (최소한의 더미 데이터)
         List<AdminArtistApplicationResponse.Application> applications = List.of(
                 new AdminArtistApplicationResponse.Application(
-                        80136L,
-                        new AdminArtistApplicationResponse.Artist("abc136", "작가명입니다"),
-                        "PENDING",
-                        "2025-09-18",
-                        new AdminArtistApplicationResponse.Permissions(true, true)
+                        80136L, new AdminArtistApplicationResponse.Artist("abc136", "작가명입니다"),
+                        "PENDING", "2025-09-18", new AdminArtistApplicationResponse.Permissions(true, true)
                 ),
                 new AdminArtistApplicationResponse.Application(
-                        80135L,
-                        new AdminArtistApplicationResponse.Artist("abc135", "작가명입니다"),
-                        "PENDING",
-                        "2025-09-18",
-                        new AdminArtistApplicationResponse.Permissions(true, true)
+                        80135L, new AdminArtistApplicationResponse.Artist("abc135", "작가명2"),
+                        "PENDING", "2025-09-18", new AdminArtistApplicationResponse.Permissions(true, true)
                 ),
                 new AdminArtistApplicationResponse.Application(
-                        80134L,
-                        new AdminArtistApplicationResponse.Artist("abc134", "승인된작가"),
-                        "APPROVED",
-                        "2025-09-17",
-                        new AdminArtistApplicationResponse.Permissions(false, false)
+                        80134L, new AdminArtistApplicationResponse.Artist("abc134", "승인된작가"),
+                        "APPROVED", "2025-09-17", new AdminArtistApplicationResponse.Permissions(false, false)
                 ),
                 new AdminArtistApplicationResponse.Application(
-                        80133L,
-                        new AdminArtistApplicationResponse.Artist("abc133", "거절된작가"),
-                        "REJECTED",
-                        "2025-09-16",
-                        new AdminArtistApplicationResponse.Permissions(false, false)
+                        80133L, new AdminArtistApplicationResponse.Artist("abc133", "거절된작가"),
+                        "REJECTED", "2025-09-16", new AdminArtistApplicationResponse.Permissions(false, false)
                 )
         );
 
@@ -466,7 +360,7 @@ public class AdminDashboardServiceImpl implements AdminDashboardService {
 
         log.info("관리자 입점 신청 상세 조회 - applicationId: {}, adminRole: {}", applicationId, adminRole);
 
-        // 작가 정보
+        // 작가 정보 (최소한의 더미 데이터)
         AdminArtistApplicationDetailResponse.Artist artist = new AdminArtistApplicationDetailResponse.Artist(
                 100123L, "abc123", "작가명입니다", null);
 
@@ -478,7 +372,7 @@ public class AdminDashboardServiceImpl implements AdminDashboardService {
         AdminArtistApplicationDetailResponse.Business business = new AdminArtistApplicationDetailResponse.Business(
                 "123-45-67890", "2025-서울강남-1234", "서울특별시 강남구 테헤란로 123 2층");
 
-        // 프로필 정보
+        // 프로필 정보 (최소한)
         AdminArtistApplicationDetailResponse.Profile profile = new AdminArtistApplicationDetailResponse.Profile(
                 List.of("스티커", "메모지"),
                 List.of(new AdminArtistApplicationDetailResponse.SnsInfo("Instagram", "@moriomori_official")),
@@ -488,9 +382,7 @@ public class AdminDashboardServiceImpl implements AdminDashboardService {
 
         // 검토 정보
         AdminArtistApplicationDetailResponse.Review review = new AdminArtistApplicationDetailResponse.Review(
-                null,
-                new AdminArtistApplicationDetailResponse.Verifications(true, true)
-        );
+                null, new AdminArtistApplicationDetailResponse.Verifications(true, true));
 
         // 결정 정보 (PENDING 상태이므로 null)
         AdminArtistApplicationDetailResponse.Decision decision = new AdminArtistApplicationDetailResponse.Decision(
