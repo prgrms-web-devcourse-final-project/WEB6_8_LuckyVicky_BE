@@ -1,10 +1,6 @@
 package com.back.domain.funding.dto.response;
 
-import com.back.domain.funding.entity.Funding;
-import com.back.domain.funding.entity.FundingOption;
-import com.back.domain.funding.entity.FundingNews;
-import com.back.domain.funding.entity.FundingCommunity;
-import com.back.domain.funding.entity.FundingStatus;
+import com.back.domain.funding.entity.*;
 import com.back.domain.user.entity.User;
 import com.fasterxml.jackson.annotation.JsonFormat;
 
@@ -37,9 +33,8 @@ public record FundingDetailResponse(
                                  long currentAmount,
                                  int participants,
                                  int remainingDays,
-                                 double progress,
-                                 List<FundingNews> updates,
-                                 List<FundingCommunity> communities) {
+                                 double progress)
+            {
         this(
                 funding.getId(),
                 funding.getTitle(),
@@ -56,11 +51,12 @@ public record FundingDetailResponse(
                 funding.getStatus(),
                 AuthorDto.from(funding.getUser()),
                 funding.getOptions().stream().map(FundingOptionDto::new).collect(Collectors.toList()),
-                updates.stream().map(FundingNewsDto::new).collect(Collectors.toList()),
-                communities.stream().map(FundingCommunityDto::new).collect(Collectors.toList())
+                funding.getNews().stream().map(FundingNewsDto::new).collect(Collectors.toList()),
+                funding.getCommunities().stream().map(FundingCommunityDto::new).collect(Collectors.toList())
         );
     }
 
+    // 작성자 DTO
     public record AuthorDto(Long id, String name, String profileImageUrl, String introduction) {
         public static AuthorDto from(User user) {
             return new AuthorDto(user.getId(), user.getName(), user.getProfileImageUrl(), null);

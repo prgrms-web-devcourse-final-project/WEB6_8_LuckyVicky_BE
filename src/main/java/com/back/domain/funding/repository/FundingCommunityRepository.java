@@ -11,13 +11,9 @@ import java.util.List;
 // 펀딩 댓글/커뮤니티 관리
 public interface FundingCommunityRepository extends JpaRepository<FundingCommunity, Long> {
 
-    // 펀딩별 댓글 목록 (삭제된 것 제외)
-    @EntityGraph(attributePaths = {"funding", "author"})
-    List<FundingCommunity> findByFundingIdAndDeletedFalseOrderByCreateDateDesc(Long fundingId);
-
     // 펀딩별 댓글 목록
     @EntityGraph(attributePaths = {"funding", "author"})
-    Page<FundingCommunity> findByFundingIdAndDeletedFalse(Long fundingId, Pageable pageable);
+    List<FundingCommunity> findByFundingIdAndDeletedFalse(Long fundingId);
 
     // 펀딩별 댓글 수
     long countByFundingIdAndDeletedFalse(Long fundingId);

@@ -2,10 +2,14 @@ package com.back.global.initData;
 
 import com.back.domain.auth.dto.request.SignUpRequest;
 import com.back.domain.auth.service.AuthService;
+import com.back.domain.funding.entity.Funding;
+import com.back.domain.funding.entity.FundingOption;
+import com.back.domain.funding.entity.FundingStatus;
+import com.back.domain.funding.repository.FundingRepository;
 import com.back.domain.user.entity.Role;
+import com.back.domain.user.entity.User;
 import com.back.domain.user.repository.UserRepository;
 import com.back.domain.user.user.DevUserService;
-import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -15,6 +19,9 @@ import org.springframework.context.annotation.Lazy;
 import org.springframework.context.annotation.Profile;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Component;
+import org.springframework.transaction.annotation.Transactional;
+
+import java.time.LocalDateTime;
 
 @Slf4j
 @Component
@@ -28,12 +35,15 @@ public class TestInitData {
     private final UserRepository userRepository;
     private final AuthService authService;
     private final PasswordEncoder passwordEncoder;
+    private final FundingRepository fundingRepository;
+    @Autowired
+    private DevUserService devUserService;
 
     @Bean
     ApplicationRunner testInitDataApplicationRunner() {
         return args -> {
             self.work1();
-//            self.work2();
+            self.work2();
         };
     }
 
@@ -65,7 +75,26 @@ public class TestInitData {
         }
     }
 
-    @Autowired
-    private DevUserService devUserService;
-}
+    @Transactional
+    public void work2() {
+        // 펀딩 생성
+        User user1 = userRepository.findByEmail("user1@user.com").orElseThrow();
 
+        Funding funding = Funding.builder()
+                .user(user1)
+                .title("펀딩 1 입니다.")
+                .description("펀딩 1이요~~")
+                .imageUrl("www.example.com")
+                .targetAmount(1000000)
+                .startDate(LocalDateTime.of(2025, 9, 24, 12, 30, 0))
+                .endDate(LocalDateTime.of(2025, 9, 29, 12, 30, 0))
+                .status(FundingStatus.OPEN)
+                .build();
+
+        funding.attachOption(FundingOption.create("1 옵션이요~", 10000, 11110, 1));
+        funding.attachOption(FundingOption.create("2 옵션이요~", 15000, 11110, 2));
+
+        fundingRepository.save(funding);
+        log.info("테스트 펀딩 저장 완료 id={}", funding.getId());
+    }
+}

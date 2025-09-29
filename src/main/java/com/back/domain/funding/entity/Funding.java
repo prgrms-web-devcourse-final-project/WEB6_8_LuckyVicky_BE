@@ -62,6 +62,16 @@ public class Funding extends BaseEntity {
     @OrderBy("sortOrder ASC, id ASC")
     private List<FundingOption> options = new ArrayList<>();
 
+    @Builder.Default
+    @OneToMany(mappedBy = "funding", cascade = CascadeType.ALL, orphanRemoval = true)
+    @OrderBy("createDate DESC, id DESC")
+    private List<FundingNews> news = new ArrayList<>(); // 해당 펀딩의 새소식들
+
+    @Builder.Default
+    @OneToMany(mappedBy = "funding", cascade = CascadeType.ALL, orphanRemoval = true)
+    @OrderBy("createDate DESC, id DESC")
+    private List<FundingCommunity> communities = new ArrayList<>(); // 해당 펀딩의 커뮤니티
+
     @OneToMany(mappedBy = "funding", cascade = CascadeType.ALL, orphanRemoval = true)// 펀딩이 저장/삭제되면 모든 펀딩이미지도 저장/삭제됨, 펀딩에서 이미지를 제거하면 DB에서 해당 이미지도 삭제됨.
     private List<FundingImage> images = new ArrayList<>();; // 해당 펀딩의 이미지들(대표/추가/썸네일 이미지)
 
