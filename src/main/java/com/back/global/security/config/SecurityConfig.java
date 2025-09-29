@@ -59,7 +59,16 @@ public class SecurityConfig {
                         .requestMatchers("/error", "/").permitAll()
 
                         // 대시보드 API - 임시로 테스트용 허용 (TODO: 나중에 인증 추가)
-                        .requestMatchers("/api/dashboard/**").permitAll()
+                        //.requestMatchers("/api/dashboard/**").permitAll()
+
+                        // 관리자 대시보드 - ADMIN, ROOT만 접근 가능 (TODO: yoostill 확인 필요)
+                        .requestMatchers("/api/dashboard/admin/**").hasAnyRole("ADMIN", "ROOT")
+
+                        // 작가 대시보드 - ARTIST, ADMIN, ROOT 접근 가능 (TODO: yoostill 확인 필요)
+                        .requestMatchers("/api/dashboard/artist/**").hasAnyRole("ARTIST", "ADMIN", "ROOT")
+
+                        // 일반 대시보드 - 인증된 모든 사용자 접근 가능 (TODO: yoostill 확인 필요)
+                        .requestMatchers("/api/dashboard/**").authenticated()
 
                         // 역할별 API 권한
                         .requestMatchers("/user/**").hasRole("USER")

@@ -18,12 +18,13 @@ public class User extends BaseEntity {
     @Column(unique = true, nullable = false)
     private String email;
 
+    @Column(nullable = true) // OAuth 사용자를 위해 nullable 허용
     private String password;
 
-    @Column(unique = true)
+    @Column(unique = true, nullable = false)
     private String name;
 
-    @Column(unique = true)
+    @Column(unique = true, nullable = false)
     private String phone;
 
     private String profileImageUrl;
