@@ -1,4 +1,4 @@
-package com.back.domain.product.product.dto;
+package com.back.domain.product.product.dto.request;
 
 import com.back.global.s3.S3FileRequest;
 import io.swagger.v3.oas.annotations.media.Schema;

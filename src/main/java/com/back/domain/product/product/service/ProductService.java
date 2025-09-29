@@ -2,7 +2,8 @@ package com.back.domain.product.product.service;
 
 import com.back.domain.product.category.entity.Category;
 import com.back.domain.product.category.repository.CategoryRepository;
-import com.back.domain.product.product.dto.CreateProductRequest;
+import com.back.domain.product.product.dto.request.CreateProductRequest;
+import com.back.domain.product.product.dto.response.ProductListResponse;
 import com.back.domain.product.product.entity.*;
 import com.back.domain.product.product.repository.ProductRepository;
 import com.back.domain.product.tag.entity.Tag;
@@ -14,6 +15,7 @@ import com.back.global.s3.FileType;
 import com.back.global.s3.S3ValidationService;
 import com.back.global.security.auth.CustomUserDetails;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -146,6 +148,7 @@ public class ProductService {
     }
 
 
+    // (상품) 파일 다운로드 메서드
     @Transactional(readOnly = true)
     public ProductImage getProductDocument(Long productId) {
         Product product = productRepository.findById(productId)
@@ -154,6 +157,29 @@ public class ProductService {
                 .filter(img -> img.getFileType() == FileType.DOCUMENT)
                 .findFirst()
                 .orElseThrow(() -> new IllegalArgumentException("다운로드할 문서가 존재하지 않습니다."));
+    }
+
+    // 상품 목록 조회
+    @Transactional(readOnly = true)
+    public ProductListResponse getProducts(
+            Long categoryId,
+            List<Long> tagIds,
+            Integer minPrice,
+            Integer maxPrice,
+            String deliveryType,
+            String sort,
+            Pageable pageable
+    ) {
+        // ProductCustomRepositoryImpl의 findProducts 호출 -> QueryDSL로 동적 쿼리 생성(필터링/정렬)+페이징+DTO반환
+        return productRepository.findProducts(
+                categoryId,
+                tagIds,
+                minPrice,
+                maxPrice,
+                deliveryType,
+                sort,
+                pageable
+        );
     }
 
 }

@@ -3,7 +3,8 @@ package com.back.domain.product.product.controller;
 
 import com.back.domain.product.category.entity.Category;
 import com.back.domain.product.category.repository.CategoryRepository;
-import com.back.domain.product.product.dto.CreateProductRequest;
+import com.back.domain.product.product.dto.request.CreateProductRequest;
+import com.back.domain.product.product.dto.response.ProductListResponse;
 import com.back.domain.product.product.entity.ProductImage;
 import com.back.domain.product.product.service.ProductService;
 import com.back.global.rsData.RsData;
@@ -103,12 +104,15 @@ class ProductControllerTest {
     @WithMockUser(username = "artist@test.com", roles = "ARTIST")
     void createProduct_Fail_With_Invalid_Input() throws Exception {
         // given
+        List<S3FileRequest> images = List.of(
+                new S3FileRequest("https://example.com/image.jpg", FileType.MAIN, "product-images/image.jpg", "image.jpg")
+        );
         CreateProductRequest request = new CreateProductRequest(
                 1L, "", "테스트 브랜드", 10000, 10, // name is blank
                 true, 3000, 3000, "PAID", null,
                 100, "상세 설명", "SELLING", "DISPLAYED",
                 1, 10, false, false, null, null,
-                List.of(1L, 2L), null, null, List.of(),
+                List.of(1L, 2L), null, null, images,
                 "테스트 모델", true, "한국", "면", "L"
         );
 
@@ -225,4 +229,75 @@ class ProductControllerTest {
                 .andExpect(header().string("Content-Disposition", "attachment; filename=\"테스트문서.pdf\""))
                 .andExpect(content().bytes(fileContent));
     }
+
+    @Test
+    @DisplayName("상품 목록 조회 API 테스트")
+    @WithMockUser(username = "user@test.com", roles = "USER")
+    void getProducts_test() throws Exception {
+        // given: 상품 목록 mock 데이터
+        ProductListResponse.ProductInfo product1 = new ProductListResponse.ProductInfo(
+                1L,
+                "https://example.com/image1.jpg",
+                "브랜드1",
+                "상품1",
+                10000,
+                10,
+                9000,
+                null
+        );
+
+        ProductListResponse.ProductInfo product2 = new ProductListResponse.ProductInfo(
+                2L,
+                "https://example.com/image2.jpg",
+                "브랜드2",
+                "상품2",
+                20000,
+                20,
+                16000,
+                null
+        );
+
+        ProductListResponse mockResponse = new ProductListResponse(
+                1, // page
+                10, // size
+                2, // totalElements
+                1, // totalPages
+                List.of(product1, product2)
+        );
+
+        // Service 호출 시 mockResponse 반환
+        doReturn(mockResponse).when(productService).getProducts(
+                any(), any(), any(), any(), any(), anyString(), any()
+        );
+
+        // when: GET /api/products?categoryId=1&tagIds=1,2&minPrice=5000&maxPrice=30000&sort=priceAsc
+        ResultActions resultActions = mockMvc.perform(
+                get("/api/products")
+                        .param("categoryId", "1")
+                        .param("tagIds", "1", "2")
+                        .param("minPrice", "5000")
+                        .param("maxPrice", "30000")
+                        .param("sort", "priceAsc")
+                        .param("page", "1")
+                        .param("size", "10")
+        ).andDo(print());
+
+        // then
+        MvcResult mvcResult = resultActions
+                .andExpect(status().isOk())
+                .andReturn();
+
+        String jsonResponse = mvcResult.getResponse().getContentAsString();
+        RsData<ProductListResponse> rsData = objectMapper.readValue(
+                jsonResponse,
+                new TypeReference<>() {}
+        );
+
+        // 검증
+        assertThat(rsData.resultCode()).isEqualTo("200");
+        assertThat(rsData.data().products()).hasSize(2);
+        assertThat(rsData.data().products().get(0).name()).isEqualTo("상품1");
+        assertThat(rsData.data().products().get(1).discountPrice()).isEqualTo(16000);
+    }
+
 }
