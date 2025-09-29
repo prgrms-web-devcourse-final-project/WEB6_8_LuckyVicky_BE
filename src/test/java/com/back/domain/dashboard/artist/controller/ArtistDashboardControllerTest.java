@@ -73,9 +73,11 @@ class ArtistDashboardControllerTest {
 
     private ArtistProductResponse.Product createMockProduct() {
         return new ArtistProductResponse.Product(
-                "0123157",
+                101L,
                 "상품명입니다 상품명입니다",
                 90000,
+                10,
+                81000,
                 "SELLING",
                 "판매중",
                 "2025. 09. 18"
@@ -149,7 +151,7 @@ class ArtistDashboardControllerTest {
                 .willReturn(mockResponse);
 
         ArtistProductSearchRequest request = new ArtistProductSearchRequest(
-                DEFAULT_PAGE, 10, null, null, "registrationDate", "DESC");
+                DEFAULT_PAGE, 10, null, null, "createDate", "DESC");
 
         // When
         ResponseEntity<RsData<ArtistProductResponse.List>> response =
@@ -161,8 +163,11 @@ class ArtistDashboardControllerTest {
 
         assertAll(
                 () -> assertThat(data.getContent()).hasSize(1),
-                () -> assertThat(firstProduct.productNumber()).isNotBlank(),
+                () -> assertThat(firstProduct.productId()).isNotNull(),
+                () -> assertThat(firstProduct.productName()).isNotBlank(),
                 () -> assertThat(firstProduct.price()).isPositive(),
+                () -> assertThat(firstProduct.discountRate()).isNotNegative(),
+                () -> assertThat(firstProduct.discountPrice()).isPositive(),
                 () -> assertThat(firstProduct.sellingStatus()).isNotBlank(),
                 () -> assertThat(data.getPage()).isEqualTo(DEFAULT_PAGE),
                 () -> assertThat(data.getSize()).isEqualTo(10),

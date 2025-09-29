@@ -140,4 +140,66 @@ public class ProductCustomRepositoryImpl implements ProductCustomRepository {
                 .map(Category::getId)
                 .toList();
     }
+
+    /**
+     * 작가의 상품 목록 조회 (대시보드용)
+     */
+    @Override
+    public org.springframework.data.domain.Page<com.back.domain.product.product.entity.Product> findProductsByArtist(
+            Long userId,
+            String keyword,
+            Boolean selling,
+            String sort,
+            String order,
+            org.springframework.data.domain.Pageable pageable
+    ) {
+        QProduct p = QProduct.product;
+        BooleanBuilder builder = new BooleanBuilder();
+
+        // 작가 ID 필터 (필수)
+        builder.and(p.user.id.eq(userId));
+
+        // 논리 삭제된 상품 제외
+        builder.and(p.isDeleted.eq(false));
+
+        // 검색 키워드 필터
+        if (keyword != null && !keyword.trim().isEmpty()) {
+            builder.and(p.name.containsIgnoreCase(keyword));
+        }
+
+        // 판매 중 필터
+        if (Boolean.TRUE.equals(selling)) {
+            builder.and(p.sellingStatus.eq(
+                    com.back.domain.product.product.entity.SellingStatus.SELLING
+            ));
+        }
+
+        // 기본 쿼리
+        var query = queryFactory
+                .selectFrom(p)
+                .where(builder);
+
+        // 정렬 처리
+        if ("name".equals(sort)) {
+            query.orderBy("ASC".equals(order) ? p.name.asc() : p.name.desc());
+        } else if ("price".equals(sort)) {
+            query.orderBy("ASC".equals(order) ? p.price.asc() : p.price.desc());
+        } else if ("sellingStatus".equals(sort)) {
+            query.orderBy("ASC".equals(order) ? p.sellingStatus.asc() : p.sellingStatus.desc());
+        } else { // 기본: createDate
+            query.orderBy("ASC".equals(order) ? p.createDate.asc() : p.createDate.desc());
+        }
+
+        // 전체 건수
+        long total = query.fetchCount();
+
+        // 페이징 적용
+        java.util.List<com.back.domain.product.product.entity.Product> products = query
+                .offset(pageable.getOffset())
+                .limit(pageable.getPageSize())
+                .fetch();
+
+        // Page 객체로 반환
+        return new org.springframework.data.domain.PageImpl<>(products, pageable, total);
+    }
 }

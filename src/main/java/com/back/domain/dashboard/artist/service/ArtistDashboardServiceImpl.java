@@ -10,22 +10,37 @@ import com.back.domain.dashboard.artist.dto.response.ArtistExchangeResponse;
 import com.back.domain.dashboard.artist.dto.response.ArtistSettingsResponse;
 import com.back.domain.dashboard.artist.dto.response.ArtistFundingResponse;
 import com.back.domain.dashboard.artist.dto.response.ArtistSettlementResponse;
+import com.back.domain.product.product.entity.Product;
+import com.back.domain.product.product.entity.SellingStatus;
+import com.back.domain.product.product.repository.ProductRepository;
+import com.back.global.security.jwt.JwtTokenProvider;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.Arrays;
 import java.util.List;
 
 /**
  * 작가용 대시보드 서비스 구현체
  * 2025.09.25 수정
+ * 2025.09.29 수정 - getProducts() 실제 DB 연동
  */
 @Service
 @RequiredArgsConstructor
 @Slf4j
+@Transactional(readOnly = true)
 public class ArtistDashboardServiceImpl implements ArtistDashboardService {
+
+    private final ProductRepository productRepository;
+    private final JwtTokenProvider jwtTokenProvider;
+
+    private static final DateTimeFormatter DATE_FORMATTER = DateTimeFormatter.ofPattern("yyyy. MM. dd");
 
     @Override
     public ArtistMainResponse getMainStats(String authorization, String range, String from, String to,
@@ -124,90 +139,59 @@ public class ArtistDashboardServiceImpl implements ArtistDashboardService {
     @Override
     public ArtistProductResponse.List getProducts(String authorization, int page, int size, String keyword,
                                                   Boolean selling, String sort, String order) {
-        // TODO: JWT 토큰에서 작가 정보 추출
-        // TODO: 실제 데이터베이스에서 상품 목록 조회
-        
-        // Mock 데이터 (더 많은 샘플 추가)
-        List<ArtistProductResponse.Product> allProducts = Arrays.asList(
-                new ArtistProductResponse.Product(
-                        "0123157",
-                        "감성 일러스트 포스터",
-                        25000,
-                        "SELLING",
-                        "판매중",
-                        "2025. 09. 18"
-                ),
-                new ArtistProductResponse.Product(
-                        "0123156",
-                        "귀여운 캐릭터 스티커",
-                        15000,
-                        "SELLING",
-                        "판매중",
-                        "2025. 09. 17"
-                ),
-                new ArtistProductResponse.Product(
-                        "0123155",
-                        "빈티지 엽서 세트",
-                        12000,
-                        "SELLING",
-                        "판매중",
-                        "2025. 09. 16"
-                ),
-                new ArtistProductResponse.Product(
-                        "0123154",
-                        "아크릴 키링",
-                        8000,
-                        "SELLING",
-                        "판매중",
-                        "2025. 09. 15"
-                )
-        );
-        
-        // 1. 검색 필터링
-        List<ArtistProductResponse.Product> filtered = allProducts;
-        if (keyword != null && !keyword.trim().isEmpty()) {
-            filtered = allProducts.stream()
-                    .filter(p -> p.productName().contains(keyword))
-                    .toList();
-            log.info("검색 키워드 '{}' 적용 - 결과: {}개", keyword, filtered.size());
-        }
-        
-        // 2. 정렬
-        List<ArtistProductResponse.Product> sorted = filtered;
-        if (sort != null && order != null) {
-            sorted = filtered.stream()
-                    .sorted((p1, p2) -> {
-                        int comparison = switch (sort) {
-                            case "productName" -> p1.productName().compareTo(p2.productName());
-                            case "price" -> Integer.compare(p1.price(), p2.price());
-                            case "sellingStatus" -> p1.sellingStatus().compareTo(p2.sellingStatus());
-                            case "registrationDate" -> p1.registrationDate().compareTo(p2.registrationDate());
-                            default -> 0;
-                        };
-                        return "ASC".equals(order) ? comparison : -comparison;
-                    })
-                    .toList();
-            log.info("정렬 적용 - sort: {}, order: {}", sort, order);
-        }
-        
-        // 3. 페이징
-        int totalElements = sorted.size();
-        int totalPages = (int) Math.ceil((double) totalElements / size);
-        int start = page * size;
-        int end = Math.min(start + size, totalElements);
-        
-        List<ArtistProductResponse.Product> content = start < totalElements 
-                ? sorted.subList(start, end) 
-                : List.of();
-        
-        boolean hasNext = (page + 1) * size < totalElements;
-        boolean hasPrevious = page > 0;
-        
-        log.info("페이징 적용 - page: {}, size: {}, total: {}, content: {}개", 
-                page, size, totalElements, content.size());
+        // JWT 토큰에서 작가 ID 추출
+        String token = authorization.replace("Bearer ", "");
+        Long artistId = jwtTokenProvider.getUserIdFromToken(token);
 
-        return new ArtistProductResponse.List(
-                content, page, size, totalElements, totalPages, hasNext, hasPrevious);
+        log.info("작가 상품 목록 조회 시작 - artistId: {}, page: {}, size: {}, keyword: {}, selling: {}, sort: {}, order: {}",
+                artistId, page, size, keyword, selling, sort, order);
+
+        // Repository를 통한 실제 DB 조회
+        Page<Product> productPage = productRepository.findProductsByArtist(
+                artistId, keyword, selling, sort, order, PageRequest.of(page, size)
+        );
+
+        // Entity → DTO 변환
+        List<ArtistProductResponse.Product> content = productPage.getContent().stream()
+                .map(this::convertToProductDto)
+                .toList();
+
+        int totalPages = productPage.getTotalPages();
+        long totalElements = productPage.getTotalElements();
+        boolean hasNext = productPage.hasNext();
+        boolean hasPrevious = productPage.hasPrevious();
+
+        log.info("작가 상품 목록 조회 완료 - 조회된 상품 수: {}, 전체: {}", content.size(), totalElements);
+
+        return new ArtistProductResponse.List(content, page, size, totalElements, totalPages, hasNext, hasPrevious);
+    }
+
+    /**
+     * Product 엔티티를 DTO로 변환
+     */
+    private ArtistProductResponse.Product convertToProductDto(Product product) {
+        return new ArtistProductResponse.Product(
+                product.getId(),
+                product.getName(),
+                product.getPrice(),
+                product.getDiscountRate(),
+                product.getDiscountPrice(),
+                product.getSellingStatus().name(),
+                convertStatusToKorean(product.getSellingStatus()),
+                product.getCreateDate().format(DATE_FORMATTER)
+        );
+    }
+
+    /**
+     * SellingStatus Enum을 한글로 변환
+     */
+    private String convertStatusToKorean(SellingStatus status) {
+        return switch (status) {
+            case BEFORE_SELLING -> "판매 전";
+            case SELLING -> "판매중";
+            case SOLD_OUT -> "품절";
+            case END_OF_SALE -> "판매종료";
+        };
     }
 
     @Override

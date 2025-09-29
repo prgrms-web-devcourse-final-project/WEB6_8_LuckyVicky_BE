@@ -7,6 +7,7 @@ import jakarta.validation.constraints.Pattern;
 /**
  * 작가 상품 목록 검색 요청 DTO
  * 2025.09.25 생성
+ * 2025.09.29 수정 - salesCount 정렬 제거
  */
 public record ArtistProductSearchRequest(
         /** 페이지 번호 (0부터 시작) */
@@ -25,8 +26,8 @@ public record ArtistProductSearchRequest(
         Boolean selling,
 
         /** 정렬 기준 */
-        @Pattern(regexp = "^(registrationDate|productName|price|sellingStatus|salesCount)$",
-                message = "sort는 registrationDate, productName, price, sellingStatus, salesCount 중 하나여야 합니다")
+        @Pattern(regexp = "^(createDate|name|price|sellingStatus)$",
+                message = "sort는 createDate, name, price, sellingStatus 중 하나여야 합니다")
         String sort,
 
         /** 정렬 방향 */
@@ -40,7 +41,7 @@ public record ArtistProductSearchRequest(
     public ArtistProductSearchRequest {
         if (page == null) page = 0;
         if (size == null) size = 10;
-        if (sort == null) sort = "registrationDate";
+        if (sort == null) sort = "createDate";
         if (order == null) order = "DESC";
     }
 }
