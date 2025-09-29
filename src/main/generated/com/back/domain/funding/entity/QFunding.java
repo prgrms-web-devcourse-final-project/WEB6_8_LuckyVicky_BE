@@ -29,6 +29,8 @@ public class QFunding extends EntityPathBase<Funding> {
 
     public final NumberPath<Long> collectedAmount = createNumber("collectedAmount", Long.class);
 
+    public final ListPath<FundingCommunity, QFundingCommunity> communities = this.<FundingCommunity, QFundingCommunity>createList("communities", FundingCommunity.class, QFundingCommunity.class, PathInits.DIRECT2);
+
     //inherited
     public final DateTimePath<java.time.LocalDateTime> createDate = _super.createDate;
 
@@ -45,6 +47,8 @@ public class QFunding extends EntityPathBase<Funding> {
 
     //inherited
     public final DateTimePath<java.time.LocalDateTime> modifyDate = _super.modifyDate;
+
+    public final ListPath<FundingNews, QFundingNews> news = this.<FundingNews, QFundingNews>createList("news", FundingNews.class, QFundingNews.class, PathInits.DIRECT2);
 
     public final ListPath<FundingOption, QFundingOption> options = this.<FundingOption, QFundingOption>createList("options", FundingOption.class, QFundingOption.class, PathInits.DIRECT2);
 

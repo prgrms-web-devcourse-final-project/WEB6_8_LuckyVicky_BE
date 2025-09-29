@@ -163,6 +163,43 @@ public class User extends BaseEntity {
         this.grade = newGrade;
     }
 
+    /**
+     * OAuth 관련 메서드들
+     */
 
-    // TODO: 정적 팩토리 메서드 - 소셜 로그인 구현
+    // 정적 팩토리 메서드 - OAuth 회원가입
+    public static User createOAuthUser(String email, String name, Provider provider, String providerId) {
+        User user = new User();
+        user.email = email;
+        user.name = name;
+        user.provider = provider;
+        user.providerId = providerId;
+        user.password = null;  // 소셜 로그인은 비밀번호 없음
+        user.role = Role.USER;
+        user.grade = Grade.SPROUT;
+        user.status = Status.ACTIVE;
+        user.money = 0;
+        user.point = 0;
+        user.isArtistVerified = false;
+        user.privacyRequiredAgreed = true;  // OAuth 로그인 시 필수 동의로 간주
+        user.marketingAgreed = false;
+        user.termsAgreedAt = LocalDateTime.now();
+        return user;
+    }
+
+    // 소셜 로그인 사용자인지 확인
+    public boolean isOAuthUser() {
+        return !Provider.LOCAL.equals(this.provider);
+    }
+
+    // OAuth 프로필 정보 업데이트 (재로그인 시)
+    public void updateOAuthProfile(String name, String profileImageUrl) {
+        if (name != null && !name.isBlank()) {
+            this.name = name;
+        }
+        if (profileImageUrl != null && !profileImageUrl.isBlank()) {
+            this.profileImageUrl = profileImageUrl;
+        }
+    }
+
 }

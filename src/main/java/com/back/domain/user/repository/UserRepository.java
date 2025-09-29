@@ -1,5 +1,6 @@
 package com.back.domain.user.repository;
 
+import com.back.domain.user.entity.Provider;
 import com.back.domain.user.entity.User;
 import org.springframework.data.jpa.repository.JpaRepository;
 
@@ -21,4 +22,13 @@ public interface UserRepository extends JpaRepository<User, Long>{
     boolean existsByNameAndIdNot(String name, Long id);
     boolean existsByPhoneAndIdNot(String phone, Long id);
     */
+
+    // OAuth 로그인 시 기존 사용자 확인용
+    Optional<User> findByProviderAndProviderId(Provider provider, String providerId);
+
+    // 동일 이메일의 다른 Provider 계정 확인용
+    Optional<User> findByEmailAndProvider(String email, Provider provider);
+
+    // 이메일과 Provider로 사용자 찾기
+    boolean existsByEmailAndProvider(String email, Provider provider);
 }
