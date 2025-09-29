@@ -38,7 +38,7 @@ public class Cart extends BaseEntity {
     public enum CartType {
         NORMAL,    // 일반 장바구니
         FUNDING;    // 펀딩 장바구니
-
+        
         public static CartType fromString(String cartTypeStr) {
             if (cartTypeStr == null) {
                 return NORMAL; // 기본값
@@ -123,10 +123,10 @@ public class Cart extends BaseEntity {
                 .orElse(null);
 
         return new ProductInfo(
-                this.product.getId(),
-                this.product.getName(),
-                this.product.getPrice(),
-                imageUrl
+            this.product.getId(),
+            this.product.getName(),
+            this.product.getPrice(),
+            imageUrl
         );
     }
 
