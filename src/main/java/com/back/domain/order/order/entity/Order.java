@@ -60,6 +60,7 @@ public class Order extends BaseEntity {
     private LocalDateTime orderDate;
 
     @OneToMany(mappedBy = "order", cascade = CascadeType.ALL, orphanRemoval = true)
+    @Builder.Default
     private List<OrderItem> orderItems = new ArrayList<>();
 
 
@@ -75,9 +76,6 @@ public class Order extends BaseEntity {
     }
 
     public void cancel() {
-        if (this.status == OrderStatus.DELIVERED || this.status == OrderStatus.SHIPPED) {
-            throw new IllegalStateException("배송 중이거나 배송 완료된 주문은 취소할 수 없습니다.");
-        }
         this.status = OrderStatus.CANCELLED;
     }
 
