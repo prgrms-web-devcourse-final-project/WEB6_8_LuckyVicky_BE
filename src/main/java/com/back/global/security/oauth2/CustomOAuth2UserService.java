@@ -35,7 +35,7 @@ public class CustomOAuth2UserService extends DefaultOAuth2UserService {
         log.info("OAuth2 로그인 시도: provider={}", registrationId);
 
         // 3. Provider별 사용자 정보 파싱
-        OAuth2UserInfo userInfo = OAuth2UserInfoFactory.getAuth2UserInfo(
+        OAuth2UserInfo userInfo = OAuth2UserInfoFactory.getOAuth2UserInfo(
                 registrationId,
                 oauth2User.getAttributes()
         );
