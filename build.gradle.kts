@@ -45,6 +45,9 @@ dependencies {
     // AWS S3용 SDK
     implementation("software.amazon.awssdk:s3:2.34.0")
     implementation("net.coobird:thumbnailator:0.4.19")
+
+    // OAuth2 Client 추가
+    implementation("org.springframework.boot:spring-boot-starter-oauth2-client")
 }
 
 tasks.withType<Test> {

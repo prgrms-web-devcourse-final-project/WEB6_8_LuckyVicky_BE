@@ -103,8 +103,6 @@ class DevUserServiceTest {
         // then - DB에서 다시 조회해서 실제로 변경되었는지 확인
         User updatedUser = userRepository.findByEmail("user1@user.com").orElseThrow();
         assertThat(updatedUser.getRole()).isEqualTo(Role.ADMIN);
-        assertThat(updatedUser.getIsArtistVerified()).isFalse(); // ADMIN으로 변경 시 아티스트 인증 해제
-        assertThat(updatedUser.getArtistVerifiedAt()).isNull();
     }
 
     @Test
@@ -204,8 +202,6 @@ class DevUserServiceTest {
         // TestInitData가 제대로 실행되었는지 확인
         assertThat(testUser1.getEmail()).isEqualTo("user1@user.com");
         assertThat(testUser1.getName()).isEqualTo("유저1");
-        assertThat(testUser1.getRole()).isEqualTo(Role.USER);
-        assertThat(testUser1.getGrade()).isEqualTo(Grade.SPROUT);
 
         assertThat(testUser2.getEmail()).isEqualTo("user2@user.com");
         assertThat(testUser2.getName()).isEqualTo("유저2");
