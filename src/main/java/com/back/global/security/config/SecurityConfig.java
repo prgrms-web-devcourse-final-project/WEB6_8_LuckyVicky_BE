@@ -4,6 +4,7 @@ import com.back.global.security.jwt.JwtAuthenticationFilter;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.http.HttpMethod;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.config.annotation.authentication.configuration.AuthenticationConfiguration;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
@@ -41,6 +42,9 @@ public class SecurityConfig {
 
                         // 공개 API - 로그인 없이 접근 허용
                         .requestMatchers("/public/**").permitAll()
+
+                        // 펀딩 관련 공개 API - 로그인 없이 접근 허용
+                        .requestMatchers(HttpMethod.GET, "/api/fundings/**").permitAll()
 
                         // 개발 도구들
                         .requestMatchers("/h2-console/**").permitAll()

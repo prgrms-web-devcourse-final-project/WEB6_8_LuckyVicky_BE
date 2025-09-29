@@ -3,7 +3,6 @@ package com.back.domain.funding.entity;
 import com.back.domain.user.entity.User;
 import com.back.global.jpa.entity.BaseEntity;
 import jakarta.persistence.*;
-
 import lombok.*;
 
 @Entity

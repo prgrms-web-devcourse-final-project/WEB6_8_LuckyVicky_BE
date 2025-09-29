@@ -1,24 +1,23 @@
 package com.back.domain.funding.service;
 
 import com.back.domain.funding.dto.request.FundingCreateRequest;
+import com.back.domain.funding.dto.response.FundingDetailResponse;
 import com.back.domain.funding.entity.Funding;
 import com.back.domain.funding.entity.FundingOption;
 import com.back.domain.funding.entity.FundingStatus;
-import com.back.domain.funding.repository.FundingOptionRepository;
-import com.back.domain.funding.repository.FundingRepository;
-import com.back.domain.product.category.entity.Category;
+import com.back.domain.funding.repository.*;
 import com.back.domain.product.category.repository.CategoryRepository;
 import com.back.domain.user.entity.User;
 import com.back.domain.user.repository.UserRepository;
 import com.back.global.exception.ServiceException;
 import com.back.global.s3.S3ValidationService;
-import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
-import org.springframework.web.server.ResponseStatusException;
+import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDate;
+import java.time.temporal.ChronoUnit;
 import java.util.List;
 
 @Slf4j
@@ -31,6 +30,9 @@ public class FundingService {
     private final UserRepository userRepository;
     private final CategoryRepository categoryRepository;
     private final S3ValidationService s3ValidationService;
+    private final FundingContributionRepository fundingContributionRepository;
+    private final FundingNewsRepository fundingNewsRepository;
+    private final FundingCommunityRepository fundingCommunityRepository;
 
     @Transactional
     public Funding createFunding(FundingCreateRequest req, String userEmail) {
@@ -61,4 +63,39 @@ public class FundingService {
 
         return fundingRepository.save(funding);
     }
+
+    @Transactional(readOnly = true)
+    public FundingDetailResponse getFunding(Long id) {
+        Funding funding = fundingRepository.findById(id)
+                .orElseThrow(() -> new ServiceException("404", "존재하지 않는 펀딩입니다."));
+
+        // 누적 모금액, 참여자 수
+        long currentAmount = nz(fundingContributionRepository.sumContributedAmountByFundingId(id));
+        int participants = (int) nz(fundingContributionRepository.countDistinctParticipantsByFundingId(id));
+
+        // 진행률
+        double progress = funding.getTargetAmount() == 0
+                ? 0d
+                : Math.min(100d, (currentAmount * 100.0) / funding.getTargetAmount());
+
+        // 남은 일수
+        int remainingDays = 0;
+        if (funding.getEndDate() != null && LocalDate.now() != null) {
+            remainingDays = (int) ChronoUnit.DAYS.between(
+                    LocalDate.now(),
+                    funding.getEndDate().toLocalDate()
+            );
+        }
+
+        return new FundingDetailResponse(
+                funding,
+                currentAmount,
+                participants,
+                remainingDays,
+                progress
+        );
+    }
+
+    // null을 0L로 변환
+    private long nz(Long v) { return v == null ? 0L : v; }
 }

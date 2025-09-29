@@ -1,6 +1,7 @@
 package com.back.domain.funding.repository;
 
-import com.back.domain.funding.entity.*;
+import com.back.domain.funding.entity.Funding;
+import com.back.domain.funding.entity.FundingStatus;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.EntityGraph;
@@ -37,7 +38,7 @@ public interface FundingRepository extends JpaRepository<Funding, Long>, JpaSpec
 
     // 제목으로 펀딩 검색
     @EntityGraph(attributePaths = {"user"})
-    Funding findByTitleContainingIgnoreCase(String title);
+    Funding findByTitle(String title);
 
     // 사용자별 펀딩 목록
     @EntityGraph(attributePaths = {"user"})
