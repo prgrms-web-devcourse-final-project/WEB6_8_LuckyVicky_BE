@@ -10,6 +10,7 @@ import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.ResponseCookie;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.web.authentication.SimpleUrlAuthenticationSuccessHandler;
 import org.springframework.stereotype.Component;
@@ -81,17 +82,28 @@ public class OAuth2SuccessHandler extends SimpleUrlAuthenticationSuccessHandler 
 
         log.info("JWT 토큰 발급 완료 - userId: {}", user.getId());
 
-        // 4. state 파라미터에서 redirectUrl 추출
+        // 4. 쿠키 생성 (기존 로그인 방식과 동일)
+        ResponseCookie accessTokenCookie = createTokenCookie(
+                "accessToken",
+                accessToken,
+                accessTokenExpiration / 1000
+        );
+
+        ResponseCookie refreshTokenCookie = createTokenCookie(
+                "refreshToken",
+                refreshToken,
+                refreshTokenExpiration / 1000
+        );
+
+        // 5. 쿠키 설정
+        response.addHeader("Set-Cookie", accessTokenCookie.toString());
+        response.addHeader("Set-Cookie", refreshTokenCookie.toString());
+
+        // 6. state 파라미터에서 redirectUrl 추출
         String redirectUrl = extractRedirectUrl(request);
 
-        // 5. 프론트엔드로 리다이렉트 (토큰을 쿼리 파라미터로 전달)
-        String targetUrl = String.format(
-                "%s%s?access_token=%s&refresh_token=%s&login_type=oauth",
-                frontendUrl,
-                redirectUrl,
-                accessToken,
-                refreshToken
-        );
+        // 7. 프론트엔드로 리다이렉트 (쿠키로 토큰 전달, URL에 노출 안됨)
+        String targetUrl = frontendUrl + redirectUrl;
 
         log.info("프론트엔드로 리다이렉트 - targetUrl: {}", targetUrl);
 
@@ -99,9 +111,21 @@ public class OAuth2SuccessHandler extends SimpleUrlAuthenticationSuccessHandler 
     }
 
     /**
+     * 쿠키 생성 헬퍼 메서드 (기존 로그인과 동일)
+     */
+    private ResponseCookie createTokenCookie(String name, String value, long maxAgeSeconds) {
+        return ResponseCookie.from(name, value)
+                .httpOnly(true)
+                .secure(false)  // 개발: false, 운영: true
+                .path("/")
+                .maxAge(maxAgeSeconds)
+                .sameSite("Strict")
+                .build();
+    }
+
+    /**
      * state 파라미터에서 redirectUrl 추출
      */
-
     private String extractRedirectUrl(HttpServletRequest request) {
         String stateParam = request.getParameter("state");
 

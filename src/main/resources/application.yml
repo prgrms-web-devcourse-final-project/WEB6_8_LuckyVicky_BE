@@ -42,8 +42,8 @@ spring:
             client-authentication-method: client_secret_post
             client-name: Kakao
             scope:
-              - profile_nickname # 닉네임 + 프로필 이미지 모두 받아옴
-              - account_email
+              - profile_nickname
+              - profile_image
           naver:
             client-id: ${NAVER_CLIENT_ID:dummy-naver-id}
             client-secret: ${NAVER_CLIENT_SECRET:dummy-naver-secret}
