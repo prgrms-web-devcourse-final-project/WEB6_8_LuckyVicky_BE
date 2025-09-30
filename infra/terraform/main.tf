@@ -370,12 +370,12 @@ resource "aws_db_subnet_group" "rds_subnets" {
 resource "aws_db_instance" "rds_postgres" {
   identifier        = "${var.prefix}-postgresql"
   engine            = "postgres"
-  engine_version    = "15.3"
+  engine_version    = "16.10"
   instance_class    = "db.t3.micro"
   allocated_storage = 20
   storage_type      = "gp3"
 
-  name     = "mori_mori" // 스프링에서 접속할 DB 이름
+  db_name = "morimori"
   username = var.db_username
   password = var.db_password
 
