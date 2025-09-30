@@ -22,6 +22,6 @@ resource "aws_vpc" "vpc_1" {
   enable_dns_hostnames = true
 
   tags = {
-    Name = "morimori-vpc-1"
+    Name = "${var.prefix}-vpc-1"
   }
 }
