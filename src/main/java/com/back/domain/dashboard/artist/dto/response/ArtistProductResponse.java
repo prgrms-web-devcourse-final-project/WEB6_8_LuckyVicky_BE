@@ -6,7 +6,6 @@ import com.back.global.util.PageResponse;
  * 작가 상품 관련 응답 DTO
  *
  * 작가의 상품 목록과 관련된 정보를 포함합니다.
- * 2025.09.25 수정
  * 2025.09.29 수정 - Product DTO 필드 변경 (실제 DB 연동)
  */
 public class ArtistProductResponse {

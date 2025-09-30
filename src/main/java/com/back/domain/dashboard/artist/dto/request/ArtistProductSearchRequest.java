@@ -6,7 +6,6 @@ import jakarta.validation.constraints.Pattern;
 
 /**
  * 작가 상품 목록 검색 요청 DTO
- * 2025.09.25 생성
  * 2025.09.29 수정 - salesCount 정렬 제거
  */
 public record ArtistProductSearchRequest(
