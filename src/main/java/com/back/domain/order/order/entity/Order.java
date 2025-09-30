@@ -1,6 +1,7 @@
 package com.back.domain.order.order.entity;
 
 import com.back.domain.order.orderItem.entity.OrderItem;
+import com.back.domain.order.order.calculator.OrderAmountCalculator;
 import com.back.domain.user.entity.User;
 import com.back.global.jpa.entity.BaseEntity;
 import jakarta.persistence.*;
@@ -84,4 +85,53 @@ public class Order extends BaseEntity {
             throw new IllegalStateException("해당 주문에 대한 권한이 없습니다.");
         }
     }
+
+    /**
+     * 주문 생성 팩토리 메서드
+     */
+    public static Order createOrder(User user, List<OrderItem> orderItems, 
+                                   String shippingAddress1, String shippingAddress2, String shippingZip,
+                                   String recipientName, String recipientPhone, String deliveryRequest,
+                                   PaymentMethod paymentMethod) {
+        
+        // 주문번호 생성
+        String orderNumber = generateOrderNumber();
+        
+        // 금액 계산
+        OrderAmountCalculator.OrderAmountInfo amountInfo = OrderAmountCalculator.calculateOrderAmount(orderItems);
+        
+        // 주문 생성
+        Order order = Order.builder()
+                .user(user)
+                .orderNumber(orderNumber)
+                .status(OrderStatus.PENDING)
+                .totalQuantity(amountInfo.totalQuantity())
+                .totalAmount(amountInfo.totalAmount())
+                .shippingFee(amountInfo.shippingFee())
+                .finalAmount(amountInfo.finalAmount())
+                .shippingAddress1(shippingAddress1)
+                .shippingAddress2(shippingAddress2)
+                .shippingZip(shippingZip)
+                .recipientName(recipientName)
+                .recipientPhone(recipientPhone)
+                .deliveryRequest(deliveryRequest)
+                .paymentMethod(paymentMethod)
+                .orderDate(LocalDateTime.now())
+                .build();
+        
+        // 주문상품 연결
+        for (OrderItem orderItem : orderItems) {
+            order.addOrderItem(orderItem);
+        }
+        
+        return order;
+    }
+
+    /**
+     * 주문번호 생성
+     */
+    private static String generateOrderNumber() {
+        return "ORD" + System.currentTimeMillis() + java.util.UUID.randomUUID().toString().substring(0, 8);
+    }
+
 }
