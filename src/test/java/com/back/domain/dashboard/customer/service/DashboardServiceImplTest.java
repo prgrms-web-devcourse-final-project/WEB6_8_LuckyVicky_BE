@@ -85,7 +85,22 @@ class DashboardServiceImplTest {
         );
         testAuthorization = "Bearer " + token;
 
-        // 진행중인 펀딩 생성
+        // FundingOption 먼저 생성
+        FundingOption activeOption = FundingOption.builder()
+                .name("테스트 리워드 A")
+                .price(25000L)
+                .stock(100)
+                .sortOrder(1)
+                .build();
+
+        FundingOption endedOption = FundingOption.builder()
+                .name("테스트 리워드 B")
+                .price(30000L)
+                .stock(50)
+                .sortOrder(1)
+                .build();
+
+        // 진행중인 펀딩 생성 (옵션 포함)
         activeFunding = Funding.builder()
                 .user(testArtist)
                 .title("진행중인 펀딩")
@@ -98,9 +113,10 @@ class DashboardServiceImplTest {
                 .status(FundingStatus.OPEN)
                 .participantCount(5)
                 .build();
+        activeFunding.attachOption(activeOption);  // cascade로 함께 저장됨
         activeFunding = fundingRepository.save(activeFunding);
 
-        // 종료된 펀딩 생성
+        // 종료된 펀딩 생성 (옵션 포함)
         endedFunding = Funding.builder()
                 .user(testArtist)
                 .title("종료된 펀딩")
@@ -113,28 +129,12 @@ class DashboardServiceImplTest {
                 .status(FundingStatus.SUCCESS)
                 .participantCount(10)
                 .build();
+        endedFunding.attachOption(endedOption);  // cascade로 함께 저장됨
         endedFunding = fundingRepository.save(endedFunding);
 
-        // FundingOption은 테스트에서 제외 (option이 필수가 아니도록 수정하거나, 별도로 생성 필요)
-        // 임시로 FundingContribution에서 option을 null로 설정할 수 없으므로
-        // 간단한 option 생성
-        FundingOption activeOption = FundingOption.builder()
-                .funding(activeFunding)
-                .name("테스트 리워드 A")
-                .price(25000L)
-                .stock(100)
-                .sortOrder(1)
-                .build();
-        activeFunding.attachOption(activeOption);
-
-        FundingOption endedOption = FundingOption.builder()
-                .funding(endedFunding)
-                .name("테스트 리워드 B")
-                .price(30000L)
-                .stock(50)
-                .sortOrder(1)
-                .build();
-        endedFunding.attachOption(endedOption);
+        // 저장된 옵션 가져오기 (cascade로 저장됨)
+        activeOption = activeFunding.getOptions().get(0);
+        endedOption = endedFunding.getOptions().get(0);
 
         // 펀딩 참여 내역 생성 (진행중)
         FundingContribution activeContribution = FundingContribution.builder()
