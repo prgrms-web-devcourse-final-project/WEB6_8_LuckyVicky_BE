@@ -7,7 +7,7 @@ import jakarta.validation.constraints.Pattern;
 
 /**
  * 작가 펀딩 목록 검색 요청 DTO
- * 2025.09.25 생성
+ * 2025.09.30 수정 - status 값을 FundingStatus enum에 맞게 수정, sort 옵션 조정
  */
 public record ArtistFundingSearchRequest(
         /** 페이지 번호 (0부터 시작) */
@@ -22,12 +22,12 @@ public record ArtistFundingSearchRequest(
         /** 검색 키워드 (펀딩 제목) */
         String keyword,
 
-        /** 펀딩 상태 필터 */
-        @Pattern(regexp = "^(ACTIVE|ENDED|FULFILLING|FULFILLED|CANCELED)$",
-                message = "status는 ACTIVE, ENDED, FULFILLING, FULFILLED, CANCELED 중 하나여야 합니다")
+        /** 펀딩 상태 필터 (OPEN, CLOSED, SUCCESS, FAILED, CANCELED) */
+        @Pattern(regexp = "^(OPEN|CLOSED|SUCCESS|FAILED|CANCELED)$",
+                message = "status는 OPEN, CLOSED, SUCCESS, FAILED, CANCELED 중 하나여야 합니다")
         String status,
 
-        /** 카테고리 ID 필터 */
+        /** 카테고리 ID 필터 (현재 미사용) */
         @Positive(message = "카테고리 ID는 양수여야 합니다")
         Long categoryId,
 
@@ -51,9 +51,9 @@ public record ArtistFundingSearchRequest(
                 message = "날짜는 yyyy-MM-dd 형식이어야 합니다")
         String endDate,
 
-        /** 정렬 기준 */
-        @Pattern(regexp = "^(endDate|startDate|title|achievementRate|fundingAmount|backerCount)$",
-                message = "sort는 endDate, startDate, title, achievementRate, fundingAmount, backerCount 중 하나여야 합니다")
+        /** 정렬 기준 (endDate, startDate, createDate, title) */
+        @Pattern(regexp = "^(endDate|startDate|createDate|title)$",
+                message = "sort는 endDate, startDate, createDate, title 중 하나여야 합니다")
         String sort,
 
         /** 정렬 방향 */

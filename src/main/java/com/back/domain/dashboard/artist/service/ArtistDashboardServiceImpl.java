@@ -10,22 +10,45 @@ import com.back.domain.dashboard.artist.dto.response.ArtistExchangeResponse;
 import com.back.domain.dashboard.artist.dto.response.ArtistSettingsResponse;
 import com.back.domain.dashboard.artist.dto.response.ArtistFundingResponse;
 import com.back.domain.dashboard.artist.dto.response.ArtistSettlementResponse;
+import com.back.domain.funding.entity.Funding;
+import com.back.domain.funding.entity.FundingStatus;
+import com.back.domain.funding.repository.FundingContributionRepository;
+import com.back.domain.funding.repository.FundingRepository;
+import com.back.domain.product.product.entity.Product;
+import com.back.domain.product.product.entity.SellingStatus;
+import com.back.domain.product.product.repository.ProductRepository;
+import com.back.global.security.jwt.JwtTokenProvider;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
+import java.time.temporal.ChronoUnit;
 import java.util.Arrays;
 import java.util.List;
 
 /**
  * 작가용 대시보드 서비스 구현체
- * 2025.09.25 수정
+ * 2025.09.29 수정 - getProducts() 실제 DB 연동
+ * 2025.09.30 수정 - getFundings() 실제 DB 연동
  */
 @Service
 @RequiredArgsConstructor
 @Slf4j
+@Transactional(readOnly = true)
 public class ArtistDashboardServiceImpl implements ArtistDashboardService {
+
+    private final ProductRepository productRepository;
+    private final FundingRepository fundingRepository;
+    private final FundingContributionRepository fundingContributionRepository;
+    private final JwtTokenProvider jwtTokenProvider;
+
+    private static final DateTimeFormatter DATE_FORMATTER = DateTimeFormatter.ofPattern("yyyy. MM. dd");
 
     @Override
     public ArtistMainResponse getMainStats(String authorization, String range, String from, String to,
@@ -124,90 +147,59 @@ public class ArtistDashboardServiceImpl implements ArtistDashboardService {
     @Override
     public ArtistProductResponse.List getProducts(String authorization, int page, int size, String keyword,
                                                   Boolean selling, String sort, String order) {
-        // TODO: JWT 토큰에서 작가 정보 추출
-        // TODO: 실제 데이터베이스에서 상품 목록 조회
-        
-        // Mock 데이터 (더 많은 샘플 추가)
-        List<ArtistProductResponse.Product> allProducts = Arrays.asList(
-                new ArtistProductResponse.Product(
-                        "0123157",
-                        "감성 일러스트 포스터",
-                        25000,
-                        "SELLING",
-                        "판매중",
-                        "2025. 09. 18"
-                ),
-                new ArtistProductResponse.Product(
-                        "0123156",
-                        "귀여운 캐릭터 스티커",
-                        15000,
-                        "SELLING",
-                        "판매중",
-                        "2025. 09. 17"
-                ),
-                new ArtistProductResponse.Product(
-                        "0123155",
-                        "빈티지 엽서 세트",
-                        12000,
-                        "SELLING",
-                        "판매중",
-                        "2025. 09. 16"
-                ),
-                new ArtistProductResponse.Product(
-                        "0123154",
-                        "아크릴 키링",
-                        8000,
-                        "SELLING",
-                        "판매중",
-                        "2025. 09. 15"
-                )
-        );
-        
-        // 1. 검색 필터링
-        List<ArtistProductResponse.Product> filtered = allProducts;
-        if (keyword != null && !keyword.trim().isEmpty()) {
-            filtered = allProducts.stream()
-                    .filter(p -> p.productName().contains(keyword))
-                    .toList();
-            log.info("검색 키워드 '{}' 적용 - 결과: {}개", keyword, filtered.size());
-        }
-        
-        // 2. 정렬
-        List<ArtistProductResponse.Product> sorted = filtered;
-        if (sort != null && order != null) {
-            sorted = filtered.stream()
-                    .sorted((p1, p2) -> {
-                        int comparison = switch (sort) {
-                            case "productName" -> p1.productName().compareTo(p2.productName());
-                            case "price" -> Integer.compare(p1.price(), p2.price());
-                            case "sellingStatus" -> p1.sellingStatus().compareTo(p2.sellingStatus());
-                            case "registrationDate" -> p1.registrationDate().compareTo(p2.registrationDate());
-                            default -> 0;
-                        };
-                        return "ASC".equals(order) ? comparison : -comparison;
-                    })
-                    .toList();
-            log.info("정렬 적용 - sort: {}, order: {}", sort, order);
-        }
-        
-        // 3. 페이징
-        int totalElements = sorted.size();
-        int totalPages = (int) Math.ceil((double) totalElements / size);
-        int start = page * size;
-        int end = Math.min(start + size, totalElements);
-        
-        List<ArtistProductResponse.Product> content = start < totalElements 
-                ? sorted.subList(start, end) 
-                : List.of();
-        
-        boolean hasNext = (page + 1) * size < totalElements;
-        boolean hasPrevious = page > 0;
-        
-        log.info("페이징 적용 - page: {}, size: {}, total: {}, content: {}개", 
-                page, size, totalElements, content.size());
+        // JWT 토큰에서 작가 ID 추출
+        String token = authorization.replace("Bearer ", "");
+        Long artistId = jwtTokenProvider.getUserIdFromToken(token);
 
-        return new ArtistProductResponse.List(
-                content, page, size, totalElements, totalPages, hasNext, hasPrevious);
+        log.info("작가 상품 목록 조회 시작 - artistId: {}, page: {}, size: {}, keyword: {}, selling: {}, sort: {}, order: {}",
+                artistId, page, size, keyword, selling, sort, order);
+
+        // Repository를 통한 실제 DB 조회
+        Page<Product> productPage = productRepository.findProductsByArtist(
+                artistId, keyword, selling, sort, order, PageRequest.of(page, size)
+        );
+
+        // Entity → DTO 변환
+        List<ArtistProductResponse.Product> content = productPage.getContent().stream()
+                .map(this::convertToProductDto)
+                .toList();
+
+        int totalPages = productPage.getTotalPages();
+        long totalElements = productPage.getTotalElements();
+        boolean hasNext = productPage.hasNext();
+        boolean hasPrevious = productPage.hasPrevious();
+
+        log.info("작가 상품 목록 조회 완료 - 조회된 상품 수: {}, 전체: {}", content.size(), totalElements);
+
+        return new ArtistProductResponse.List(content, page, size, totalElements, totalPages, hasNext, hasPrevious);
+    }
+
+    /**
+     * Product 엔티티를 DTO로 변환
+     */
+    private ArtistProductResponse.Product convertToProductDto(Product product) {
+        return new ArtistProductResponse.Product(
+                product.getId(),
+                product.getName(),
+                product.getPrice(),
+                product.getDiscountRate(),
+                product.getDiscountPrice(),
+                product.getSellingStatus().name(),
+                convertStatusToKorean(product.getSellingStatus()),
+                product.getCreateDate().format(DATE_FORMATTER)
+        );
+    }
+
+    /**
+     * SellingStatus Enum을 한글로 변환
+     */
+    private String convertStatusToKorean(SellingStatus status) {
+        return switch (status) {
+            case BEFORE_SELLING -> "판매 전";
+            case SELLING -> "판매중";
+            case SOLD_OUT -> "품절";
+            case END_OF_SALE -> "판매종료";
+        };
     }
 
     @Override
@@ -440,52 +432,151 @@ public class ArtistDashboardServiceImpl implements ArtistDashboardService {
     public ArtistFundingResponse.List getFundings(String authorization, int page, int size, String keyword,
                                                   String status, Long categoryId, Integer minAchievement, Integer maxAchievement,
                                                   String startDate, String endDate, String sort, String order) {
-        // TODO: JWT 토큰에서 작가 정보 추출
-        // TODO: 실제 데이터베이스에서 펀딩 목록 조회
+        // JWT 토큰에서 작가 ID 추출
+        String token = authorization.replace("Bearer ", "");
+        Long artistId = jwtTokenProvider.getUserIdFromToken(token);
 
-        // 펀딩 요약 정보
-        ArtistFundingResponse.Summary summary = new ArtistFundingResponse.Summary(15, 8, 6, 1);
+        log.info("작가 펀딩 목록 조회 시작 - artistId: {}, page: {}, size: {}, keyword: {}, status: {}, sort: {}, order: {}",
+                artistId, page, size, keyword, status, sort, order);
 
-        // 펀딩 목록
-        List<ArtistFundingResponse.Funding> content = Arrays.asList(
-                new ArtistFundingResponse.Funding(
-                        456789L,
-                        "펀딩 제목입니다 펀딩 제목입니다",
-                        "ACTIVE",
-                        900000,
-                        900000,
-                        100,
-                        800,
-                        "2025-08-01",
-                        "2025-09-18",
-                        "2025-09-01",
-                        "https://example.com/image.jpg",
-                        new ArtistFundingResponse.Category(1L, "스티커"),
-                        new ArtistFundingResponse.Permissions(true, true, true),
-                        new ArtistFundingResponse.Flags(true, false, true)
-                ),
-                new ArtistFundingResponse.Funding(
-                        456788L,
-                        "펀딩 제목입니다",
-                        "ACTIVE",
-                        600000,
-                        9000000,
-                        1500,
-                        820,
-                        "2025-08-10",
-                        "2025-09-18",
-                        "2025-08-20",
-                        "https://example.com/image2.jpg",
-                        new ArtistFundingResponse.Category(2L, "다이어리"),
-                        new ArtistFundingResponse.Permissions(true, true, true),
-                        new ArtistFundingResponse.Flags(true, true, false)
-                )
+        // status 문자열을 FundingStatus enum으로 변환
+        FundingStatus fundingStatus = null;
+        if (status != null && !status.isBlank()) {
+            try {
+                fundingStatus = FundingStatus.valueOf(status);
+            } catch (IllegalArgumentException e) {
+                log.warn("잘못된 펀딩 상태값: {}", status);
+            }
+        }
+
+        // Repository를 통한 실제 DB 조회
+        Page<Funding> fundingPage = fundingRepository.findFundingsByArtist(
+                artistId, keyword, fundingStatus, sort, order, PageRequest.of(page, size)
         );
+
+        // 전체 펀딩 통계 조회 (요약 정보용)
+        Page<Funding> allFundings = fundingRepository.findFundingsByArtist(
+                artistId, null, null, "createDate", "DESC", PageRequest.of(0, Integer.MAX_VALUE)
+        );
+
+        // 요약 정보 계산
+        ArtistFundingResponse.Summary summary = calculateFundingSummary(allFundings.getContent());
+
+        // Entity → DTO 변환
+        List<ArtistFundingResponse.Funding> content = fundingPage.getContent().stream()
+                .map(this::convertToFundingDto)
+                .toList();
+
+        int totalPages = fundingPage.getTotalPages();
+        long totalElements = fundingPage.getTotalElements();
+        boolean hasNext = fundingPage.hasNext();
+        boolean hasPrevious = fundingPage.hasPrevious();
+
+        log.info("작가 펀딩 목록 조회 완료 - 조회된 펀딩 수: {}, 전체: {}", content.size(), totalElements);
 
         return new ArtistFundingResponse.List(
                 summary, content,
-                page, size, 15, 1, false, false
+                page, size, totalElements, totalPages, hasNext, hasPrevious
         );
+    }
+
+    /**
+     * 펀딩 요약 정보 계산
+     */
+    private ArtistFundingResponse.Summary calculateFundingSummary(List<Funding> fundings) {
+        int total = fundings.size();
+        int open = (int) fundings.stream().filter(f -> f.getStatus() == FundingStatus.OPEN).count();
+        int success = (int) fundings.stream().filter(f -> f.getStatus() == FundingStatus.SUCCESS).count();
+        int failed = (int) fundings.stream().filter(f -> 
+            f.getStatus() == FundingStatus.FAILED || f.getStatus() == FundingStatus.CLOSED
+        ).count();
+
+        return new ArtistFundingResponse.Summary(total, open, success, failed);
+    }
+
+    /**
+     * Funding 엔티티를 DTO로 변환
+     */
+    private ArtistFundingResponse.Funding convertToFundingDto(Funding funding) {
+        // 누적 모금액 조회
+        long currentAmount = nz(fundingContributionRepository.sumContributedAmountByFundingId(funding.getId()));
+        
+        // 참여자 수 조회 (Funding 엔티티에 저장된 값 사용)
+        int participantCount = funding.getParticipantCount();
+
+        // 달성률 계산
+        double achievementRate = funding.getTargetAmount() == 0 
+                ? 0.0 
+                : Math.min(100.0, (currentAmount * 100.0) / funding.getTargetAmount());
+
+        // 남은 일수 계산
+        int remainingDays = 0;
+        boolean dueSoon = false;
+        boolean ended = false;
+
+        if (funding.getEndDate() != null) {
+            remainingDays = (int) ChronoUnit.DAYS.between(LocalDate.now(), funding.getEndDate().toLocalDate());
+            dueSoon = remainingDays > 0 && remainingDays <= 7;
+            ended = remainingDays < 0;
+        }
+
+        // 목표 달성 여부
+        boolean goalAchieved = currentAmount >= funding.getTargetAmount();
+
+        // 권한 정보 (작가 본인이므로 모든 권한 true)
+        ArtistFundingResponse.Permissions permissions = new ArtistFundingResponse.Permissions(
+                true,  // canEdit
+                funding.getStatus() == FundingStatus.OPEN,  // canCancel (진행중일 때만)
+                true   // canCreateNews
+        );
+
+        // 플래그 정보
+        ArtistFundingResponse.Flags flags = new ArtistFundingResponse.Flags(
+                goalAchieved,
+                dueSoon,
+                ended
+        );
+
+        // 카테고리 정보 (현재 미사용)
+        ArtistFundingResponse.Category category = null;
+
+        return new ArtistFundingResponse.Funding(
+                funding.getId(),
+                funding.getTitle(),
+                funding.getStatus().name(),
+                convertFundingStatusToKorean(funding.getStatus()),
+                funding.getTargetAmount(),
+                currentAmount,
+                achievementRate,
+                participantCount,
+                funding.getStartDate().format(DATE_FORMATTER),
+                funding.getEndDate().format(DATE_FORMATTER),
+                funding.getCreateDate().format(DATE_FORMATTER),
+                funding.getImageUrl(),
+                category,
+                permissions,
+                flags
+        );
+    }
+
+    /**
+     * FundingStatus Enum을 한글로 변환
+     */
+    private String convertFundingStatusToKorean(FundingStatus status) {
+        return switch (status) {
+            case OPEN -> "진행중";
+            case CLOSED -> "마감";
+            case SUCCESS -> "성공";
+            case FAILED -> "실패";
+            case CANCELED -> "취소됨";
+        };
+    }
+
+    /**
+     * null을 0으로 변환하는 헬퍼 메서드
+     */
+    private long nz(Long value) {
+        return value == null ? 0L : value;
     }
 
     @Override

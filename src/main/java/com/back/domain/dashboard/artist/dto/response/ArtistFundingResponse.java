@@ -6,7 +6,7 @@ import com.back.global.util.PageResponse;
  * 작가 펀딩 관련 응답 DTO
  * <p>
  * 작가가 신청한 펀딩 목록과 관련된 정보를 포함합니다.
- * 2025.09.25 수정
+ * 2025.09.30 수정 - 펀딩 CRUD와 일치하도록 필드 타입 및 명칭 변경
  */
 public class ArtistFundingResponse {
 
@@ -40,17 +40,17 @@ public class ArtistFundingResponse {
              */
             int totalFundings,
             /**
-             * 진행중 펀딩 수
+             * 진행중 펀딩 수 (OPEN)
              */
-            int activeFundings,
+            int openFundings,
             /**
-             * 완료된 펀딩 수
+             * 성공한 펀딩 수 (SUCCESS)
              */
-            int completedFundings,
+            int successFundings,
             /**
-             * 취소된 펀딩 수
+             * 실패한 펀딩 수 (FAILED + CLOSED)
              */
-            int cancelledFundings
+            int failedFundings
     ) {}
 
     /**
@@ -66,25 +66,29 @@ public class ArtistFundingResponse {
              */
             String title,
             /**
-             * 펀딩 상태
+             * 펀딩 상태 (OPEN, CLOSED, SUCCESS, FAILED, CANCELED)
              */
-            String status, // ACTIVE, COMPLETED, CANCELLED, PAUSED, PENDING
+            String status,
+            /**
+             * 펀딩 상태 텍스트
+             */
+            String statusText,
             /**
              * 목표 금액
              */
-            int targetAmount,
+            long targetAmount,
             /**
-             * 현재 금액
+             * 현재 모금액
              */
-            int currentAmount,
+            long currentAmount,
             /**
              * 달성률 (%)
              */
-            int achievementRate,
+            double achievementRate,
             /**
              * 후원자 수
              */
-            int supporterCount,
+            int participantCount,
             /**
              * 시작일
              */
@@ -102,7 +106,7 @@ public class ArtistFundingResponse {
              */
             String mainImage,
             /**
-             * 카테고리 정보
+             * 카테고리 정보 (현재 미사용)
              */
             Category category,
             /**
@@ -142,9 +146,9 @@ public class ArtistFundingResponse {
              */
             boolean canCancel,
             /**
-             * 판매 요청 권한
+             * 뉴스 작성 권한
              */
-            boolean canRequestSale
+            boolean canCreateNews
     ) {}
 
     /**
@@ -156,7 +160,7 @@ public class ArtistFundingResponse {
              */
             boolean goalAchieved,
             /**
-             * 마감 임박 여부
+             * 마감 임박 여부 (7일 이내)
              */
             boolean dueSoon,
             /**
