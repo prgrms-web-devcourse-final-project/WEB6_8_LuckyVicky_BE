@@ -313,6 +313,10 @@ resource "aws_instance" "ec2_1" {
   root_block_device {
     volume_type = "gp3"
     volume_size = 30 # 볼륨 크기를 12GB로 설정
+    tags = {
+      Name = "${var.prefix}-ec2-volume"
+      Team = var.team
+    }
   }
 
   user_data = <<-EOF
