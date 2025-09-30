@@ -49,10 +49,12 @@ public class TestInitData {
 
     @Transactional
     public void work1() {
+        safeSignup("admin@admin.com", "1234qwer!", "1234qwer!", "관리자", "010-1234-0000");
         safeSignup("user1@user.com", "1234qwer!", "1234qwer!", "유저1", "010-1234-5678");
         safeSignup("user2@user.com", "1234qwer!", "1234qwer!", "유저2", "010-2345-6789");
         safeSignup("user3@user.com", "1234qwer!", "1234qwer!", "유저3", "010-3456-7890");
 
+        devUserService.changeUserRoleByEmail("admin@admin.com", Role.ADMIN);
         devUserService.changeUserRoleByEmail("user1@user.com", Role.ARTIST);
     }
 
