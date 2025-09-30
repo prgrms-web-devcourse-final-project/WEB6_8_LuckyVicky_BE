@@ -116,17 +116,11 @@ public class Cart extends BaseEntity {
      * 상품 정보를 반환 (디미터의 법칙 적용)
      */
     public ProductInfo getProductInfo() {
-        String imageUrl = this.product.getImages().stream()
-                .filter(image -> "THUMBNAIL".equals(image.getFileType().name()))
-                .findFirst()
-                .map(image -> image.getFileUrl())
-                .orElse(null);
-
         return new ProductInfo(
             this.product.getId(),
             this.product.getName(),
             this.product.getPrice(),
-            imageUrl
+            null  // 이미지는 서비스에서 처리
         );
     }
 
