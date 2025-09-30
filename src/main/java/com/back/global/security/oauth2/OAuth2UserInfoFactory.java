@@ -10,7 +10,7 @@ import java.util.Map;
  */
 public class OAuth2UserInfoFactory {
 
-    public static OAuth2UserInfo getAuth2UserInfo(String registrationId, Map<String, Object> attributes) {
+    public static OAuth2UserInfo getOAuth2UserInfo(String registrationId, Map<String, Object> attributes) {
         return switch (registrationId.toUpperCase()) {
             case "GOOGLE" -> new GoogleUserInfo(attributes);
             case "KAKAO" -> new KakaoUserInfo(attributes);

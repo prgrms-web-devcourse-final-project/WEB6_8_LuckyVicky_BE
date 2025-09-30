@@ -1,6 +1,10 @@
 package com.back.global.security.config;
 
 import com.back.global.security.jwt.JwtAuthenticationFilter;
+import com.back.global.security.oauth2.CustomOAuth2AuthorizationRequestResolver;
+import com.back.global.security.oauth2.CustomOAuth2UserService;
+import com.back.global.security.oauth2.OAuth2FailureHandler;
+import com.back.global.security.oauth2.OAuth2SuccessHandler;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -32,6 +36,13 @@ public class SecurityConfig {
 
     private final JwtAuthenticationFilter jwtAuthenticationFilter;
 
+    // OAuth2 관련 Bean 주입
+    private final CustomOAuth2UserService customOAuth2UserService;
+    private final OAuth2SuccessHandler oauth2SuccessHandler;
+    private final OAuth2FailureHandler oauth2FailureHandler;
+    private final CustomOAuth2AuthorizationRequestResolver customOAuth2AuthorizationRequestResolver;
+
+
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http
@@ -39,6 +50,9 @@ public class SecurityConfig {
                 .authorizeHttpRequests(auth -> auth
                         // 인증이 필요 없는 API
                         .requestMatchers("/api/auth/signup", "/api/auth/login", "/api/auth/refresh", "/api/auth/logout").permitAll()
+
+                        // OAuth2 로그인 엔드포인트 - 인증 불필요
+                        .requestMatchers("/oauth2/**", "/login/oauth2/**").permitAll()
 
                         // 공개 API - 로그인 없이 접근 허용
                         .requestMatchers("/public/**").permitAll()
@@ -59,7 +73,16 @@ public class SecurityConfig {
                         .requestMatchers("/error", "/").permitAll()
 
                         // 대시보드 API - 임시로 테스트용 허용 (TODO: 나중에 인증 추가)
-                        .requestMatchers("/api/dashboard/**").permitAll()
+                        //.requestMatchers("/api/dashboard/**").permitAll()
+
+                        // 관리자 대시보드 - ADMIN, ROOT만 접근 가능 (TODO: yoostill 확인 필요)
+                        .requestMatchers("/api/dashboard/admin/**").hasAnyRole("ADMIN", "ROOT")
+
+                        // 작가 대시보드 - ARTIST, ADMIN, ROOT 접근 가능 (TODO: yoostill 확인 필요)
+                        .requestMatchers("/api/dashboard/artist/**").hasAnyRole("ARTIST", "ADMIN", "ROOT")
+
+                        // 일반 대시보드 - 인증된 모든 사용자 접근 가능 (TODO: yoostill 확인 필요)
+                        .requestMatchers("/api/dashboard/**").authenticated()
 
                         // 역할별 API 권한
                         .requestMatchers("/user/**").hasRole("USER")
@@ -72,6 +95,22 @@ public class SecurityConfig {
                 )
                 // JWT 필터 등록
                 .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class)
+
+                // OAuth2 로그인 설정
+                .oauth2Login(oauth2 -> oauth2
+                        // OAuth2 사용자 정보 처리 서비스
+                        .userInfoEndpoint(userInfo -> userInfo
+                                .userService(customOAuth2UserService)
+                        )
+                        // 로그인 성공 핸들러
+                        .successHandler(oauth2SuccessHandler)
+                        // 로그인 실패 핸들러
+                        .failureHandler(oauth2FailureHandler)
+                        // Authorization Request 커스터마이징 (redirectUrl 지원)
+                        .authorizationEndpoint(authorization -> authorization
+                                .authorizationRequestResolver(customOAuth2AuthorizationRequestResolver)
+                        )
+                )
 
                 // H2 콘솔 프레임 허용
                 .headers(headers -> headers.frameOptions(HeadersConfigurer.FrameOptionsConfig::disable))
