@@ -5,10 +5,16 @@ variable "region" {
 
 variable "prefix" {
   description = "Prefix for all resources"
-  default     = "morimori"
+  default     = "team7-morimori"
 }
 
 variable "morimori_domain" {
   description = "morimori domain"
   default     = "api.mori-mori.store"
+}
+
+variable "team" {
+  description = "tag team name"
+  type        = string
+  default     = "devcos-team07"
 }

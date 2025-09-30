@@ -23,7 +23,8 @@ resource "aws_vpc" "vpc_1" {
   enable_dns_hostnames = true
 
   tags = {
-    Name = "${var.prefix}-vpc-1"
+    Name = "${var.prefix}-vpc"
+    Team = var.team
   }
 }
 
@@ -37,6 +38,7 @@ resource "aws_subnet" "subnet_1" {
 
   tags = {
     Name = "${var.prefix}-subnet-1"
+    Team = var.team
   }
 }
 
@@ -48,6 +50,7 @@ resource "aws_subnet" "subnet_2" {
 
   tags = {
     Name = "${var.prefix}-subnet-2"
+    Team = var.team
   }
 }
 
@@ -59,6 +62,7 @@ resource "aws_subnet" "subnet_3" {
 
   tags = {
     Name = "${var.prefix}-subnet-3"
+    Team = var.team
   }
 }
 
@@ -70,6 +74,7 @@ resource "aws_subnet" "subnet_4" {
 
   tags = {
     Name = "${var.prefix}-subnet-4"
+    Team = var.team
   }
 }
 
@@ -78,7 +83,8 @@ resource "aws_internet_gateway" "igw_1" {
   vpc_id = aws_vpc.vpc_1.id
 
   tags = {
-    Name = "${var.prefix}-igw-1"
+    Name = "${var.prefix}-igw"
+    Team = var.team
   }
 }
 
@@ -92,7 +98,8 @@ resource "aws_route_table" "rt_1" {
   }
 
   tags = {
-    Name = "${var.prefix}-rt-1"
+    Name = "${var.prefix}-rt"
+    Team = var.team
   }
 }
 
@@ -138,7 +145,8 @@ resource "aws_security_group" "sg_1" {
   vpc_id = aws_vpc.vpc_1.id
 
   tags = {
-    Name = "${var.prefix}-sg-1"
+    Name = "${var.prefix}-sg"
+    Team = var.team
   }
 }
 
@@ -166,7 +174,8 @@ resource "aws_iam_role" "ec2_role_1" {
   EOF
 
   tags = {
-    Name = "${var.prefix}-ec2-role-1"
+    Name = "${var.prefix}-ec2-role"
+    Team = var.team
   }
 }
 
@@ -188,7 +197,8 @@ resource "aws_iam_instance_profile" "instance_profile_1" {
   role = aws_iam_role.ec2_role_1.name
 
   tags = {
-    Name = "${var.prefix}-instance-profile-1"
+    Name = "${var.prefix}-instance-profile"
+    Team = var.team
   }
 }
 
@@ -295,7 +305,8 @@ resource "aws_instance" "ec2_1" {
 
   # 인스턴스에 태그 설정
   tags = {
-    Name = "${var.prefix}-ec2-1"
+    Name = "${var.prefix}-ec2"
+    Team = var.team
   }
 
   # 루트 볼륨 설정
