@@ -15,7 +15,7 @@ import java.util.List;
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class User extends BaseEntity {
 
-    @Column(unique = true, nullable = false)
+    @Column(unique = true, nullable = true) // OAuth Kakao 사용자를 위해 nullable 허용
     private String email;
 
     @Column(nullable = true) // OAuth 사용자를 위해 nullable 허용
@@ -24,7 +24,7 @@ public class User extends BaseEntity {
     @Column(unique = true, nullable = false)
     private String name;
 
-    @Column(unique = true, nullable = false)
+    @Column(unique = true, nullable = true) // OAuth 사용자를 위해 nullable 허용
     private String phone;
 
     private String profileImageUrl;
@@ -72,6 +72,7 @@ public class User extends BaseEntity {
         user.provider = Provider.LOCAL;
         user.money = 0;
         user.point = 0;
+        user.isArtistVerified = false;
         user.privacyRequiredAgreed = true;  // 회원가입 시 필수 동의
         user.marketingAgreed = false;       // 선택 동의 (기본값)
         user.termsAgreedAt = LocalDateTime.now();  // 현재 시간
@@ -172,7 +173,10 @@ public class User extends BaseEntity {
     public static User createOAuthUser(String email, String name, Provider provider, String providerId) {
         User user = new User();
         user.email = email;
-        user.name = name;
+
+        // Provider를 포함한 고유한 이름 생성 (예: "홍길동_GOOGLE")
+        user.name = name + "_" + provider.name();
+
         user.provider = provider;
         user.providerId = providerId;
         user.password = null;  // 소셜 로그인은 비밀번호 없음
@@ -195,9 +199,6 @@ public class User extends BaseEntity {
 
     // OAuth 프로필 정보 업데이트 (재로그인 시)
     public void updateOAuthProfile(String name, String profileImageUrl) {
-        if (name != null && !name.isBlank()) {
-            this.name = name;
-        }
         if (profileImageUrl != null && !profileImageUrl.isBlank()) {
             this.profileImageUrl = profileImageUrl;
         }

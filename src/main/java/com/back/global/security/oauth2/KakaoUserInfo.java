@@ -40,10 +40,14 @@ public class KakaoUserInfo implements OAuth2UserInfo{
     @Override
     public String getEmail() {
         Map<String, Object> kakaoAccount = (Map<String, Object>) attributes.get("kakao_account");
-        if (kakaoAccount == null) {
-            return null;
+
+        // 이메일 제공 동의한 경우
+        if (kakaoAccount != null && kakaoAccount.get("email") != null) {
+            return (String) kakaoAccount.get("email");
         }
-        return (String) kakaoAccount.get("email");
+
+        // 이메일 없으면 더미 이메일 생성
+        return "kakao_" + getProviderId() + "@dummy.local";
     }
 
     @Override
