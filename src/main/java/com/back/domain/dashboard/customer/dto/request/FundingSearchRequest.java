@@ -6,7 +6,7 @@ import jakarta.validation.constraints.Pattern;
 
 /**
  * 참여한 펀딩 목록 검색 요청 DTO
- * 2025.09.25 생성
+ * 2025.09.30 수정 - Funding 엔티티에 맞춰 정렬 필드 수정 (pledgedDate → paidAt)
  */
 public record FundingSearchRequest(
         /** 페이지 번호 (0부터 시작) */
@@ -27,8 +27,8 @@ public record FundingSearchRequest(
         String keyword,
 
         /** 정렬 기준 */
-        @Pattern(regexp = "^(pledgedDate|pledgedAmount|title|artistName|status)$", 
-                 message = "sort는 pledgedDate, pledgedAmount, title, artistName, status 중 하나여야 합니다")
+        @Pattern(regexp = "^(paidAt|pledgedAmount|title|artistName|status)$", 
+                 message = "sort는 paidAt, pledgedAmount, title, artistName, status 중 하나여야 합니다")
         String sort,
 
         /** 정렬 방향 */
@@ -42,7 +42,7 @@ public record FundingSearchRequest(
     public FundingSearchRequest {
         if (page == null) page = 0;
         if (size == null) size = 10;
-        if (sort == null) sort = "pledgedDate";
+        if (sort == null) sort = "paidAt";
         if (order == null) order = "DESC";
     }
 }
