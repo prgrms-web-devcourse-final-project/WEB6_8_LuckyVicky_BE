@@ -10,7 +10,7 @@ terraform {
 
 # AWS 설정 시작
 provider "aws" {
-  region = "ap-northeast-2"
+  region = var.region
 }
 # AWS 설정 끝
 
