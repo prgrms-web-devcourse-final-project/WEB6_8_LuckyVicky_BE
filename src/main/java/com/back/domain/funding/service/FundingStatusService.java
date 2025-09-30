@@ -1,0 +1,248 @@
+package com.back.domain.funding.service;
+
+import com.back.domain.funding.entity.Funding;
+import com.back.domain.funding.entity.FundingStatus;
+import com.back.domain.funding.repository.FundingContributionRepository;
+import com.back.domain.funding.repository.FundingRepository;
+import com.back.global.exception.ServiceException;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import java.time.LocalDateTime;
+import java.util.List;
+
+@Service
+@RequiredArgsConstructor
+@Slf4j
+public class FundingStatusService {
+
+    private final FundingRepository fundingRepository;
+    private final FundingContributionRepository fundingContributionRepository;
+
+    public Funding getByIdOrThrow(Long id) {
+        return fundingRepository.findById(id)
+                .orElseThrow(() -> new ServiceException("404", "존재하지 않는 펀딩입니다."));
+    }
+
+    private void validateOwnership(Funding funding, String userEmail) {
+        if (!funding.getUser().getEmail().equals(userEmail)) {
+            throw new ServiceException("403", "권한이 없습니다.");
+        }
+    }
+
+    // 펀딩 종료
+    @Transactional
+    public void closeFunding(Long fundingId, String userEmail) {
+        Funding funding = getByIdOrThrow(fundingId);
+        validateOwnership(funding, userEmail);
+
+        if (funding.getStatus() != FundingStatus.OPEN) {
+            throw new ServiceException("400", "펀딩이 진행 중 상태가 아닙니다.");
+        }
+        funding.close();
+    }
+
+    // 펀딩 취소
+    @Transactional
+    public void cancelFunding(Long fundingId, String userEmail) {
+        Funding funding = getByIdOrThrow(fundingId);
+        validateOwnership(funding, userEmail);
+
+        if (funding.getStatus() != FundingStatus.OPEN) {
+            throw new ServiceException("400", "펀딩이 진행 중 상태가 아닙니다.");
+        }
+        funding.cancel();
+    }
+
+    @Transactional
+    public int closeExpiredFundings() {
+        LocalDateTime now = LocalDateTime.now();
+
+        // COUNT로 먼저 확인
+        long expiredCount = fundingRepository
+                .countByStatusAndEndDateBefore(FundingStatus.OPEN, now);
+
+        if (expiredCount == 0) {
+            log.debug("[자동 종료] 종료할 펀딩 없음");
+            return 0;
+        }
+
+        log.info("[자동 종료] 종료 대상 펀딩 {}건 발견", expiredCount);
+
+        // 배치 업데이트로 한 번에 처리
+        int closed = fundingRepository.bulkCloseExpiredFundings(now);
+
+        log.info("[자동 종료] 완료 - 처리: {}건", closed);
+
+        return closed;
+    }
+
+    // 모든 CLOSED 펀딩을 최종 처리 (SUCCESS/FAILED)
+    @Transactional
+    public FinalizeResult finalizeAllClosedFundings() {
+        List<Funding> closedFundings = fundingRepository.findByStatus(FundingStatus.CLOSED);
+
+        if (closedFundings.isEmpty()) {
+            log.debug("[최종 처리] 처리할 펀딩 없음");
+            return new FinalizeResult(0, 0, 0);
+        }
+
+        log.info("[최종 처리] 대상 펀딩 {}건", closedFundings.size());
+
+        int successCount = 0;
+        int failedCount = 0;
+        int errorCount = 0;
+
+        for (Funding funding : closedFundings) {
+            try {
+                FinalizeStatus status = processFinalizeLogic(funding);
+
+                if (status == FinalizeStatus.SUCCESS) {
+                    successCount++;
+                } else {
+                    failedCount++;
+                }
+
+            } catch (Exception e) {
+                errorCount++;
+                log.error("[최종 처리] 실패: ID={}", funding.getId(), e);
+            }
+        }
+
+        log.info("[최종 처리] 완료 - 성공: {}건, 실패: {}건, 오류: {}건",
+                successCount, failedCount, errorCount);
+
+        return new FinalizeResult(successCount, failedCount, errorCount);
+    }
+
+    // 단일 펀딩 최종 처리
+    @Transactional
+    public FinalizeStatus finalizeFunding(Long fundingId) {
+        Funding funding = getByIdOrThrow(fundingId);
+        return processFinalizeLogic(funding);
+    }
+
+    // 누락된 펀딩 체크 및 처리 (정합성 체크)
+    @Transactional
+    public int checkAndCloseMissedFundings() {
+        LocalDateTime now = LocalDateTime.now();
+
+        List<Funding> missedFundings = fundingRepository
+                .findByStatusAndEndDateBefore(FundingStatus.OPEN, now);
+
+        if (missedFundings.isEmpty()) {
+            log.info("[정합성 체크] 모든 펀딩 상태 정상");
+            return 0;
+        }
+
+        log.warn("[정합성 체크] 누락된 펀딩 {}건 발견", missedFundings.size());
+
+        int closed = 0;
+        for (Funding funding : missedFundings) {
+            try {
+                funding.close();
+                closed++;
+                log.info("[정합성 체크] 누락 펀딩 종료: ID={}, 종료일={}",
+                        funding.getId(), funding.getEndDate());
+            } catch (Exception e) {
+                log.error("[정합성 체크] 처리 실패: ID={}", funding.getId(), e);
+            }
+        }
+
+        return closed;
+    }
+
+    // 펀딩 최종 처리 핵심 로직 (CLOSED -> SUCCESS/FAILED)
+
+    private FinalizeStatus processFinalizeLogic(Funding funding) {
+        // 상태 체크
+        if (funding.getStatus() != FundingStatus.CLOSED) {
+            throw new ServiceException("400", "종료된 펀딩만 최종 처리할 수 있습니다.");
+        }
+
+        // 실제 모금액 조회
+        Long collectedAmount = fundingContributionRepository
+                .sumContributedAmountByFundingId(funding.getId());
+        long actualAmount = collectedAmount != null ? collectedAmount : 0L;
+
+        // 참여자 수 조회
+        Long participantCount = fundingContributionRepository
+                .countDistinctParticipantsByFundingId(funding.getId());
+        int actualParticipants = participantCount != null ? participantCount.intValue() : 0;
+
+        // 펀딩 엔티티 업데이트
+        funding.increaseCollectedAmount(actualAmount - funding.getCollectedAmount());
+        funding.increaseParticipantCount(actualParticipants - funding.getParticipantCount());
+
+        // 목표 금액 달성 여부에 따라 상태 변경
+        double achievementRate = (actualAmount * 100.0) / funding.getTargetAmount();
+
+        if (actualAmount >= funding.getTargetAmount()) {
+            funding.markAsSuccess();
+            log.info("펀딩 성공: ID={}, 목표={}원, 달성={}원, 달성률={}%",
+                    funding.getId(), funding.getTargetAmount(), actualAmount,
+                    String.format("%.2f", achievementRate));
+            return FinalizeStatus.SUCCESS;
+
+        } else {
+            funding.markAsFailed();
+            log.info("펀딩 실패: ID={}, 목표={}원, 달성={}원, 달성률={}%",
+                    funding.getId(), funding.getTargetAmount(), actualAmount,
+                    String.format("%.2f", achievementRate));
+            return FinalizeStatus.FAILED;
+        }
+    }
+
+    @Transactional
+    public CompleteResult processAllFundings() {
+        log.info("[통합 처리] 시작");
+
+        // 1단계: 만료된 펀딩 종료 (OPEN -> CLOSED)
+        int closedCount = closeExpiredFundings();
+
+        // 2단계: 종료된 펀딩 최종 처리 (CLOSED -> SUCCESS/FAILED)
+        FinalizeResult finalizeResult = finalizeAllClosedFundings();
+
+        log.info("[통합 처리] 완료 - 종료: {}건, 성공: {}건, 실패: {}건",
+                closedCount,
+                finalizeResult.successCount(),
+                finalizeResult.failedCount());
+
+        return new CompleteResult(closedCount, finalizeResult);
+    }
+
+    public record FinalizeResult(
+            int successCount,
+            int failedCount,
+            int errorCount
+    ) {
+        public int totalProcessed() {
+            return successCount + failedCount;
+        }
+    }
+
+    public enum FinalizeStatus {
+        SUCCESS,  // 성공 처리됨
+        FAILED    // 실패 처리됨
+    }
+
+    public record CompleteResult(
+            int closedCount,            // OPEN -> CLOSED 처리된 수
+            int successCount,           // CLOSED -> SUCCESS 처리된 수
+            int failedCount,            // CLOSED -> FAILED 처리된 수
+            int errorCount              // 오류 발생 수
+    ) {
+        public CompleteResult(int closedCount, FinalizeResult finalizeResult) {
+            this(closedCount,
+                    finalizeResult.successCount(),
+                    finalizeResult.failedCount(),
+                    finalizeResult.errorCount());
+        }
+
+        public int totalFinalized() {
+            return successCount + failedCount + errorCount;
+        }
+    }
+}

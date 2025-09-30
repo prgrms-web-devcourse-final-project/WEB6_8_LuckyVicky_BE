@@ -14,7 +14,9 @@ import java.util.List;
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @AllArgsConstructor
 @Builder
-@Table(name = "fundings")
+@Table(name = "fundings", indexes = {
+        @Index(name = "idx_funding_status_enddate",
+                columnList = "status, end_date")})
 public class Funding extends BaseEntity {
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
@@ -127,5 +129,41 @@ public class Funding extends BaseEntity {
             }
         }
         return f;
+    }
+
+    // 펀딩 상태 관련 메서드
+    public void close() {
+        if (this.status != FundingStatus.OPEN) {
+            throw new IllegalStateException("진행 중인 펀딩만 종료할 수 있습니다.");
+        }
+        this.status = FundingStatus.CLOSED;
+    }
+
+    public void markAsSuccess() {
+        if (this.status != FundingStatus.CLOSED) {
+            throw new IllegalStateException("종료된 펀딩만 성공 처리할 수 있습니다.");
+        }
+        if (this.collectedAmount < this.targetAmount) {
+            throw new IllegalStateException("목표 금액을 달성하지 못했습니다.");
+        }
+        this.status = FundingStatus.SUCCESS;
+    }
+
+    public void markAsFailed() {
+        if (this.status != FundingStatus.CLOSED) {
+            throw new IllegalStateException("종료된 펀딩만 실패 처리할 수 있습니다.");
+        }
+        this.status = FundingStatus.FAILED;
+    }
+
+    public void cancel() {
+        if (this.status == FundingStatus.SUCCESS || this.status == FundingStatus.FAILED) {
+            throw new IllegalStateException("이미 완료된 펀딩은 취소할 수 없습니다.");
+        }
+        this.status = FundingStatus.CANCELED;
+    }
+
+    public boolean isEndDatePassed() {
+        return LocalDateTime.now().isAfter(this.endDate);
     }
 }

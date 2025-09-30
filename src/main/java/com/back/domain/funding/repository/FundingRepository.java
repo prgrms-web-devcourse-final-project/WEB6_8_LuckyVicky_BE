@@ -4,12 +4,12 @@ import com.back.domain.funding.entity.Funding;
 import com.back.domain.funding.entity.FundingStatus;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
-import org.springframework.data.jpa.repository.EntityGraph;
-import org.springframework.data.jpa.repository.JpaRepository;
-import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
-import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.jpa.repository.*;
 import org.springframework.data.repository.query.Param;
+import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDateTime;
+import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 
@@ -70,6 +70,30 @@ public interface FundingRepository extends JpaRepository<Funding, Long>, JpaSpec
             @Param("sort") String sort,
             @Param("order") String order,
             Pageable pageable
+    );
+
+    // 종료일이 지난 펀딩 조회
+    @Query("SELECT COUNT(f) FROM Funding f " +
+            "WHERE f.status = :status AND f.endDate < :now")
+    long countByStatusAndEndDateBefore(
+            @Param("status") FundingStatus status,
+            @Param("now") LocalDateTime now
+    );
+
+    // 만료된 펀딩 일괄 종료
+    @Modifying
+    @Transactional
+    @Query("UPDATE Funding f SET f.status = 'CLOSED' " +
+            "WHERE f.status = 'OPEN' AND f.endDate < :now")
+    int bulkCloseExpiredFundings(@Param("now") LocalDateTime now);
+
+    // 특정 상태의 펀딩 전체 조회
+    List<Funding> findByStatus(FundingStatus status);
+
+    // 종료된 펀딩 조회 (정합성 체크용)
+    List<Funding> findByStatusAndEndDateBefore(
+            FundingStatus status,
+            LocalDateTime endDate
     );
 }
 
