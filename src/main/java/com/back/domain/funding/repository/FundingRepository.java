@@ -47,5 +47,29 @@ public interface FundingRepository extends JpaRepository<Funding, Long>, JpaSpec
     // 마감 임박순 펀딩 조회
     @EntityGraph(attributePaths = {"user"})
     Page<Funding> findByStatusOrderByEndDateAsc(FundingStatus status, Pageable pageable);
+
+    // 작가 대시보드용 - 작가별 펀딩 목록 조회 (검색 + 필터링 + 정렬)
+    @Query("""
+        SELECT f FROM Funding f
+        WHERE f.user.id = :userId
+        AND (:keyword IS NULL OR LOWER(f.title) LIKE LOWER(CONCAT('%', :keyword, '%')))
+        AND (:status IS NULL OR f.status = :status)
+        ORDER BY 
+            CASE WHEN :sort = 'endDate' AND :order = 'ASC' THEN f.endDate END ASC,
+            CASE WHEN :sort = 'endDate' AND :order = 'DESC' THEN f.endDate END DESC,
+            CASE WHEN :sort = 'createDate' AND :order = 'ASC' THEN f.createDate END ASC,
+            CASE WHEN :sort = 'createDate' AND :order = 'DESC' THEN f.createDate END DESC,
+            CASE WHEN :sort = 'title' AND :order = 'ASC' THEN f.title END ASC,
+            CASE WHEN :sort = 'title' AND :order = 'DESC' THEN f.title END DESC,
+            f.createDate DESC
+        """)
+    Page<Funding> findFundingsByArtist(
+            @Param("userId") Long userId,
+            @Param("keyword") String keyword,
+            @Param("status") FundingStatus status,
+            @Param("sort") String sort,
+            @Param("order") String order,
+            Pageable pageable
+    );
 }
 

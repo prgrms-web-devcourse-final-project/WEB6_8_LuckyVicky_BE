@@ -23,7 +23,7 @@ import static org.mockito.BDDMockito.given;
 
 /**
  * ArtistDashboardController 테스트
- * 2025.09.25 Request DTO 패턴 적용
+ * 2025.09.30 펀딩 실제 DB 연동에 맞춰 테스트 수정
  */
 @ExtendWith(MockitoExtension.class)
 @DisplayName("작가 대시보드 컨트롤러 테스트")
@@ -73,9 +73,11 @@ class ArtistDashboardControllerTest {
 
     private ArtistProductResponse.Product createMockProduct() {
         return new ArtistProductResponse.Product(
-                "0123157",
+                101L,
                 "상품명입니다 상품명입니다",
                 90000,
+                10,
+                81000,
                 "SELLING",
                 "판매중",
                 "2025. 09. 18"
@@ -149,7 +151,7 @@ class ArtistDashboardControllerTest {
                 .willReturn(mockResponse);
 
         ArtistProductSearchRequest request = new ArtistProductSearchRequest(
-                DEFAULT_PAGE, 10, null, null, "registrationDate", "DESC");
+                DEFAULT_PAGE, 10, null, null, "createDate", "DESC");
 
         // When
         ResponseEntity<RsData<ArtistProductResponse.List>> response =
@@ -161,8 +163,11 @@ class ArtistDashboardControllerTest {
 
         assertAll(
                 () -> assertThat(data.getContent()).hasSize(1),
-                () -> assertThat(firstProduct.productNumber()).isNotBlank(),
+                () -> assertThat(firstProduct.productId()).isNotNull(),
+                () -> assertThat(firstProduct.productName()).isNotBlank(),
                 () -> assertThat(firstProduct.price()).isPositive(),
+                () -> assertThat(firstProduct.discountRate()).isNotNegative(),
+                () -> assertThat(firstProduct.discountPrice()).isPositive(),
                 () -> assertThat(firstProduct.sellingStatus()).isNotBlank(),
                 () -> assertThat(data.getPage()).isEqualTo(DEFAULT_PAGE),
                 () -> assertThat(data.getSize()).isEqualTo(10),
@@ -406,12 +411,25 @@ class ArtistDashboardControllerTest {
     void getFundings_Success() {
         // Given
         ArtistFundingResponse.Funding mockFunding = new ArtistFundingResponse.Funding(
-                456789L, "펀딩 제목입니다", "ACTIVE", 900000, 900000, 100, 0,
-                null, null, null, null, null, null, null
+                456789L, 
+                "펀딩 제목입니다", 
+                "OPEN", 
+                "진행중",
+                900000L,
+                900000L,
+                100.0,
+                800,
+                "2025-08-01",
+                "2025-09-18",
+                "2025-09-01",
+                "https://example.com/image.jpg",
+                null,
+                new ArtistFundingResponse.Permissions(true, true, true),
+                new ArtistFundingResponse.Flags(true, false, false)
         );
 
         ArtistFundingResponse.List mockResponse = new ArtistFundingResponse.List(
-                new ArtistFundingResponse.Summary(15, 0, 0, 0),
+                new ArtistFundingResponse.Summary(15, 8, 6, 1),
                 List.of(mockFunding),
                 DEFAULT_PAGE, DEFAULT_SIZE, 15, 1, false, false
         );
@@ -433,7 +451,8 @@ class ArtistDashboardControllerTest {
                 () -> assertThat(data.getSummary().totalFundings()).isEqualTo(15),
                 () -> assertThat(data.getContent()).hasSize(1),
                 () -> assertThat(data.getContent().getFirst().fundingId()).isEqualTo(456789L),
-                () -> assertThat(data.getContent().getFirst().status()).isEqualTo("ACTIVE")
+                () -> assertThat(data.getContent().getFirst().status()).isEqualTo("OPEN"),
+                () -> assertThat(data.getContent().getFirst().statusText()).isEqualTo("진행중")
         );
     }
 
