@@ -15,6 +15,7 @@ provider "aws" {
 # AWS 설정 끝
 
 # VPC 설정 시작
+
 // VPC 생성
 resource "aws_vpc" "vpc_1" {
   cidr_block = "10.0.0.0/16"
@@ -322,4 +323,74 @@ resource "aws_instance" "ec2_1" {
   user_data = <<-EOF
 ${local.ec2_user_data_base}
 EOF
+}
+
+# RDS 설정 시작
+
+# RDS Security Group
+resource "aws_security_group" "rds_sg" {
+  name        = "${var.prefix}-rds-sg"
+  description = "Allow PostgreSQL from EC2"
+  vpc_id      = aws_vpc.vpc_1.id
+
+  ingress {
+    description     = "PostgreSQL from EC2"
+    from_port       = 5432
+    to_port         = 5432
+    protocol        = "tcp"
+    security_groups = [aws_security_group.sg_1.id]  // EC2 SG에서만 PostgreSQL 포트 접근 허용
+  }
+
+  egress {
+    description = "Allow all outbound"
+    from_port   = 0
+    to_port     = 0
+    protocol    = "-1"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  tags = {
+    Name = "${var.prefix}-rds-sg"
+    Team = var.team
+  }
+}
+
+# RDS Subnet Group
+resource "aws_db_subnet_group" "rds_subnets" {
+  name       = "${var.prefix}-rds-subnet-group"
+  subnet_ids = [aws_subnet.subnet_3.id, aws_subnet.subnet_4.id]  // 운영용 서브넷 활용
+
+  tags = {
+    Name = "${var.prefix}-rds-subnet-group"
+    Team = var.team
+  }
+}
+
+# RDS PostgreSQL 인스턴스
+resource "aws_db_instance" "rds_postgres" {
+  identifier        = "${var.prefix}-postgresql"
+  engine            = "postgres"
+  engine_version    = "16.10"
+  instance_class    = "db.t3.micro"
+  allocated_storage = 20
+  storage_type      = "gp3"
+
+  db_name = "morimori"
+  username = var.db_username
+  password = var.db_password
+
+  db_subnet_group_name   = aws_db_subnet_group.rds_subnets.name
+  vpc_security_group_ids = [aws_security_group.rds_sg.id]
+
+  multi_az = false
+
+  backup_retention_period = 7
+  skip_final_snapshot = true
+
+  publicly_accessible = false
+
+  tags = {
+    Name = "${var.prefix}-postgresql"
+    Team = var.team
+  }
 }

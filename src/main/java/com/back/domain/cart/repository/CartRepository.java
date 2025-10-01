@@ -4,6 +4,7 @@ import com.back.domain.cart.entity.Cart;
 import com.back.domain.product.product.entity.Product;
 import com.back.domain.user.entity.User;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
@@ -35,4 +36,8 @@ public interface CartRepository extends JpaRepository<Cart, Long> {
     List<Cart> findByUserWithProduct(@Param("user") User user);
 
     List<Cart> findByUserAndIsSelectedTrue(User user);
+
+    @Modifying
+    @Query("DELETE FROM Cart c WHERE c.user = :user AND c.product.id IN :productIds")
+    void deleteByUserAndProductIdIn(@Param("user") User user, @Param("productIds") List<Long> productIds);
 }

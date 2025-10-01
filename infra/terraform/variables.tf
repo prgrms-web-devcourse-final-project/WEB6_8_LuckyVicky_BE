@@ -5,7 +5,7 @@ variable "region" {
 
 variable "prefix" {
   description = "Prefix for all resources"
-  default     = "team7-morimori"
+  default     = "team07-morimori"
 }
 
 variable "morimori_domain" {
