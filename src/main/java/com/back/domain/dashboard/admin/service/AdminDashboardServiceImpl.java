@@ -57,7 +57,11 @@ public class AdminDashboardServiceImpl implements AdminDashboardService {
         long totalUsers = userRepository.count();
         long totalProducts = productRepository.count();
         long totalFundings = fundingRepository.count();
-        long artistCount = userRepository.countByRole(Role.ARTIST);
+        
+        // 작가 수는 직접 조회 (countByRole 제거됨)
+        long artistCount = userRepository.findAll().stream()
+                .filter(User::isArtist)
+                .count();
         
         // TODO: Order 테이블 연동 후 실제 주문 수, 매출 계산
         long orderCount = 0L; // orderRepository.count();
@@ -143,28 +147,12 @@ public class AdminDashboardServiceImpl implements AdminDashboardService {
                 pageable
         );
 
-        // 요약 정보 계산
-        long totalProducts = productRepository.count();
-        long sellingCount = productRepository.countBySellingStatusAndIsDeleted(SellingStatus.SELLING, false);
-        long beforeSellingCount = productRepository.countBySellingStatusAndIsDeleted(SellingStatus.BEFORE_SELLING, false);
-        long soldOutCount = productRepository.countBySellingStatusAndIsDeleted(SellingStatus.SOLD_OUT, false);
-        long endOfSaleCount = productRepository.countBySellingStatusAndIsDeleted(SellingStatus.END_OF_SALE, false);
-
-        AdminProductResponse.Summary summary = new AdminProductResponse.Summary(
-                (int) totalProducts,
-                (int) sellingCount,
-                (int) beforeSellingCount,
-                (int) soldOutCount,
-                (int) endOfSaleCount
-        );
-
         // Entity → DTO 변환
         List<AdminProductResponse.Product> products = productPage.getContent().stream()
                 .map(this::convertToProductDto)
                 .toList();
 
         return new AdminProductResponse(
-                summary,
                 products,
                 page,
                 size,
@@ -296,28 +284,12 @@ public class AdminDashboardServiceImpl implements AdminDashboardService {
                 pageable
         );
 
-        // 요약 정보 계산
-        long totalUsers = userRepository.count();
-        long activeUsers = userRepository.countByStatus(Status.ACTIVE);
-        long blockedUsers = userRepository.countByStatus(Status.BLOCKED);
-        long deletedUsers = userRepository.countByStatus(Status.DELETED);
-        long artistUsers = userRepository.countByRole(Role.ARTIST);
-
-        AdminUserResponse.Summary summary = new AdminUserResponse.Summary(
-                (int) totalUsers,
-                (int) activeUsers,
-                (int) blockedUsers,
-                (int) deletedUsers,
-                (int) artistUsers
-        );
-
         // Entity → DTO 변환
         List<AdminUserResponse.User> users = userPage.getContent().stream()
                 .map(this::convertToUserDto)
                 .toList();
 
         return new AdminUserResponse(
-                summary,
                 users,
                 page,
                 size,
@@ -525,30 +497,12 @@ public class AdminDashboardServiceImpl implements AdminDashboardService {
                 pageable
         );
 
-        // 요약 정보 계산
-        long totalFundings = fundingRepository.count();
-        long openFundings = fundingRepository.countByStatus(FundingStatus.OPEN);
-        long closedFundings = fundingRepository.countByStatus(FundingStatus.CLOSED);
-        long successFundings = fundingRepository.countByStatus(FundingStatus.SUCCESS);
-        long failedFundings = fundingRepository.countByStatus(FundingStatus.FAILED);
-        long canceledFundings = fundingRepository.countByStatus(FundingStatus.CANCELED);
-
-        AdminFundingResponse.Summary summary = new AdminFundingResponse.Summary(
-                (int) totalFundings,
-                (int) openFundings,
-                (int) closedFundings,
-                (int) successFundings,
-                (int) failedFundings,
-                (int) canceledFundings
-        );
-
         // Entity → DTO 변환
         List<AdminFundingResponse.Funding> fundings = fundingPage.getContent().stream()
                 .map(this::convertToFundingDto)
                 .toList();
 
         return new AdminFundingResponse(
-                summary,
                 fundings,
                 page,
                 size,

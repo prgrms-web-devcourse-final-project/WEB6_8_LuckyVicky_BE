@@ -5,10 +5,9 @@ import java.util.List;
 /**
  * 관리자 펀딩 모니터링 목록 응답 DTO
  * 2025.09.28 신규 생성
+ * 2025.10.01 Summary 제거 (화면에서 사용하지 않음)
  */
 public record AdminFundingResponse(
-        /** 요약 정보 */
-        Summary summary,
         /** 펀딩 목록 */
         List<Funding> content,
         /** 현재 페이지 */
@@ -24,24 +23,6 @@ public record AdminFundingResponse(
         /** 이전 페이지 존재 여부 */
         boolean hasPrevious
 ) {
-
-    /**
-     * 펀딩 요약 정보
-     */
-    public record Summary(
-            /** 전체 펀딩 수 */
-            int totalFundings,
-            /** 진행중 펀딩 수 (OPEN) */
-            int openFundings,
-            /** 종료 펀딩 수 (CLOSED) */
-            int closedFundings,
-            /** 성공 펀딩 수 (SUCCESS) */
-            int successFundings,
-            /** 실패 펀딩 수 (FAILED) */
-            int failedFundings,
-            /** 취소 펀딩 수 (CANCELED) */
-            int canceledFundings
-    ) {}
 
     /**
      * 펀딩 정보
