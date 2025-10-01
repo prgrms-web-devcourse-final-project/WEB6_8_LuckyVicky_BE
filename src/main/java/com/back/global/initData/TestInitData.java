@@ -6,6 +6,8 @@ import com.back.domain.funding.entity.Funding;
 import com.back.domain.funding.entity.FundingOption;
 import com.back.domain.funding.entity.FundingStatus;
 import com.back.domain.funding.repository.FundingRepository;
+import com.back.domain.product.category.entity.Category;
+import com.back.domain.product.category.repository.CategoryRepository;
 import com.back.domain.user.entity.Role;
 import com.back.domain.user.entity.User;
 import com.back.domain.user.repository.UserRepository;
@@ -36,6 +38,7 @@ public class TestInitData {
     private final AuthService authService;
     private final PasswordEncoder passwordEncoder;
     private final FundingRepository fundingRepository;
+    private final CategoryRepository categoryRepository;
     @Autowired
     private DevUserService devUserService;
 
@@ -44,6 +47,7 @@ public class TestInitData {
         return args -> {
             self.work1();
             self.work2();
+            self.work3(); // 카테고리 생성
         };
     }
 
@@ -58,7 +62,7 @@ public class TestInitData {
         devUserService.changeUserRoleByEmail("user1@user.com", Role.ARTIST);
     }
 
-    private void safeSignup(String email, String password, String passwordConfirm ,String name, String phone) {
+    private void safeSignup(String email, String password, String passwordConfirm, String name, String phone) {
         try {
             SignUpRequest req = new SignUpRequest(
                     email,
@@ -98,5 +102,83 @@ public class TestInitData {
 
         fundingRepository.save(funding);
         log.info("테스트 펀딩 저장 완료 id={}", funding.getId());
+    }
+
+    @Transactional
+    public void work3() {
+        // 카테고리 생성
+        log.info("테스트 카테고리 생성 시작");
+
+        // 상위 카테고리 생성
+        Category art = createCategoryIfNotExists("회화");
+        Category sculpture = createCategoryIfNotExists("조각");
+        Category craft = createCategoryIfNotExists("공예");
+        Category design = createCategoryIfNotExists("디자인");
+        Category photography = createCategoryIfNotExists("사진");
+
+        // 하위 카테고리 생성 (회화)
+        createSubCategoryIfNotExists("유화", art);
+        createSubCategoryIfNotExists("수채화", art);
+        createSubCategoryIfNotExists("아크릴화", art);
+
+        // 하위 카테고리 생성 (조각)
+        createSubCategoryIfNotExists("목조각", sculpture);
+        createSubCategoryIfNotExists("석조각", sculpture);
+        createSubCategoryIfNotExists("금속조각", sculpture);
+
+        // 하위 카테고리 생성 (공예)
+        createSubCategoryIfNotExists("도자기", craft);
+        createSubCategoryIfNotExists("유리공예", craft);
+        createSubCategoryIfNotExists("섬유공예", craft);
+
+        // 하위 카테고리 생성 (디자인)
+        createSubCategoryIfNotExists("제품디자인", design);
+        createSubCategoryIfNotExists("그래픽디자인", design);
+        createSubCategoryIfNotExists("패션디자인", design);
+
+        // 하위 카테고리 생성 (사진)
+        createSubCategoryIfNotExists("풍경사진", photography);
+        createSubCategoryIfNotExists("인물사진", photography);
+        createSubCategoryIfNotExists("예술사진", photography);
+
+        log.info("테스트 카테고리 생성 완료");
+    }
+
+    /**
+     * 카테고리가 없으면 생성
+     */
+    private Category createCategoryIfNotExists(String categoryName) {
+        return categoryRepository.findAll().stream()
+                .filter(c -> c.getCategoryName().equals(categoryName))
+                .findFirst()
+                .orElseGet(() -> {
+                    Category category = Category.builder()
+                            .categoryName(categoryName)
+                            .parent(null)
+                            .build();
+                    Category saved = categoryRepository.save(category);
+                    log.info("카테고리 생성: {}", categoryName);
+                    return saved;
+                });
+    }
+
+    /**
+     * 하위 카테고리가 없으면 생성
+     */
+    private Category createSubCategoryIfNotExists(String categoryName, Category parent) {
+        return categoryRepository.findAll().stream()
+                .filter(c -> c.getCategoryName().equals(categoryName) &&
+                        c.getParent() != null &&
+                        c.getParent().getId().equals(parent.getId()))
+                .findFirst()
+                .orElseGet(() -> {
+                    Category category = Category.builder()
+                            .categoryName(categoryName)
+                            .parent(parent)
+                            .build();
+                    Category saved = categoryRepository.save(category);
+                    log.info("하위 카테고리 생성: {} (부모: {})", categoryName, parent.getCategoryName());
+                    return saved;
+                });
     }
 }
