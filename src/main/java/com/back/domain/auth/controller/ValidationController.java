@@ -14,10 +14,10 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-@Tag(name = "Duplicate Validation", description = "중복 검증 API")
 @RestController
 @RequestMapping("/api/auth/duplicate")
 @RequiredArgsConstructor
+@Tag(name = "중복 검증", description = "검증 관련 API")
 public class ValidationController {
 
     private final ValidationService validationService;

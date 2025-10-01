@@ -21,6 +21,11 @@ spring:
         format_sql: true
         highlight_sql: true
         use_sql_comments: true
+  task:
+    scheduling:
+      pool:
+        size: 5  # 스케줄러 스레드 풀 크기
+      thread-name-prefix: funding-scheduler-
   # OAuth2 설정
   security:
     oauth2:
