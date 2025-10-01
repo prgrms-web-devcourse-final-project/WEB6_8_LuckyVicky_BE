@@ -1,5 +1,6 @@
 package com.back.global.s3;
 
+import com.back.global.exception.ServiceException;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -104,13 +105,17 @@ class S3ServiceTest {
                 }
                 System.out.println("--- S3 테스트 파일 삭제 완료 ---");
 
-                // then: 삭제가 잘 되었는지 최종 확인 (파일이 없어서 예외가 발생해야 성공)
-                assertThrows(IllegalArgumentException.class, () -> {
-                    s3ValidationService.validateFileExists(keysToDelete.get(0));
-                });
-                assertThrows(IllegalArgumentException.class, () -> {
-                    s3ValidationService.validateFileExists(keysToDelete.get(1));
-                });
+                // then: 삭제가 잘 되었는지 최종 확인 (파일이 없어서 ServiceException 발생)
+                ServiceException ex1 = assertThrows(ServiceException.class, () ->
+                        s3ValidationService.validateFileExists(keysToDelete.get(0)));
+                assertThat(ex1.getResultCode()).isEqualTo("400");
+                assertThat(ex1.getMsg()).contains("S3에 파일이 존재하지 않습니다");
+
+                ServiceException ex2 = assertThrows(ServiceException.class, () ->
+                        s3ValidationService.validateFileExists(keysToDelete.get(1)));
+                assertThat(ex2.getResultCode()).isEqualTo("400");
+                assertThat(ex2.getMsg()).contains("S3에 파일이 존재하지 않습니다");
+
             }
         }
     }
@@ -157,9 +162,10 @@ class S3ServiceTest {
                 System.out.println("삭제 완료: " + keysToDelete.get(0));
 
                 // 삭제 확인
-                assertThrows(IllegalArgumentException.class, () -> {
-                    s3ValidationService.validateFileExists(keysToDelete.get(0));
-                });
+                ServiceException ex = assertThrows(ServiceException.class, () ->
+                        s3ValidationService.validateFileExists(keysToDelete.get(0)));
+                assertThat(ex.getResultCode()).isEqualTo("400");
+                assertThat(ex.getMsg()).contains("S3에 파일이 존재하지 않습니다");
             }
         }
     }

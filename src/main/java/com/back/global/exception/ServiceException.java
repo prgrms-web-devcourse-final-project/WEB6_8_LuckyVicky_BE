@@ -12,6 +12,13 @@ public class ServiceException extends RuntimeException {
         this.msg = msg;
     }
 
+    // cause 포함 생성자 추가
+    public ServiceException(String resultCode, String msg, Throwable cause) {
+        super(resultCode + " : " + msg, cause);
+        this.resultCode = resultCode;
+        this.msg = msg;
+    }
+
     // 예외 발생 시 클라이언트에게 전달할 ResultCode 반환
     public String getResultCode() {
         return resultCode;
