@@ -1,5 +1,7 @@
 package com.back.domain.user.service;
 
+import com.back.domain.user.dto.request.UpdateUserInfoRequest;
+import com.back.domain.user.dto.response.UserProfileResponse;
 import com.back.domain.user.entity.Grade;
 import com.back.domain.user.entity.Status;
 import com.back.domain.user.entity.User;
@@ -7,6 +9,7 @@ import com.back.domain.user.repository.UserRepository;
 import com.back.global.exception.ServiceException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -20,6 +23,7 @@ import org.springframework.transaction.annotation.Transactional;
 public class UserService {
 
     private final UserRepository userRepository;
+    private final PasswordEncoder passwordEncoder;
 
     /**
      * 사용자 조회
@@ -36,6 +40,67 @@ public class UserService {
     public User getUserByEmail(String email) {
         return userRepository.findByEmail(email)
                 .orElseThrow(() -> new ServiceException("404", "사용자를 찾을 수 없습니다."));
+    }
+
+    /**
+     * 사용자 프로필 조회
+     */
+    public UserProfileResponse getUserProfile(Long userId) {
+        User user = getUserById(userId);
+        return UserProfileResponse.from(user);
+    }
+
+    /**
+     * 사용자 공개 프로필 조회 (민감 정보 제외)
+     */
+    public UserProfileResponse getUserPublicProfile(Long userId) {
+        User user = getUserById(userId);
+        return UserProfileResponse.publicProfile(user);
+    }
+
+    /**
+     * 사용자 정보 수정
+     */
+    @Transactional
+    public UserProfileResponse updateUserInfo(Long userId, UpdateUserInfoRequest request) {
+        User user = getUserById(userId);
+
+        // 1. 비밀번호 확인 검증 (비밀번호 입력한 경우)
+        if (request.isPasswordChange() && !request.isPasswordMatching()) {
+            throw new ServiceException("400", "비밀번호와 비밀번호 확인이 일치하지 않습니다.");
+        }
+
+        // 2. 닉네임 중복 체크 (본인 제외)
+        if (!user.getName().equals(request.name()) &&
+            userRepository.existsByName(request.name())) {
+            throw new ServiceException("400", "이미 사용 중인 닉네임입니다.");
+        }
+
+        // 3. 프로필 정보 수정
+        user.updateProfile(
+                request.name(),
+                request.phone(),
+                request.address(),
+                request.detailAddress(),
+                request.zipCode(),
+                request.profileImageUrl()
+        );
+
+        // 4. 비밀번호 변경 (입력한 경우)
+        if (request.isPasswordChange()) {
+            if (user.isOAuthUser()) {
+                throw new ServiceException("400", "OAuth2 사용자 계정은 비밀번호를 변경할 수 없습니다.");
+            }
+
+            String encodedPassword = passwordEncoder.encode(request.password());
+            user.changePassword(encodedPassword);
+
+            log.info("비밀번호 변경 완료 - userId: {}", userId);
+        }
+
+        log.info("사용자 정보 수정 완료 - userId: {}, nickname: {}", userId, request.name());
+
+        return UserProfileResponse.from(user);
     }
 
     // ===== 작가 관련 ===== //
