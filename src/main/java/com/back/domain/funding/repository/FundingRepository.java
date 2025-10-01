@@ -13,7 +13,7 @@ import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 
-public interface FundingRepository extends JpaRepository<Funding, Long>, JpaSpecificationExecutor<Funding> {
+public interface FundingRepository extends JpaRepository<Funding, Long>, JpaSpecificationExecutor<Funding>, FundingCustomRepository {
 
 
     // 펀딩 상세 조회 (작성자 + 옵션 포함)

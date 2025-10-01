@@ -1,6 +1,7 @@
 package com.back.domain.funding.service;
 
 import com.back.domain.funding.dto.request.FundingCreateRequest;
+import com.back.domain.funding.dto.response.FundingCardDto;
 import com.back.domain.funding.dto.response.FundingDetailResponse;
 import com.back.domain.funding.entity.Funding;
 import com.back.domain.funding.entity.FundingOption;
@@ -13,12 +14,18 @@ import com.back.global.exception.ServiceException;
 import com.back.global.s3.S3ValidationService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
 import java.util.List;
+import java.util.Set;
 
 @Slf4j
 @Service
@@ -98,4 +105,53 @@ public class FundingService {
 
     // null을 0L로 변환
     private long nz(Long v) { return v == null ? 0L : v; }
+
+    @Transactional(readOnly = true)
+    public Page<FundingCardDto> getFundingList(
+            Set<FundingStatus> statuses,
+            String sortBy,
+            String keyword,
+            Long minPrice,
+            Long maxPrice,
+            int page,
+            int size
+    ) {
+        // 정렬 생성
+        Sort sort = createSort(sortBy);
+        Pageable pageable = PageRequest.of(page, size, sort);
+
+        // Custom Repository 메서드 호출
+        Page<Funding> fundingPage = fundingRepository.findByFilters(
+                statuses, keyword, minPrice, maxPrice, pageable
+        );
+
+        // DTO 변환
+        return fundingPage.map(this::toCardDto);
+    }
+
+    private Sort createSort(String sortBy) {
+        // null 처리 및 소문자 변환
+        String safeSortBy = (sortBy != null) ? sortBy.trim().toLowerCase() : "recent";
+        // 정렬 기준에 따른 Sort 객체 생성
+        return switch (sortBy) {
+            case "popular" -> Sort.by(Sort.Direction.DESC, "participantCount");
+            case "deadline" -> Sort.by(Sort.Direction.ASC, "endDate");
+            case "recent" -> Sort.by(Sort.Direction.DESC, "createDate");
+            case "highAmount" -> Sort.by(Sort.Direction.DESC, "targetAmount");
+            default -> Sort.by(Sort.Direction.DESC, "createDate");
+        };
+    }
+
+    private FundingCardDto toCardDto(Funding funding) {
+        long currentAmount = funding.getCollectedAmount();
+        double progress = (funding.getTargetAmount() > 0)
+                ? (double) currentAmount / funding.getTargetAmount() * 100
+                : 0;
+        int remainingDays = (int) ChronoUnit.DAYS.between(
+                LocalDateTime.now(),
+                funding.getEndDate()
+        );
+
+        return new FundingCardDto(funding, currentAmount, progress, remainingDays);
+    }
 }
