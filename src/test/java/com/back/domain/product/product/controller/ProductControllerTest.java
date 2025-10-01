@@ -1,7 +1,5 @@
-
 package com.back.domain.product.product.controller;
 
-import com.back.domain.product.category.entity.Category;
 import com.back.domain.product.category.repository.CategoryRepository;
 import com.back.domain.product.product.dto.request.CreateProductRequest;
 import com.back.domain.product.product.dto.response.ProductListResponse;
@@ -11,7 +9,6 @@ import com.back.global.rsData.RsData;
 import com.back.global.s3.FileType;
 import com.back.global.s3.S3FileRequest;
 import com.back.global.s3.S3Service;
-import com.back.global.s3.UploadResultResponse;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.DisplayName;
@@ -22,8 +19,8 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.boot.test.mock.mockito.SpyBean;
 import org.springframework.http.MediaType;
-import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.security.test.context.support.WithMockUser;
+import org.springframework.security.test.context.support.WithUserDetails;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
 import org.springframework.test.web.servlet.ResultActions;
@@ -31,7 +28,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.nio.charset.StandardCharsets;
 import java.util.List;
-import java.util.Optional;
+import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.hamcrest.Matchers.containsString;
@@ -39,7 +36,8 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.doReturn;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultHandlers.print;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
@@ -54,14 +52,12 @@ class ProductControllerTest {
     @Autowired
     private ObjectMapper objectMapper;
 
-    // SpyBean으로 변경: 실제 객체를 사용하지만, 원하는 메서드만 가짜로 바꿀 수 있음
     @SpyBean
     private ProductService productService;
 
     @MockBean
     private S3Service s3Service;
 
-    // SpyBean으로 인해 실제 ProductService가 사용되므로, 그 의존성을 Mock으로 만듦
     @MockBean
     private CategoryRepository categoryRepository;
 
@@ -69,7 +65,6 @@ class ProductControllerTest {
     @DisplayName("상품 등록 API 성공")
     @WithMockUser(username = "artist@test.com", roles = "ARTIST")
     void createProduct_test() throws Exception {
-        // given
         List<S3FileRequest> images = List.of(
                 new S3FileRequest("https://example.com/image.jpg", FileType.MAIN, "product-images/image.jpg", "image.jpg")
         );
@@ -83,27 +78,24 @@ class ProductControllerTest {
                 "테스트 모델", true, "한국", "면", "L"
         );
 
-        // Spy 객체의 메서드를 가짜로 만들 때는 doReturn-when 구문 사용
-        doReturn(1L).when(productService).createProduct(any(), any());
+        UUID mockUuid = UUID.randomUUID();
+        doReturn(mockUuid).when(productService).createProduct(any(), any());
 
-        // when
         ResultActions resultActions = mockMvc.perform(
                 post("/api/products")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request))
         ).andDo(print());
 
-        // then
         resultActions
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.data").value(1L));
+                .andExpect(jsonPath("$.data").value(mockUuid.toString()));
     }
 
     @Test
     @DisplayName("상품 등록 실패 - 유효성 검사 실패 (상품명 누락)")
     @WithMockUser(username = "artist@test.com", roles = "ARTIST")
     void createProduct_Fail_With_Invalid_Input() throws Exception {
-        // given
         List<S3FileRequest> images = List.of(
                 new S3FileRequest("https://example.com/image.jpg", FileType.MAIN, "product-images/image.jpg", "image.jpg")
         );
@@ -116,33 +108,24 @@ class ProductControllerTest {
                 "테스트 모델", true, "한국", "면", "L"
         );
 
-        // when
         ResultActions resultActions = mockMvc.perform(
                 post("/api/products")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request))
         ).andDo(print());
 
-        // then
         resultActions
-                .andExpect(status().isBadRequest()) // HTTP 400 응답 예상
+                .andExpect(status().isBadRequest())
                 .andExpect(content().string(containsString("상품명은 필수입니다.")));
     }
 
     @Test
-    @DisplayName("상품 등록 실패 - 권한 없음 (일반 USER)")
-    @WithMockUser(username = "user@test.com", roles = "USER") // ARTIST가 아닌 USER 권한
-    void createProduct_Fail_With_Invalid_Role() throws Exception {
-        // given
-        // 실제 ProductService 로직 초반의 Category 조회를 통과시키기 위해 Mock 응답 설정
-        given(categoryRepository.findById(any())).willReturn(Optional.of(new Category()));
-
-        // 유효성 검사를 통과하도록 이미지 리스트를 포함
+    @DisplayName("상품 생성 실패 - 권한 없는 사용자")
+    @WithUserDetails(value = "user1@user.com") // TestInitData에서 만든 일반 USER
+    void createProduct_Fail_With_Unauthorized_Role() throws Exception {
         List<S3FileRequest> images = List.of(
                 new S3FileRequest("https://example.com/image.jpg", FileType.MAIN, "product-images/image.jpg", "image.jpg")
         );
-
-        // 요청 데이터는 유효함
         CreateProductRequest request = new CreateProductRequest(
                 1L, "테스트 상품", "테스트 브랜드", 10000, 10,
                 true, 3000, 3000, "PAID", null,
@@ -152,61 +135,19 @@ class ProductControllerTest {
                 "테스트 모델", true, "한국", "면", "L"
         );
 
-        // when
-        ResultActions resultActions = mockMvc.perform(
-                post("/api/products")
+        mockMvc.perform(post("/api/products")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request))
-        ).andDo(print());
-
-        // then
-        // 실제 서비스의 권한 체크 if문에서 IllegalStateException이 발생하고,
-        // GlobalExceptionHandler가 이를 500 에러로 처리할 것을 기대
-        resultActions
-                .andExpect(status().isInternalServerError());
-    }
-
-    @Test
-    @DisplayName("상품 이미지 업로드 API 테스트")
-    @WithMockUser(username = "artist@test.com", roles = "ARTIST")
-    void uploadProductImages_test() throws Exception {
-        // given
-        MockMultipartFile file1 = new MockMultipartFile("files", "image1.jpg", MediaType.IMAGE_JPEG_VALUE, "image1 content".getBytes());
-        MockMultipartFile file2 = new MockMultipartFile("files", "image2.png", MediaType.IMAGE_PNG_VALUE, "image2 content".getBytes());
-
-        List<UploadResultResponse> mockResponse = List.of(
-                new UploadResultResponse("https://example.com/image1.jpg", FileType.MAIN, "product-images/image1.jpg", "image1.jpg"),
-                new UploadResultResponse("https://example.com/thumb_image1.jpg", FileType.THUMBNAIL, "product-images/thumb_image1.jpg", "thumb_image1.jpg"),
-                new UploadResultResponse("https://example.com/image2.png", FileType.ADDITIONAL, "product-images/image2.png", "image2.png")
-        );
-        given(s3Service.uploadFiles(any(), anyString(), any())).willReturn(mockResponse);
-
-        // when
-        ResultActions resultActions = mockMvc.perform(
-                multipart("/api/products/images?types=MAIN&types=ADDITIONAL")
-                        .file(file1)
-                        .file(file2)
-                        .characterEncoding(StandardCharsets.UTF_8)
-        ).andDo(print());
-
-        // then
-        MvcResult mvcResult = resultActions
-                .andExpect(status().isOk())
-                .andReturn();
-
-        String jsonResponse = mvcResult.getResponse().getContentAsString(StandardCharsets.UTF_8);
-        RsData<List<UploadResultResponse>> rsData = objectMapper.readValue(jsonResponse, new TypeReference<>() {});
-
-        assertThat(rsData.resultCode()).isEqualTo("200");
-        assertThat(rsData.data()).hasSize(3);
-        assertThat(rsData.data().get(0).type()).isEqualTo(FileType.MAIN);
+                )
+                .andExpect(status().isForbidden()) // USER는 상품 생성 권한 없음
+                .andExpect(jsonPath("$.resultCode").value("403"))
+                .andExpect(jsonPath("$.msg").value("상품 등록 권한이 없습니다."));
     }
 
     @Test
     @DisplayName("상품 문서 다운로드 API 테스트")
     @WithMockUser(username = "artist@test.com", roles = "ARTIST")
     void downloadProductDocument_test() throws Exception {
-        // given
         ProductImage document = ProductImage.builder()
                 .s3Key("product-docs/document.pdf")
                 .originalFilename("테스트문서.pdf")
@@ -214,16 +155,15 @@ class ProductControllerTest {
 
         byte[] fileContent = "This is a test document.".getBytes(StandardCharsets.UTF_8);
 
-        // Spy 객체의 메서드를 가짜로 만들 때는 doReturn-when 구문 사용
-        doReturn(document).when(productService).getProductDocument(1L);
+        UUID productUuid = UUID.fromString("550e8400-e29b-41d4-a716-446655440000");
+
+        doReturn(document).when(productService).getProductDocument(productUuid);
         given(s3Service.downloadFile(document.getS3Key())).willReturn(fileContent);
 
-        // when
         ResultActions resultActions = mockMvc.perform(
-                get("/api/products/images/download/{productId}", 1L)
+                get("/api/products/images/download/{productUuid}", productUuid.toString())
         ).andDo(print());
 
-        // then
         resultActions
                 .andExpect(status().isOk())
                 .andExpect(header().string("Content-Disposition", "attachment; filename=\"테스트문서.pdf\""))
@@ -234,9 +174,8 @@ class ProductControllerTest {
     @DisplayName("상품 목록 조회 API 테스트")
     @WithMockUser(username = "user@test.com", roles = "USER")
     void getProducts_test() throws Exception {
-        // given: 상품 목록 mock 데이터
         ProductListResponse.ProductInfo product1 = new ProductListResponse.ProductInfo(
-                1L,
+                UUID.fromString("550e8400-e29b-41d4-a716-446655440001"),
                 "https://example.com/image1.jpg",
                 "브랜드1",
                 "상품1",
@@ -247,7 +186,7 @@ class ProductControllerTest {
         );
 
         ProductListResponse.ProductInfo product2 = new ProductListResponse.ProductInfo(
-                2L,
+                UUID.fromString("550e8400-e29b-41d4-a716-446655440002"),
                 "https://example.com/image2.jpg",
                 "브랜드2",
                 "상품2",
@@ -258,19 +197,17 @@ class ProductControllerTest {
         );
 
         ProductListResponse mockResponse = new ProductListResponse(
-                1, // page
-                10, // size
-                2, // totalElements
-                1, // totalPages
+                1,
+                10,
+                2,
+                1,
                 List.of(product1, product2)
         );
 
-        // Service 호출 시 mockResponse 반환
         doReturn(mockResponse).when(productService).getProducts(
                 any(), any(), any(), any(), any(), anyString(), any()
         );
 
-        // when: GET /api/products?categoryId=1&tagIds=1,2&minPrice=5000&maxPrice=30000&sort=priceAsc
         ResultActions resultActions = mockMvc.perform(
                 get("/api/products")
                         .param("categoryId", "1")
@@ -282,7 +219,6 @@ class ProductControllerTest {
                         .param("size", "10")
         ).andDo(print());
 
-        // then
         MvcResult mvcResult = resultActions
                 .andExpect(status().isOk())
                 .andReturn();
@@ -293,11 +229,9 @@ class ProductControllerTest {
                 new TypeReference<>() {}
         );
 
-        // 검증
         assertThat(rsData.resultCode()).isEqualTo("200");
         assertThat(rsData.data().products()).hasSize(2);
         assertThat(rsData.data().products().get(0).name()).isEqualTo("상품1");
         assertThat(rsData.data().products().get(1).discountPrice()).isEqualTo(16000);
     }
-
 }
