@@ -1,13 +1,12 @@
 package com.back.domain.dashboard.customer.service;
 
-import com.back.domain.dashboard.customer.dto.response.*;
+import com.back.domain.dashboard.customer.dto.response.FundingResponse;
 import com.back.domain.funding.entity.Funding;
 import com.back.domain.funding.entity.FundingContribution;
 import com.back.domain.funding.entity.FundingOption;
 import com.back.domain.funding.entity.FundingStatus;
 import com.back.domain.funding.repository.FundingContributionRepository;
 import com.back.domain.funding.repository.FundingRepository;
-import com.back.domain.user.entity.Role;
 import com.back.domain.user.entity.User;
 import com.back.domain.user.repository.UserRepository;
 import com.back.global.security.jwt.JwtTokenProvider;
@@ -74,7 +73,7 @@ class DashboardServiceImplTest {
                 "테스트작가",
                 "01087654321"
         );
-        testArtist.changeRole(Role.ARTIST);  // 작가 역할로 변경
+        testArtist.becomeArtist();  // 작가 역할로 변경
         testArtist = userRepository.save(testArtist);
 
         // JWT 토큰 생성
