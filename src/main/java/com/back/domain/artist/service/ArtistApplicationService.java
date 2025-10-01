@@ -1,0 +1,162 @@
+package com.back.domain.artist.service;
+
+import com.back.domain.artist.dto.request.ArtistApplicationRequest;
+import com.back.domain.artist.dto.response.ArtistApplicationResponse;
+import com.back.domain.artist.dto.response.ArtistApplicationSimpleResponse;
+import com.back.domain.artist.entity.ApplicationStatus;
+import com.back.domain.artist.entity.ArtistApplication;
+import com.back.domain.artist.entity.ArtistDocument;
+import com.back.domain.artist.entity.DocumentType;
+import com.back.domain.artist.repository.ArtistApplicationRepository;
+import com.back.domain.user.entity.User;
+import com.back.domain.user.repository.UserRepository;
+import com.back.global.exception.ServiceException;
+import com.back.global.s3.S3FileRequest;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
+
+/**
+ * 사용자용 작가 신청 서비스
+ */
+@Slf4j
+@Service
+@RequiredArgsConstructor
+@Transactional(readOnly = true)
+public class ArtistApplicationService {
+
+    private final ArtistApplicationRepository artistApplicationRepository;
+    private final UserRepository userRepository;
+
+    /**
+     * 작가 신청서 생성
+     */
+    @Transactional
+    public Long createApplication(Long userId, ArtistApplicationRequest request) {
+        // 1. 사용자 조회
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new ServiceException("404", "사용자를 찾을 수 없습니다."));
+
+        // 2. 중복 신청 검증 (심사 대기 중인 신청서가 있는지)
+        validateDuplicateApplication(userId);
+
+        // 3. 필수 서류 검증
+        if (!request.hasRequiredDocuments()) {
+            throw new ServiceException("400", "필수 서류가 누락되었습니다." + request.getMissingRequiredDocuments());
+        }
+
+        // 4. 작가 신청서 엔티티 생성 및 저장
+        ArtistApplication savedApplication = createAndSaveApplication(user, request);
+
+        // 5. 서류 정보 저장 (ArtistDocument 엔티티 생성)
+        List<ArtistDocument> documents = createDocuments(savedApplication, request.documents());
+        savedApplication.getDocuments().addAll(documents);
+
+        log.info("작가 신청서 생성 완료: userId={}, applicationId={}", userId, savedApplication.getId());
+
+        return savedApplication.getId();
+    }
+
+    /**
+     * 내 신청서 목록 조회
+     */
+    public List<ArtistApplicationSimpleResponse> getMyApplications(Long userId) {
+        // 사용자 존재 여부 확인
+        if (!userRepository.existsById(userId)) {
+            throw new ServiceException("404", "사용자를 찾을 수 없습니다.");
+        }
+
+        List<ArtistApplication> applications = artistApplicationRepository.findByUserIdOrderByCreateDateDesc(userId);
+
+        return applications.stream()
+                .map(ArtistApplicationSimpleResponse::from)
+                .toList();
+    }
+
+    /**
+     * 내 신청서 상세 조회
+     */
+    public ArtistApplicationResponse getApplicationById(Long userId, Long applicationId) {
+        ArtistApplication application = artistApplicationRepository.findById(applicationId)
+                .orElseThrow(() -> new ServiceException("404", "신청서를 찾을 수 없습니다."));
+
+        // 본인 신청서인지 확인
+        if (!application.getUser().getId().equals(userId)) {
+            throw new ServiceException("403", "본인의 신청서만 조회할 수 있습니다.");
+        }
+
+        return ArtistApplicationResponse.from(application);
+    }
+
+
+    // ==== 헬퍼 메서드 ==== //
+
+    /**
+     * 중복 신청 검증
+     */
+    private void validateDuplicateApplication(Long userId) {
+        boolean exists = artistApplicationRepository.existsByUserIdAndStatus(userId, ApplicationStatus.PENDING);
+
+        if (exists) {
+            throw new ServiceException("400", "이미 심사 대기 중인 신청서가 있습니다.");
+        }
+    }
+
+    /**
+     * 신청서 엔티티 생성 및 저장
+     */
+    private ArtistApplication createAndSaveApplication(User user, ArtistApplicationRequest request) {
+        ArtistApplication application = ArtistApplication.builder()
+                .user(user)
+                .ownerName(request.ownerName())
+                .email(request.email())
+                .phone(request.phone())
+                .artistName(request.artistName())
+                .businessNumber(request.businessNumber())
+                .businessName(request.businessName())
+                .businessAddress(request.businessAddress())
+                .businessAddressDetail(request.businessAddressDetail())
+                .businessZipCode(request.businessZipCode())
+                .telecomSalesNumber(request.telecomSalesNumber())
+                .snsAccount(request.snsAccount())
+                .mainProducts(request.mainProducts())
+                .managerPhone(request.managerPhone())
+                .bankName(request.bankName())
+                .bankAccount(request.bankAccount())
+                .accountName(request.accountName())
+                .build();
+
+        return artistApplicationRepository.save(application);
+    }
+
+    /**
+     * 서류 엔티티 생성
+     */
+    private List<ArtistDocument> createDocuments(
+            ArtistApplication application,
+            Map<DocumentType, List<S3FileRequest>> documentsMap
+    ) {
+        List<ArtistDocument> documents = new ArrayList<>();
+
+        for (Map.Entry<DocumentType, List<S3FileRequest>> entry : documentsMap.entrySet()) {
+            DocumentType documentType = entry.getKey();
+            List<S3FileRequest> files = entry.getValue();
+
+            for (S3FileRequest file : files) {
+                ArtistDocument document = ArtistDocument.fromS3FileRequest(
+                        application,
+                        documentType,
+                        file
+                );
+                documents.add(document);
+            }
+        }
+
+        return documents;
+    }
+}

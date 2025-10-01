@@ -9,7 +9,6 @@ import com.back.domain.funding.repository.FundingRepository;
 import com.back.domain.user.entity.Role;
 import com.back.domain.user.entity.User;
 import com.back.domain.user.repository.UserRepository;
-import com.back.domain.user.user.DevUserService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -36,8 +35,6 @@ public class TestInitData {
     private final AuthService authService;
     private final PasswordEncoder passwordEncoder;
     private final FundingRepository fundingRepository;
-    @Autowired
-    private DevUserService devUserService;
 
     @Bean
     ApplicationRunner testInitDataApplicationRunner() {
@@ -49,13 +46,15 @@ public class TestInitData {
 
     @Transactional
     public void work1() {
-        safeSignup("admin@admin.com", "1234qwer!", "1234qwer!", "관리자", "010-1234-0000");
         safeSignup("user1@user.com", "1234qwer!", "1234qwer!", "유저1", "010-1234-5678");
         safeSignup("user2@user.com", "1234qwer!", "1234qwer!", "유저2", "010-2345-6789");
         safeSignup("user3@user.com", "1234qwer!", "1234qwer!", "유저3", "010-3456-7890");
 
-        devUserService.changeUserRoleByEmail("admin@admin.com", Role.ADMIN);
-        devUserService.changeUserRoleByEmail("user1@user.com", Role.ARTIST);
+        User user1 = userRepository.findByEmail("user1@user.com").orElseThrow();
+        user1.becomeArtist();
+
+        createUser("artist1@artist.com", "1234qwer!", "작가1", "010-2111-1111", Role.ARTIST);
+        createUser("admin1@admin.com", "1234qwer!", "관리자1", "010-3111-1111", Role.ADMIN);
     }
 
     private void safeSignup(String email, String password, String passwordConfirm ,String name, String phone) {
@@ -75,6 +74,21 @@ public class TestInitData {
         } catch (IllegalArgumentException e) {
             log.debug("Skip creating member ({}): {}", email, e.getMessage());
         }
+    }
+
+    private void createUser(String email, String password, String name, String phone, Role role) {
+        String encodedPassword = passwordEncoder.encode(password);
+        User user = User.createLocalUser(email, encodedPassword, name, phone);
+
+        // 역할에 따라 승급
+        switch (role) {
+            case ARTIST -> user.becomeArtist();
+            case ADMIN -> user.becomeAdmin();
+            case USER -> {} // 기본값
+            default -> throw new IllegalArgumentException("지원하지 않는 Role: " + role);
+        }
+
+        userRepository.save(user);
     }
 
     @Transactional

@@ -1,5 +1,6 @@
 package com.back.domain.user.entity;
 
+import com.back.global.exception.ServiceException;
 import com.back.global.jpa.entity.BaseEntity;
 import jakarta.persistence.*;
 import lombok.AccessLevel;
@@ -59,7 +60,12 @@ public class User extends BaseEntity {
 
     private LocalDateTime termsAgreedAt;
 
-    // 정적 팩토리 메서드 - 로컬 회원가입
+
+    // ===== 정적 팩토리 메서드 ===== //
+
+    /**
+     * 로컬 회원가입 사용자 생성
+     */
     public static User createLocalUser(String email, String password, String name, String phone) {
         User user = new User();
         user.email = email;
@@ -79,97 +85,9 @@ public class User extends BaseEntity {
         return user;
     }
 
-    // 로그인 가능한 역할 목록 반환
-    public List<Role> getAvailableLoginRoles() {
-        return role.getAvailableRoles();
-    }
-
-    // 특정 역할로 로그인 가능한지 확인
-    public boolean canLoginAs(Role targetRole) {
-        return role.canLoginAs(targetRole);
-    }
-
-
     /**
-     * Tell, Don't Ask 메서드들
+     * OAuth 회원가입 사용자 생성
      */
-
-    // 관리자인지 확인
-    public boolean isAdmin() {
-        return Role.ADMIN.equals(this.role);
-    }
-
-    // 아티스트인지 확인
-    public boolean isArtist() {
-        return Role.ARTIST.equals(this.role) && Boolean.TRUE.equals(this.isArtistVerified);
-    }
-
-    // 돈이 충분한지 확인
-    public boolean hasEnoughMoney(int amount) {
-        return this.money >= amount;
-    }
-
-    // 본인인지 확인 (ID 비교)
-    public boolean isSameUser(Long userId) {
-        return userId != null && this.getId().equals(userId);
-    }
-
-    // 본인인지 확인 (User 객체 비교)
-    public boolean isSameUser(User user) {
-        return user != null && this.getId().equals(user.getId());
-    }
-
-
-    /**
-     * 개발용 임시 메서드들 (추후 삭제 예정)
-     * TODO: 작가 신청/승인 API 완성 후 삭제
-     */
-
-    // 개발용: 역할 변경 (임시)
-    public void changeRole(Role newRole) {
-        Role previousRole = this.role;
-        this.role = newRole;
-
-        switch (newRole) {
-            case ARTIST:
-                this.isArtistVerified = true;
-                this.artistVerifiedAt = LocalDateTime.now();
-                break;
-
-            case ADMIN:
-            case ROOT:
-                // 관리자 권한으로 변경 시 아티스트 인증은 유지하되,
-                // 기존에 ARTIST가 아니었다면 인증 해제
-                if (!Role.ARTIST.equals(previousRole)) {
-                    this.isArtistVerified = false;
-                    this.artistVerifiedAt = null;
-                }
-                break;
-
-            case USER:
-            default:
-                // 일반 사용자나 기타 역할로 변경 시 아티스트 인증 해제
-                this.isArtistVerified = false;
-                this.artistVerifiedAt = null;
-                break;
-        }
-    }
-
-    // 개발용: 돈 설정 (임시)
-    public void setMoney(int money) {
-        this.money = Math.max(0, money);
-    }
-
-    // 개발용: 등급 변경 (임시)
-    public void changeGrade(Grade newGrade) {
-        this.grade = newGrade;
-    }
-
-    /**
-     * OAuth 관련 메서드들
-     */
-
-    // 정적 팩토리 메서드 - OAuth 회원가입
     public static User createOAuthUser(String email, String name, Provider provider, String providerId) {
         User user = new User();
         user.email = email;
@@ -192,12 +110,173 @@ public class User extends BaseEntity {
         return user;
     }
 
-    // 소셜 로그인 사용자인지 확인
+    // ===== 역할 관련 메서드 ===== //
+
+    /**
+     * 로그인 가능한 역할 목록 반환
+     */
+    public List<Role> getAvailableLoginRoles() {
+        return role.getAvailableRoles();
+    }
+
+    /**
+     * 특정 역할로 로그인 가능한지 확인
+     */
+    public boolean canLoginAs(Role targetRole) {
+        return role.canLoginAs(targetRole);
+    }
+
+    /**
+     * 관리자 권한 보유 여부 확인
+     */
+    public boolean isAdmin() {
+        return Role.ADMIN.equals(this.role);
+    }
+
+    /**
+     * 작가 권한 보유 여부 확인 (인증 완료 필수)
+     */
+    public boolean isArtist() {
+        return Role.ARTIST.equals(this.role) && Boolean.TRUE.equals(this.isArtistVerified);
+    }
+
+    /**
+     * 작가 자격 획득 (신청 승인 시 사용)
+     */
+    public void becomeArtist() {
+        this.role = Role.ARTIST;
+        this.isArtistVerified = true;
+        this.artistVerifiedAt = LocalDateTime.now();
+    }
+
+    /**
+     * 작가 자격 상실 (관리자 권한 필요)
+     */
+    public void revokeArtistRole() {
+        if (!Role.ARTIST.equals(this.role)) {
+            throw new ServiceException("400", "작가 권한이 없는 사용자입니다.");
+        }
+
+        this.role = Role.USER;
+        this.isArtistVerified = false;
+        this.artistVerifiedAt = null;
+    }
+
+    /**
+     * 관리자 권한 획득 (개발용)
+     */
+    public void becomeAdmin() {
+        this.role = Role.ADMIN;
+    }
+
+    // ===== 검증 메서드 ===== //
+
+    /**
+     * 보유 금액이 충분한지 확인
+     */
+    public boolean hasEnoughMoney(int amount) {
+        return this.money >= amount;
+    }
+
+    /**
+     * 본인 확인 (ID 비교)
+     */
+    public boolean isSameUser(Long userId) {
+        return userId != null && this.getId().equals(userId);
+    }
+
+    /**
+     * 본인 확인 (User 객체 비교)
+     */
+    public boolean isSameUser(User user) {
+        return user != null && this.getId().equals(user.getId());
+    }
+
+    // ===== 머니/포인트 관리 ===== //
+
+    /**
+     * 머니 증가
+     * @param amount 증가할 금액
+     */
+    public void addMoney(int amount) {
+        if (amount <= 0) {
+            throw new ServiceException("400", "증가할 금액은 0보다 커야 합니다.");
+        }
+        this.money += amount;
+    }
+
+    /**
+     * 머니 차감
+     * @param amount 차감할 금액
+     */
+    public void deductMoney(int amount) {
+        if (amount <= 0) {
+            throw new ServiceException("400", "차감할 금액은 0보다 커야 합니다.");
+        }
+        if (this.money < amount) {
+            throw new ServiceException("400", "보유 금액이 부족합니다.");
+        }
+        this.money -= amount;
+    }
+
+    /**
+     * 포인트 증가
+     * @param amount 증가할 포인트
+     */
+    public void addPoint(int amount) {
+        if (amount <= 0) {
+            throw new ServiceException("400", "증가할 포인트는 0보다 커야 합니다.");
+        }
+        this.point += amount;
+    }
+
+    /**
+     * 포인트 차감
+     * @param amount 차감할 포인트
+     */
+    public void deductPoint(int amount) {
+        if (amount <= 0) {
+            throw new ServiceException("400", "차감할 포인트는 0보다 커야 합니다.");
+        }
+        if (this.point < amount) {
+            throw new ServiceException("400", "보유 포인트가 부족합니다.");
+        }
+        this.point -= amount;
+    }
+
+    // ===== 등급/계정 상태 관리 ===== //
+
+    /**
+     * 등급 업그레이드
+     */
+    public void upgradeGrade(Grade newGrade) {
+        // TODO: 등급 업그레이드 로직 (구매 금액, 활동 등 기준)
+        this.grade = newGrade;
+    }
+
+    /**
+     * 계정 상태 변경
+     */
+    public void changeStatus(Status newStatus) {
+        this.status = newStatus;
+
+        if (Status.DELETED.equals(newStatus)) {
+            this.deletedAt = LocalDateTime.now();
+        }
+    }
+
+    // ===== OAuth 관련 메서드 ===== //
+
+    /**
+     * OAuth 사용자 여부 확인
+     */
     public boolean isOAuthUser() {
         return !Provider.LOCAL.equals(this.provider);
     }
 
-    // OAuth 프로필 정보 업데이트 (재로그인 시)
+    /**
+     * OAuth 프로필 정보 업데이트 (재로그인 시)
+     */
     public void updateOAuthProfile(String name, String profileImageUrl) {
         if (profileImageUrl != null && !profileImageUrl.isBlank()) {
             this.profileImageUrl = profileImageUrl;
