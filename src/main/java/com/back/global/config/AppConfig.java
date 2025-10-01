@@ -6,6 +6,7 @@ import org.springframework.context.annotation.Configuration;
 
 @Configuration
 public class AppConfig {
+    // 도메인 정보 로딩
     private static String cookieDomain;
     private static String siteFrontUrl;
     private static String siteBackUrl;

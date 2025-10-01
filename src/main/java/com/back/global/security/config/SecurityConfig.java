@@ -1,5 +1,6 @@
 package com.back.global.security.config;
 
+import com.back.global.config.AppConfig;
 import com.back.global.security.jwt.JwtAuthenticationFilter;
 import com.back.global.security.oauth2.CustomOAuth2AuthorizationRequestResolver;
 import com.back.global.security.oauth2.CustomOAuth2UserService;
@@ -143,8 +144,8 @@ public class SecurityConfig {
 
         // 허용할 오리진 설정 (개발 환경)
         configuration.setAllowedOrigins(List.of(
-                "http://localhost:3000",
-                "http://localhost:8080"
+                AppConfig.getSiteFrontUrl(),
+                AppConfig.getSiteFrontUrl() // 하드코딩 돼있던 url이 환경에 따라 다르게 잡히도록 수정
         ));
 
         // 허용할 HTTP 메서드
