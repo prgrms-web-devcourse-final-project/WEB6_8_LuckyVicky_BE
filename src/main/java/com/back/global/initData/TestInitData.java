@@ -117,7 +117,55 @@ public class TestInitData {
 
         fundingRepository.save(funding);
         log.info("테스트 펀딩 저장 완료 id={}", funding.getId());
+
+        Funding funding1 = Funding.builder()
+                .user(user1)
+                .title("신규 앨범 제작")
+                .description("새로운 앨범을 만듭니다")
+                .imageUrl("image1.jpg")
+                .targetAmount(1000000L)
+                .startDate(LocalDateTime.now().minusDays(5))
+                .endDate(LocalDateTime.now().plusDays(25))
+                .status(FundingStatus.OPEN)
+                .build();
+
+        funding1.attachOption(FundingOption.create("일반 앨범", 15000L, 100, 1));
+        funding1.increaseParticipantCount(50);
+        fundingRepository.save(funding1);
+
+        // 2. 포토북 펀딩
+        Funding funding2 = Funding.builder()
+                .user(user1)
+                .title("한정판 포토북")
+                .description("프리미엄 포토북")
+                .imageUrl("image2.jpg")
+                .targetAmount(500000L)
+                .startDate(LocalDateTime.now().minusDays(10))
+                .endDate(LocalDateTime.now().plusDays(5))
+                .status(FundingStatus.OPEN)
+                .build();
+
+        funding2.attachOption(FundingOption.create("포토북 세트", 35000L, 50, 1));
+        funding2.increaseParticipantCount(30);
+        fundingRepository.save(funding2);
+
+        // 3. 고가 굿즈
+        Funding funding3 = Funding.builder()
+                .user(user1)
+                .title("프리미엄 굿즈")
+                .description("한정판 굿즈")
+                .imageUrl("image3.jpg")
+                .targetAmount(2000000L)
+                .startDate(LocalDateTime.now().minusDays(1))
+                .endDate(LocalDateTime.now().plusDays(40))
+                .status(FundingStatus.OPEN)
+                .build();
+
+        funding3.attachOption(FundingOption.create("프리미엄 세트", 80000L, 30, 1));
+        funding3.increaseParticipantCount(10);
+        fundingRepository.save(funding3);
     }
+
 
     @Transactional
     public void work3() {
