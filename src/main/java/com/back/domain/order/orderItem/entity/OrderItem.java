@@ -45,4 +45,47 @@ public class OrderItem extends BaseEntity {
     public BigDecimal getTotalPrice() {
         return this.price.multiply(BigDecimal.valueOf(this.quantity));
     }
+
+    /**
+     * 주문상품 생성 팩토리 메서드
+     */
+    public static OrderItem createOrderItem(Product product, Integer quantity, String optionInfo) {
+        validateOrderItem(product, quantity);
+        
+        return OrderItem.builder()
+                .product(product)
+                .quantity(quantity)
+                .price(calculateOrderPrice(product))
+                .optionInfo(processOptionInfo(optionInfo))
+                .build();
+    }
+    
+    /**
+     * 주문상품 유효성 검증
+     */
+    private static void validateOrderItem(Product product, Integer quantity) {
+        if (product == null) {
+            throw new IllegalArgumentException("상품 정보가 필요합니다.");
+        }
+        if (quantity == null || quantity <= 0) {
+            throw new IllegalArgumentException("수량은 1개 이상이어야 합니다.");
+        }
+        if (quantity > product.getStock()) {
+            throw new IllegalArgumentException("재고가 부족합니다. (현재 재고: " + product.getStock() + ")");
+        }
+    }
+    
+    /**
+     * 주문 가격 계산 (할인 적용)
+     */
+    private static BigDecimal calculateOrderPrice(Product product) {
+        return BigDecimal.valueOf(product.getDiscountPrice()); // 할인된 가격 사용
+    }
+    
+    /**
+     * 옵션 정보 처리
+     */
+    private static String processOptionInfo(String optionInfo) {
+        return optionInfo != null ? optionInfo.trim() : null;
+    }
 }
