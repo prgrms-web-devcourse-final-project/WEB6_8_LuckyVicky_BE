@@ -12,6 +12,7 @@ import com.back.domain.product.tag.repository.TagRepository;
 import com.back.domain.user.entity.Role;
 import com.back.domain.user.entity.User;
 import com.back.domain.user.repository.UserRepository;
+import com.back.global.exception.ServiceException;
 import com.back.global.s3.FileType;
 import com.back.global.s3.S3ValidationService;
 import com.back.global.security.auth.CustomUserDetails;
@@ -24,6 +25,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 import java.util.Set;
+import java.util.UUID;
 import java.util.stream.Collectors;
 
 @Service
@@ -42,18 +44,18 @@ public class ProductService {
 
     // 상품 등록
     @Transactional
-    public Long createProduct(CreateProductRequest request, CustomUserDetails customUserDetails) {
+    public UUID createProduct(CreateProductRequest request, CustomUserDetails customUserDetails) {
 
         // 현재 로그인한 사용자 (=상품 등록한 작가)
         User user = customUserDetails.getUser();
         // 권한 체크(ARTIST,ADMIN,ROOT만 상품 등록 가능)
         if (!Set.of(Role.ARTIST, Role.ADMIN, Role.ROOT).contains(user.getRole())) {
-            throw new IllegalStateException("상품 등록 권한이 없습니다.");
+            throw new ServiceException("403", "상품 등록 권한이 없습니다.");
         }
 
         // 존재하는 카테고리인지 검증
         Category category = categoryRepository.findById(request.categoryId())
-                .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 카테고리입니다."));
+                .orElseThrow(() -> new ServiceException("400", "존재하지 않는 카테고리입니다."));
 
         // Product 생성
         Product product = Product.builder()
@@ -118,7 +120,7 @@ public class ProductService {
             List<ProductTagMapping> tagMappings = request.tags().stream()
                     .map(tagId -> {
                         Tag tag = TagRepository.findById(tagId)
-                                .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 태그입니다. ID: " + tagId));
+                                .orElseThrow(() -> new ServiceException("400", "존재하지 않는 태그입니다. tagId: " + tagId));
                         // 상품-태그 중간테이블 생성
                         return ProductTagMapping.builder()
                                 .product(product)
@@ -134,7 +136,6 @@ public class ProductService {
             List<ProductImage> images = request.images().stream()
                     .map(imgRequest -> {
                         s3ValidationService.validateFileExists(imgRequest.s3Key());
-
                         return ProductImage.builder()
                                 .product(product)
                                 .fileUrl(imgRequest.url())
@@ -151,19 +152,20 @@ public class ProductService {
         productRepository.save(product);
 
         // 등록된 상품의 pk 반환
-        return product.getId();
+        return product.getProductUuid();
     }
 
 
     // (상품) 파일 다운로드 메서드
     @Transactional(readOnly = true)
-    public ProductImage getProductDocument(Long productId) {
-        Product product = productRepository.findById(productId)
-                .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 상품입니다. ID: " + productId));
+    public ProductImage getProductDocument(UUID productUuid) {
+        // productUuid로 상품 조회
+        Product product = productRepository.findByProductUuid(productUuid)
+                .orElseThrow(() -> new ServiceException("404", "존재하지 않는 상품입니다. productUuid: " + productUuid));
         return product.getImages().stream()
                 .filter(img -> img.getFileType() == FileType.DOCUMENT)
                 .findFirst()
-                .orElseThrow(() -> new IllegalArgumentException("다운로드할 문서가 존재하지 않습니다."));
+                .orElseThrow(() -> new ServiceException("404", "다운로드할 문서가 존재하지 않습니다."));
     }
 
     // 상품 목록 조회

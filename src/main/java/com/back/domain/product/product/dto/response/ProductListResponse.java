@@ -1,6 +1,7 @@
 package com.back.domain.product.product.dto.response;
 
 import java.util.List;
+import java.util.UUID;
 
 // 상품 목록 조회 응답 DTO
 public record ProductListResponse(
@@ -12,7 +13,7 @@ public record ProductListResponse(
 ) {
     // 단일 상품 정보 DTO
     public record ProductInfo(
-            Long productId,
+            UUID productUuid, // productId → productUuid로 변경
             String url,  // 썸네일 이미지 URL
             String brandName,
             String name,

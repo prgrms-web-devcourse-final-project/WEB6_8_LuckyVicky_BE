@@ -79,7 +79,7 @@ public class ProductCustomRepositoryImpl implements ProductCustomRepository {
         var query = queryFactory
                 .select(Projections.constructor(
                         ProductInfo.class, // dto 매핑
-                        p.id, // 상품 id
+                        p.productUuid, // 상품 uuid
                         img.fileUrl, //썸네일 이미지 url
                         p.brandName, // 브랜드명
                         p.name, // 상품명

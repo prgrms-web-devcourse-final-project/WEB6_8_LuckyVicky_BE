@@ -7,10 +7,7 @@ import jakarta.persistence.*;
 import lombok.*;
 
 import java.time.LocalDateTime;
-import java.util.ArrayList;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Set;
+import java.util.*;
 
 @Entity
 @Getter
@@ -28,6 +25,9 @@ public class Product extends BaseEntity {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "user_id", nullable = false)
     private User user; // 작가 FK
+
+    @Column(unique = true, nullable = false, updatable = false)
+    private UUID productUuid = UUID.randomUUID(); // 상품 식별 번호 (uuid)
 
     @Column(nullable = false)
     private String name; // 상품명
@@ -101,7 +101,6 @@ public class Product extends BaseEntity {
 
     @Column(nullable = false)
     private boolean isDeleted; // 논리 삭제 여부 (상품 삭제 시, 진짜 DB에서 삭제하냐 아니면 삭제 처리만 하냐 차이)
-
 
     @OneToMany(mappedBy = "product", cascade = CascadeType.ALL, orphanRemoval = true) // 상품이 저장/삭제되면 모든 옵션도 저장/삭제됨, 상품에서 옵션을 제거하면 DB에서 해당 옵션도 삭제됨.
     private List<Option> options = new ArrayList<>();; // 해당 상품의 옵션들
