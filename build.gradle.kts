@@ -47,12 +47,18 @@ dependencies {
     implementation("io.jsonwebtoken:jjwt-impl:0.12.3")
     implementation("io.jsonwebtoken:jjwt-jackson:0.12.3")
 
-    // AWS S3용 SDK
+    // AWS용 의존성 추가
     implementation("software.amazon.awssdk:s3:2.34.0")
     implementation("net.coobird:thumbnailator:0.4.19")
 
     // OAuth2 Client 추가
     implementation("org.springframework.boot:spring-boot-starter-oauth2-client")
+
+    // Actuator
+    implementation("org.springframework.boot:spring-boot-starter-actuator")
+    // Redis
+    implementation("org.springframework.boot:spring-boot-starter-data-redis")
+    implementation("org.springframework.session:spring-session-data-redis")
 }
 
 tasks.withType<Test> {
