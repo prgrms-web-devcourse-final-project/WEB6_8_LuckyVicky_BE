@@ -133,7 +133,7 @@ public class FundingService {
         // null 처리 및 소문자 변환
         String safeSortBy = (sortBy != null) ? sortBy.trim().toLowerCase() : "recent";
         // 정렬 기준에 따른 Sort 객체 생성
-        return switch (sortBy) {
+        return switch (safeSortBy) {
             case "popular" -> Sort.by(Sort.Direction.DESC, "participantCount");
             case "deadline" -> Sort.by(Sort.Direction.ASC, "endDate");
             case "recent" -> Sort.by(Sort.Direction.DESC, "createDate");
