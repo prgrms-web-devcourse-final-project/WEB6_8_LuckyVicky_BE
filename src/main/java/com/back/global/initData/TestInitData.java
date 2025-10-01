@@ -38,8 +38,6 @@ public class TestInitData {
     private final PasswordEncoder passwordEncoder;
     private final FundingRepository fundingRepository;
     private final CategoryRepository categoryRepository;
-    @Autowired
-    private DevUserService devUserService;
 
     @Bean
     ApplicationRunner testInitDataApplicationRunner() {
@@ -90,7 +88,8 @@ public class TestInitData {
         switch (role) {
             case ARTIST -> user.becomeArtist();
             case ADMIN -> user.becomeAdmin();
-            case USER -> {} // 기본값
+            case USER -> {
+            } // 기본값
             default -> throw new IllegalArgumentException("지원하지 않는 Role: " + role);
         }
 

@@ -19,6 +19,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
@@ -87,6 +88,7 @@ class AdminDashboardControllerTest {
     }
 
     @Test
+    @WithMockUser(roles = "ADMIN")
     @DisplayName("관리자 대시보드 전체 현황 조회 성공 - 실제 DB 데이터 (일부 더미 포함)")
     void getOverview_Success_WithRealData() throws Exception {
         // Given - DB에 이미 TestInitData로 데이터가 있음
@@ -121,6 +123,7 @@ class AdminDashboardControllerTest {
     }
 
     @Test
+    @WithMockUser(roles = "ADMIN")
     @DisplayName("관리자 상품 목록 조회 성공 - 실제 DB 데이터")
     void getProducts_Success_WithRealData() throws Exception {
         // Given - 테스트 상품 생성
@@ -149,6 +152,7 @@ class AdminDashboardControllerTest {
     }
 
     @Test
+    @WithMockUser(roles = "ADMIN")
     @DisplayName("관리자 상품 목록 조회 - 판매 상태 필터")
     void getProducts_WithSellingStatus() throws Exception {
         // Given
@@ -172,6 +176,7 @@ class AdminDashboardControllerTest {
     }
 
     @Test
+    @WithMockUser(roles = "ADMIN")
     @DisplayName("관리자 상품 목록 조회 - 판매상태 필터 (판매종료)")
     void getProducts_WithEndOfSaleStatus() throws Exception {
         // Given
@@ -193,6 +198,7 @@ class AdminDashboardControllerTest {
     }
 
     @Test
+    @WithMockUser(roles = "ADMIN")
     @DisplayName("관리자 상품 목록 조회 - 키워드 검색")
     void getProducts_WithKeyword() throws Exception {
         // Given
@@ -214,6 +220,7 @@ class AdminDashboardControllerTest {
     }
 
     @Test
+    @WithMockUser(roles = "ADMIN")
     @DisplayName("관리자 사용자 목록 조회 성공 - 실제 DB 데이터")
     void getUsers_Success_WithRealData() throws Exception {
         // Given - TestInitData에 이미 사용자들이 있음
@@ -238,6 +245,7 @@ class AdminDashboardControllerTest {
     }
 
     @Test
+    @WithMockUser(roles = "ADMIN")
     @DisplayName("관리자 사용자 목록 조회 - 역할 필터 (작가만)")
     void getUsers_WithRoleFilter() throws Exception {
         // When & Then
@@ -255,6 +263,7 @@ class AdminDashboardControllerTest {
     }
 
     @Test
+    @WithMockUser(roles = "ADMIN")
     @DisplayName("관리자 펀딩 목록 조회 성공 - 실제 DB 데이터")
     void getFundings_Success_WithRealData() throws Exception {
         // Given - TestInitData에 이미 펀딩이 있음
@@ -280,6 +289,7 @@ class AdminDashboardControllerTest {
     }
 
     @Test
+    @WithMockUser(roles = "ADMIN")
     @DisplayName("관리자 펀딩 목록 조회 - 상태 필터")
     void getFundings_WithStatusFilter() throws Exception {
         // When & Then
@@ -297,6 +307,7 @@ class AdminDashboardControllerTest {
     }
 
     @Test
+    @WithMockUser(roles = "ADMIN")
     @DisplayName("관리자 입점 신청 목록 조회 성공 - 실제 DB 데이터")
     void getArtistApplications_Success_WithRealData() throws Exception {
         // Given - 테스트 입점 신청 생성
@@ -322,6 +333,7 @@ class AdminDashboardControllerTest {
     }
 
     @Test
+    @WithMockUser(roles = "ADMIN")
     @DisplayName("관리자 입점 신청 목록 조회 - 상태 필터 (대기중만)")
     void getArtistApplications_WithPendingStatus() throws Exception {
         // Given
@@ -343,6 +355,7 @@ class AdminDashboardControllerTest {
     }
 
     @Test
+    @WithMockUser(roles = "ADMIN")
     @DisplayName("관리자 입점 신청 상세 조회 성공 - 실제 DB 데이터")
     void getArtistApplicationDetail_Success_WithRealData() throws Exception {
         // Given
