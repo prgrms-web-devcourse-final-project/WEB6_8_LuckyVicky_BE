@@ -7,7 +7,6 @@ import com.back.domain.product.product.service.ProductService;
 import com.back.global.rsData.RsData;
 import com.back.global.s3.FileType;
 import com.back.global.s3.S3Service;
-import com.back.global.s3.S3ValidationService;
 import com.back.global.s3.UploadResultResponse;
 import com.back.global.security.auth.CustomUserDetails;
 import io.swagger.v3.oas.annotations.Operation;
@@ -26,6 +25,7 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
+import java.util.UUID;
 
 @RestController
 @RequestMapping("/api/products")
@@ -35,7 +35,6 @@ public class ProductController {
 
     private final ProductService productService;
     private final S3Service s3Service;
-    private final S3ValidationService s3ValidationService;
 
     @PostMapping
     @Operation(
@@ -51,7 +50,7 @@ public class ProductController {
                                                     {
                                                       "resultCode": "200",
                                                       "msg": "상품이 성공적으로 등록되었습니다.",
-                                                      "data": 1
+                                                      "data": "550e8400-e29b-41d4-a716-446655440000"
                                                     }
                                                     """
                                     )
@@ -59,7 +58,7 @@ public class ProductController {
                     ),
                     @ApiResponse(
                             responseCode = "400",
-                            description = "잘못된 요청 (필수값 누락 등)",
+                            description = "잘못된 요청 (필수값 누락, 존재하지 않는 카테고리/태그 등)",
                             content = @Content(
                                     mediaType = "application/json",
                                     schema = @Schema(
@@ -91,11 +90,11 @@ public class ProductController {
                     )
             }
     )
-    public ResponseEntity<RsData<Long>> createProduct(
+    public ResponseEntity<RsData<UUID>> createProduct(
             @Valid @RequestBody CreateProductRequest request,
             @AuthenticationPrincipal CustomUserDetails customUserDetails) {
-        Long productId = productService.createProduct(request, customUserDetails);
-        return ResponseEntity.ok(RsData.of("200", "상품이 성공적으로 등록되었습니다.", productId));
+        UUID productUuid = productService.createProduct(request, customUserDetails);
+        return ResponseEntity.ok(RsData.of("200", "상품이 성공적으로 등록되었습니다.", productUuid));
     }
 
 
@@ -149,7 +148,7 @@ public class ProductController {
                     ),
                     @ApiResponse(
                             responseCode = "400",
-                            description = "잘못된 요청 (파일 누락, files/types 개수 불일치 등)",
+                            description = "잘못된 요청 (파일/타입 누락, files/types 개수 불일치, S3 검증 실패 등)",
                             content = @Content(
                                     mediaType = "application/json",
                                     schema = @Schema(
@@ -160,6 +159,22 @@ public class ProductController {
                                                       "data": null
                                                     }
                                                     """
+                                    )
+                            )
+                    ),
+                    @ApiResponse(
+                            responseCode = "500",
+                            description = "파일 업로드 실패",
+                            content = @Content(
+                                    mediaType = "application/json",
+                                    schema = @Schema(
+                                            example = """
+                                                {
+                                                  "resultCode": "500",
+                                                  "msg": "파일 업로드 실패: example.png",
+                                                  "data": null
+                                                }
+                                                """
                                     )
                             )
                     )
@@ -175,7 +190,7 @@ public class ProductController {
     }
 
 
-    @GetMapping("/images/download/{productId}")
+    @GetMapping("/images/download/{productUuid}")
     @Operation(
             summary = "상품 문서 다운로드 (테스트용)",
             description = "DOCUMENT 타입의 문서 파일 다운로드.<br>"+
@@ -208,11 +223,28 @@ public class ProductController {
                                                 """
                                     )
                             )
+                    ),
+                    @ApiResponse(
+                            responseCode = "500",
+                            description = "파일 다운로드 실패",
+                            content = @Content(
+                                    mediaType = "application/json",
+                                    schema = @Schema(
+                                            example = """
+                                                {
+                                                  "resultCode": "500",
+                                                  "msg": "파일 다운로드 실패: product-document.pdf",
+                                                  "data": null
+                                                }
+                                                """
+                                    )
+                            )
                     )
             }
     )
-    public ResponseEntity<byte[]> downloadProductDocument(@PathVariable Long productId) {
-        ProductImage document = productService.getProductDocument(productId);
+    public ResponseEntity<byte[]> downloadProductDocument(@PathVariable UUID productUuid) {
+        // productUuid로 FileType이 DOCUMENT인 이미지 조회(사실상 다운로드 테스트용 API임. 이미지에 문서가 담길 일은 없을듯)
+        ProductImage document = productService.getProductDocument(productUuid);
         // s3에서 파일 다운로드
         byte[] fileBytes = s3Service.downloadFile(document.getS3Key());
         //원본 파일명으로 응담
@@ -245,7 +277,7 @@ public class ProductController {
                                                     "totalPages": 3,
                                                     "products": [
                                                       {
-                                                        "productId": 1,
+                                                        "productUuid": "3fa85f64-5717-4562-b3fc-2c963f66afa6",
                                                         "url": "https://bucket.s3.amazonaws.com/product-images/uuid1.png",
                                                         "brandName": "브랜드1",
                                                         "name": "상품1",
@@ -283,10 +315,10 @@ public class ProductController {
             @RequestParam(defaultValue = "newest") String sort,
 
             @Parameter(description = "[페이징]조회할 페이지 번호 (1부터 시작)", example = "1")
-            @RequestParam(required = false) int page,
+            @RequestParam(defaultValue = "1") int page,
 
             @Parameter(description = "[페이징]한 페이지에 보여줄 상품 수", example = "10")
-            @RequestParam(required = false) int size
+            @RequestParam(defaultValue = "10") int size
     ) {
         // 프론트는 1부터 시작 -> Spring Pageable은 0부터 시작하므로 -1 처리
         Pageable pageable = PageRequest.of(page - 1, size);
