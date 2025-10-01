@@ -4,3 +4,22 @@ spring:
     username: sa
     password:
     driver-class-name: org.h2.Driver
+
+# JWT 테스트 환경 설정
+jwt:
+  secret: test-secret-key-for-testing-environment-only
+  access-token-expiration: 1800000    # 30분 (테스트용 짧은 시간)
+  refresh-token-expiration: 3600000   # 1시간 (테스트용 짧은 시간
+
+# AWS S3 설정
+cloud:
+  aws:
+    credentials:
+      access-key: ${AWS_ACCESS_KEY_ID}
+      secret-key: ${AWS_SECRET_ACCESS_KEY}
+    region:
+      static: ap-northeast-2
+    s3:
+      bucket: ${AWS_S3_BUCKET}
+    stack:
+      auto: false
