@@ -31,14 +31,16 @@ public record AdminFundingResponse(
     public record Summary(
             /** 전체 펀딩 수 */
             int totalFundings,
-            /** 진행중 펀딩 수 */
-            int activeFundings,
-            /** 일시정지 펀딩 수 */
-            int pausedFundings,
-            /** 완료 펀딩 수 */
-            int completedFundings,
-            /** 취소 펀딩 수 */
-            int cancelledFundings
+            /** 진행중 펀딩 수 (OPEN) */
+            int openFundings,
+            /** 종료 펀딩 수 (CLOSED) */
+            int closedFundings,
+            /** 성공 펀딩 수 (SUCCESS) */
+            int successFundings,
+            /** 실패 펀딩 수 (FAILED) */
+            int failedFundings,
+            /** 취소 펀딩 수 (CANCELED) */
+            int canceledFundings
     ) {}
 
     /**
@@ -46,7 +48,7 @@ public record AdminFundingResponse(
      */
     public record Funding(
             /** 펀딩 ID */
-            long fundingId,
+            Long fundingId,
             /** 펀딩 제목 */
             String title,
             /** 작가 정보 */
@@ -82,7 +84,7 @@ public record AdminFundingResponse(
      */
     public record Artist(
             /** 작가 ID */
-            long id,
+            Long id,
             /** 회원 ID */
             String memberId,
             /** 작가명 */
@@ -94,7 +96,7 @@ public record AdminFundingResponse(
      */
     public record Category(
             /** 카테고리 ID */
-            long id,
+            Long id,
             /** 카테고리명 */
             String name
     ) {}

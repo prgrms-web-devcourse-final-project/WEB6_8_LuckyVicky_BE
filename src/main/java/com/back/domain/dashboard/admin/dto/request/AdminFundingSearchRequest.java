@@ -22,8 +22,8 @@ public record AdminFundingSearchRequest(
         String keyword,
 
         /** 펀딩 상태 */
-        @Pattern(regexp = "^(ACTIVE|PAUSED|COMPLETED|CANCELLED|PENDING)$",
-                message = "status는 ACTIVE, PAUSED, COMPLETED, CANCELLED, PENDING 중 하나여야 합니다")
+        @Pattern(regexp = "^(OPEN|CLOSED|SUCCESS|FAILED|CANCELED)$",
+                message = "status는 OPEN, CLOSED, SUCCESS, FAILED, CANCELED 중 하나여야 합니다")
         String status,
 
         /** 카테고리 ID */
@@ -59,8 +59,8 @@ public record AdminFundingSearchRequest(
         String dueTo,
 
         /** 정렬 기준 */
-        @Pattern(regexp = "^(achievementRate|remainingDays|endDate|currentAmount|supporterCount|registeredAt)$",
-                message = "sort는 achievementRate, remainingDays, endDate, currentAmount, supporterCount, registeredAt 중 하나여야 합니다")
+        @Pattern(regexp = "^(title|artistId|artistName|achievementRate|status|remainingDays|endDate|currentAmount|supporterCount|registeredAt)$",
+                message = "sort는 title, artistId, artistName, achievementRate, status, remainingDays, endDate, currentAmount, supporterCount, registeredAt 중 하나여야 합니다")
         String sort,
 
         /** 정렬 순서 */
