@@ -10,6 +10,7 @@ import com.back.domain.dashboard.artist.dto.response.ArtistExchangeResponse;
 import com.back.domain.dashboard.artist.dto.response.ArtistSettingsResponse;
 import com.back.domain.dashboard.artist.dto.response.ArtistFundingResponse;
 import com.back.domain.dashboard.artist.dto.response.ArtistSettlementResponse;
+import com.back.domain.dashboard.artist.dto.response.ArtistTrafficSourceResponse;
 import com.back.domain.funding.entity.Funding;
 import com.back.domain.funding.entity.FundingStatus;
 import com.back.domain.funding.repository.FundingContributionRepository;
@@ -18,8 +19,10 @@ import com.back.domain.product.product.entity.Product;
 import com.back.domain.product.product.entity.SellingStatus;
 import com.back.domain.product.product.repository.ProductRepository;
 import com.back.global.security.jwt.JwtTokenProvider;
+import com.google.analytics.data.v1beta.*;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
@@ -29,6 +32,7 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.time.temporal.ChronoUnit;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
@@ -36,6 +40,7 @@ import java.util.List;
  * 작가용 대시보드 서비스 구현체
  * 2025.09.29 수정 - getProducts() 실제 DB 연동
  * 2025.09.30 수정 - getFundings() 실제 DB 연동
+ * 2025.10.01 추가 - getTrafficSources() GA4 유입 경로 분석
  */
 @Service
 @RequiredArgsConstructor
@@ -47,6 +52,10 @@ public class ArtistDashboardServiceImpl implements ArtistDashboardService {
     private final FundingRepository fundingRepository;
     private final FundingContributionRepository fundingContributionRepository;
     private final JwtTokenProvider jwtTokenProvider;
+    private final BetaAnalyticsDataClient analyticsDataClient;
+
+    @Value("${google.analytics.property-id}")
+    private String propertyId;
 
     private static final DateTimeFormatter DATE_FORMATTER = DateTimeFormatter.ofPattern("yyyy. MM. dd");
 
@@ -134,14 +143,73 @@ public class ArtistDashboardServiceImpl implements ArtistDashboardService {
 
         ArtistMainResponse.Notifications notifications = new ArtistMainResponse.Notifications(orderAlerts, fundingAlerts);
 
+        // 유입 경로 정보 (GA4) - 7일 기준
+        ArtistMainResponse.TrafficSources trafficSources = getTrafficSourcesForMain(authorization, tz);
+
         return new ArtistMainResponse(
                 profile,
                 stats,
                 trends,
                 notifications,
+                trafficSources,
                 LocalDateTime.now(),
                 "Asia/Seoul"
         );
+    }
+
+    /**
+     * 메인 대시보드용 유입 경로 데이터 조회 (간소화 버전)
+     */
+    private ArtistMainResponse.TrafficSources getTrafficSourcesForMain(String authorization, String timezone) {
+        try {
+            // 기존 getTrafficSources 메서드 호출 (7일 기준)
+            ArtistTrafficSourceResponse fullResponse = getTrafficSources(authorization, 7, timezone);
+
+            // 메인 대시보드용으로 간소화
+            ArtistMainResponse.Summary summary = new ArtistMainResponse.Summary(
+                    fullResponse.summary().totalSessions(),
+                    fullResponse.summary().totalUsers(),
+                    fullResponse.summary().conversions(),
+                    fullResponse.summary().conversionRate(),
+                    fullResponse.summary().topSource()
+            );
+
+            // 상위 5개 유입 경로만
+            List<ArtistMainResponse.Source> sources = fullResponse.sources().stream()
+                    .limit(5)
+                    .map(source -> new ArtistMainResponse.Source(
+                            source.name(),
+                            source.sessions(),
+                            source.users(),
+                            source.share()
+                    ))
+                    .toList();
+
+            // 차트 데이터
+            List<ArtistMainResponse.ChartData> chartData = fullResponse.chart().data().stream()
+                    .limit(5)
+                    .map(data -> new ArtistMainResponse.ChartData(
+                            data.name(),
+                            data.value(),
+                            data.percentage(),
+                            data.color()
+                    ))
+                    .toList();
+
+            ArtistMainResponse.Chart chart = new ArtistMainResponse.Chart(chartData);
+
+            return new ArtistMainResponse.TrafficSources(summary, sources, chart);
+
+        } catch (Exception e) {
+            log.error("메인 대시보드 유입 경로 조회 중 오류 발생", e);
+            
+            // 오류 발생 시 빈 데이터 반환
+            return new ArtistMainResponse.TrafficSources(
+                    new ArtistMainResponse.Summary(0, 0, 0, 0.0, "없음"),
+                    List.of(),
+                    new ArtistMainResponse.Chart(List.of())
+            );
+        }
     }
 
     @Override
@@ -682,5 +750,193 @@ public class ArtistDashboardServiceImpl implements ArtistDashboardService {
                 table,
                 LocalDateTime.now()
         );
+    }
+
+    @Override
+    public ArtistTrafficSourceResponse getTrafficSources(String authorization, int days, String timezone) {
+        // JWT 토큰에서 작가 ID 추출
+        String token = authorization.replace("Bearer ", "");
+        Long artistId = jwtTokenProvider.getUserIdFromToken(token);
+
+        log.info("작가 유입 경로 조회 - artistId: {}, days: {}, timezone: {}", artistId, days, timezone);
+
+        try {
+            // GA4 API 요청 생성 (특정 작가 필터링)
+            String campaignFilter = "artist_" + artistId;
+            
+            RunReportRequest request = RunReportRequest.newBuilder()
+                    .setProperty(propertyId)
+                    // 측정 기준: 세션 소스 (Instagram, YouTube 등)
+                    .addDimensions(Dimension.newBuilder().setName("sessionSource"))
+                    // 지표: 세션 수, 사용자 수, 신규 사용자, 전환 수
+                    .addMetrics(Metric.newBuilder().setName("sessions"))
+                    .addMetrics(Metric.newBuilder().setName("totalUsers"))
+                    .addMetrics(Metric.newBuilder().setName("newUsers"))
+                    .addMetrics(Metric.newBuilder().setName("conversions"))
+                    // 조회 기간 설정
+                    .addDateRanges(DateRange.newBuilder()
+                            .setStartDate(days + "daysAgo")
+                            .setEndDate("today"))
+                    // 특정 작가의 캠페인만 필터링
+                    .setDimensionFilter(
+                        FilterExpression.newBuilder()
+                            .setFilter(Filter.newBuilder()
+                                .setFieldName("sessionCampaignName")
+                                .setStringFilter(Filter.StringFilter.newBuilder()
+                                    .setMatchType(Filter.StringFilter.MatchType.CONTAINS)
+                                    .setValue(campaignFilter)
+                                )
+                            )
+                    )
+                    // 세션 수 기준 내림차순 정렬
+                    .addOrderBys(OrderBy.newBuilder()
+                            .setMetric(OrderBy.MetricOrderBy.newBuilder()
+                                    .setMetricName("sessions"))
+                            .setDesc(true))
+                    .build();
+
+            // GA4 API 호출
+            RunReportResponse response = analyticsDataClient.runReport(request);
+
+            // 총합 계산
+            long totalSessions = 0;
+            long totalUsers = 0;
+            long totalNewUsers = 0;
+            long totalConversions = 0;
+
+            List<ArtistTrafficSourceResponse.Source> sources = new ArrayList<>();
+            List<ArtistTrafficSourceResponse.ChartData> chartData = new ArrayList<>();
+
+            // 색상 팔레트 (소셜 미디어별)
+            java.util.Map<String, String> colorMap = java.util.Map.of(
+                    "instagram", "#E4405F",
+                    "youtube", "#FF0000",
+                    "naver", "#03C75A",
+                    "google", "#4285F4",
+                    "facebook", "#1877F2",
+                    "twitter", "#1DA1F2",
+                    "kakao", "#FEE500"
+            );
+
+            // 응답 데이터 처리
+            for (Row row : response.getRowsList()) {
+                String sourceName = row.getDimensionValues(0).getValue();
+                long sessions = Long.parseLong(row.getMetricValues(0).getValue());
+                long users = Long.parseLong(row.getMetricValues(1).getValue());
+                long newUsers = Long.parseLong(row.getMetricValues(2).getValue());
+                long conversions = Long.parseLong(row.getMetricValues(3).getValue());
+
+                totalSessions += sessions;
+                totalUsers += users;
+                totalNewUsers += newUsers;
+                totalConversions += conversions;
+
+                // 색상 선택 (소문자로 매칭)
+                String color = colorMap.getOrDefault(sourceName.toLowerCase(), "#999999");
+
+                sources.add(new ArtistTrafficSourceResponse.Source(
+                        sourceName,
+                        sessions,
+                        users,
+                        0.0, // 점유율은 나중에 계산
+                        newUsers,
+                        users > 0 ? (double) newUsers / users * 100 : 0.0,
+                        conversions,
+                        sessions > 0 ? (double) conversions / sessions * 100 : 0.0
+                ));
+
+                chartData.add(new ArtistTrafficSourceResponse.ChartData(
+                        sourceName,
+                        sessions,
+                        0.0, // 퍼센트는 나중에 계산
+                        color
+                ));
+            }
+
+            // 점유율 계산 (총 세션 대비)
+            final long finalTotalSessions = totalSessions;
+            sources = sources.stream()
+                    .map(source -> new ArtistTrafficSourceResponse.Source(
+                            source.name(),
+                            source.sessions(),
+                            source.users(),
+                            finalTotalSessions > 0 ? (double) source.sessions() / finalTotalSessions * 100 : 0.0,
+                            source.newUsers(),
+                            source.newUserRate(),
+                            source.conversions(),
+                            source.conversionRate()
+                    ))
+                    .toList();
+
+            chartData = chartData.stream()
+                    .map(data -> new ArtistTrafficSourceResponse.ChartData(
+                            data.name(),
+                            data.value(),
+                            finalTotalSessions > 0 ? (double) data.value() / finalTotalSessions * 100 : 0.0,
+                            data.color()
+                    ))
+                    .toList();
+
+            // 가장 많은 유입 경로
+            String topSource = sources.isEmpty() ? "없음" : sources.get(0).name();
+
+            // 전환율 계산
+            double conversionRate = totalSessions > 0 
+                    ? (double) totalConversions / totalSessions * 100 
+                    : 0.0;
+
+            // 요약 정보
+            ArtistTrafficSourceResponse.Summary summary = new ArtistTrafficSourceResponse.Summary(
+                    totalSessions,
+                    totalUsers,
+                    totalConversions,
+                    conversionRate,
+                    topSource
+            );
+
+            // 차트 데이터
+            ArtistTrafficSourceResponse.Chart chart = new ArtistTrafficSourceResponse.Chart(
+                    chartData,
+                    5.0 // 5% 미만은 "기타"로 그룹화
+            );
+
+            // 조회 기간
+            LocalDate endDate = LocalDate.now();
+            LocalDate startDate = endDate.minusDays(days);
+            ArtistTrafficSourceResponse.Period period = new ArtistTrafficSourceResponse.Period(
+                    startDate.toString(),
+                    endDate.toString(),
+                    days
+            );
+
+            log.info("작가 유입 경로 조회 완료 - artistId: {}, 총 {}개 소스, 총 세션 {}", 
+                     artistId, sources.size(), totalSessions);
+
+            return new ArtistTrafficSourceResponse(
+                    summary,
+                    sources,
+                    chart,
+                    period,
+                    LocalDateTime.now(),
+                    timezone
+            );
+
+        } catch (Exception e) {
+            log.error("작가 유입 경로 조회 중 오류 발생 - artistId: {}", artistId, e);
+            
+            // 오류 발생 시 빈 데이터 반환
+            return new ArtistTrafficSourceResponse(
+                    new ArtistTrafficSourceResponse.Summary(0, 0, 0, 0.0, "없음"),
+                    List.of(),
+                    new ArtistTrafficSourceResponse.Chart(List.of(), 5.0),
+                    new ArtistTrafficSourceResponse.Period(
+                            LocalDate.now().minusDays(days).toString(),
+                            LocalDate.now().toString(),
+                            days
+                    ),
+                    LocalDateTime.now(),
+                    timezone
+            );
+        }
     }
 }
