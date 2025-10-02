@@ -1,11 +1,14 @@
 package com.back.domain.dashboard.customer.service;
 
+import com.back.domain.dashboard.customer.dto.request.*;
 import com.back.domain.dashboard.customer.dto.response.*;
 import com.back.domain.funding.entity.Funding;
 import com.back.domain.funding.entity.FundingContribution;
 import com.back.domain.funding.entity.FundingStatus;
 import com.back.domain.funding.repository.FundingContributionRepository;
-import com.back.global.security.jwt.JwtTokenProvider;
+import com.back.domain.user.entity.User;
+import com.back.domain.user.repository.UserRepository;
+import com.back.global.exception.ServiceException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
@@ -21,7 +24,7 @@ import java.util.stream.Collectors;
 
 /**
  * 고객용 대시보드 서비스 구현체
- * 2025.09.30 수정 - Funding 실제 구현 추가
+ * 2025.10.02 수정 - JWT 표준 패턴 적용, Request DTO 활용
  */
 @Service
 @RequiredArgsConstructor
@@ -30,12 +33,13 @@ import java.util.stream.Collectors;
 public class DashboardServiceImpl implements DashboardService {
 
     private final FundingContributionRepository fundingContributionRepository;
-    private final JwtTokenProvider jwtTokenProvider;
+    private final UserRepository userRepository;
 
     @Override
-    public AccountResponse.Settings getAccountSettings(String authorization, String include) {
-        // TODO: JWT 토큰에서 사용자 정보 추출
-        // TODO: 실제 데이터베이스에서 사용자 정보 조회
+    public AccountResponse.Settings getAccountSettings(Long userId, String include) {
+        // 사용자 조회
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new ServiceException("USER_NOT_FOUND", "사용자를 찾을 수 없습니다."));
 
         AccountResponse.Profile profile = null;
         AccountResponse.Contact contact = null;
@@ -48,14 +52,20 @@ public class DashboardServiceImpl implements DashboardService {
             switch (field.trim()) {
                 case "profile":
                     profile = new AccountResponse.Profile(
-                            10025L, "사용자닉네임", "https://cdn.example.com/u/10025/profile.jpg");
+                            user.getId(),
+                            user.getName(),
+                            user.getProfileImageUrl());
                     break;
                 case "contact":
                     contact = new AccountResponse.Contact(
-                            "user@example.com", true, "+821012345678", "서울특별시 강남구");
+                            user.getEmail(),
+                            true,  // TODO: 이메일 인증 기능 추가 시 user.isEmailVerified() 사용
+                            user.getPhone(),
+                            user.getAddress());
                     break;
                 case "security":
-                    security = new AccountResponse.Security(LocalDateTime.now());
+                    security = new AccountResponse.Security(
+                            user.getCreateDate());  // TODO: 비밀번호 변경 날짜 추가 시 수정
                     break;
             }
         }
@@ -64,10 +74,9 @@ public class DashboardServiceImpl implements DashboardService {
     }
 
     @Override
-    public ArtistApplicationResponse.List getArtistApplications(String authorization, int page, int size,
-                                                                String status, String startDate, String endDate,
-                                                                String sort, String order) {
+    public ArtistApplicationResponse.List getArtistApplications(Long userId, ArtistApplicationSearchRequest request) {
         // TODO: 실제 데이터베이스 조회 로직 구현
+        log.debug("작가 신청 내역 조회 - userId: {}, request: {}", userId, request);
 
         ArtistApplicationResponse.SummaryDto summary =
                 new ArtistApplicationResponse.SummaryDto(2, 0, 1, 1);
@@ -83,12 +92,17 @@ public class DashboardServiceImpl implements DashboardService {
                         LocalDateTime.now().minusDays(1))
         );
 
-        return new ArtistApplicationResponse.List(summary, content, page, size, 2, 1, false, false);
+        return new ArtistApplicationResponse.List(
+                summary, content,
+                request.page(), request.size(),
+                2, 1, false, false);
     }
 
     @Override
-    public ArtistApplicationResponse.Detail getArtistApplicationDetail(String authorization, Long applicationId) {
+    public ArtistApplicationResponse.Detail getArtistApplicationDetail(Long userId, Long applicationId) {
         // TODO: 실제 데이터베이스 조회 로직 구현
+        // TODO: 신청자 본인 확인 로직 추가
+        log.debug("입점 신청 상세 조회 - userId: {}, applicationId: {}", userId, applicationId);
 
         return new ArtistApplicationResponse.Detail(
                 new ArtistApplicationResponse.Application(
@@ -126,9 +140,9 @@ public class DashboardServiceImpl implements DashboardService {
     }
 
     @Override
-    public OrderResponse.List getOrders(String authorization, int page, int size, String status,
-                                        String aftersalesStatus, String from, String to, String period, String sort, String order) {
+    public OrderResponse.List getOrders(Long userId, OrderSearchRequest request) {
         // TODO: 실제 주문 데이터 조회 로직 구현
+        log.debug("주문 목록 조회 - userId: {}, request: {}", userId, request);
 
         OrderResponse.SummaryDto summary = new OrderResponse.SummaryDto(
                 25, 3, 2, 5, 10, 5, 2, 1, 0, 1, 1, 0, 1
@@ -185,23 +199,31 @@ public class DashboardServiceImpl implements DashboardService {
         );
 
         OrderResponse.PeriodInfo periodInfo = new OrderResponse.PeriodInfo(
-                "MONTH",
-                "2025-09-01",
-                "2025-09-30"
+                request.period() != null ? request.period() : "MONTH",
+                request.from() != null ? request.from() : "2025-09-01",
+                request.to() != null ? request.to() : "2025-09-30"
         );
 
         return new OrderResponse.List(
-                summary, content, page, size, 25, 3, true, false,
+                summary, content,
+                request.page(), request.size(),
+                25, 3, true, false,
                 "Asia/Seoul", periodInfo);
     }
 
     @Override
-    public FollowingResponse.List getFollowingArtists(String userId, String authorization, int page, int size,
-                                                      String keyword, String status, String sort, String order) {
+    public FollowingResponse.List getFollowingArtists(Long userId, FollowingSearchRequest request) {
         // TODO: 실제 데이터베이스 조회 로직 구현
+        log.debug("팔로우한 작가 목록 조회 - userId: {}, request: {}", userId, request);
+
+        // 사용자 조회
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new ServiceException("USER_NOT_FOUND", "사용자를 찾을 수 없습니다."));
 
         FollowingResponse.Profile profile = new FollowingResponse.Profile(
-                userId, "사용자닉네임", "https://cdn.example.com/u/" + userId + "/profile.jpg");
+                user.getId().toString(),
+                user.getName(),
+                user.getProfileImageUrl());
 
         FollowingResponse.SummaryDto summary =
                 new FollowingResponse.SummaryDto(5);
@@ -223,13 +245,16 @@ public class DashboardServiceImpl implements DashboardService {
                 )
         );
 
-        return new FollowingResponse.List(profile, summary, content, page, size, 5, 1, false, false);
+        return new FollowingResponse.List(
+                profile, summary, content,
+                request.page(), request.size(),
+                5, 1, false, false);
     }
 
     @Override
-    public WishlistResponse.List getWishlist(String authorization, int page, int size, String keyword,
-                                             String artistId, Long categoryId, String sort, String order) {
+    public WishlistResponse.List getWishlist(Long userId, WishlistSearchRequest request) {
         // TODO: 실제 데이터베이스 조회 로직 구현
+        log.debug("찜한 상품 목록 조회 - userId: {}, request: {}", userId, request);
 
         WishlistResponse.SummaryDto summary = new WishlistResponse.SummaryDto(15);
 
@@ -254,35 +279,38 @@ public class DashboardServiceImpl implements DashboardService {
                 )
         );
 
-        return new WishlistResponse.List(summary, bulkActions, content, page, size, 15, 2, true, false);
+        return new WishlistResponse.List(
+                summary, bulkActions, content,
+                request.page(), request.size(),
+                15, 2, true, false);
     }
 
     @Override
-    public FundingResponse.List getFundingParticipations(String authorization, int page, int size,
-                                                         String status, String keyword, String sort, String order) {
-        // 1. JWT 토큰에서 사용자 ID 추출
-        String token = authorization.replace("Bearer ", "");
-        Long userId = jwtTokenProvider.getUserIdFromToken(token);
+    public FundingResponse.List getFundingParticipations(Long userId, FundingSearchRequest request) {
+        log.debug("펀딩 목록 조회 - userId: {}, request: {}", userId, request);
 
-        log.debug("펀딩 목록 조회 - userId: {}, page: {}, size: {}, status: {}, keyword: {}",
-                userId, page, size, status, keyword);
+        // Pageable 생성 (정렬 포함)
+        Pageable pageable = createPageable(
+                request.page(), request.size(),
+                request.sort(), request.order());
 
-        // 2. Pageable 생성 (정렬 포함)
-        Pageable pageable = createPageable(page, size, sort, order);
-
-        // 3. Repository 조회
+        // Repository 조회
         Page<FundingContribution> contributionPage = fundingContributionRepository
-                .findContributionsByBuyerWithFilters(userId, keyword, status, pageable);
+                .findContributionsByBuyerWithFilters(
+                        userId,
+                        request.keyword(),
+                        request.status(),
+                        pageable);
 
-        // 4. 엔티티 → DTO 변환
+        // 엔티티 → DTO 변환
         List<FundingResponse.Participation> content = contributionPage.getContent().stream()
                 .map(this::toParticipationDto)
                 .collect(Collectors.toList());
 
-        // 5. 통계 계산 (배송 상태 제외)
+        // 통계 계산 (배송 상태 제외)
         FundingResponse.SummaryDto summary = calculateSummary(userId);
 
-        // 6. 응답 생성
+        // 응답 생성
         return new FundingResponse.List(
                 summary,
                 content,
@@ -306,14 +334,13 @@ public class DashboardServiceImpl implements DashboardService {
             order = "DESC";
         }
 
-        org.springframework.data.domain.Sort.Direction direction = 
-            "ASC".equalsIgnoreCase(order) ? 
-            org.springframework.data.domain.Sort.Direction.ASC : 
-            org.springframework.data.domain.Sort.Direction.DESC;
+        org.springframework.data.domain.Sort.Direction direction =
+                "ASC".equalsIgnoreCase(order) ?
+                        org.springframework.data.domain.Sort.Direction.ASC :
+                        org.springframework.data.domain.Sort.Direction.DESC;
 
         // 정렬 필드 매핑 (DTO 필드명 → 엔티티 필드명)
         String sortField = switch (sort) {
-            case "paidAt" -> "paidAt";
             case "pledgedAmount" -> "totalAmount";
             case "title" -> "funding.title";
             case "artistName" -> "funding.user.name";
@@ -409,8 +436,10 @@ public class DashboardServiceImpl implements DashboardService {
     }
 
     @Override
-    public ReturnResponse.FormData getReturnFormData(String authorization, Long returnId) {
+    public ReturnResponse.FormData getReturnFormData(Long userId, Long returnId) {
         // TODO: 실제 데이터베이스 조회 로직 구현
+        // TODO: 반품 신청자 본인 확인 로직 추가
+        log.debug("교환/반품 폼 데이터 조회 - userId: {}, returnId: {}", userId, returnId);
 
         ReturnResponse.Summary summary = new ReturnResponse.Summary(
                 "0123157", "아티스트브랜드", "감성 포스터", 25000, 1,
@@ -427,17 +456,17 @@ public class DashboardServiceImpl implements DashboardService {
     }
 
     @Override
-    public CashResponse.Balance getCashBalance(String authorization) {
+    public CashResponse.Balance getCashBalance(Long userId) {
         // TODO: 실제 데이터베이스 조회 로직 구현
+        log.debug("캐시 정보 조회 - userId: {}", userId);
 
         return new CashResponse.Balance(5900, "KRW", LocalDateTime.now());
     }
 
     @Override
-    public CashResponse.HistoryList getCashHistory(String authorization, int page, int size,
-                                                   String method, String status, String dateFrom, String dateTo,
-                                                   String sort, String order) {
+    public CashResponse.HistoryList getCashHistory(Long userId, CashHistorySearchRequest request) {
         // TODO: 실제 데이터베이스 조회 로직 구현
+        log.debug("캐시 충전 내역 조회 - userId: {}, request: {}", userId, request);
 
         CashResponse.SummaryDto summary = new CashResponse.SummaryDto(5, 15000, 2);
 
@@ -452,6 +481,9 @@ public class DashboardServiceImpl implements DashboardService {
                         new CashResponse.Link("/orders/0123157"))
         );
 
-        return new CashResponse.HistoryList(summary, content, page, size, 5, 1, false, false);
+        return new CashResponse.HistoryList(
+                summary, content,
+                request.page(), request.size(),
+                5, 1, false, false);
     }
 }
