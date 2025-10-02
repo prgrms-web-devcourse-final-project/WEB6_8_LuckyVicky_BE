@@ -31,6 +31,8 @@ dependencies {
     compileOnly("org.projectlombok:lombok")
     developmentOnly("org.springframework.boot:spring-boot-devtools")
     runtimeOnly("com.h2database:h2")
+    // PostgreSQL 드라이버
+    runtimeOnly("org.postgresql:postgresql")
     annotationProcessor("org.projectlombok:lombok")
     testImplementation("org.springframework.boot:spring-boot-starter-test")
     testImplementation("org.springframework.security:spring-security-test")
@@ -47,7 +49,7 @@ dependencies {
     implementation("io.jsonwebtoken:jjwt-impl:0.12.3")
     implementation("io.jsonwebtoken:jjwt-jackson:0.12.3")
 
-    // AWS S3용 SDK
+    // AWS용 의존성 추가
     implementation("software.amazon.awssdk:s3:2.34.0")
     implementation("net.coobird:thumbnailator:0.4.19")
 
@@ -57,6 +59,11 @@ dependencies {
     // Google Analytics Data API (GA4)
     implementation("com.google.analytics:google-analytics-data:0.44.0")
     implementation("com.google.auth:google-auth-library-oauth2-http:1.19.0")
+    // Actuator
+    implementation("org.springframework.boot:spring-boot-starter-actuator")
+    // Redis
+    implementation("org.springframework.boot:spring-boot-starter-data-redis")
+    implementation("org.springframework.session:spring-session-data-redis")
 }
 
 tasks.withType<Test> {

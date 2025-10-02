@@ -5,6 +5,11 @@ import com.back.domain.artist.entity.ArtistApplication;
 import com.back.domain.artist.repository.ArtistApplicationRepository;
 import com.back.domain.dashboard.admin.dto.request.*;
 import com.back.domain.dashboard.admin.dto.response.*;
+<<<<<<< HEAD
+=======
+import com.google.analytics.data.v1beta.*;
+import org.springframework.beans.factory.annotation.Value;
+>>>>>>> 2f4795372b442dd5b55cfd8b8cfe7ba547b36a98
 import com.back.domain.funding.entity.Funding;
 import com.back.domain.funding.entity.FundingStatus;
 import com.back.domain.funding.repository.FundingRepository;
@@ -55,6 +60,7 @@ public class AdminDashboardServiceImpl implements AdminDashboardService {
 
     @Value("${google.analytics.property-id}")
     private String propertyId;
+<<<<<<< HEAD
 
     /**
      * SecurityContext에서 인증된 관리자 정보를 추출하고 권한을 검증하는 헬퍼 메서드
@@ -88,6 +94,8 @@ public class AdminDashboardServiceImpl implements AdminDashboardService {
 
         return userDetails;
     }
+=======
+>>>>>>> 2f4795372b442dd5b55cfd8b8cfe7ba547b36a98
 
     @Override
     public AdminOverviewResponse getOverview(AdminOverviewRequest request) {
@@ -169,18 +177,31 @@ public class AdminDashboardServiceImpl implements AdminDashboardService {
         );
 
         // 유입 경로 정보 (GA4) - 7일 기준
+<<<<<<< HEAD
         AdminOverviewResponse.TrafficSources trafficSources = getTrafficSourcesForOverview(request.timezone());
 
         return new AdminOverviewResponse(overview, charts, alerts, trafficSources, LocalDateTime.now(), request.timezone());
+=======
+        AdminOverviewResponse.TrafficSources trafficSources = getTrafficSourcesForOverview(authorization, timezone);
+
+        return new AdminOverviewResponse(overview, charts, alerts, trafficSources, LocalDateTime.now(), timezone);
+>>>>>>> 2f4795372b442dd5b55cfd8b8cfe7ba547b36a98
     }
 
     /**
      * 메인 대시보드용 유입 경로 데이터 조회 (간소화 버전)
      */
+<<<<<<< HEAD
     private AdminOverviewResponse.TrafficSources getTrafficSourcesForOverview(String timezone) {
         try {
             // 기존 getTrafficSources 메서드 호출 (7일 기준)
             AdminTrafficSourceResponse fullResponse = getTrafficSources(7, timezone);
+=======
+    private AdminOverviewResponse.TrafficSources getTrafficSourcesForOverview(String authorization, String timezone) {
+        try {
+            // 기존 getTrafficSources 메서드 호출 (7일 기준)
+            AdminTrafficSourceResponse fullResponse = getTrafficSources(authorization, null, 7, timezone);
+>>>>>>> 2f4795372b442dd5b55cfd8b8cfe7ba547b36a98
 
             // 메인 대시보드용으로 간소화
             AdminOverviewResponse.Summary summary = new AdminOverviewResponse.Summary(
@@ -218,7 +239,11 @@ public class AdminDashboardServiceImpl implements AdminDashboardService {
 
         } catch (Exception e) {
             log.error("메인 대시보드 유입 경로 조회 중 오류 발생", e);
+<<<<<<< HEAD
 
+=======
+            
+>>>>>>> 2f4795372b442dd5b55cfd8b8cfe7ba547b36a98
             // 오류 발생 시 빈 데이터 반환
             return new AdminOverviewResponse.TrafficSources(
                     new AdminOverviewResponse.Summary(0, 0, 0.0, 0.0),
@@ -278,8 +303,13 @@ public class AdminDashboardServiceImpl implements AdminDashboardService {
     private AdminProductResponse.Product convertToProductDto(Product product) {
 
         // UUID를 상품번호로 사용
+<<<<<<< HEAD
         String productNumber = product.getProductUuid() != null
                 ? product.getProductUuid().toString()
+=======
+        String productNumber = product.getProductUuid() != null 
+                ? product.getProductUuid().toString() 
+>>>>>>> 2f4795372b442dd5b55cfd8b8cfe7ba547b36a98
                 : String.valueOf(product.getId());
 
         return new AdminProductResponse.Product(
@@ -312,15 +342,34 @@ public class AdminDashboardServiceImpl implements AdminDashboardService {
             predicates.add(criteriaBuilder.isFalse(root.get("isDeleted")));
 
             // 키워드 검색 (상품명, 브랜드명, 작가명, UUID)
+<<<<<<< HEAD
             if (request.keyword() != null && !request.keyword().isBlank()) {
                 String likePattern = "%" + request.keyword() + "%";
 
+=======
+            if (keyword != null && !keyword.isBlank()) {
+                String likePattern = "%" + keyword + "%";
+                
+>>>>>>> 2f4795372b442dd5b55cfd8b8cfe7ba547b36a98
                 List<jakarta.persistence.criteria.Predicate> keywordPredicates = new ArrayList<>();
                 keywordPredicates.add(criteriaBuilder.like(root.get("name"), likePattern)); // 상품명
                 keywordPredicates.add(criteriaBuilder.like(root.get("brandName"), likePattern)); // 브랜드명
                 keywordPredicates.add(criteriaBuilder.like(root.get("user").get("name"), likePattern)); // 작가명
+<<<<<<< HEAD
 
                 // UUID로 검색 (상품번호는 UUID)
+=======
+                
+                // UUID로 검색 (상품번호는 UUID)
+                try {
+                    java.util.UUID uuid = java.util.UUID.fromString(keyword);
+                    keywordPredicates.add(criteriaBuilder.equal(root.get("productUuid"), uuid));
+                } catch (IllegalArgumentException e) {
+                    // UUID 형식이 아니면 UUID 검색 제외
+                }
+                
+                // 숫자인 경우 ID로도 검색 (레거시 지원)
+>>>>>>> 2f4795372b442dd5b55cfd8b8cfe7ba547b36a98
                 try {
                     java.util.UUID uuid = java.util.UUID.fromString(request.keyword());
                     keywordPredicates.add(criteriaBuilder.equal(root.get("productUuid"), uuid));
@@ -928,12 +977,19 @@ public class AdminDashboardServiceImpl implements AdminDashboardService {
     }
 
     @Override
+<<<<<<< HEAD
     public AdminTrafficSourceResponse getTrafficSources(int days, String timezone) {
         // JWT 토큰에서 관리자 정보 추출 및 권한 검증
         CustomUserDetails adminUser = validateAdminAuthentication();
 
         log.info("관리자 유입 경로 조회 - userId: {}, role: {}, days: {}, timezone: {}",
                 adminUser.getUserId(), adminUser.getCurrentRole(), days, timezone);
+=======
+    public AdminTrafficSourceResponse getTrafficSources(String authorization, String adminRole, int days, String timezone) {
+        // TODO: JWT 토큰에서 관리자 정보 추출 및 권한 검증
+
+        log.info("관리자 유입 경로 조회 - days: {}, timezone: {}, adminRole: {}", days, timezone, adminRole);
+>>>>>>> 2f4795372b442dd5b55cfd8b8cfe7ba547b36a98
 
         try {
             // GA4 API 요청 생성
@@ -1084,7 +1140,11 @@ public class AdminDashboardServiceImpl implements AdminDashboardService {
 
         } catch (Exception e) {
             log.error("GA4 유입 경로 조회 중 오류 발생", e);
+<<<<<<< HEAD
 
+=======
+            
+>>>>>>> 2f4795372b442dd5b55cfd8b8cfe7ba547b36a98
             // 오류 발생 시 빈 데이터 반환
             return new AdminTrafficSourceResponse(
                     new AdminTrafficSourceResponse.Summary(0, 0, 0.0, 0.0),

@@ -16,7 +16,10 @@ import com.back.domain.dashboard.artist.dto.response.ArtistTrafficSourceResponse
 /**
  * 작가용 대시보드 서비스 인터페이스
  * 2025.10.01 GA4 유입 경로 통합 - 메인 현황에 포함
+<<<<<<< HEAD
  * 2025.10.02 JWT 표준 패턴 적용 - Request DTO 사용
+=======
+>>>>>>> 2f4795372b442dd5b55cfd8b8cfe7ba547b36a98
  */
 public interface ArtistDashboardService {
 
@@ -68,11 +71,20 @@ public interface ArtistDashboardService {
     /**
      * 작가 정산내역 조회
      */
+<<<<<<< HEAD
     ArtistSettlementResponse getSettlements(Long artistId, ArtistSettlementSearchRequest request);
+=======
+    ArtistSettlementResponse getSettlements(String authorization, Integer year, Integer month, String granularity,
+                                            String status, Long productId, int page, int size, String sort, String order);
+>>>>>>> 2f4795372b442dd5b55cfd8b8cfe7ba547b36a98
 
     /**
      * 작가 유입 경로 분석 조회 (GA4) - 내부 사용 전용
      * getMainStats()에서 내부적으로 호출됨
      */
+<<<<<<< HEAD
     ArtistTrafficSourceResponse getTrafficSources(Long artistId, int days, String timezone);
+=======
+    ArtistTrafficSourceResponse getTrafficSources(String authorization, int days, String timezone);
+>>>>>>> 2f4795372b442dd5b55cfd8b8cfe7ba547b36a98
 }

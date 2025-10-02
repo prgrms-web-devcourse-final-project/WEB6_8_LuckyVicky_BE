@@ -19,6 +19,10 @@ import com.back.domain.funding.repository.FundingRepository;
 import com.back.domain.product.product.entity.Product;
 import com.back.domain.product.product.entity.SellingStatus;
 import com.back.domain.product.product.repository.ProductRepository;
+<<<<<<< HEAD
+=======
+import com.back.global.security.jwt.JwtTokenProvider;
+>>>>>>> 2f4795372b442dd5b55cfd8b8cfe7ba547b36a98
 import com.google.analytics.data.v1beta.*;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -41,7 +45,10 @@ import java.util.List;
  * 2025.09.29 수정 - getProducts() 실제 DB 연동
  * 2025.09.30 수정 - getFundings() 실제 DB 연동
  * 2025.10.01 추가 - getTrafficSources() GA4 유입 경로 분석
+<<<<<<< HEAD
  * 2025.10.02 JWT 표준 패턴 적용 - JWT 파싱 제거, Request DTO 사용
+=======
+>>>>>>> 2f4795372b442dd5b55cfd8b8cfe7ba547b36a98
  */
 @Service
 @RequiredArgsConstructor
@@ -52,6 +59,10 @@ public class ArtistDashboardServiceImpl implements ArtistDashboardService {
     private final ProductRepository productRepository;
     private final FundingRepository fundingRepository;
     private final FundingContributionRepository fundingContributionRepository;
+<<<<<<< HEAD
+=======
+    private final JwtTokenProvider jwtTokenProvider;
+>>>>>>> 2f4795372b442dd5b55cfd8b8cfe7ba547b36a98
     private final BetaAnalyticsDataClient analyticsDataClient;
 
     @Value("${google.analytics.property-id}")
@@ -142,7 +153,11 @@ public class ArtistDashboardServiceImpl implements ArtistDashboardService {
         ArtistMainResponse.Notifications notifications = new ArtistMainResponse.Notifications(orderAlerts, fundingAlerts);
 
         // 유입 경로 정보 (GA4) - 7일 기준
+<<<<<<< HEAD
         ArtistMainResponse.TrafficSources trafficSources = getTrafficSourcesForMain(artistId, request.tz());
+=======
+        ArtistMainResponse.TrafficSources trafficSources = getTrafficSourcesForMain(authorization, tz);
+>>>>>>> 2f4795372b442dd5b55cfd8b8cfe7ba547b36a98
 
         return new ArtistMainResponse(
                 profile,
@@ -158,10 +173,71 @@ public class ArtistDashboardServiceImpl implements ArtistDashboardService {
     /**
      * 메인 대시보드용 유입 경로 데이터 조회 (간소화 버전)
      */
+<<<<<<< HEAD
     private ArtistMainResponse.TrafficSources getTrafficSourcesForMain(Long artistId, String timezone) {
         try {
             // 기존 getTrafficSources 메서드 호출 (7일 기준)
             ArtistTrafficSourceResponse fullResponse = getTrafficSources(artistId, 7, timezone);
+=======
+    private ArtistMainResponse.TrafficSources getTrafficSourcesForMain(String authorization, String timezone) {
+        try {
+            // 기존 getTrafficSources 메서드 호출 (7일 기준)
+            ArtistTrafficSourceResponse fullResponse = getTrafficSources(authorization, 7, timezone);
+
+            // 메인 대시보드용으로 간소화
+            ArtistMainResponse.Summary summary = new ArtistMainResponse.Summary(
+                    fullResponse.summary().totalSessions(),
+                    fullResponse.summary().totalUsers(),
+                    fullResponse.summary().conversions(),
+                    fullResponse.summary().conversionRate(),
+                    fullResponse.summary().topSource()
+            );
+
+            // 상위 5개 유입 경로만
+            List<ArtistMainResponse.Source> sources = fullResponse.sources().stream()
+                    .limit(5)
+                    .map(source -> new ArtistMainResponse.Source(
+                            source.name(),
+                            source.sessions(),
+                            source.users(),
+                            source.share()
+                    ))
+                    .toList();
+
+            // 차트 데이터
+            List<ArtistMainResponse.ChartData> chartData = fullResponse.chart().data().stream()
+                    .limit(5)
+                    .map(data -> new ArtistMainResponse.ChartData(
+                            data.name(),
+                            data.value(),
+                            data.percentage(),
+                            data.color()
+                    ))
+                    .toList();
+
+            ArtistMainResponse.Chart chart = new ArtistMainResponse.Chart(chartData);
+
+            return new ArtistMainResponse.TrafficSources(summary, sources, chart);
+
+        } catch (Exception e) {
+            log.error("메인 대시보드 유입 경로 조회 중 오류 발생", e);
+            
+            // 오류 발생 시 빈 데이터 반환
+            return new ArtistMainResponse.TrafficSources(
+                    new ArtistMainResponse.Summary(0, 0, 0, 0.0, "없음"),
+                    List.of(),
+                    new ArtistMainResponse.Chart(List.of())
+            );
+        }
+    }
+
+    @Override
+    public ArtistProductResponse.List getProducts(String authorization, int page, int size, String keyword,
+                                                  Boolean selling, String sort, String order) {
+        // JWT 토큰에서 작가 ID 추출
+        String token = authorization.replace("Bearer ", "");
+        Long artistId = jwtTokenProvider.getUserIdFromToken(token);
+>>>>>>> 2f4795372b442dd5b55cfd8b8cfe7ba547b36a98
 
             // 메인 대시보드용으로 간소화
             ArtistMainResponse.Summary summary = new ArtistMainResponse.Summary(
@@ -736,7 +812,15 @@ public class ArtistDashboardServiceImpl implements ArtistDashboardService {
     }
 
     @Override
+<<<<<<< HEAD
     public ArtistTrafficSourceResponse getTrafficSources(Long artistId, int days, String timezone) {
+=======
+    public ArtistTrafficSourceResponse getTrafficSources(String authorization, int days, String timezone) {
+        // JWT 토큰에서 작가 ID 추출
+        String token = authorization.replace("Bearer ", "");
+        Long artistId = jwtTokenProvider.getUserIdFromToken(token);
+
+>>>>>>> 2f4795372b442dd5b55cfd8b8cfe7ba547b36a98
         log.info("작가 유입 경로 조회 - artistId: {}, days: {}, timezone: {}", artistId, days, timezone);
 
         try {

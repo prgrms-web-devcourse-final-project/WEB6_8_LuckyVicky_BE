@@ -33,7 +33,10 @@ import org.springframework.web.bind.annotation.*;
  * </ul>
  * <p>
  * 2025.10.01 GA4 유입 경로 통합 - 메인 현황에 포함
+<<<<<<< HEAD
  * 2025.10.02 JWT 표준 패턴 적용 - @AuthenticationPrincipal 사용
+=======
+>>>>>>> 2f4795372b442dd5b55cfd8b8cfe7ba547b36a98
  */
 @RestController
 @RequestMapping("/api/dashboard/artist")
@@ -58,7 +61,12 @@ public class ArtistDashboardController {
                 userDetails.getUserId(), request.range(), request.interval());
 
         ArtistMainResponse response = artistDashboardService.getMainStats(
+<<<<<<< HEAD
                 userDetails.getUserId(), request);
+=======
+                authorization, request.range(), request.from(), request.to(),
+                request.interval(), request.tz());
+>>>>>>> 2f4795372b442dd5b55cfd8b8cfe7ba547b36a98
 
         return ResponseEntity.ok(RsData.ok("작가 대시보드 메인 조회 성공", response));
     }
@@ -72,11 +80,20 @@ public class ArtistDashboardController {
             @AuthenticationPrincipal CustomUserDetails userDetails,
             @Valid @ModelAttribute ArtistProductSearchRequest request) {
 
+<<<<<<< HEAD
         log.info("작가 상품 목록 조회 - artistId: {}, page: {}, size: {}, keyword: {}",
                 userDetails.getUserId(), request.page(), request.size(), request.keyword());
 
         ArtistProductResponse.List response = artistDashboardService.getProducts(
                 userDetails.getUserId(), request);
+=======
+        log.info("작가 상품 목록 조회 - page: {}, size: {}, keyword: {}",
+                request.page(), request.size(), request.keyword());
+
+        ArtistProductResponse.List response = artistDashboardService.getProducts(
+                authorization, request.page(), request.size(), request.keyword(),
+                request.selling(), request.sort(), request.order());
+>>>>>>> 2f4795372b442dd5b55cfd8b8cfe7ba547b36a98
 
         return ResponseEntity.ok(RsData.ok("내 상품 목록 조회 성공", response));
     }
@@ -105,11 +122,20 @@ public class ArtistDashboardController {
             @AuthenticationPrincipal CustomUserDetails userDetails,
             @Valid @ModelAttribute ArtistCashHistorySearchRequest request) {
 
+<<<<<<< HEAD
         log.info("작가 캐시 내역 조회 - artistId: {}, page: {}, size: {}, type: {}",
                 userDetails.getUserId(), request.page(), request.size(), request.type());
 
         ArtistCashHistoryResponse.List response = artistDashboardService.getCashHistory(
                 userDetails.getUserId(), request);
+=======
+        log.info("작가 캐시 내역 조회 - page: {}, size: {}, type: {}",
+                request.page(), request.size(), request.type());
+
+        ArtistCashHistoryResponse.List response = artistDashboardService.getCashHistory(
+                authorization, request.page(), request.size(), request.type(), request.status(),
+                request.dateFrom(), request.dateTo(), request.sort(), request.order());
+>>>>>>> 2f4795372b442dd5b55cfd8b8cfe7ba547b36a98
 
         return ResponseEntity.ok(RsData.ok("입금/환전 내역 조회 성공", response));
     }
@@ -123,11 +149,20 @@ public class ArtistDashboardController {
             @AuthenticationPrincipal CustomUserDetails userDetails,
             @Valid @ModelAttribute ArtistOrderSearchRequest request) {
 
+<<<<<<< HEAD
         log.info("작가 주문 내역 조회 - artistId: {}, page: {}, size: {}, status: {}",
                 userDetails.getUserId(), request.page(), request.size(), request.status());
 
         ArtistOrderResponse.List response = artistDashboardService.getOrders(
                 userDetails.getUserId(), request);
+=======
+        log.info("작가 주문 내역 조회 - page: {}, size: {}, status: {}",
+                request.page(), request.size(), request.status());
+
+        ArtistOrderResponse.List response = artistDashboardService.getOrders(
+                authorization, request.page(), request.size(), request.status(), request.keyword(),
+                request.startDate(), request.endDate(), request.sort(), request.order());
+>>>>>>> 2f4795372b442dd5b55cfd8b8cfe7ba547b36a98
 
         return ResponseEntity.ok(RsData.ok("주문 목록 조회 성공", response));
     }
@@ -141,11 +176,20 @@ public class ArtistDashboardController {
             @AuthenticationPrincipal CustomUserDetails userDetails,
             @Valid @ModelAttribute ArtistCancellationSearchRequest request) {
 
+<<<<<<< HEAD
         log.info("작가 취소 요청 목록 조회 - artistId: {}, page: {}, size: {}, status: {}",
                 userDetails.getUserId(), request.page(), request.size(), request.status());
 
         ArtistCancellationResponse.List response = artistDashboardService.getCancellationRequests(
                 userDetails.getUserId(), request);
+=======
+        log.info("작가 취소 요청 목록 조회 - page: {}, size: {}, status: {}",
+                request.page(), request.size(), request.status());
+
+        ArtistCancellationResponse.List response = artistDashboardService.getCancellationRequests(
+                authorization, request.page(), request.size(), request.status(), request.keyword(),
+                request.startDate(), request.endDate(), request.productId(), request.sort(), request.order());
+>>>>>>> 2f4795372b442dd5b55cfd8b8cfe7ba547b36a98
 
         return ResponseEntity.ok(RsData.ok("취소 요청 목록 조회 성공", response));
     }
@@ -159,11 +203,20 @@ public class ArtistDashboardController {
             @AuthenticationPrincipal CustomUserDetails userDetails,
             @Valid @ModelAttribute ArtistExchangeSearchRequest request) {
 
+<<<<<<< HEAD
         log.info("작가 교환 요청 목록 조회 - artistId: {}, page: {}, size: {}, status: {}",
                 userDetails.getUserId(), request.page(), request.size(), request.status());
 
         ArtistExchangeResponse.List response = artistDashboardService.getExchangeRequests(
                 userDetails.getUserId(), request);
+=======
+        log.info("작가 교환 요청 목록 조회 - page: {}, size: {}, status: {}",
+                request.page(), request.size(), request.status());
+
+        ArtistExchangeResponse.List response = artistDashboardService.getExchangeRequests(
+                authorization, request.page(), request.size(), request.status(), request.keyword(),
+                request.startDate(), request.endDate(), request.productId(), request.sort(), request.order());
+>>>>>>> 2f4795372b442dd5b55cfd8b8cfe7ba547b36a98
 
         return ResponseEntity.ok(RsData.ok("교환 요청 목록 조회 성공", response));
     }
@@ -192,11 +245,21 @@ public class ArtistDashboardController {
             @AuthenticationPrincipal CustomUserDetails userDetails,
             @Valid @ModelAttribute ArtistFundingSearchRequest request) {
 
+<<<<<<< HEAD
         log.info("작가 펀딩 목록 조회 - artistId: {}, page: {}, size: {}, status: {}",
                 userDetails.getUserId(), request.page(), request.size(), request.status());
 
         ArtistFundingResponse.List response = artistDashboardService.getFundings(
                 userDetails.getUserId(), request);
+=======
+        log.info("작가 펀딩 목록 조회 - page: {}, size: {}, status: {}",
+                request.page(), request.size(), request.status());
+
+        ArtistFundingResponse.List response = artistDashboardService.getFundings(
+                authorization, request.page(), request.size(), request.keyword(), request.status(),
+                request.categoryId(), request.minAchievement(), request.maxAchievement(),
+                request.startDate(), request.endDate(), request.sort(), request.order());
+>>>>>>> 2f4795372b442dd5b55cfd8b8cfe7ba547b36a98
 
         return ResponseEntity.ok(RsData.ok("내 펀딩 모니터링 조회 성공", response));
     }
@@ -210,9 +273,14 @@ public class ArtistDashboardController {
             @AuthenticationPrincipal CustomUserDetails userDetails,
             @Valid @ModelAttribute ArtistSettlementSearchRequest request) {
 
+<<<<<<< HEAD
         log.info("작가 정산내역 조회 - artistId: {}, year: {}, month: {}, granularity: {}, page: {}, size: {}",
                 userDetails.getUserId(), request.year(), request.month(), request.granularity(), 
                 request.page(), request.size());
+=======
+        log.info("작가 정산내역 조회 - year: {}, month: {}, granularity: {}, page: {}, size: {}",
+                request.year(), request.month(), request.granularity(), request.page(), request.size());
+>>>>>>> 2f4795372b442dd5b55cfd8b8cfe7ba547b36a98
 
         ArtistSettlementResponse response = artistDashboardService.getSettlements(
                 userDetails.getUserId(), request);
