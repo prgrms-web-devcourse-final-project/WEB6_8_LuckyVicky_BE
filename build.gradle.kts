@@ -56,6 +56,9 @@ dependencies {
     // OAuth2 Client 추가
     implementation("org.springframework.boot:spring-boot-starter-oauth2-client")
 
+    // Google Analytics Data API (GA4)
+    implementation("com.google.analytics:google-analytics-data:0.44.0")
+    implementation("com.google.auth:google-auth-library-oauth2-http:1.19.0")
     // Actuator
     implementation("org.springframework.boot:spring-boot-starter-actuator")
     // Redis

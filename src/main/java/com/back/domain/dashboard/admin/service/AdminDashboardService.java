@@ -1,21 +1,15 @@
 package com.back.domain.dashboard.admin.service;
 
-import com.back.domain.dashboard.admin.dto.response.AdminArtistApplicationDetailResponse;
-import com.back.domain.dashboard.admin.dto.response.AdminArtistApplicationResponse;
-import com.back.domain.dashboard.admin.dto.response.AdminFundingResponse;
-import com.back.domain.dashboard.admin.dto.response.AdminOverviewResponse;
-import com.back.domain.dashboard.admin.dto.response.AdminProductResponse;
-import com.back.domain.dashboard.admin.dto.response.AdminSettlementResponse;
-import com.back.domain.dashboard.admin.dto.response.AdminUserResponse;
+import com.back.domain.dashboard.admin.dto.response.*;
 
 /**
  * 관리자용 대시보드 서비스 인터페이스
- * 2025.09.28 수정
+ * 2025.10.01 GA4 유입 경로 통합 - 메인 현황에 포함
  */
 public interface AdminDashboardService {
 
     /**
-     * 관리자 대시보드 전체 현황 조회
+     * 관리자 대시보드 전체 현황 조회 (유입 경로 포함)
      */
     AdminOverviewResponse getOverview(String authorization, String adminRole, String range, 
                                       String granularity, String period, String timezone);
@@ -62,4 +56,10 @@ public interface AdminDashboardService {
      * 관리자 입점 신청 상세 조회
      */
     AdminArtistApplicationDetailResponse getArtistApplicationDetail(String authorization, String adminRole, Long applicationId);
+
+    /**
+     * 관리자 유입 경로 분석 조회 (GA4) - 내부 사용 전용
+     * getOverview()에서 내부적으로 호출됨
+     */
+    AdminTrafficSourceResponse getTrafficSources(String authorization, String adminRole, int days, String timezone);
 }

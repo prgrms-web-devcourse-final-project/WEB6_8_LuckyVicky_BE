@@ -10,15 +10,16 @@ import com.back.domain.dashboard.artist.dto.response.ArtistExchangeResponse;
 import com.back.domain.dashboard.artist.dto.response.ArtistSettingsResponse;
 import com.back.domain.dashboard.artist.dto.response.ArtistFundingResponse;
 import com.back.domain.dashboard.artist.dto.response.ArtistSettlementResponse;
+import com.back.domain.dashboard.artist.dto.response.ArtistTrafficSourceResponse;
 
 /**
  * 작가용 대시보드 서비스 인터페이스
- * 2025.09.25 Request DTO 패턴 적용
+ * 2025.10.01 GA4 유입 경로 통합 - 메인 현황에 포함
  */
 public interface ArtistDashboardService {
 
     /**
-     * 작가 대시보드 메인 현황 조회
+     * 작가 대시보드 메인 현황 조회 (유입 경로 포함)
      */
     ArtistMainResponse getMainStats(String authorization, String range, String from, String to,
                                     String interval, String tz);
@@ -79,4 +80,10 @@ public interface ArtistDashboardService {
      */
     ArtistSettlementResponse getSettlements(String authorization, Integer year, Integer month, String granularity,
                                             String status, Long productId, int page, int size, String sort, String order);
+
+    /**
+     * 작가 유입 경로 분석 조회 (GA4) - 내부 사용 전용
+     * getMainStats()에서 내부적으로 호출됨
+     */
+    ArtistTrafficSourceResponse getTrafficSources(String authorization, int days, String timezone);
 }

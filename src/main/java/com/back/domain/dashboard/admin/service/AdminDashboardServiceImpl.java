@@ -4,7 +4,8 @@ import com.back.domain.artist.entity.ApplicationStatus;
 import com.back.domain.artist.entity.ArtistApplication;
 import com.back.domain.artist.repository.ArtistApplicationRepository;
 import com.back.domain.dashboard.admin.dto.response.*;
-import com.back.domain.dashboard.admin.util.ProductNumberFormatter;
+import com.google.analytics.data.v1beta.*;
+import org.springframework.beans.factory.annotation.Value;
 import com.back.domain.funding.entity.Funding;
 import com.back.domain.funding.entity.FundingStatus;
 import com.back.domain.funding.repository.FundingRepository;
@@ -45,6 +46,10 @@ public class AdminDashboardServiceImpl implements AdminDashboardService {
     private final UserRepository userRepository;
     private final FundingRepository fundingRepository;
     private final ArtistApplicationRepository artistApplicationRepository;
+    private final BetaAnalyticsDataClient analyticsDataClient;
+
+    @Value("${google.analytics.property-id}")
+    private String propertyId;
 
     @Override
     public AdminOverviewResponse getOverview(String authorization, String adminRole, String range,
@@ -124,7 +129,64 @@ public class AdminDashboardServiceImpl implements AdminDashboardService {
                 fundingApprovals
         );
 
-        return new AdminOverviewResponse(overview, charts, alerts, LocalDateTime.now(), timezone);
+        // 유입 경로 정보 (GA4) - 7일 기준
+        AdminOverviewResponse.TrafficSources trafficSources = getTrafficSourcesForOverview(authorization, timezone);
+
+        return new AdminOverviewResponse(overview, charts, alerts, trafficSources, LocalDateTime.now(), timezone);
+    }
+
+    /**
+     * 메인 대시보드용 유입 경로 데이터 조회 (간소화 버전)
+     */
+    private AdminOverviewResponse.TrafficSources getTrafficSourcesForOverview(String authorization, String timezone) {
+        try {
+            // 기존 getTrafficSources 메서드 호출 (7일 기준)
+            AdminTrafficSourceResponse fullResponse = getTrafficSources(authorization, null, 7, timezone);
+
+            // 메인 대시보드용으로 간소화
+            AdminOverviewResponse.Summary summary = new AdminOverviewResponse.Summary(
+                    fullResponse.summary().totalSessions(),
+                    fullResponse.summary().totalUsers(),
+                    fullResponse.summary().avgSessionDuration(),
+                    fullResponse.summary().bounceRate()
+            );
+
+            // 상위 5개 유입 경로만
+            List<AdminOverviewResponse.Source> sources = fullResponse.sources().stream()
+                    .limit(5)
+                    .map(source -> new AdminOverviewResponse.Source(
+                            source.name(),
+                            source.sessions(),
+                            source.users(),
+                            source.share()
+                    ))
+                    .toList();
+
+            // 차트 데이터
+            List<AdminOverviewResponse.ChartData> chartData = fullResponse.chart().data().stream()
+                    .limit(5)
+                    .map(data -> new AdminOverviewResponse.ChartData(
+                            data.name(),
+                            data.value(),
+                            data.percentage(),
+                            data.color()
+                    ))
+                    .toList();
+
+            AdminOverviewResponse.Chart chart = new AdminOverviewResponse.Chart(chartData);
+
+            return new AdminOverviewResponse.TrafficSources(summary, sources, chart);
+
+        } catch (Exception e) {
+            log.error("메인 대시보드 유입 경로 조회 중 오류 발생", e);
+            
+            // 오류 발생 시 빈 데이터 반환
+            return new AdminOverviewResponse.TrafficSources(
+                    new AdminOverviewResponse.Summary(0, 0, 0.0, 0.0),
+                    List.of(),
+                    new AdminOverviewResponse.Chart(List.of())
+            );
+        }
     }
 
     @Override
@@ -167,8 +229,11 @@ public class AdminDashboardServiceImpl implements AdminDashboardService {
      * Product Entity → DTO 변환
      */
     private AdminProductResponse.Product convertToProductDto(Product product) {
-        /* 상품 번호 ID를 포맷팅하고 있음. Product Entity에 productNumber 컬럼 없어서 추가됨 */
-        String productNumber = ProductNumberFormatter.format(product.getId());
+
+        // UUID를 상품번호로 사용
+        String productNumber = product.getProductUuid() != null 
+                ? product.getProductUuid().toString() 
+                : String.valueOf(product.getId());
 
         return new AdminProductResponse.Product(
                 product.getId(),
@@ -199,17 +264,24 @@ public class AdminDashboardServiceImpl implements AdminDashboardService {
             // 논리 삭제된 상품 제외
             predicates.add(criteriaBuilder.isFalse(root.get("isDeleted")));
 
-            // 키워드 검색 (상품명, 브랜드명, 작가명)
+            // 키워드 검색 (상품명, 브랜드명, 작가명, UUID)
             if (keyword != null && !keyword.isBlank()) {
                 String likePattern = "%" + keyword + "%";
                 
-                // 숫자인 경우 상품 ID로도 검색 (상품번호는 ID를 포맷팅한 것)
                 List<jakarta.persistence.criteria.Predicate> keywordPredicates = new ArrayList<>();
-                keywordPredicates.add(criteriaBuilder.like(root.get("name"), likePattern));
-                keywordPredicates.add(criteriaBuilder.like(root.get("brandName"), likePattern));
-                keywordPredicates.add(criteriaBuilder.like(root.get("user").get("name"), likePattern)); // 작가명 검색
+                keywordPredicates.add(criteriaBuilder.like(root.get("name"), likePattern)); // 상품명
+                keywordPredicates.add(criteriaBuilder.like(root.get("brandName"), likePattern)); // 브랜드명
+                keywordPredicates.add(criteriaBuilder.like(root.get("user").get("name"), likePattern)); // 작가명
                 
-                // 숫자인 경우 ID로도 검색 (상품번호)
+                // UUID로 검색 (상품번호는 UUID)
+                try {
+                    java.util.UUID uuid = java.util.UUID.fromString(keyword);
+                    keywordPredicates.add(criteriaBuilder.equal(root.get("productUuid"), uuid));
+                } catch (IllegalArgumentException e) {
+                    // UUID 형식이 아니면 UUID 검색 제외
+                }
+                
+                // 숫자인 경우 ID로도 검색 (레거시 지원)
                 try {
                     Long id = Long.parseLong(keyword);
                     keywordPredicates.add(criteriaBuilder.equal(root.get("id"), id));
@@ -817,5 +889,177 @@ public class AdminDashboardServiceImpl implements AdminDashboardService {
                 decision,
                 permissions
         );
+    }
+
+    @Override
+    public AdminTrafficSourceResponse getTrafficSources(String authorization, String adminRole, int days, String timezone) {
+        // TODO: JWT 토큰에서 관리자 정보 추출 및 권한 검증
+
+        log.info("관리자 유입 경로 조회 - days: {}, timezone: {}, adminRole: {}", days, timezone, adminRole);
+
+        try {
+            // GA4 API 요청 생성
+            RunReportRequest request = RunReportRequest.newBuilder()
+                    .setProperty(propertyId)
+                    // 측정 기준: 세션 소스 (Instagram, YouTube, Google 등)
+                    .addDimensions(Dimension.newBuilder().setName("sessionSource"))
+                    // 지표: 세션 수, 사용자 수, 이탈률, 평균 세션 시간, 전환 수
+                    .addMetrics(Metric.newBuilder().setName("sessions"))
+                    .addMetrics(Metric.newBuilder().setName("totalUsers"))
+                    .addMetrics(Metric.newBuilder().setName("bounceRate"))
+                    .addMetrics(Metric.newBuilder().setName("averageSessionDuration"))
+                    .addMetrics(Metric.newBuilder().setName("conversions"))
+                    .addMetrics(Metric.newBuilder().setName("newUsers"))
+                    // 조회 기간 설정
+                    .addDateRanges(DateRange.newBuilder()
+                            .setStartDate(days + "daysAgo")
+                            .setEndDate("today"))
+                    // 세션 수 기준 내림차순 정렬
+                    .addOrderBys(OrderBy.newBuilder()
+                            .setMetric(OrderBy.MetricOrderBy.newBuilder()
+                                    .setMetricName("sessions"))
+                            .setDesc(true))
+                    .build();
+
+            // GA4 API 호출
+            RunReportResponse response = analyticsDataClient.runReport(request);
+
+            // 총합 계산
+            long totalSessions = 0;
+            long totalUsers = 0;
+            double totalBounceRate = 0;
+            double totalAvgDuration = 0;
+            long totalConversions = 0;
+
+            List<AdminTrafficSourceResponse.Source> sources = new ArrayList<>();
+            List<AdminTrafficSourceResponse.ChartData> chartData = new ArrayList<>();
+
+            // 색상 팔레트 (소셜 미디어별)
+            java.util.Map<String, String> colorMap = java.util.Map.of(
+                    "instagram", "#E4405F",
+                    "youtube", "#FF0000",
+                    "naver", "#03C75A",
+                    "google", "#4285F4",
+                    "facebook", "#1877F2",
+                    "twitter", "#1DA1F2",
+                    "kakao", "#FEE500"
+            );
+
+            // 응답 데이터 처리
+            for (Row row : response.getRowsList()) {
+                String sourceName = row.getDimensionValues(0).getValue();
+                long sessions = Long.parseLong(row.getMetricValues(0).getValue());
+                long users = Long.parseLong(row.getMetricValues(1).getValue());
+                double bounceRate = Double.parseDouble(row.getMetricValues(2).getValue());
+                double avgDuration = Double.parseDouble(row.getMetricValues(3).getValue());
+                long conversions = Long.parseLong(row.getMetricValues(4).getValue());
+                long newUsers = Long.parseLong(row.getMetricValues(5).getValue());
+
+                totalSessions += sessions;
+                totalUsers += users;
+                totalBounceRate += bounceRate;
+                totalAvgDuration += avgDuration;
+                totalConversions += conversions;
+
+                // 색상 선택 (소문자로 매칭)
+                String color = colorMap.getOrDefault(sourceName.toLowerCase(), "#999999");
+
+                sources.add(new AdminTrafficSourceResponse.Source(
+                        sourceName,
+                        sessions,
+                        users,
+                        0.0, // 점유율은 나중에 계산
+                        users > 0 ? (double) newUsers / users * 100 : 0.0,
+                        bounceRate,
+                        avgDuration,
+                        conversions,
+                        sessions > 0 ? (double) conversions / sessions * 100 : 0.0
+                ));
+
+                chartData.add(new AdminTrafficSourceResponse.ChartData(
+                        sourceName,
+                        sessions,
+                        0.0, // 퍼센트는 나중에 계산
+                        color
+                ));
+            }
+
+            // 점유율 계산 (총 세션 대비)
+            final long finalTotalSessions = totalSessions;
+            sources = sources.stream()
+                    .map(source -> new AdminTrafficSourceResponse.Source(
+                            source.name(),
+                            source.sessions(),
+                            source.users(),
+                            finalTotalSessions > 0 ? (double) source.sessions() / finalTotalSessions * 100 : 0.0,
+                            source.newUserRate(),
+                            source.bounceRate(),
+                            source.avgSessionDuration(),
+                            source.conversions(),
+                            source.conversionRate()
+                    ))
+                    .toList();
+
+            chartData = chartData.stream()
+                    .map(data -> new AdminTrafficSourceResponse.ChartData(
+                            data.name(),
+                            data.value(),
+                            finalTotalSessions > 0 ? (double) data.value() / finalTotalSessions * 100 : 0.0,
+                            data.color()
+                    ))
+                    .toList();
+
+            // 요약 정보
+            int sourceCount = sources.size();
+            AdminTrafficSourceResponse.Summary summary = new AdminTrafficSourceResponse.Summary(
+                    totalSessions,
+                    totalUsers,
+                    sourceCount > 0 ? totalAvgDuration / sourceCount : 0.0,
+                    sourceCount > 0 ? totalBounceRate / sourceCount : 0.0
+            );
+
+            // 차트 데이터
+            AdminTrafficSourceResponse.Chart chart = new AdminTrafficSourceResponse.Chart(
+                    chartData,
+                    5.0 // 5% 미만은 "기타"로 그룹화
+            );
+
+            // 조회 기간
+            LocalDate endDate = LocalDate.now();
+            LocalDate startDate = endDate.minusDays(days);
+            AdminTrafficSourceResponse.Period period = new AdminTrafficSourceResponse.Period(
+                    startDate.toString(),
+                    endDate.toString(),
+                    days
+            );
+
+            log.info("GA4 유입 경로 조회 완료 - 총 {}개 소스, 총 세션 {}", sources.size(), totalSessions);
+
+            return new AdminTrafficSourceResponse(
+                    summary,
+                    sources,
+                    chart,
+                    period,
+                    LocalDateTime.now(),
+                    timezone
+            );
+
+        } catch (Exception e) {
+            log.error("GA4 유입 경로 조회 중 오류 발생", e);
+            
+            // 오류 발생 시 빈 데이터 반환
+            return new AdminTrafficSourceResponse(
+                    new AdminTrafficSourceResponse.Summary(0, 0, 0.0, 0.0),
+                    List.of(),
+                    new AdminTrafficSourceResponse.Chart(List.of(), 5.0),
+                    new AdminTrafficSourceResponse.Period(
+                            LocalDate.now().minusDays(days).toString(),
+                            LocalDate.now().toString(),
+                            days
+                    ),
+                    LocalDateTime.now(),
+                    timezone
+            );
+        }
     }
 }
