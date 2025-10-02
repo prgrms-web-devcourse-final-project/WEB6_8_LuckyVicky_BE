@@ -249,6 +249,15 @@ cat <<EOF > .env
 NPM_ADMIN_EMAIL=admin@npm.com
 NPM_ADMIN_PASSWORD=${var.password}
 REDIS_PASSWORD=${var.password}
+
+DB_HOST=${aws_db_instance.rds_postgres.endpoint}
+DB_PORT=5432
+DB_NAME=morimori
+DB_USERNAME=${var.db_username}
+DB_PASSWORD=${var.db_password}
+APP_1_DOMAIN=${var.morimori_domain}
+GITHUB_ACCESS_TOKEN_1_OWNER=${var.github_access_token_owner}
+GITHUB_ACCESS_TOKEN_1=${var.github_access_token}
 EOF
 
 # GHCR 로그인
