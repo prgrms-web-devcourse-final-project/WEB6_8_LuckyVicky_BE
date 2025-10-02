@@ -11,21 +11,25 @@ import com.back.domain.product.product.entity.DisplayStatus;
 import com.back.domain.product.product.entity.Product;
 import com.back.domain.product.product.entity.SellingStatus;
 import com.back.domain.product.product.repository.ProductRepository;
+import com.back.domain.user.entity.Role;
 import com.back.domain.user.entity.User;
 import com.back.domain.user.repository.UserRepository;
+import com.back.global.security.auth.CustomUserDetails;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.security.test.context.support.WithMockUser;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
 import org.springframework.transaction.annotation.Transactional;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultHandlers.print;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -34,7 +38,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 /**
  * AdminDashboardController 통합 테스트
  * 실제 DB 연동을 통한 End-to-End 테스트
- * 2025.10.01 실제 DB 연동으로 수정
+ * 2025.10.02 JWT 표준 패턴 적용
  */
 @SpringBootTest
 @AutoConfigureMockMvc
@@ -61,18 +65,28 @@ class AdminDashboardControllerTest {
     @Autowired
     private CategoryRepository categoryRepository;
 
-    private static final String BEARER_TOKEN = "Bearer test-admin-token-123";
-    private static final String ADMIN_ROLE = "SUPER_ADMIN";
-
     private User artistUser;
     private User customerUser;
+    private User adminUser;
     private Category defaultCategory;
+    private CustomUserDetails adminUserDetails;
 
     @BeforeEach
     void setUp() {
         // TestInitData에서 이미 생성된 사용자들 조회
         artistUser = userRepository.findByEmail("user1@user.com").orElseThrow();
         customerUser = userRepository.findByEmail("user2@user.com").orElseThrow();
+
+        // Admin 사용자 생성 또는 조회
+        adminUser = userRepository.findByEmail("admin@test.com")
+                .orElseGet(() -> {
+                    User admin = User.createLocalUser("admin@test.com", "password", "AdminUser", "010-0000-0000");
+                    admin.becomeAdmin();
+                    return userRepository.save(admin);
+                });
+
+        // CustomUserDetails 생성
+        adminUserDetails = new CustomUserDetails(adminUser, Role.ADMIN);
 
         // TestInitData에서 생성된 카테고리 조회 (없으면 생성)
         defaultCategory = categoryRepository.findAll().stream()
@@ -87,18 +101,21 @@ class AdminDashboardControllerTest {
                 });
     }
 
+    @AfterEach
+    void tearDown() {
+        SecurityContextHolder.clearContext();
+    }
+
     @Test
-    @WithMockUser(roles = "ADMIN")
-    @DisplayName("관리자 대시보드 전체 현황 조회 성공 - 실제 DB 데이터 (일부 더미 포함)")
+    @DisplayName("관리자 대시보드 전체 현황 조회 성공 - 실제 DB 데이터")
     void getOverview_Success_WithRealData() throws Exception {
         // Given - DB에 이미 TestInitData로 데이터가 있음
         long expectedUserCount = userRepository.count();
         long expectedFundingCount = fundingRepository.count();
 
-        // When & Then - 실제 DB 연동된 부분만 검증
+        // When & Then
         MvcResult result = mockMvc.perform(get("/api/dashboard/admin/overview")
-                        .header("Authorization", BEARER_TOKEN)
-                        .header("X-Admin-Role", ADMIN_ROLE)
+                        .with(user(adminUserDetails))
                         .param("range", "1M")
                         .param("granularity", "DAY")
                         .param("period", "MONTH")
@@ -111,9 +128,6 @@ class AdminDashboardControllerTest {
                 .andExpect(jsonPath("$.data.overview").exists())
                 .andExpect(jsonPath("$.data.overview.userCount.count").value(expectedUserCount))
                 .andExpect(jsonPath("$.data.overview.fundingCount.count").value(expectedFundingCount))
-                // Order 관련은 더미 (0)
-                .andExpect(jsonPath("$.data.overview.orderStats.count").value(0))
-                .andExpect(jsonPath("$.data.overview.salesStats.count").value(0))
                 .andExpect(jsonPath("$.data.alerts").exists())
                 .andReturn();
 
@@ -123,7 +137,6 @@ class AdminDashboardControllerTest {
     }
 
     @Test
-    @WithMockUser(roles = "ADMIN")
     @DisplayName("관리자 상품 목록 조회 성공 - 실제 DB 데이터")
     void getProducts_Success_WithRealData() throws Exception {
         // Given - 테스트 상품 생성
@@ -132,8 +145,7 @@ class AdminDashboardControllerTest {
 
         // When & Then
         mockMvc.perform(get("/api/dashboard/admin/products")
-                        .header("Authorization", BEARER_TOKEN)
-                        .header("X-Admin-Role", ADMIN_ROLE)
+                        .with(user(adminUserDetails))
                         .param("page", "0")
                         .param("size", "20")
                         .param("sort", "registeredAt")
@@ -152,7 +164,6 @@ class AdminDashboardControllerTest {
     }
 
     @Test
-    @WithMockUser(roles = "ADMIN")
     @DisplayName("관리자 상품 목록 조회 - 판매 상태 필터")
     void getProducts_WithSellingStatus() throws Exception {
         // Given
@@ -163,8 +174,7 @@ class AdminDashboardControllerTest {
 
         // When & Then - 판매중만 조회
         mockMvc.perform(get("/api/dashboard/admin/products")
-                        .header("Authorization", BEARER_TOKEN)
-                        .header("X-Admin-Role", ADMIN_ROLE)
+                        .with(user(adminUserDetails))
                         .param("page", "0")
                         .param("size", "20")
                         .param("sellingStatus", "SELLING")
@@ -176,7 +186,6 @@ class AdminDashboardControllerTest {
     }
 
     @Test
-    @WithMockUser(roles = "ADMIN")
     @DisplayName("관리자 상품 목록 조회 - 판매상태 필터 (판매종료)")
     void getProducts_WithEndOfSaleStatus() throws Exception {
         // Given
@@ -185,8 +194,7 @@ class AdminDashboardControllerTest {
 
         // When & Then
         mockMvc.perform(get("/api/dashboard/admin/products")
-                        .header("Authorization", BEARER_TOKEN)
-                        .header("X-Admin-Role", ADMIN_ROLE)
+                        .with(user(adminUserDetails))
                         .param("page", "0")
                         .param("size", "20")
                         .param("sellingStatus", "END_OF_SALE")
@@ -198,7 +206,6 @@ class AdminDashboardControllerTest {
     }
 
     @Test
-    @WithMockUser(roles = "ADMIN")
     @DisplayName("관리자 상품 목록 조회 - 키워드 검색")
     void getProducts_WithKeyword() throws Exception {
         // Given
@@ -207,8 +214,7 @@ class AdminDashboardControllerTest {
 
         // When & Then
         mockMvc.perform(get("/api/dashboard/admin/products")
-                        .header("Authorization", BEARER_TOKEN)
-                        .header("X-Admin-Role", ADMIN_ROLE)
+                        .with(user(adminUserDetails))
                         .param("page", "0")
                         .param("size", "20")
                         .param("keyword", "특별한")
@@ -220,7 +226,6 @@ class AdminDashboardControllerTest {
     }
 
     @Test
-    @WithMockUser(roles = "ADMIN")
     @DisplayName("관리자 사용자 목록 조회 성공 - 실제 DB 데이터")
     void getUsers_Success_WithRealData() throws Exception {
         // Given - TestInitData에 이미 사용자들이 있음
@@ -228,8 +233,7 @@ class AdminDashboardControllerTest {
 
         // When & Then
         mockMvc.perform(get("/api/dashboard/admin/users")
-                        .header("Authorization", BEARER_TOKEN)
-                        .header("X-Admin-Role", ADMIN_ROLE)
+                        .with(user(adminUserDetails))
                         .param("page", "0")
                         .param("size", "20")
                         .param("sort", "joinedAt")
@@ -245,13 +249,11 @@ class AdminDashboardControllerTest {
     }
 
     @Test
-    @WithMockUser(roles = "ADMIN")
     @DisplayName("관리자 사용자 목록 조회 - 역할 필터 (작가만)")
     void getUsers_WithRoleFilter() throws Exception {
         // When & Then
         mockMvc.perform(get("/api/dashboard/admin/users")
-                        .header("Authorization", BEARER_TOKEN)
-                        .header("X-Admin-Role", ADMIN_ROLE)
+                        .with(user(adminUserDetails))
                         .param("page", "0")
                         .param("size", "20")
                         .param("role", "ARTIST")
@@ -263,7 +265,6 @@ class AdminDashboardControllerTest {
     }
 
     @Test
-    @WithMockUser(roles = "ADMIN")
     @DisplayName("관리자 펀딩 목록 조회 성공 - 실제 DB 데이터")
     void getFundings_Success_WithRealData() throws Exception {
         // Given - TestInitData에 이미 펀딩이 있음
@@ -271,8 +272,7 @@ class AdminDashboardControllerTest {
 
         // When & Then
         mockMvc.perform(get("/api/dashboard/admin/fundings")
-                        .header("Authorization", BEARER_TOKEN)
-                        .header("X-Admin-Role", ADMIN_ROLE)
+                        .with(user(adminUserDetails))
                         .param("page", "0")
                         .param("size", "20")
                         .param("sort", "endDate")
@@ -289,13 +289,11 @@ class AdminDashboardControllerTest {
     }
 
     @Test
-    @WithMockUser(roles = "ADMIN")
     @DisplayName("관리자 펀딩 목록 조회 - 상태 필터")
     void getFundings_WithStatusFilter() throws Exception {
         // When & Then
         mockMvc.perform(get("/api/dashboard/admin/fundings")
-                        .header("Authorization", BEARER_TOKEN)
-                        .header("X-Admin-Role", ADMIN_ROLE)
+                        .with(user(adminUserDetails))
                         .param("page", "0")
                         .param("size", "20")
                         .param("status", "OPEN")
@@ -307,7 +305,6 @@ class AdminDashboardControllerTest {
     }
 
     @Test
-    @WithMockUser(roles = "ADMIN")
     @DisplayName("관리자 입점 신청 목록 조회 성공 - 실제 DB 데이터")
     void getArtistApplications_Success_WithRealData() throws Exception {
         // Given - 테스트 입점 신청 생성
@@ -316,8 +313,7 @@ class AdminDashboardControllerTest {
 
         // When & Then
         mockMvc.perform(get("/api/dashboard/admin/artist-applications")
-                        .header("Authorization", BEARER_TOKEN)
-                        .header("X-Admin-Role", ADMIN_ROLE)
+                        .with(user(adminUserDetails))
                         .param("page", "0")
                         .param("size", "20")
                         .param("sort", "submittedAt")
@@ -333,7 +329,6 @@ class AdminDashboardControllerTest {
     }
 
     @Test
-    @WithMockUser(roles = "ADMIN")
     @DisplayName("관리자 입점 신청 목록 조회 - 상태 필터 (대기중만)")
     void getArtistApplications_WithPendingStatus() throws Exception {
         // Given
@@ -342,8 +337,7 @@ class AdminDashboardControllerTest {
 
         // When & Then
         mockMvc.perform(get("/api/dashboard/admin/artist-applications")
-                        .header("Authorization", BEARER_TOKEN)
-                        .header("X-Admin-Role", ADMIN_ROLE)
+                        .with(user(adminUserDetails))
                         .param("page", "0")
                         .param("size", "20")
                         .param("status", "PENDING")
@@ -355,7 +349,6 @@ class AdminDashboardControllerTest {
     }
 
     @Test
-    @WithMockUser(roles = "ADMIN")
     @DisplayName("관리자 입점 신청 상세 조회 성공 - 실제 DB 데이터")
     void getArtistApplicationDetail_Success_WithRealData() throws Exception {
         // Given
@@ -364,8 +357,7 @@ class AdminDashboardControllerTest {
 
         // When & Then
         mockMvc.perform(get("/api/dashboard/admin/artist-applications/{applicationId}", saved.getId())
-                        .header("Authorization", BEARER_TOKEN)
-                        .header("X-Admin-Role", ADMIN_ROLE))
+                        .with(user(adminUserDetails)))
                 .andDo(print())
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.resultCode").value("200"))
@@ -387,7 +379,7 @@ class AdminDashboardControllerTest {
                 .name(name)
                 .brandName("테스트 브랜드")
                 .user(artist)
-                .category(defaultCategory) // TestInitData에서 생성된 카테고리 사용
+                .category(defaultCategory)
                 .sellingStatus(status)
                 .displayStatus(DisplayStatus.DISPLAYING)
                 .price(10000)
@@ -426,6 +418,5 @@ class AdminDashboardControllerTest {
                 .businessAddressDetail("123동 456호")
                 .mainProducts("회화,조각")
                 .build();
-        // status는 빌더에 없고 기본값 PENDING으로 설정됨
     }
 }

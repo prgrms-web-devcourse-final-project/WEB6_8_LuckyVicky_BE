@@ -1,5 +1,6 @@
 package com.back.domain.dashboard.artist.service;
 
+import com.back.domain.dashboard.artist.dto.request.*;
 import com.back.domain.dashboard.artist.dto.response.ArtistCashResponse;
 import com.back.domain.dashboard.artist.dto.response.ArtistMainResponse;
 import com.back.domain.dashboard.artist.dto.response.ArtistProductResponse;
@@ -18,7 +19,6 @@ import com.back.domain.funding.repository.FundingRepository;
 import com.back.domain.product.product.entity.Product;
 import com.back.domain.product.product.entity.SellingStatus;
 import com.back.domain.product.product.repository.ProductRepository;
-import com.back.global.security.jwt.JwtTokenProvider;
 import com.google.analytics.data.v1beta.*;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -41,6 +41,10 @@ import java.util.List;
  * 2025.09.29 수정 - getProducts() 실제 DB 연동
  * 2025.09.30 수정 - getFundings() 실제 DB 연동
  * 2025.10.01 추가 - getTrafficSources() GA4 유입 경로 분석
+<<<<<<< HEAD
+ * 2025.10.02 JWT 표준 패턴 적용 - JWT 파싱 제거, Request DTO 사용
+=======
+>>>>>>> 2f4795372b442dd5b55cfd8b8cfe7ba547b36a98
  */
 @Service
 @RequiredArgsConstructor
@@ -51,7 +55,6 @@ public class ArtistDashboardServiceImpl implements ArtistDashboardService {
     private final ProductRepository productRepository;
     private final FundingRepository fundingRepository;
     private final FundingContributionRepository fundingContributionRepository;
-    private final JwtTokenProvider jwtTokenProvider;
     private final BetaAnalyticsDataClient analyticsDataClient;
 
     @Value("${google.analytics.property-id}")
@@ -60,9 +63,7 @@ public class ArtistDashboardServiceImpl implements ArtistDashboardService {
     private static final DateTimeFormatter DATE_FORMATTER = DateTimeFormatter.ofPattern("yyyy. MM. dd");
 
     @Override
-    public ArtistMainResponse getMainStats(String authorization, String range, String from, String to,
-                                           String interval, String tz) {
-        // TODO: JWT 토큰에서 작가 정보 추출
+    public ArtistMainResponse getMainStats(Long artistId, ArtistMainStatsRequest request) {
         // TODO: 실제 데이터베이스에서 통계 데이터 조회
 
         // 프로필 정보
@@ -144,7 +145,7 @@ public class ArtistDashboardServiceImpl implements ArtistDashboardService {
         ArtistMainResponse.Notifications notifications = new ArtistMainResponse.Notifications(orderAlerts, fundingAlerts);
 
         // 유입 경로 정보 (GA4) - 7일 기준
-        ArtistMainResponse.TrafficSources trafficSources = getTrafficSourcesForMain(authorization, tz);
+        ArtistMainResponse.TrafficSources trafficSources = getTrafficSourcesForMain(artistId, request.tz());
 
         return new ArtistMainResponse(
                 profile,
@@ -160,10 +161,11 @@ public class ArtistDashboardServiceImpl implements ArtistDashboardService {
     /**
      * 메인 대시보드용 유입 경로 데이터 조회 (간소화 버전)
      */
-    private ArtistMainResponse.TrafficSources getTrafficSourcesForMain(String authorization, String timezone) {
+    private ArtistMainResponse.TrafficSources getTrafficSourcesForMain(Long artistId, String timezone) {
         try {
             // 기존 getTrafficSources 메서드 호출 (7일 기준)
-            ArtistTrafficSourceResponse fullResponse = getTrafficSources(authorization, 7, timezone);
+            ArtistTrafficSourceResponse fullResponse = getTrafficSources(artistId, 7, timezone);
+
 
             // 메인 대시보드용으로 간소화
             ArtistMainResponse.Summary summary = new ArtistMainResponse.Summary(
@@ -213,18 +215,14 @@ public class ArtistDashboardServiceImpl implements ArtistDashboardService {
     }
 
     @Override
-    public ArtistProductResponse.List getProducts(String authorization, int page, int size, String keyword,
-                                                  Boolean selling, String sort, String order) {
-        // JWT 토큰에서 작가 ID 추출
-        String token = authorization.replace("Bearer ", "");
-        Long artistId = jwtTokenProvider.getUserIdFromToken(token);
-
+    public ArtistProductResponse.List getProducts(Long artistId, ArtistProductSearchRequest request) {
         log.info("작가 상품 목록 조회 시작 - artistId: {}, page: {}, size: {}, keyword: {}, selling: {}, sort: {}, order: {}",
-                artistId, page, size, keyword, selling, sort, order);
+                artistId, request.page(), request.size(), request.keyword(), request.selling(), request.sort(), request.order());
 
         // Repository를 통한 실제 DB 조회
         Page<Product> productPage = productRepository.findProductsByArtist(
-                artistId, keyword, selling, sort, order, PageRequest.of(page, size)
+                artistId, request.keyword(), request.selling(), request.sort(), request.order(), 
+                PageRequest.of(request.page(), request.size())
         );
 
         // Entity → DTO 변환
@@ -239,7 +237,7 @@ public class ArtistDashboardServiceImpl implements ArtistDashboardService {
 
         log.info("작가 상품 목록 조회 완료 - 조회된 상품 수: {}, 전체: {}", content.size(), totalElements);
 
-        return new ArtistProductResponse.List(content, page, size, totalElements, totalPages, hasNext, hasPrevious);
+        return new ArtistProductResponse.List(content, request.page(), request.size(), totalElements, totalPages, hasNext, hasPrevious);
     }
 
     /**
@@ -271,9 +269,9 @@ public class ArtistDashboardServiceImpl implements ArtistDashboardService {
     }
 
     @Override
-    public ArtistCashResponse.Balance getCashBalance(String authorization) {
-        // TODO: JWT 토큰에서 작가 정보 추출
+    public ArtistCashResponse.Balance getCashBalance(Long artistId) {
         // TODO: 실제 데이터베이스에서 지갑 잔액 정보 조회
+        log.info("작가 지갑 잔액 조회 - artistId: {}", artistId);
 
         return new ArtistCashResponse.Balance(
                 72000,
@@ -286,11 +284,10 @@ public class ArtistDashboardServiceImpl implements ArtistDashboardService {
     }
 
     @Override
-    public ArtistCashHistoryResponse.List getCashHistory(String authorization, int page, int size,
-                                                         String type, String status, String dateFrom,
-                                                         String dateTo, String sort, String order) {
-        // TODO: JWT 토큰에서 작가 정보 추출
+    public ArtistCashHistoryResponse.List getCashHistory(Long artistId, ArtistCashHistorySearchRequest request) {
         // TODO: 실제 데이터베이스에서 캐시 거래 내역 조회
+        log.info("작가 캐시 내역 조회 - artistId: {}, page: {}, size: {}, type: {}",
+                artistId, request.page(), request.size(), request.type());
 
         ArtistCashHistoryResponse.Summary summary = new ArtistCashHistoryResponse.Summary(
                 74000,
@@ -330,8 +327,8 @@ public class ArtistDashboardServiceImpl implements ArtistDashboardService {
         return new ArtistCashHistoryResponse.List(
                 summary,
                 content,
-                page,
-                size,
+                request.page(),
+                request.size(),
                 content.size(),
                 1,
                 false,
@@ -340,11 +337,10 @@ public class ArtistDashboardServiceImpl implements ArtistDashboardService {
     }
 
     @Override
-    public ArtistOrderResponse.List getOrders(String authorization, int page, int size,
-                                              String status, String keyword, String startDate,
-                                              String endDate, String sort, String order) {
-        // TODO: JWT 토큰에서 작가 정보 추출
+    public ArtistOrderResponse.List getOrders(Long artistId, ArtistOrderSearchRequest request) {
         // TODO: 실제 데이터베이스에서 주문 목록 조회
+        log.info("작가 주문 내역 조회 - artistId: {}, page: {}, size: {}, status: {}",
+                artistId, request.page(), request.size(), request.status());
 
         ArtistOrderResponse.Summary summary = new ArtistOrderResponse.Summary(
                 156, 8, 12, 100, 36, 5
@@ -369,21 +365,20 @@ public class ArtistDashboardServiceImpl implements ArtistDashboardService {
         return new ArtistOrderResponse.List(
                 summary,
                 content,
-                page,
-                size,
+                request.page(),
+                request.size(),
                 156,
                 8,
-                page < 7,
-                page > 0
+                request.page() < 7,
+                request.page() > 0
         );
     }
 
     @Override
-    public ArtistCancellationResponse.List getCancellationRequests(String authorization, int page, int size,
-                                                                   String status, String keyword, String startDate,
-                                                                   String endDate, Long productId, String sort, String order) {
-        // TODO: JWT 토큰에서 작가 정보 추출
+    public ArtistCancellationResponse.List getCancellationRequests(Long artistId, ArtistCancellationSearchRequest request) {
         // TODO: 실제 데이터베이스에서 취소 요청 목록 조회
+        log.info("작가 취소 요청 목록 조회 - artistId: {}, page: {}, size: {}, status: {}",
+                artistId, request.page(), request.size(), request.status());
 
         ArtistCancellationResponse.Summary summary = new ArtistCancellationResponse.Summary(8, 5, 2, 1);
 
@@ -408,8 +403,8 @@ public class ArtistDashboardServiceImpl implements ArtistDashboardService {
         return new ArtistCancellationResponse.List(
                 summary,
                 content,
-                page,
-                size,
+                request.page(),
+                request.size(),
                 8,
                 1,
                 false,
@@ -418,11 +413,10 @@ public class ArtistDashboardServiceImpl implements ArtistDashboardService {
     }
 
     @Override
-    public ArtistExchangeResponse.List getExchangeRequests(String authorization, int page, int size,
-                                                           String status, String keyword, String startDate,
-                                                           String endDate, Long productId, String sort, String order) {
-        // TODO: JWT 토큰에서 작가 정보 추출
+    public ArtistExchangeResponse.List getExchangeRequests(Long artistId, ArtistExchangeSearchRequest request) {
         // TODO: 실제 데이터베이스에서 교환 요청 목록 조회
+        log.info("작가 교환 요청 목록 조회 - artistId: {}, page: {}, size: {}, status: {}",
+                artistId, request.page(), request.size(), request.status());
 
         ArtistExchangeResponse.Summary summary = new ArtistExchangeResponse.Summary(5, 3, 1, 1);
 
@@ -447,8 +441,8 @@ public class ArtistDashboardServiceImpl implements ArtistDashboardService {
         return new ArtistExchangeResponse.List(
                 summary,
                 content,
-                page,
-                size,
+                request.page(),
+                request.size(),
                 5,
                 1,
                 false,
@@ -457,9 +451,9 @@ public class ArtistDashboardServiceImpl implements ArtistDashboardService {
     }
 
     @Override
-    public ArtistSettingsResponse getSettings(String authorization) {
-        // TODO: JWT 토큰에서 작가 정보 추출
+    public ArtistSettingsResponse getSettings(Long artistId) {
         // TODO: 실제 데이터베이스에서 작가 설정 정보 조회
+        log.info("작가 설정 정보 조회 - artistId: {}", artistId);
 
         // 프로필 정보
         ArtistSettingsResponse.Profile profile = new ArtistSettingsResponse.Profile(
@@ -497,29 +491,24 @@ public class ArtistDashboardServiceImpl implements ArtistDashboardService {
     }
 
     @Override
-    public ArtistFundingResponse.List getFundings(String authorization, int page, int size, String keyword,
-                                                  String status, Long categoryId, Integer minAchievement, Integer maxAchievement,
-                                                  String startDate, String endDate, String sort, String order) {
-        // JWT 토큰에서 작가 ID 추출
-        String token = authorization.replace("Bearer ", "");
-        Long artistId = jwtTokenProvider.getUserIdFromToken(token);
-
+    public ArtistFundingResponse.List getFundings(Long artistId, ArtistFundingSearchRequest request) {
         log.info("작가 펀딩 목록 조회 시작 - artistId: {}, page: {}, size: {}, keyword: {}, status: {}, sort: {}, order: {}",
-                artistId, page, size, keyword, status, sort, order);
+                artistId, request.page(), request.size(), request.keyword(), request.status(), request.sort(), request.order());
 
         // status 문자열을 FundingStatus enum으로 변환
         FundingStatus fundingStatus = null;
-        if (status != null && !status.isBlank()) {
+        if (request.status() != null && !request.status().isBlank()) {
             try {
-                fundingStatus = FundingStatus.valueOf(status);
+                fundingStatus = FundingStatus.valueOf(request.status());
             } catch (IllegalArgumentException e) {
-                log.warn("잘못된 펀딩 상태값: {}", status);
+                log.warn("잘못된 펀딩 상태값: {}", request.status());
             }
         }
 
         // Repository를 통한 실제 DB 조회
         Page<Funding> fundingPage = fundingRepository.findFundingsByArtist(
-                artistId, keyword, fundingStatus, sort, order, PageRequest.of(page, size)
+                artistId, request.keyword(), fundingStatus, request.sort(), request.order(), 
+                PageRequest.of(request.page(), request.size())
         );
 
         // 전체 펀딩 통계 조회 (요약 정보용)
@@ -544,7 +533,7 @@ public class ArtistDashboardServiceImpl implements ArtistDashboardService {
 
         return new ArtistFundingResponse.List(
                 summary, content,
-                page, size, totalElements, totalPages, hasNext, hasPrevious
+                request.page(), request.size(), totalElements, totalPages, hasNext, hasPrevious
         );
     }
 
@@ -648,15 +637,13 @@ public class ArtistDashboardServiceImpl implements ArtistDashboardService {
     }
 
     @Override
-    public ArtistSettlementResponse getSettlements(String authorization, Integer year, Integer month, String granularity,
-                                                   String status, Long productId, int page, int size, String sort, String order) {
-        // TODO: JWT 토큰에서 작가 정보 추출
+    public ArtistSettlementResponse getSettlements(Long artistId, ArtistSettlementSearchRequest request) {
         // TODO: 실제 데이터베이스에서 정산 내역 조회
         // TODO: 연도가 null이면 서버 현재 연도 사용
 
         // 조회 범위 - month 파라미터를 그대로 전달
         ArtistSettlementResponse.Scope scope = new ArtistSettlementResponse.Scope(
-                year != null ? year : 2025, month
+                request.year() != null ? request.year() : 2025, request.month()
         );
 
         // 요약 정보
@@ -733,8 +720,8 @@ public class ArtistDashboardServiceImpl implements ArtistDashboardService {
 
         ArtistSettlementResponse.Table table = new ArtistSettlementResponse.Table(
                 settlements,
-                page,
-                size,
+                request.page(),
+                request.size(),
                 124,
                 7,
                 true,
@@ -743,7 +730,7 @@ public class ArtistDashboardServiceImpl implements ArtistDashboardService {
 
         return new ArtistSettlementResponse(
                 scope,
-                granularity,
+                request.granularity(),
                 "Asia/Seoul",
                 summary,
                 chart,
@@ -753,11 +740,7 @@ public class ArtistDashboardServiceImpl implements ArtistDashboardService {
     }
 
     @Override
-    public ArtistTrafficSourceResponse getTrafficSources(String authorization, int days, String timezone) {
-        // JWT 토큰에서 작가 ID 추출
-        String token = authorization.replace("Bearer ", "");
-        Long artistId = jwtTokenProvider.getUserIdFromToken(token);
-
+    public ArtistTrafficSourceResponse getTrafficSources(Long artistId, int days, String timezone) {
         log.info("작가 유입 경로 조회 - artistId: {}, days: {}, timezone: {}", artistId, days, timezone);
 
         try {
