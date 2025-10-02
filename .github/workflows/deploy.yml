@@ -241,12 +241,11 @@ jobs:
             docker run -d --name "${GREEN}" \
               --restart unless-stopped \
               --network "${NET}" \
-              --env-file .env \
               -e TZ=Asia/Seoul \
               "${IMAGE}"
 
             # ---------------------------------------------------------
-            # 5) 헬스체크 (/actuator/health 200 OK까지 대기)
+            # 5) 헬스체크 (/actuator/health 200 OK까지 대기))
             # ---------------------------------------------------------
             echo "⏱ health-check: ${GREEN}"
             TIMEOUT=120
