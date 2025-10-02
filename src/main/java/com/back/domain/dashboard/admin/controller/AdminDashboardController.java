@@ -25,10 +25,8 @@ import org.springframework.web.bind.annotation.*;
 
 /**
  * 관리자 대시보드 컨트롤러
- * <p>
  * 관리자가 전체 플랫폼 현황을 모니터링할 수 있는 대시보드 기능을 제공
  * 모든 API는 JWT 인증과 관리자 권한이 필요
- * <p>
  * 제공 기능:
  * <ul>
  *   <li>전체 현황 조회 (사용자/매출/펀딩 통계, 유입 경로)</li>
@@ -41,7 +39,6 @@ import org.springframework.web.bind.annotation.*;
  *   <li>펀딩 모니터링 목록 조회</li>
  *   <li>입점 신청 목록 조회 및 관리</li>
  * </ul>
- * <p>
  * 2025.10.01 GA4 유입 경로 통합 - 메인 현황에 포함
  */
 @RestController

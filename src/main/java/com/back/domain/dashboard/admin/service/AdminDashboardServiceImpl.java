@@ -4,6 +4,8 @@ import com.back.domain.artist.entity.ApplicationStatus;
 import com.back.domain.artist.entity.ArtistApplication;
 import com.back.domain.artist.repository.ArtistApplicationRepository;
 import com.back.domain.dashboard.admin.dto.response.*;
+import com.back.global.exception.ServiceException;
+import com.back.global.security.auth.CustomUserDetails;
 import com.google.analytics.data.v1beta.*;
 import org.springframework.beans.factory.annotation.Value;
 import com.back.domain.funding.entity.Funding;
@@ -22,6 +24,8 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -51,12 +55,46 @@ public class AdminDashboardServiceImpl implements AdminDashboardService {
     @Value("${google.analytics.property-id}")
     private String propertyId;
 
+    /**
+     * SecurityContext에서 인증된 관리자 정보를 추출하고 권한을 검증하는 헬퍼 메서드
+     * @return CustomUserDetails 인증된 사용자 정보
+     * @throws ServiceException 인증되지 않았거나 관리자 권한이 없는 경우
+     */
+    private CustomUserDetails validateAdminAuthentication() {
+        // 1. SecurityContext에서 인증 정보 가져오기
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        
+        if (authentication == null || !authentication.isAuthenticated()) {
+            log.error("인증되지 않은 접근 시도");
+            throw new ServiceException("401", "인증이 필요합니다.");
+        }
+        
+        // 2. CustomUserDetails 추출
+        if (!(authentication.getPrincipal() instanceof CustomUserDetails)) {
+            log.error("잘못된 인증 타입: {}", authentication.getPrincipal().getClass());
+            throw new ServiceException("401", "유효하지 않은 인증 정보입니다.");
+        }
+        
+        CustomUserDetails userDetails = (CustomUserDetails) authentication.getPrincipal();
+        
+        // 3. 관리자 권한 검증 (ADMIN 또는 ROOT만 허용)
+        Role role = userDetails.getCurrentRole();
+        if (role != Role.ADMIN && role != Role.ROOT) {
+            log.error("권한 없는 접근 시도 - userId: {}, role: {}", userDetails.getUserId(), role);
+            throw new ServiceException("403", "관리자 권한이 필요합니다.");
+        }
+        
+        return userDetails;
+    }
+
     @Override
     public AdminOverviewResponse getOverview(String authorization, String adminRole, String range,
                                              String granularity, String period, String timezone) {
-        // TODO: JWT 토큰에서 관리자 정보 추출 및 권한 검증
-
-        log.info("관리자 현황 조회 - range: {}, granularity: {}, adminRole: {}", range, granularity, adminRole);
+        // JWT 토큰에서 관리자 정보 추출 및 권한 검증
+        CustomUserDetails adminUser = validateAdminAuthentication();
+        
+        log.info("관리자 현황 조회 - userId: {}, role: {}, range: {}, granularity: {}", 
+                adminUser.getUserId(), adminUser.getCurrentRole(), range, granularity);
 
         // 전체 현황 통계 계산
         long totalUsers = userRepository.count();
@@ -193,10 +231,11 @@ public class AdminDashboardServiceImpl implements AdminDashboardService {
     public AdminProductResponse getProducts(String authorization, String adminRole, int page, int size,
                                             String keyword, String sellingStatus, Long categoryId, Long artistId,
                                             String startDate, String endDate, String sort, String order) {
-        // TODO: JWT 토큰에서 관리자 정보 추출 및 권한 검증
-
-        log.info("관리자 상품 목록 조회 - page: {}, size: {}, keyword: {}, sellingStatus: {}, categoryId: {}, artistId: {}, adminRole: {}",
-                page, size, keyword, sellingStatus, categoryId, artistId, adminRole);
+        // JWT 토큰에서 관리자 정보 추출 및 권한 검증
+        CustomUserDetails adminUser = validateAdminAuthentication();
+        
+        log.info("관리자 상품 목록 조회 - userId: {}, role: {}, page: {}, size: {}, keyword: {}, sellingStatus: {}, categoryId: {}, artistId: {}",
+                adminUser.getUserId(), adminUser.getCurrentRole(), page, size, keyword, sellingStatus, categoryId, artistId);
 
         // 페이징 및 정렬 설정
         Sort.Direction direction = "ASC".equalsIgnoreCase(order) ? Sort.Direction.ASC : Sort.Direction.DESC;
@@ -340,10 +379,11 @@ public class AdminDashboardServiceImpl implements AdminDashboardService {
                                       String keyword, String role, String accountStatus, String grade,
                                       String joinedStartDate, String joinedEndDate, Long artistId,
                                       String sort, String order) {
-        // TODO: JWT 토큰에서 관리자 정보 추출 및 권한 검증
-
-        log.info("관리자 사용자 목록 조회 - page: {}, size: {}, keyword: {}, role: {}, accountStatus: {}, grade: {}, artistId: {}, adminRole: {}",
-                page, size, keyword, role, accountStatus, grade, artistId, adminRole);
+        // JWT 토큰에서 관리자 정보 추출 및 권한 검증
+        CustomUserDetails adminUser = validateAdminAuthentication();
+        
+        log.info("관리자 사용자 목록 조회 - userId: {}, role: {}, page: {}, size: {}, keyword: {}, userRole: {}, accountStatus: {}, grade: {}, artistId: {}",
+                adminUser.getUserId(), adminUser.getCurrentRole(), page, size, keyword, role, accountStatus, grade, artistId);
 
         // 페이징 및 정렬 설정
         Sort.Direction direction = "ASC".equalsIgnoreCase(order) ? Sort.Direction.ASC : Sort.Direction.DESC;
@@ -473,7 +513,9 @@ public class AdminDashboardServiceImpl implements AdminDashboardService {
     @Override
     public AdminSettlementResponse getSettlements(String authorization, String adminRole, Integer year,
                                                   Integer month, String granularity, String timezone) {
-        // TODO: JWT 토큰에서 관리자 정보 추출 및 권한 검증
+        // JWT 토큰에서 관리자 정보 추출 및 권한 검증
+        CustomUserDetails adminUser = validateAdminAuthentication();
+        
         // TODO: Order 테이블에서 실제 매출/정산 데이터 조회 및 집계
 
         // 연도 기본값 설정 (현재 연도)
@@ -481,8 +523,8 @@ public class AdminDashboardServiceImpl implements AdminDashboardService {
             year = Year.now().getValue();
         }
 
-        log.info("관리자 매출/정산 조회 - year: {}, month: {}, granularity: {}, timezone: {}, adminRole: {}",
-                year, month, granularity, timezone, adminRole);
+        log.info("관리자 매출/정산 조회 - userId: {}, role: {}, year: {}, month: {}, granularity: {}, timezone: {}",
+                adminUser.getUserId(), adminUser.getCurrentRole(), year, month, granularity, timezone);
 
         // 조회 범위
         AdminSettlementResponse.Scope scope = new AdminSettlementResponse.Scope(year, month);
@@ -552,10 +594,11 @@ public class AdminDashboardServiceImpl implements AdminDashboardService {
                                             Integer minAchievement, Integer maxAchievement,
                                             String registeredFrom, String registeredTo,
                                             String dueFrom, String dueTo, String sort, String order) {
-        // TODO: JWT 토큰에서 관리자 정보 추출 및 권한 검증
-
-        log.info("관리자 펀딩 목록 조회 - page: {}, size: {}, keyword: {}, status: {}, categoryId: {}, artistId: {}, adminRole: {}",
-                page, size, keyword, status, categoryId, artistId, adminRole);
+        // JWT 토큰에서 관리자 정보 추출 및 권한 검증
+        CustomUserDetails adminUser = validateAdminAuthentication();
+        
+        log.info("관리자 펀딩 목록 조회 - userId: {}, role: {}, page: {}, size: {}, keyword: {}, status: {}, categoryId: {}, artistId: {}",
+                adminUser.getUserId(), adminUser.getCurrentRole(), page, size, keyword, status, categoryId, artistId);
 
         // 페이징 및 정렬 설정
         Sort.Direction direction = "ASC".equalsIgnoreCase(order) ? Sort.Direction.ASC : Sort.Direction.DESC;
@@ -720,10 +763,11 @@ public class AdminDashboardServiceImpl implements AdminDashboardService {
                                                                 String keyword, String status,
                                                                 String submittedFrom, String submittedTo,
                                                                 String sort, String order) {
-        // TODO: JWT 토큰에서 관리자 정보 추출 및 권한 검증
-
-        log.info("관리자 입점 신청 목록 조회 - page: {}, size: {}, keyword: {}, status: {}, adminRole: {}",
-                page, size, keyword, status, adminRole);
+        // JWT 토큰에서 관리자 정보 추출 및 권한 검증
+        CustomUserDetails adminUser = validateAdminAuthentication();
+        
+        log.info("관리자 입점 신청 목록 조회 - userId: {}, role: {}, page: {}, size: {}, keyword: {}, status: {}",
+                adminUser.getUserId(), adminUser.getCurrentRole(), page, size, keyword, status);
 
         // 페이징 및 정렬 설정
         Sort.Direction direction = "ASC".equalsIgnoreCase(order) ? Sort.Direction.ASC : Sort.Direction.DESC;
@@ -801,9 +845,11 @@ public class AdminDashboardServiceImpl implements AdminDashboardService {
 
     @Override
     public AdminArtistApplicationDetailResponse getArtistApplicationDetail(String authorization, String adminRole, Long applicationId) {
-        // TODO: JWT 토큰에서 관리자 정보 추출 및 권한 검증
-
-        log.info("관리자 입점 신청 상세 조회 - applicationId: {}, adminRole: {}", applicationId, adminRole);
+        // JWT 토큰에서 관리자 정보 추출 및 권한 검증
+        CustomUserDetails adminUser = validateAdminAuthentication();
+        
+        log.info("관리자 입점 신청 상세 조회 - userId: {}, role: {}, applicationId: {}", 
+                adminUser.getUserId(), adminUser.getCurrentRole(), applicationId);
 
         // 실제 DB에서 입점 신청 상세 조회
         ArtistApplication application = artistApplicationRepository.findById(applicationId)
@@ -893,9 +939,11 @@ public class AdminDashboardServiceImpl implements AdminDashboardService {
 
     @Override
     public AdminTrafficSourceResponse getTrafficSources(String authorization, String adminRole, int days, String timezone) {
-        // TODO: JWT 토큰에서 관리자 정보 추출 및 권한 검증
-
-        log.info("관리자 유입 경로 조회 - days: {}, timezone: {}, adminRole: {}", days, timezone, adminRole);
+        // JWT 토큰에서 관리자 정보 추출 및 권한 검증
+        CustomUserDetails adminUser = validateAdminAuthentication();
+        
+        log.info("관리자 유입 경로 조회 - userId: {}, role: {}, days: {}, timezone: {}", 
+                adminUser.getUserId(), adminUser.getCurrentRole(), days, timezone);
 
         try {
             // GA4 API 요청 생성
