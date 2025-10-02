@@ -58,6 +58,11 @@ public class SecurityConfig {
                         // 공개 API - 로그인 없이 접근 허용
                         .requestMatchers("/public/**").permitAll()
 
+                        // 상품 조회 공개 API - 로그인 없이 접근 허용
+                        .requestMatchers(HttpMethod.GET, "/api/products").permitAll()
+                        // 상품 등록 API - ARTIST, ADMIN, ROOT만 접근 가능
+                        .requestMatchers(HttpMethod.POST,"/api/products", "/api/products/images").hasAnyRole("ARTIST", "ADMIN", "ROOT")
+
                         // 펀딩 관련 공개 API - 로그인 없이 접근 허용
                         .requestMatchers(HttpMethod.GET, "/api/fundings/**").permitAll()
 
@@ -92,7 +97,7 @@ public class SecurityConfig {
                         .requestMatchers("/root/**").hasRole("ROOT")
 
                         // 그 외 모든 요청은 인증 필요
-                        .anyRequest().permitAll()
+                        .anyRequest().authenticated()
                 )
                 // JWT 필터 등록
                 .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class)
