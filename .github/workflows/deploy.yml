@@ -163,6 +163,12 @@ jobs:
             LOG="/tmp/ssm-$(date +%Y%m%d_%H%M%S).log"
             exec > >(awk '{ fflush(); print strftime("[%Y-%m-%d %H:%M:%S]"), $0 }' | tee -a "$LOG")
             exec 2> >(awk '{ fflush(); print strftime("[%Y-%m-%d %H:%M:%S]"), $0 }' | tee -a "$LOG" >&2)
+            
+            # ---------------------------------------------------------
+            # 0.5) GA4 서비스 계정 파일 생성 //추가함
+            # ---------------------------------------------------------
+            mkdir -p resources
+            echo "${{ secrets.GA4_JSON }}" > resources/ga4-service-account.json
 
             # ---------------------------------------------------------
             # 1) 변수 정의
