@@ -295,8 +295,8 @@ resource "aws_instance" "ec2_1" {
   subnet_id = aws_subnet.subnet_2.id
   # 적용할 보안 그룹 ID
   vpc_security_group_ids = [aws_security_group.sg_1.id]
-  # 퍼블릭 IP 연결 설정
-  associate_public_ip_address = true
+  # 퍼블릭 IP 연결 설정 (탄력적 IP를 사용하므로 false로 변경)
+  associate_public_ip_address = false
 
   # 인스턴스에 IAM 역할 연결
   iam_instance_profile = aws_iam_instance_profile.instance_profile_1.name
@@ -320,6 +320,17 @@ resource "aws_instance" "ec2_1" {
   user_data = <<-EOF
 ${local.ec2_user_data_base}
 EOF
+}
+
+# 기존에 생성된 탄력적 IP 조회
+data "aws_eip" "existing_eip" {
+  public_ip = "13.209.109.33"
+}
+
+# 탄력적 IP를 EC2 인스턴스에 연결
+resource "aws_eip_association" "eip_assoc" {
+  instance_id   = aws_instance.ec2_1.id
+  allocation_id = data.aws_eip.existing_eip.id
 }
 
 # RDS 설정 시작
