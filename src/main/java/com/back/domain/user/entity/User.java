@@ -30,6 +30,12 @@ public class User extends BaseEntity {
 
     private String profileImageUrl;
 
+    private String address;
+
+    private String detailAddress;
+
+    private String zipCode;
+
     @Enumerated(EnumType.STRING)
     private Role role;
 
@@ -263,6 +269,38 @@ public class User extends BaseEntity {
         if (Status.DELETED.equals(newStatus)) {
             this.deletedAt = LocalDateTime.now();
         }
+    }
+
+    /**
+     * 프로필 정보 업데이트
+     */
+    public void updateProfile(String name, String phone, String address,
+                              String detailAddress, String zipCode, String profileImageUrl) {
+        if (name != null && !name.isBlank()) {
+            this.name = name;
+        }
+        if (phone != null && !phone.isBlank()) {
+            this.phone = phone;
+        }
+        if (address != null && !address.isBlank()) {
+            this.address = address;
+        }
+        if (detailAddress != null && !detailAddress.isBlank()) {
+            this.detailAddress = detailAddress;
+        }
+        if (zipCode != null && !zipCode.isBlank()) {
+            this.zipCode = zipCode;
+        }
+        if (profileImageUrl != null && !profileImageUrl.isBlank()) {
+            this.profileImageUrl = profileImageUrl;
+        }
+    }
+
+    /**
+     * 비밀번호 변경
+     */
+    public void changePassword(String newPassword) {
+        this.password = newPassword;
     }
 
     // ===== OAuth 관련 메서드 ===== //
