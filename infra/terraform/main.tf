@@ -207,8 +207,7 @@ resource "aws_iam_instance_profile" "instance_profile_1" {
 locals {
   ec2_user_data_base = <<-END_OF_FILE
 #!/bin/bash
-# 가상 메모리 4GB 설정.
-(EC2 인스턴스 1GB 램을 사용할거기 때문에 메모리 추가로 설정함)
+# 가상 메모리 4GB 설정
 dd if=/dev/zero of=/swapfile bs=128M count=32
 chmod 600 /swapfile
 mkswap /swapfile
@@ -236,7 +235,7 @@ systemctl enable docker
 systemctl start docker
 
 # Docker Compose 설치 (Amazon Linux 2023)
-dnf install docker-compose -y
+dnf install docker-compose-plugin -y
 
 # Compose 파일을 프로젝트 루트에 복사하기 위해 git 설치 및 클론
 yum install git -y
@@ -251,7 +250,7 @@ REDIS_PASSWORD=${var.password}
 EOF
 
 # Docker Compose 실행
-docker-compose up -d
+docker compose up -d
 
 # GHCR 로그인
 echo "${var.github_access_token}" | docker login ghcr.io -u ${var.github_access_token_owner} --password-stdin
