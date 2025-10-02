@@ -93,8 +93,48 @@ public class ArtistApplicationService {
         return ArtistApplicationResponse.from(application);
     }
 
+    /**
+     * 작가 신청 취소 (삭제)
+     */
+    @Transactional
+    public void cancelApplication(Long userId, Long applicationId) {
+        // 1. 신청서 조회
+        ArtistApplication application = getApplicationIfOwner(userId, applicationId);
+
+        // 2. 취소 가능한 상태인지 확인
+        validateCancellable(application);
+
+        // 3. 신청서 삭제
+        artistApplicationRepository.delete(application);
+
+        log.info("작가 신청 취소 완료: userId={}, applicationId={}", userId, applicationId);
+    }
+
 
     // ==== 헬퍼 메서드 ==== //
+
+    /**
+     * 신청소 조회 및 소유권 검증
+     */
+    private ArtistApplication getApplicationIfOwner(Long userId, Long applicationId) {
+        ArtistApplication application = artistApplicationRepository.findById(applicationId)
+                .orElseThrow(() -> new ServiceException("404", "신청서를 찾을 수 없습니다."));
+
+        if (!application.getUser().getId().equals(userId)) {
+            throw new ServiceException("403", "본인의 신청서만 접근할 수 있습니다.");
+        }
+
+        return application;
+    }
+
+    /**
+     * 신청서 취소 가능 여부 검증
+     */
+    private void validateCancellable(ArtistApplication application) {
+        if (!application.isPending()) {
+            throw new ServiceException("400", "심사 대기 중인 신청서만 취소할 수 있습니다. 현재 상태: " + application.getStatus());
+        }
+    }
 
     /**
      * 중복 신청 검증
