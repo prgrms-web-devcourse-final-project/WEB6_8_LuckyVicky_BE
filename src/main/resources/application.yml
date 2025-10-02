@@ -1,4 +1,12 @@
+server:
+  port: 8080
+  forward-headers-strategy: native
 spring:
+  # redis가 개발/테스트 환경에서 작동하지 않도록 설정
+  autoconfigure:
+    exclude:
+      - org.springframework.boot.autoconfigure.data.redis.RedisAutoConfiguration
+      - org.springframework.boot.autoconfigure.session.SessionAutoConfiguration
   application:
     name: back
   profiles:
@@ -21,6 +29,8 @@ spring:
         format_sql: true
         highlight_sql: true
         use_sql_comments: true
+       # osiv 끄기
+      open-in-view: false
   task:
     scheduling:
       pool:
@@ -90,6 +100,35 @@ logging:
     org.hibernate.orm.jdbc.extract: TRACE
     org.springframework.transaction.interceptor: TRACE
     com.back: DEBUG
+
+# Actuator 설정
+management:
+  endpoints:
+    web:
+      base-path: /actuator            # 기본값이지만 명시
+      exposure:
+        include: health,info          # 필요시 metrics 등 추가
+  endpoint:
+    health:
+      probes:
+        enabled: true                 # /actuator/health/{liveness,readiness} 활성화
+      show-details: never             # 프로브 용도면 never 권장(민감정보 차단)
+
+# 도메인 설정
+custom:
+  dev: #개발환경에서
+    cookieDomain: localhost
+    frontUrl: "http://${custom.dev.cookieDomain}:3000" #localhost:3000
+    backUrl: "http://${custom.dev.cookieDomain}:${server.port}" #localhost:8080
+  prod: #운영환경에서
+    cookieDomain: mori-mori.store
+    frontUrl: "https://www.${custom.prod.cookieDomain}" #https://www.mori-mori.store
+    backUrl: "https://api.${custom.prod.cookieDomain}" #https://api.mori-mori.store
+  site: #기본적으로 개발 환경 도메인 활성화
+    cookieDomain: "${custom.dev.cookieDomain}" #localhost
+    frontUrl: "${custom.dev.frontUrl}" #localhost:3000
+    backUrl: "${custom.dev.backUrl}" #localhost:8080
+    name: mori-mori
 
 # AWS S3 설정
 cloud:

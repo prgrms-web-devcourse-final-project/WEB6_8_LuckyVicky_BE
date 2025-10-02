@@ -1,5 +1,6 @@
 package com.back.global.security.config;
 
+import com.back.global.config.AppConfig;
 import com.back.global.security.jwt.JwtAuthenticationFilter;
 import com.back.global.security.oauth2.CustomOAuth2AuthorizationRequestResolver;
 import com.back.global.security.oauth2.CustomOAuth2UserService;
@@ -56,6 +57,11 @@ public class SecurityConfig {
 
                         // 공개 API - 로그인 없이 접근 허용
                         .requestMatchers("/public/**").permitAll()
+
+                        // 상품 조회 공개 API - 로그인 없이 접근 허용
+                        .requestMatchers(HttpMethod.GET, "/api/products").permitAll()
+                        // 상품 등록 API - ARTIST, ADMIN, ROOT만 접근 가능
+                        .requestMatchers(HttpMethod.POST,"/api/products", "/api/products/images").hasAnyRole("ARTIST", "ADMIN", "ROOT")
 
                         // 펀딩 관련 공개 API - 로그인 없이 접근 허용
                         .requestMatchers(HttpMethod.GET, "/api/fundings/**").permitAll()
@@ -154,8 +160,8 @@ public class SecurityConfig {
 
         // 허용할 오리진 설정 (개발 환경)
         configuration.setAllowedOrigins(List.of(
-                "http://localhost:3000",
-                "http://localhost:8080"
+                AppConfig.getSiteFrontUrl(),
+                AppConfig.getSiteFrontUrl() // 하드코딩 돼있던 url이 환경에 따라 다르게 잡히도록 수정
         ));
 
         // 허용할 HTTP 메서드
