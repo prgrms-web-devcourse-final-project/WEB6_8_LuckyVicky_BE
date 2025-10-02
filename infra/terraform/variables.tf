@@ -18,3 +18,15 @@ variable "team" {
   type        = string
   default     = "devcos-team07"
 }
+
+variable "github_repo_owner" {
+  description = "The owner of the GitHub repository (user or organization)."
+  type        = string
+  default     = "prgrms-web-devcourse-final-project"
+}
+
+variable "github_repo_name" {
+  description = "The name of the GitHub repository."
+  type        = string
+  default     = "WEB6_8_LuckyVicky_BE"
+}
