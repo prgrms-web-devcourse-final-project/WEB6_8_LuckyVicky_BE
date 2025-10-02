@@ -101,10 +101,10 @@ public class Order extends BaseEntity {
         OrderAmountCalculator.OrderAmountInfo amountInfo = OrderAmountCalculator.calculateOrderAmount(orderItems);
         
         // 주문 생성
-        Order order = Order.builder()
-                .user(user)
-                .orderNumber(orderNumber)
-                .status(OrderStatus.PENDING)
+              Order order = Order.builder()
+                      .user(user)
+                      .orderNumber(orderNumber)
+                      .status(OrderStatus.PAYMENT_COMPLETED)
                 .totalQuantity(amountInfo.totalQuantity())
                 .totalAmount(amountInfo.totalAmount())
                 .shippingFee(amountInfo.shippingFee())

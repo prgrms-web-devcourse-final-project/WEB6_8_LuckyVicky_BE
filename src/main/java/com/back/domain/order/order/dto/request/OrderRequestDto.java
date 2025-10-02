@@ -7,6 +7,7 @@ import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Pattern;
 
 import java.util.List;
+import java.util.UUID;
 
 /**
  * 주문 생성 요청 DTO
@@ -40,8 +41,8 @@ public record OrderRequestDto(
      * 주문 상품 요청 DTO
      */
     public record OrderItemRequestDto(
-            @NotNull(message = "상품 ID는 필수입니다.")
-            Long productId,
+            @NotNull(message = "상품 UUID는 필수입니다.")
+            UUID productUuid,
             
             @NotNull(message = "수량은 필수입니다.")
             Integer quantity,

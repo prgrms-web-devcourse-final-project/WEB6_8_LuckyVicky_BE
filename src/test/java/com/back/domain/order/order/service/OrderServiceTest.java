@@ -5,7 +5,6 @@ import com.back.domain.order.order.dto.request.OrderCancelRequestDto;
 import com.back.domain.order.order.dto.request.OrderExchangeRequestDto;
 import com.back.domain.order.order.dto.request.OrderRefundRequestDto;
 import com.back.domain.order.order.dto.request.OrderRequestDto;
-import com.back.domain.order.order.dto.response.OrderListResponseDto;
 import com.back.domain.order.order.dto.response.OrderResponseDto;
 import com.back.domain.order.order.entity.Order;
 import com.back.domain.order.order.entity.OrderStatus;
@@ -32,6 +31,7 @@ import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
+import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -54,27 +54,29 @@ class OrderServiceTest {
     @DisplayName("주문 생성 성공")
     void createOrder_Success() {
         User user = createUser(1L);
-        Product product = createProduct(1L);
-        OrderRequestDto requestDto = createOrderRequestDto();
+        UUID productUuid = UUID.randomUUID();
+        Product product = createProduct(1L, productUuid);
+        OrderRequestDto requestDto = createOrderRequestDto(productUuid);
 
-        given(productRepository.findById(1L)).willReturn(Optional.of(product));
+        given(productRepository.findByProductUuid(productUuid)).willReturn(Optional.of(product));
         given(orderRepository.save(any(Order.class))).willAnswer(invocation -> invocation.getArgument(0));
 
         OrderResponseDto result = orderService.createOrder(user, requestDto);
 
         assertThat(result).isNotNull();
-        assertThat(result.status()).isEqualTo(OrderStatus.PENDING);
-        verify(productRepository).findById(1L);
+        assertThat(result.status()).isEqualTo(OrderStatus.PAYMENT_COMPLETED);
+        verify(productRepository).findByProductUuid(productUuid);
         verify(orderRepository).save(any(Order.class));
-        verify(cartRepository).deleteByUserAndProductIdIn(eq(user), anyList());
+        verify(cartRepository).deleteByUserAndProductUuidIn(eq(user), anyList());
     }
 
     @Test
     @DisplayName("주문 생성 실패 - 상품 없음")
     void createOrder_ProductNotFound() {
         User user = createUser(1L);
-        OrderRequestDto requestDto = createOrderRequestDto();
-        given(productRepository.findById(1L)).willReturn(Optional.empty());
+        UUID productUuid = UUID.randomUUID();
+        OrderRequestDto requestDto = createOrderRequestDto(productUuid);
+        given(productRepository.findByProductUuid(productUuid)).willReturn(Optional.empty());
 
         assertThatThrownBy(() -> orderService.createOrder(user, requestDto))
                 .isInstanceOf(IllegalArgumentException.class)
@@ -86,14 +88,16 @@ class OrderServiceTest {
     void getOrderList_Success() {
         User user = createUser(1L);
         Pageable pageable = PageRequest.of(0, 10);
-        Order order = createOrderWithItem(user, createProduct(1L));
+        UUID productUuid = UUID.randomUUID();
+        Order order = createOrderWithItem(user, createProduct(1L, productUuid));
         Page<Order> orderPage = new PageImpl<>(List.of(order));
         given(orderRepository.findByUserOrderByOrderDateDesc(user, pageable)).willReturn(orderPage);
 
-        Page<OrderListResponseDto> result = orderService.getOrderList(user, pageable);
+        Page<OrderResponseDto> result = orderService.getOrderList(user, pageable);
 
         assertThat(result.getContent()).hasSize(1);
         assertThat(result.getContent().get(0).orderId()).isNotNull();
+        assertThat(result.getContent().get(0).orderItems()).isNotEmpty();
         verify(orderRepository).findByUserOrderByOrderDateDesc(user, pageable);
     }
 
@@ -101,7 +105,8 @@ class OrderServiceTest {
     @DisplayName("주문 상세 조회 성공")
     void getOrderDetail_Success() {
         User user = createUser(1L);
-        Order order = createOrderWithItem(user, createProduct(1L));
+        UUID productUuid = UUID.randomUUID();
+        Order order = createOrderWithItem(user, createProduct(1L, productUuid));
         ReflectionTestUtils.setField(order, "id", 10L);
         given(orderRepository.findByIdWithOrderItems(10L)).willReturn(Optional.of(order));
 
@@ -127,7 +132,8 @@ class OrderServiceTest {
     @DisplayName("주문 취소 성공")
     void cancelOrder_Success() {
         User user = createUser(1L);
-        Order order = createOrderWithItem(user, createProduct(1L));
+        UUID productUuid = UUID.randomUUID();
+        Order order = createOrderWithItem(user, createProduct(1L, productUuid));
         ReflectionTestUtils.setField(order, "id", 1L);
         given(orderRepository.findById(1L)).willReturn(Optional.of(order));
         given(orderRepository.save(any(Order.class))).willAnswer(invocation -> invocation.getArgument(0));
@@ -142,20 +148,22 @@ class OrderServiceTest {
     @DisplayName("주문 취소 실패 - 배송 중/완료")
     void cancelOrder_Forbidden() {
         User user = createUser(1L);
-        Order order = createOrderWithItem(user, createProduct(1L));
-        order.changeStatus(OrderStatus.SHIPPED);
+        UUID productUuid = UUID.randomUUID();
+        Order order = createOrderWithItem(user, createProduct(1L, productUuid));
+        order.changeStatus(OrderStatus.SHIPPING);
         given(orderRepository.findById(1L)).willReturn(Optional.of(order));
 
         assertThatThrownBy(() -> orderService.cancelOrder(1L, user, new OrderCancelRequestDto("사유", List.of(1L))))
                 .isInstanceOf(IllegalStateException.class)
-                .hasMessage("발송준비중으로 상태가 변경된 이후에는 취소할 수 없습니다.");
+                .hasMessage("배송준비중으로 상태가 변경된 이후에는 취소할 수 없습니다.");
     }
 
     @Test
     @DisplayName("환불 신청 성공")
     void requestRefund_Success() {
         User user = createUser(1L);
-        Order order = createOrderWithItem(user, createProduct(1L));
+        UUID productUuid = UUID.randomUUID();
+        Order order = createOrderWithItem(user, createProduct(1L, productUuid));
         order.changeStatus(OrderStatus.DELIVERED);
         given(orderRepository.findById(1L)).willReturn(Optional.of(order));
         given(orderRepository.save(any(Order.class))).willAnswer(invocation -> invocation.getArgument(0));
@@ -170,7 +178,8 @@ class OrderServiceTest {
     @DisplayName("환불 신청 실패 - 배송완료 아님")
     void requestRefund_NotDelivered() {
         User user = createUser(1L);
-        Order order = createOrderWithItem(user, createProduct(1L));
+        UUID productUuid = UUID.randomUUID();
+        Order order = createOrderWithItem(user, createProduct(1L, productUuid));
         given(orderRepository.findById(1L)).willReturn(Optional.of(order));
 
         assertThatThrownBy(() -> orderService.requestRefund(1L, user, new OrderRefundRequestDto("불량", List.of(1L))))
@@ -182,7 +191,8 @@ class OrderServiceTest {
     @DisplayName("교환 신청 성공")
     void requestExchange_Success() {
         User user = createUser(1L);
-        Order order = createOrderWithItem(user, createProduct(1L));
+        UUID productUuid = UUID.randomUUID();
+        Order order = createOrderWithItem(user, createProduct(1L, productUuid));
         order.changeStatus(OrderStatus.DELIVERED);
         given(orderRepository.findById(1L)).willReturn(Optional.of(order));
         given(orderRepository.save(any(Order.class))).willAnswer(invocation -> invocation.getArgument(0));
@@ -201,7 +211,7 @@ class OrderServiceTest {
         return user;
     }
 
-    private Product createProduct(Long id) {
+    private Product createProduct(Long id, UUID productUuid) {
         Product product = Product.builder()
                 .name("테스트상품")
                 .price(10000)
@@ -222,6 +232,7 @@ class OrderServiceTest {
                 .isPlanned(false)
                 .isRestock(false)
                 .isDeleted(false)
+                .productUuid(productUuid)
                 .build();
         // initialize images list to avoid NPE in thumbnail resolver
         java.util.ArrayList<com.back.domain.product.product.entity.ProductImage> images = new java.util.ArrayList<>();
@@ -247,9 +258,9 @@ class OrderServiceTest {
         return order;
     }
 
-    private OrderRequestDto createOrderRequestDto() {
+    private OrderRequestDto createOrderRequestDto(UUID productUuid) {
         return new OrderRequestDto(
-                List.of(new OrderRequestDto.OrderItemRequestDto(1L, 2, "옵션")),
+                List.of(new OrderRequestDto.OrderItemRequestDto(productUuid, 2, "옵션")),
                 "서울시 강남구",
                 "테헤란로 123",
                 "12345",
