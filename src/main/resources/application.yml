@@ -9,6 +9,8 @@ spring:
       - org.springframework.boot.autoconfigure.session.SessionAutoConfiguration
   application:
     name: back
+  config:
+    import: optional:file:.env[.properties]
   profiles:
     active: dev
   output:
