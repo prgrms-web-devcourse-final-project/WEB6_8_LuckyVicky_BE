@@ -251,11 +251,11 @@ NPM_ADMIN_PASSWORD=${var.password}
 REDIS_PASSWORD=${var.password}
 EOF
 
-# Docker Compose 실행
-docker-compose up -d
-
 # GHCR 로그인
 echo "${var.github_access_token}" | docker login ghcr.io -u ${var.github_access_token_owner} --password-stdin
+
+# Docker Compose 실행
+docker-compose up -d
 
 END_OF_FILE
 }
