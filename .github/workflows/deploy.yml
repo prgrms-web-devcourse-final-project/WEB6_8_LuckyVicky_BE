@@ -242,7 +242,6 @@ jobs:
             docker run -d --name "${GREEN}" \
               --restart unless-stopped \
               --network "${NET}" \
-              --env-file /app/.env \
               -e TZ=Asia/Seoul \
               "${IMAGE}"
 
