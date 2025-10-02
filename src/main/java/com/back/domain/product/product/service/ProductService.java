@@ -4,6 +4,7 @@ import com.back.domain.product.category.entity.Category;
 import com.back.domain.product.category.repository.CategoryRepository;
 import com.back.domain.product.product.dto.request.CreateProductRequest;
 import com.back.domain.product.product.dto.response.ProductListResponse;
+import com.back.domain.product.product.dto.response.ShareLinkResponse;
 import com.back.domain.product.product.entity.*;
 import com.back.domain.product.product.repository.ProductRepository;
 import com.back.domain.product.tag.entity.Tag;
@@ -16,6 +17,8 @@ import com.back.global.s3.FileType;
 import com.back.global.s3.S3ValidationService;
 import com.back.global.security.auth.CustomUserDetails;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -27,6 +30,7 @@ import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class ProductService {
 
     private final ProductRepository productRepository;
@@ -34,6 +38,9 @@ public class ProductService {
     private final TagRepository TagRepository;
     private final S3ValidationService s3ValidationService;
     private final UserRepository userRepository;
+
+    @Value("${app.frontend-url:https://mori-mori.store}")
+    private String frontendUrl;
 
     // 상품 등록
     @Transactional
@@ -182,6 +189,99 @@ public class ProductService {
                 sort,
                 pageable
         );
+    }
+
+    /**
+     * 상품 공유 링크 생성 (UTM 파라미터 포함)
+     * 
+     * 누구나 상품을 공유할 수 있으며, 작가 ID는 상품 소유자 기준으로 설정됨
+     * UTM 파라미터를 통해 작가별 유입 경로 추적 가능
+     * 
+     * @param productId 상품 ID
+     * @param platform 공유할 플랫폼 (instagram, youtube, naver 등)
+     * @param customUserDetails 현재 로그인한 사용자 정보 (선택사항)
+     * @return UTM 파라미터가 포함된 공유 링크
+     */
+    @Transactional(readOnly = true)
+    public ShareLinkResponse generateShareLink(Long productId, String platform, CustomUserDetails customUserDetails) {
+        log.info("공유 링크 생성 시작 - 상품 ID: {}, 플랫폼: {}", productId, platform);
+
+        // 상품 존재 여부 확인
+        Product product = productRepository.findById(productId)
+                .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 상품입니다. ID: " + productId));
+
+        // 논리 삭제된 상품은 공유 불가
+        if (product.isDeleted()) {
+            throw new IllegalArgumentException("삭제된 상품은 공유할 수 없습니다.");
+        }
+
+        // 판매 중이 아닌 상품은 공유 불가 (선택적)
+        if (product.getSellingStatus() != SellingStatus.SELLING) {
+            log.warn("판매 중이 아닌 상품 공유 시도 - productId: {}, status: {}", 
+                     productId, product.getSellingStatus());
+            // 경고만 하고 공유는 허용 (작가가 예약 판매 등을 미리 공유할 수 있도록)
+        }
+
+        // 상품 소유자(작가)의 ID 사용
+        Long artistId = product.getUser().getId();
+
+        // 플랫폼 검증 및 정규화
+        String normalizedPlatform = validateAndNormalizePlatform(platform);
+
+        // 베이스 URL 생성 (프론트엔드 URL)
+        String baseUrl = frontendUrl + "/product/" + productId;
+
+        // UTM 파라미터 생성
+        // utm_source: 유입 경로 (instagram, youtube 등)
+        // utm_medium: 매체 타입 (social 고정)
+        // utm_campaign: 캠페인 (작가 ID 포함)
+        // utm_content: 추가 정보 (product_share 고정)
+        String utmParams = String.format(
+                "?utm_source=%s&utm_medium=social&utm_campaign=artist_%d&utm_content=product_share",
+                normalizedPlatform,
+                artistId
+        );
+
+        String shareLink = baseUrl + utmParams;
+
+        log.info("공유 링크 생성 완료 - 작가 ID: {}, 상품 ID: {}, 플랫폼: {}", 
+                 artistId, productId, normalizedPlatform);
+
+        return new ShareLinkResponse(
+                shareLink,
+                normalizedPlatform,
+                artistId,
+                productId,
+                product.getName() // 상품명을 설명으로 사용
+        );
+    }
+
+    /**
+     * 플랫폼 검증 및 정규화
+     * 
+     * @param platform 플랫폼명
+     * @return 정규화된 플랫폼명 (소문자)
+     */
+    private String validateAndNormalizePlatform(String platform) {
+        if (platform == null || platform.isBlank()) {
+            throw new IllegalArgumentException("플랫폼을 지정해야 합니다.");
+        }
+
+        // 소문자로 변환
+        String normalized = platform.toLowerCase().trim();
+
+        // 지원하는 플랫폼 목록
+        Set<String> supportedPlatforms = Set.of(
+                "instagram", "youtube", "naver", "kakao", "facebook", 
+                "twitter", "band", "pinterest", "tiktok", "linkedin"
+        );
+
+        if (!supportedPlatforms.contains(normalized)) {
+            log.warn("지원하지 않는 플랫폼이지만 허용: {}", normalized);
+            // 지원하지 않는 플랫폼도 일단 허용 (GA4에서 추적은 됨)
+        }
+
+        return normalized;
     }
 
 }

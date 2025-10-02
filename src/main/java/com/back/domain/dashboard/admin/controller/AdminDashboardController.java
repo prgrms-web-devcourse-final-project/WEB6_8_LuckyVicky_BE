@@ -15,23 +15,30 @@ import com.back.domain.dashboard.admin.dto.response.AdminSettlementResponse;
 import com.back.domain.dashboard.admin.dto.response.AdminUserResponse;
 import com.back.domain.dashboard.admin.service.AdminDashboardService;
 import com.back.global.rsData.RsData;
+import com.back.global.security.auth.CustomUserDetails;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
 /**
  * 관리자 대시보드 컨트롤러
- * 
+<<<<<<< HEAD
  * 관리자가 전체 플랫폼 현황을 모니터링할 수 있는 대시보드 기능을 제공
  * 모든 API는 JWT 인증과 관리자 권한이 필요
- * 
+=======
+ * <p>
+ * 관리자가 전체 플랫폼 현황을 모니터링할 수 있는 대시보드 기능을 제공
+ * 모든 API는 JWT 인증과 관리자 권한이 필요
+ * <p>
+>>>>>>> 2f4795372b442dd5b55cfd8b8cfe7ba547b36a98
  * 제공 기능:
  * <ul>
- *   <li>전체 현황 조회 (사용자/매출/펀딩 통계)</li>
+ *   <li>전체 현황 조회 (사용자/매출/펀딩 통계, 유입 경로)</li>
  *   <li>매출 및 주문 트렌드 조회</li>
  *   <li>사용자 증가 현황 조회</li>
  *   <li>카테고리별 상품 분포 조회</li>
@@ -41,8 +48,13 @@ import org.springframework.web.bind.annotation.*;
  *   <li>펀딩 모니터링 목록 조회</li>
  *   <li>입점 신청 목록 조회 및 관리</li>
  * </ul>
- * 
- * 2025.09.28 수정
+<<<<<<< HEAD
+ * 2025.10.01 GA4 유입 경로 통합 - 메인 현황에 포함
+ * 2025.10.02 JWT 표준 패턴 적용 - @AuthenticationPrincipal 사용
+=======
+ * <p>
+ * 2025.10.01 GA4 유입 경로 통합 - 메인 현황에 포함
+>>>>>>> 2f4795372b442dd5b55cfd8b8cfe7ba547b36a98
  */
 @RestController
 @RequestMapping("/api/dashboard/admin")
@@ -57,19 +69,17 @@ public class AdminDashboardController {
      * 관리자 대시보드 전체 현황 조회
      */
     @GetMapping("/overview")
-    @Operation(summary = "관리자 대시보드 전체 현황 조회", 
-               description = "사용자, 매출, 펀딩 통계와 트렌드 차트, 승인 대기 알림을 조회합니다")
+    @Operation(summary = "관리자 대시보드 전체 현황 조회",
+            description = "사용자, 매출, 펀딩 통계와 트렌드 차트, 승인 대기 알림, 유입 경로(GA4) 정보를 조회합니다")
     public ResponseEntity<RsData<AdminOverviewResponse>> getOverview(
-            @RequestHeader("Authorization") String authorization,
-            @RequestHeader(value = "X-Admin-Role", required = false) String adminRole,
+            @AuthenticationPrincipal CustomUserDetails adminUser,
             @Valid @ModelAttribute AdminOverviewRequest request) {
 
-        log.info("관리자 대시보드 전체 현황 조회 - range: {}, granularity: {}, timezone: {}, adminRole: {}", 
-                request.range(), request.granularity(), request.timezone(), adminRole);
+        log.info("관리자 대시보드 전체 현황 조회 - adminId: {}, role: {}, range: {}, granularity: {}, timezone: {}",
+                adminUser.getUserId(), adminUser.getCurrentRole(),
+                request.range(), request.granularity(), request.timezone());
 
-        AdminOverviewResponse response = adminDashboardService.getOverview(
-                authorization, adminRole, request.range(), request.granularity(), 
-                request.period(), request.timezone());
+        AdminOverviewResponse response = adminDashboardService.getOverview(request);
 
         return ResponseEntity.ok(RsData.ok("관리자 메인 현황 조회 성공", response));
     }
@@ -79,19 +89,16 @@ public class AdminDashboardController {
      */
     @GetMapping("/products")
     @Operation(summary = "관리자 상품 목록 조회",
-               description = "전체 상품을 페이지 단위로 조회하고 필터링/정렬할 수 있습니다")
+            description = "전체 상품을 페이지 단위로 조회하고 필터링/정렬할 수 있습니다")
     public ResponseEntity<RsData<AdminProductResponse>> getProducts(
-            @RequestHeader("Authorization") String authorization,
-            @RequestHeader(value = "X-Admin-Role", required = false) String adminRole,
+            @AuthenticationPrincipal CustomUserDetails adminUser,
             @Valid @ModelAttribute AdminProductSearchRequest request) {
 
-        log.info("관리자 상품 목록 조회 - page: {}, size: {}, keyword: {}, sellingStatus: {}, adminRole: {}",
-                request.page(), request.size(), request.keyword(), request.sellingStatus(), adminRole);
+        log.info("관리자 상품 목록 조회 - adminId: {}, role: {}, page: {}, size: {}, keyword: {}, sellingStatus: {}",
+                adminUser.getUserId(), adminUser.getCurrentRole(),
+                request.page(), request.size(), request.keyword(), request.sellingStatus());
 
-        AdminProductResponse response = adminDashboardService.getProducts(
-                authorization, adminRole, request.page(), request.size(),
-                request.keyword(), request.sellingStatus(), request.categoryId(), request.artistId(),
-                request.startDate(), request.endDate(), request.sort(), request.order());
+        AdminProductResponse response = adminDashboardService.getProducts(request);
 
         return ResponseEntity.ok(RsData.ok("관리자 상품 목록 조회 성공", response));
     }
@@ -101,21 +108,17 @@ public class AdminDashboardController {
      */
     @GetMapping("/users")
     @Operation(summary = "관리자 사용자 목록 조회",
-               description = "전체 사용자를 페이지 단위로 조회하고 필터링/정렬할 수 있습니다")
+            description = "전체 사용자를 페이지 단위로 조회하고 필터링/정렬할 수 있습니다")
     public ResponseEntity<RsData<AdminUserResponse>> getUsers(
-            @RequestHeader("Authorization") String authorization,
-            @RequestHeader(value = "X-Admin-Role", required = false) String adminRole,
+            @AuthenticationPrincipal CustomUserDetails adminUser,
             @Valid @ModelAttribute AdminUserSearchRequest request) {
 
-        log.info("관리자 사용자 목록 조회 - page: {}, size: {}, keyword: {}, role: {}, accountStatus: {}, grade: {}, adminRole: {}",
-                request.page(), request.size(), request.keyword(), request.role(), 
-                request.accountStatus(), request.grade(), adminRole);
+        log.info("관리자 사용자 목록 조회 - adminId: {}, role: {}, page: {}, size: {}, keyword: {}, role: {}, accountStatus: {}, grade: {}",
+                adminUser.getUserId(), adminUser.getCurrentRole(),
+                request.page(), request.size(), request.keyword(), request.role(),
+                request.accountStatus(), request.grade());
 
-        AdminUserResponse response = adminDashboardService.getUsers(
-                authorization, adminRole, request.page(), request.size(),
-                request.keyword(), request.role(), request.accountStatus(), request.grade(),
-                request.joinedStartDate(), request.joinedEndDate(), request.artistId(),
-                request.sort(), request.order());
+        AdminUserResponse response = adminDashboardService.getUsers(request);
 
         return ResponseEntity.ok(RsData.ok("관리자 사용자 목록 조회 성공", response));
     }
@@ -125,18 +128,16 @@ public class AdminDashboardController {
      */
     @GetMapping("/settlements")
     @Operation(summary = "관리자 매출/정산 집계 조회",
-               description = "연도 또는 월별 매출/정산 데이터를 조회합니다. month 전달 시 일별 집계로 전환됩니다")
+            description = "연도 또는 월별 매출/정산 데이터를 조회합니다. month 전달 시 일별 집계로 전환됩니다")
     public ResponseEntity<RsData<AdminSettlementResponse>> getSettlements(
-            @RequestHeader("Authorization") String authorization,
-            @RequestHeader(value = "X-Admin-Role", required = false) String adminRole,
+            @AuthenticationPrincipal CustomUserDetails adminUser,
             @Valid @ModelAttribute AdminSettlementRequest request) {
 
-        log.info("관리자 매출/정산 조회 - year: {}, month: {}, granularity: {}, timezone: {}, adminRole: {}",
-                request.year(), request.month(), request.granularity(), request.timezone(), adminRole);
+        log.info("관리자 매출/정산 조회 - adminId: {}, role: {}, year: {}, month: {}, granularity: {}, timezone: {}",
+                adminUser.getUserId(), adminUser.getCurrentRole(),
+                request.year(), request.month(), request.granularity(), request.timezone());
 
-        AdminSettlementResponse response = adminDashboardService.getSettlements(
-                authorization, adminRole, request.year(), request.month(),
-                request.granularity(), request.timezone());
+        AdminSettlementResponse response = adminDashboardService.getSettlements(request);
 
         return ResponseEntity.ok(RsData.ok("관리자 매출/정산 조회 성공", response));
     }
@@ -146,22 +147,17 @@ public class AdminDashboardController {
      */
     @GetMapping("/fundings")
     @Operation(summary = "관리자 펀딩 모니터링 목록 조회",
-               description = "전체 펀딩을 페이지 단위로 조회하고 필터링/정렬할 수 있습니다")
+            description = "전체 펀딩을 페이지 단위로 조회하고 필터링/정렬할 수 있습니다")
     public ResponseEntity<RsData<AdminFundingResponse>> getFundings(
-            @RequestHeader("Authorization") String authorization,
-            @RequestHeader(value = "X-Admin-Role", required = false) String adminRole,
+            @AuthenticationPrincipal CustomUserDetails adminUser,
             @Valid @ModelAttribute AdminFundingSearchRequest request) {
 
-        log.info("관리자 펀딩 목록 조회 - page: {}, size: {}, keyword: {}, status: {}, categoryId: {}, artistId: {}, adminRole: {}",
-                request.page(), request.size(), request.keyword(), request.status(), 
-                request.categoryId(), request.artistId(), adminRole);
+        log.info("관리자 펀딩 목록 조회 - adminId: {}, role: {}, page: {}, size: {}, keyword: {}, status: {}, categoryId: {}, artistId: {}",
+                adminUser.getUserId(), adminUser.getCurrentRole(),
+                request.page(), request.size(), request.keyword(), request.status(),
+                request.categoryId(), request.artistId());
 
-        AdminFundingResponse response = adminDashboardService.getFundings(
-                authorization, adminRole, request.page(), request.size(),
-                request.keyword(), request.status(), request.categoryId(), request.artistId(),
-                request.minAchievement(), request.maxAchievement(),
-                request.registeredFrom(), request.registeredTo(),
-                request.dueFrom(), request.dueTo(), request.sort(), request.order());
+        AdminFundingResponse response = adminDashboardService.getFundings(request);
 
         return ResponseEntity.ok(RsData.ok("관리자 펀딩 모니터링 조회 성공", response));
     }
@@ -171,20 +167,16 @@ public class AdminDashboardController {
      */
     @GetMapping("/artist-applications")
     @Operation(summary = "관리자 입점 신청 목록 조회",
-               description = "전체 입점 신청을 페이지 단위로 조회하고 필터링/정렬할 수 있습니다")
+            description = "전체 입점 신청을 페이지 단위로 조회하고 필터링/정렬할 수 있습니다")
     public ResponseEntity<RsData<AdminArtistApplicationResponse>> getArtistApplications(
-            @RequestHeader("Authorization") String authorization,
-            @RequestHeader(value = "X-Admin-Role", required = false) String adminRole,
+            @AuthenticationPrincipal CustomUserDetails adminUser,
             @Valid @ModelAttribute AdminArtistApplicationSearchRequest request) {
 
-        log.info("관리자 입점 신청 목록 조회 - page: {}, size: {}, keyword: {}, status: {}, adminRole: {}",
-                request.page(), request.size(), request.keyword(), request.status(), adminRole);
+        log.info("관리자 입점 신청 목록 조회 - adminId: {}, role: {}, page: {}, size: {}, keyword: {}, status: {}",
+                adminUser.getUserId(), adminUser.getCurrentRole(),
+                request.page(), request.size(), request.keyword(), request.status());
 
-        AdminArtistApplicationResponse response = adminDashboardService.getArtistApplications(
-                authorization, adminRole, request.page(), request.size(),
-                request.keyword(), request.status(),
-                request.submittedFrom(), request.submittedTo(),
-                request.sort(), request.order());
+        AdminArtistApplicationResponse response = adminDashboardService.getArtistApplications(request);
 
         return ResponseEntity.ok(RsData.ok("입점 신청 목록 조회 성공", response));
     }
@@ -194,16 +186,15 @@ public class AdminDashboardController {
      */
     @GetMapping("/artist-applications/{applicationId}")
     @Operation(summary = "관리자 입점 신청 상세 조회",
-               description = "특정 입점 신청의 상세 정보를 조회합니다")
+            description = "특정 입점 신청의 상세 정보를 조회합니다")
     public ResponseEntity<RsData<AdminArtistApplicationDetailResponse>> getArtistApplicationDetail(
-            @RequestHeader("Authorization") String authorization,
-            @RequestHeader(value = "X-Admin-Role", required = false) String adminRole,
+            @AuthenticationPrincipal CustomUserDetails adminUser,
             @PathVariable Long applicationId) {
 
-        log.info("관리자 입점 신청 상세 조회 - applicationId: {}, adminRole: {}", applicationId, adminRole);
+        log.info("관리자 입점 신청 상세 조회 - adminId: {}, role: {}, applicationId: {}",
+                adminUser.getUserId(), adminUser.getCurrentRole(), applicationId);
 
-        AdminArtistApplicationDetailResponse response = adminDashboardService.getArtistApplicationDetail(
-                authorization, adminRole, applicationId);
+        AdminArtistApplicationDetailResponse response = adminDashboardService.getArtistApplicationDetail(applicationId);
 
         return ResponseEntity.ok(RsData.ok("입점 신청 상세 조회 성공", response));
     }

@@ -6,8 +6,8 @@ import java.util.List;
 /**
  * 작가 대시보드 메인 현황 응답 DTO
  *
- * 작가의 프로필, 통계, 트렌드, 알림 정보를 포함
- * 2025.09.25 수정
+ * 작가의 프로필, 통계, 트렌드, 알림, 유입 경로 정보를 포함
+ * 2025.10.01 수정 - GA4 유입 경로 추가
  */
 public record ArtistMainResponse(
         /** 작가 프로필 정보 */
@@ -18,6 +18,8 @@ public record ArtistMainResponse(
         Trends trends,
         /** 알림 정보 */
         Notifications notifications,
+        /** 유입 경로 정보 (GA4) */
+        TrafficSources trafficSources,
         /** 서버 시간 */
         LocalDateTime serverTime,
         /** 타임존 */
@@ -180,5 +182,69 @@ public record ArtistMainResponse(
             int count,
             /** 타임스탬프 */
             LocalDateTime timestamp
+    ) {}
+
+    /**
+     * 유입 경로 정보 (GA4)
+     */
+    public record TrafficSources(
+            /** 요약 정보 */
+            Summary summary,
+            /** 유입 경로별 데이터 */
+            List<Source> sources,
+            /** 차트용 데이터 */
+            Chart chart
+    ) {}
+
+    /**
+     * 유입 경로 요약 정보
+     */
+    public record Summary(
+            /** 총 세션 수 */
+            long totalSessions,
+            /** 총 사용자 수 */
+            long totalUsers,
+            /** 전환 수 */
+            long conversions,
+            /** 전환율 (%) */
+            double conversionRate,
+            /** 가장 많은 유입 경로 */
+            String topSource
+    ) {}
+
+    /**
+     * 유입 경로 정보
+     */
+    public record Source(
+            /** 유입 경로명 (Instagram, YouTube, Naver 등) */
+            String name,
+            /** 세션 수 */
+            long sessions,
+            /** 사용자 수 */
+            long users,
+            /** 점유율 (%) */
+            double share
+    ) {}
+
+    /**
+     * 파이차트 데이터
+     */
+    public record Chart(
+            /** 차트 데이터 */
+            List<ChartData> data
+    ) {}
+
+    /**
+     * 차트 개별 데이터
+     */
+    public record ChartData(
+            /** 유입 경로명 */
+            String name,
+            /** 값 (세션 수) */
+            long value,
+            /** 점유율 (%) */
+            double percentage,
+            /** 색상 코드 (예: #FF6B6B) */
+            String color
     ) {}
 }
