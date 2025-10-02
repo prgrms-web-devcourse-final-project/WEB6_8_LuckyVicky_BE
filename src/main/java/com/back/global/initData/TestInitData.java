@@ -166,6 +166,7 @@ public class TestInitData {
         fundingRepository.save(funding3);
     }
 
+
     @Transactional
     public void work3() {
         // 카테고리 생성

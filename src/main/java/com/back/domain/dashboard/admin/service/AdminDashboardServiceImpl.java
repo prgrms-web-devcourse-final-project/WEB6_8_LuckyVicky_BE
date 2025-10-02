@@ -229,6 +229,7 @@ public class AdminDashboardServiceImpl implements AdminDashboardService {
      * Product Entity → DTO 변환
      */
     private AdminProductResponse.Product convertToProductDto(Product product) {
+
         // UUID를 상품번호로 사용
         String productNumber = product.getProductUuid() != null 
                 ? product.getProductUuid().toString() 
