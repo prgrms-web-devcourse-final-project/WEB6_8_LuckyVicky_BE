@@ -43,6 +43,9 @@ db_dev.trace.db
 .env
 /src/main/generated/
 
+### GA4 Service Account Key (민감 정보!) ###
+src/main/resources/ga4-service-account.json
+
 ## Terraform ##
 .terraform
 .terraform.lock.hcl

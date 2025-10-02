@@ -1,6 +1,7 @@
 package com.back.domain.dashboard.customer.service;
 
 
+import com.back.domain.dashboard.customer.dto.request.FundingSearchRequest;
 import com.back.domain.dashboard.customer.dto.response.FundingResponse;
 import com.back.domain.funding.entity.Funding;
 import com.back.domain.funding.entity.FundingContribution;
@@ -10,7 +11,6 @@ import com.back.domain.funding.repository.FundingContributionRepository;
 import com.back.domain.funding.repository.FundingRepository;
 import com.back.domain.user.entity.User;
 import com.back.domain.user.repository.UserRepository;
-import com.back.global.security.jwt.JwtTokenProvider;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -27,7 +27,7 @@ import static org.junit.jupiter.api.Assertions.assertAll;
 /**
  * DashboardServiceImpl 테스트
  * 핵심 비즈니스 로직과 데이터 일관성에 집중
- * 2025.09.30 수정 - Funding 실제 DB 연동 테스트 추가
+ * 2025.10.02 수정 - JWT 표준 패턴 적용에 따른 테스트 수정
  */
 @SpringBootTest
 @ActiveProfiles("test")
@@ -47,12 +47,8 @@ class DashboardServiceImplTest {
     @Autowired
     private FundingContributionRepository fundingContributionRepository;
 
-    @Autowired
-    private JwtTokenProvider jwtTokenProvider;
-
     private User testBuyer;
     private User testArtist;
-    private String testAuthorization;
     private Funding activeFunding;
     private Funding endedFunding;
 
@@ -74,16 +70,8 @@ class DashboardServiceImplTest {
                 "테스트작가",
                 "01087654321"
         );
-        testArtist.becomeArtist();  // 작가 역할로 변경
+        testArtist.becomeArtist();
         testArtist = userRepository.save(testArtist);
-
-        // JWT 토큰 생성
-        String token = jwtTokenProvider.createAccessToken(
-                testBuyer.getId(),
-                testBuyer.getEmail(),
-                testBuyer.getAvailableLoginRoles().get(0)
-        );
-        testAuthorization = "Bearer " + token;
 
         // FundingOption 먼저 생성
         FundingOption activeOption = FundingOption.builder()
@@ -113,7 +101,7 @@ class DashboardServiceImplTest {
                 .status(FundingStatus.OPEN)
                 .participantCount(5)
                 .build();
-        activeFunding.attachOption(activeOption);  // cascade로 함께 저장됨
+        activeFunding.attachOption(activeOption);
         activeFunding = fundingRepository.save(activeFunding);
 
         // 종료된 펀딩 생성 (옵션 포함)
@@ -129,7 +117,7 @@ class DashboardServiceImplTest {
                 .status(FundingStatus.SUCCESS)
                 .participantCount(10)
                 .build();
-        endedFunding.attachOption(endedOption);  // cascade로 함께 저장됨
+        endedFunding.attachOption(endedOption);
         endedFunding = fundingRepository.save(endedFunding);
 
         // 저장된 옵션 가져오기 (cascade로 저장됨)
@@ -166,11 +154,16 @@ class DashboardServiceImplTest {
     @Test
     @DisplayName("펀딩 참여 목록 조회 - 실제 DB 데이터 검증")
     void getFundingParticipations_ReturnsRealData() {
+        // Given
+        FundingSearchRequest request = new FundingSearchRequest(
+                0, 10, null, null, "paidAt", "DESC"
+        );
+
         // When
         FundingResponse.List result = dashboardService.getFundingParticipations(
-                testAuthorization, 0, 10, null, null, "paidAt", "DESC");
+                testBuyer.getId(), request);
 
-        // Then - 기본 구조 검증
+        // Then
         assertAll(
                 () -> assertThat(result).isNotNull(),
                 () -> assertThat(result.getSummary()).isNotNull(),
@@ -182,33 +175,40 @@ class DashboardServiceImplTest {
     @Test
     @DisplayName("펀딩 참여 목록 조회 - 통계 계산 검증")
     void getFundingParticipations_CalculatesStatistics() {
+        // Given
+        FundingSearchRequest request = new FundingSearchRequest(
+                0, 10, null, null, "paidAt", "DESC"
+        );
+
         // When
         FundingResponse.List result = dashboardService.getFundingParticipations(
-                testAuthorization, 0, 10, null, null, "paidAt", "DESC");
+                testBuyer.getId(), request);
 
-        // Then - 통계 검증 (배송 제외)
+        // Then
         assertAll(
                 () -> assertThat(result.getSummary().totalParticipations()).isEqualTo(2),
                 () -> assertThat(result.getSummary().active()).isEqualTo(1),
                 () -> assertThat(result.getSummary().ended()).isEqualTo(1)
-                // TODO: 배송 CRUD 완성 후 추가
-                // () -> assertThat(result.getSummary().fulfilling()).isEqualTo(0),
-                // () -> assertThat(result.getSummary().fulfilled()).isEqualTo(0)
         );
     }
 
     @Test
     @DisplayName("펀딩 참여 목록 조회 - participationNumber 포맷 검증")
     void getFundingParticipations_FormatsParticipationNumber() {
+        // Given
+        FundingSearchRequest request = new FundingSearchRequest(
+                0, 10, null, null, "paidAt", "DESC"
+        );
+
         // When
         FundingResponse.List result = dashboardService.getFundingParticipations(
-                testAuthorization, 0, 10, null, null, "paidAt", "DESC");
+                testBuyer.getId(), request);
 
-        // Then - participationNumber 포맷 검증 (00010 형식)
+        // Then
         assertAll(
                 () -> assertThat(result.getContent()).isNotEmpty(),
                 () -> assertThat(result.getContent().get(0).participationNumber())
-                        .matches("^\\d{5}$"),  // 5자리 숫자
+                        .matches("^\\d{5}$"),
                 () -> assertThat(result.getContent().get(0).participationNumber().length())
                         .isEqualTo(5)
         );
@@ -217,11 +217,15 @@ class DashboardServiceImplTest {
     @Test
     @DisplayName("펀딩 참여 목록 조회 - 상태 매핑 검증")
     void getFundingParticipations_MapsStatus() {
+        // Given
+        FundingSearchRequest request = new FundingSearchRequest(
+                0, 10, null, null, "paidAt", "DESC"
+        );
+
         // When
         FundingResponse.List result = dashboardService.getFundingParticipations(
-                testAuthorization, 0, 10, null, null, "paidAt", "DESC");
+                testBuyer.getId(), request);
 
-        // Then - 상태 매핑 검증 (OPEN → ACTIVE, SUCCESS → ENDED)
         FundingResponse.Participation activeParticipation = result.getContent().stream()
                 .filter(p -> p.title().equals("진행중인 펀딩"))
                 .findFirst()
@@ -232,6 +236,7 @@ class DashboardServiceImplTest {
                 .findFirst()
                 .orElseThrow();
 
+        // Then
         assertAll(
                 () -> assertThat(activeParticipation.status()).isEqualTo("ACTIVE"),
                 () -> assertThat(activeParticipation.statusText()).isEqualTo("진행중"),
@@ -243,11 +248,16 @@ class DashboardServiceImplTest {
     @Test
     @DisplayName("펀딩 참여 목록 조회 - Meta 제외 검증")
     void getFundingParticipations_ExcludesMeta() {
+        // Given
+        FundingSearchRequest request = new FundingSearchRequest(
+                0, 10, null, null, "paidAt", "DESC"
+        );
+
         // When
         FundingResponse.List result = dashboardService.getFundingParticipations(
-                testAuthorization, 0, 10, null, null, "paidAt", "DESC");
+                testBuyer.getId(), request);
 
-        // Then - Meta는 목록 조회에서 null
+        // Then
         assertAll(
                 () -> assertThat(result.getContent()).isNotEmpty(),
                 () -> assertThat(result.getContent().get(0).meta()).isNull(),
@@ -258,13 +268,18 @@ class DashboardServiceImplTest {
     @Test
     @DisplayName("펀딩 참여 목록 조회 - 필드 타입 검증")
     void getFundingParticipations_ValidatesFieldTypes() {
+        // Given
+        FundingSearchRequest request = new FundingSearchRequest(
+                0, 10, null, null, "paidAt", "DESC"
+        );
+
         // When
         FundingResponse.List result = dashboardService.getFundingParticipations(
-                testAuthorization, 0, 10, null, null, "paidAt", "DESC");
+                testBuyer.getId(), request);
 
         FundingResponse.Participation participation = result.getContent().get(0);
 
-        // Then - 타입 검증 (Long, String, int)
+        // Then
         assertAll(
                 () -> assertThat(participation.participationNumber()).isInstanceOf(String.class),
                 () -> assertThat(participation.participationId()).isInstanceOf(Long.class),
@@ -277,11 +292,16 @@ class DashboardServiceImplTest {
     @Test
     @DisplayName("펀딩 참여 목록 조회 - 상태 필터링 (ACTIVE)")
     void getFundingParticipations_FiltersActiveStatus() {
+        // Given
+        FundingSearchRequest request = new FundingSearchRequest(
+                0, 10, "ACTIVE", null, "paidAt", "DESC"
+        );
+
         // When
         FundingResponse.List result = dashboardService.getFundingParticipations(
-                testAuthorization, 0, 10, "ACTIVE", null, "paidAt", "DESC");
+                testBuyer.getId(), request);
 
-        // Then - ACTIVE만 조회
+        // Then
         assertAll(
                 () -> assertThat(result.getContent()).hasSize(1),
                 () -> assertThat(result.getContent().get(0).status()).isEqualTo("ACTIVE"),
@@ -292,11 +312,16 @@ class DashboardServiceImplTest {
     @Test
     @DisplayName("펀딩 참여 목록 조회 - 상태 필터링 (ENDED)")
     void getFundingParticipations_FiltersEndedStatus() {
+        // Given
+        FundingSearchRequest request = new FundingSearchRequest(
+                0, 10, "ENDED", null, "paidAt", "DESC"
+        );
+
         // When
         FundingResponse.List result = dashboardService.getFundingParticipations(
-                testAuthorization, 0, 10, "ENDED", null, "paidAt", "DESC");
+                testBuyer.getId(), request);
 
-        // Then - ENDED만 조회
+        // Then
         assertAll(
                 () -> assertThat(result.getContent()).hasSize(1),
                 () -> assertThat(result.getContent().get(0).status()).isEqualTo("ENDED"),
@@ -307,11 +332,16 @@ class DashboardServiceImplTest {
     @Test
     @DisplayName("펀딩 참여 목록 조회 - 키워드 검색 (제목)")
     void getFundingParticipations_SearchesByTitle() {
+        // Given
+        FundingSearchRequest request = new FundingSearchRequest(
+                0, 10, null, "진행중", "paidAt", "DESC"
+        );
+
         // When
         FundingResponse.List result = dashboardService.getFundingParticipations(
-                testAuthorization, 0, 10, null, "진행중", "paidAt", "DESC");
+                testBuyer.getId(), request);
 
-        // Then - 제목으로 검색
+        // Then
         assertAll(
                 () -> assertThat(result.getContent()).hasSize(1),
                 () -> assertThat(result.getContent().get(0).title()).contains("진행중")
@@ -321,11 +351,16 @@ class DashboardServiceImplTest {
     @Test
     @DisplayName("펀딩 참여 목록 조회 - 키워드 검색 (작가명)")
     void getFundingParticipations_SearchesByArtistName() {
+        // Given
+        FundingSearchRequest request = new FundingSearchRequest(
+                0, 10, null, "테스트작가", "paidAt", "DESC"
+        );
+
         // When
         FundingResponse.List result = dashboardService.getFundingParticipations(
-                testAuthorization, 0, 10, null, "테스트작가", "paidAt", "DESC");
+                testBuyer.getId(), request);
 
-        // Then - 작가명으로 검색
+        // Then
         assertAll(
                 () -> assertThat(result.getContent()).hasSize(2),
                 () -> assertThat(result.getContent().get(0).artist().name()).isEqualTo("테스트작가"),
@@ -336,11 +371,16 @@ class DashboardServiceImplTest {
     @Test
     @DisplayName("펀딩 참여 목록 조회 - 정렬 (paidAt ASC)")
     void getFundingParticipations_SortsByPaidAtAsc() {
+        // Given
+        FundingSearchRequest request = new FundingSearchRequest(
+                0, 10, null, null, "paidAt", "ASC"
+        );
+
         // When
         FundingResponse.List result = dashboardService.getFundingParticipations(
-                testAuthorization, 0, 10, null, null, "paidAt", "ASC");
+                testBuyer.getId(), request);
 
-        // Then - 오래된 순 정렬
+        // Then
         assertAll(
                 () -> assertThat(result.getContent()).hasSize(2),
                 () -> assertThat(result.getContent().get(0).title()).isEqualTo("종료된 펀딩"),
@@ -351,11 +391,16 @@ class DashboardServiceImplTest {
     @Test
     @DisplayName("펀딩 참여 목록 조회 - 정렬 (paidAt DESC)")
     void getFundingParticipations_SortsByPaidAtDesc() {
+        // Given
+        FundingSearchRequest request = new FundingSearchRequest(
+                0, 10, null, null, "paidAt", "DESC"
+        );
+
         // When
         FundingResponse.List result = dashboardService.getFundingParticipations(
-                testAuthorization, 0, 10, null, null, "paidAt", "DESC");
+                testBuyer.getId(), request);
 
-        // Then - 최근 순 정렬
+        // Then
         assertAll(
                 () -> assertThat(result.getContent()).hasSize(2),
                 () -> assertThat(result.getContent().get(0).title()).isEqualTo("진행중인 펀딩"),
@@ -366,11 +411,16 @@ class DashboardServiceImplTest {
     @Test
     @DisplayName("펀딩 참여 목록 조회 - 페이징 검증")
     void getFundingParticipations_HandlesPagination() {
+        // Given
+        FundingSearchRequest request = new FundingSearchRequest(
+                0, 1, null, null, "paidAt", "DESC"
+        );
+
         // When
         FundingResponse.List result = dashboardService.getFundingParticipations(
-                testAuthorization, 0, 1, null, null, "paidAt", "DESC");
+                testBuyer.getId(), request);
 
-        // Then - 페이징 처리
+        // Then
         assertAll(
                 () -> assertThat(result.getContent()).hasSize(1),
                 () -> assertThat(result.getPage()).isEqualTo(0),
@@ -385,11 +435,16 @@ class DashboardServiceImplTest {
     @Test
     @DisplayName("펀딩 참여 목록 조회 - paidDate 필드 포맷 검증")
     void getFundingParticipations_FormatsPaidDate() {
+        // Given
+        FundingSearchRequest request = new FundingSearchRequest(
+                0, 10, null, null, "paidAt", "DESC"
+        );
+
         // When
         FundingResponse.List result = dashboardService.getFundingParticipations(
-                testAuthorization, 0, 10, null, null, "paidAt", "DESC");
+                testBuyer.getId(), request);
 
-        // Then - paidDate 포맷 검증 (YYYY-MM-DD)
+        // Then
         assertAll(
                 () -> assertThat(result.getContent()).isNotEmpty(),
                 () -> assertThat(result.getContent().get(0).paidDate())

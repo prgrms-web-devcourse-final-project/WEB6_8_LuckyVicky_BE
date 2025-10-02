@@ -2,6 +2,7 @@ package com.back.domain.dashboard.admin.service;
 
 import com.back.domain.artist.entity.ArtistApplication;
 import com.back.domain.artist.repository.ArtistApplicationRepository;
+import com.back.domain.dashboard.admin.dto.request.*;
 import com.back.domain.dashboard.admin.dto.response.*;
 import com.back.domain.funding.entity.Funding;
 import com.back.domain.funding.entity.FundingOption;
@@ -14,13 +15,20 @@ import com.back.domain.product.product.entity.DisplayStatus;
 import com.back.domain.product.product.entity.Product;
 import com.back.domain.product.product.entity.SellingStatus;
 import com.back.domain.product.product.repository.ProductRepository;
+import com.back.domain.user.entity.Role;
 import com.back.domain.user.entity.User;
 import com.back.domain.user.repository.UserRepository;
+import com.back.global.security.auth.CustomUserDetails;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContext;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -32,7 +40,7 @@ import static org.junit.jupiter.api.Assertions.assertAll;
 /**
  * AdminDashboardServiceImpl 통합 테스트
  * 실제 DB 연동을 통한 비즈니스 로직 검증
- * 2025.10.01 실제 DB 연동으로 수정
+ * 2025.10.02 JWT 표준 패턴 적용 - SecurityContext Mock 사용
  */
 @SpringBootTest
 @ActiveProfiles("test")
@@ -58,10 +66,8 @@ class AdminDashboardServiceImplTest {
     @Autowired
     private CategoryRepository categoryRepository;
 
-    private static final String TEST_AUTHORIZATION = "Bearer test-admin-token";
-    private static final String TEST_ADMIN_ROLE = "SUPER_ADMIN";
-
     private User artistUser;
+    private User adminUser;
     private User customerUser;
     private Category defaultCategory;
 
@@ -70,27 +76,58 @@ class AdminDashboardServiceImplTest {
         // TestInitData에서 생성된 사용자 조회
         artistUser = userRepository.findByEmail("user1@user.com").orElseThrow();
         customerUser = userRepository.findByEmail("user2@user.com").orElseThrow();
+        
+        // Admin 사용자 조회 또는 생성
+        adminUser = userRepository.findByEmail("admin@admin.com")
+                .orElseGet(() -> {
+                    User admin = User.createLocalUser("admin@admin.com", "password", "Admin", "010-0000-0000");
+                    admin.becomeAdmin();
+                    return userRepository.save(admin);
+                });
 
         // TestInitData에서 생성된 카테고리 조회
         defaultCategory = categoryRepository.findAll().stream()
                 .filter(c -> "회화".equals(c.getCategoryName()))
                 .findFirst()
                 .orElseThrow();
+
+        // SecurityContext 설정
+        setupSecurityContext();
+    }
+
+    @AfterEach
+    void tearDown() {
+        SecurityContextHolder.clearContext();
+    }
+
+    /**
+     * SecurityContext에 Admin 인증 정보 설정
+     */
+    private void setupSecurityContext() {
+        CustomUserDetails adminDetails = new CustomUserDetails(adminUser, Role.ADMIN);
+        Authentication authentication = new UsernamePasswordAuthenticationToken(
+                adminDetails, null, adminDetails.getAuthorities());
+        SecurityContext securityContext = SecurityContextHolder.createEmptyContext();
+        securityContext.setAuthentication(authentication);
+        SecurityContextHolder.setContext(securityContext);
     }
 
     @Test
-    @DisplayName("전체 현황 조회 - 실제 DB 데이터로 검증 (일부 더미 데이터 포함)")
+    @DisplayName("전체 현황 조회 - 실제 DB 데이터로 검증")
     void getOverview_WithRealData() {
         // Given - TestInitData에 이미 데이터 존재
         long expectedUserCount = userRepository.count();
         long expectedProductCount = productRepository.count();
         long expectedFundingCount = fundingRepository.count();
 
-        // When
-        AdminOverviewResponse result = adminDashboardService.getOverview(
-                TEST_AUTHORIZATION, TEST_ADMIN_ROLE, "1M", "DAY", "MONTH", "Asia/Seoul");
+        AdminOverviewRequest request = new AdminOverviewRequest(
+                "1M", "DAY", "MONTH", "Asia/Seoul"
+        );
 
-        // Then - 실제 DB 연동된 부분만 검증 (Order, 차트는 더미)
+        // When
+        AdminOverviewResponse result = adminDashboardService.getOverview(request);
+
+        // Then - 실제 DB 연동된 부분만 검증
         assertAll(
                 () -> assertThat(result).isNotNull(),
                 () -> assertThat(result.timezone()).isEqualTo("Asia/Seoul"),
@@ -103,7 +140,6 @@ class AdminDashboardServiceImplTest {
                 () -> assertThat(result.overview().salesStats().count()).isEqualTo(0L),
                 // 알림 데이터는 실제 DB
                 () -> assertThat(result.alerts()).isNotNull()
-                // 차트 데이터는 더미 - 검증하지 않음
         );
     }
 
@@ -116,10 +152,12 @@ class AdminDashboardServiceImplTest {
         productRepository.save(product1);
         productRepository.save(product2);
 
+        AdminProductSearchRequest request = new AdminProductSearchRequest(
+                0, 20, null, null, null, null, null, null, "registeredAt", "DESC"
+        );
+
         // When
-        AdminProductResponse result = adminDashboardService.getProducts(
-                TEST_AUTHORIZATION, TEST_ADMIN_ROLE, 0, 20,
-                null, null, null, null, null, null, "registeredAt", "DESC");
+        AdminProductResponse result = adminDashboardService.getProducts(request);
 
         // Then
         assertAll(
@@ -147,10 +185,12 @@ class AdminDashboardServiceImplTest {
         productRepository.save(selling);
         productRepository.save(ended);
 
-        // When - 판매중인 상품만 조회
-        AdminProductResponse result = adminDashboardService.getProducts(
-                TEST_AUTHORIZATION, TEST_ADMIN_ROLE, 0, 20,
-                null, "SELLING", null, null, null, null, "registeredAt", "DESC");
+        AdminProductSearchRequest request = new AdminProductSearchRequest(
+                0, 20, null, "SELLING", null, null, null, null, "registeredAt", "DESC"
+        );
+
+        // When
+        AdminProductResponse result = adminDashboardService.getProducts(request);
 
         // Then
         assertAll(
@@ -168,16 +208,18 @@ class AdminDashboardServiceImplTest {
         Product product = createTestProduct("특별한 작품", SellingStatus.SELLING);
         productRepository.save(product);
 
+        AdminProductSearchRequest request = new AdminProductSearchRequest(
+                0, 20, "특별한", null, null, null, null, null, "registeredAt", "DESC"
+        );
+
         // When
-        AdminProductResponse result = adminDashboardService.getProducts(
-                TEST_AUTHORIZATION, TEST_ADMIN_ROLE, 0, 20,
-                "특별한", null, null, null, null, null, "registeredAt", "DESC");
+        AdminProductResponse result = adminDashboardService.getProducts(request);
 
         // Then
         assertAll(
                 () -> assertThat(result).isNotNull(),
                 () -> assertThat(result.content()).isNotEmpty(),
-                () -> assertThat(result.content().get(0).name()).contains("특별한")
+                () -> assertThat(result.content().getFirst().name()).contains("특별한")
         );
     }
 
@@ -187,10 +229,12 @@ class AdminDashboardServiceImplTest {
         // Given - TestInitData에 이미 사용자 존재
         long expectedUserCount = userRepository.count();
 
+        AdminUserSearchRequest request = new AdminUserSearchRequest(
+                0, 20, null, null, null, null, null, null, null, "joinedAt", "DESC"
+        );
+
         // When
-        AdminUserResponse result = adminDashboardService.getUsers(
-                TEST_AUTHORIZATION, TEST_ADMIN_ROLE, 0, 20,
-                null, null, null, null, null, null, null, "joinedAt", "DESC");
+        AdminUserResponse result = adminDashboardService.getUsers(request);
 
         // Then
         assertAll(
@@ -211,10 +255,13 @@ class AdminDashboardServiceImplTest {
     @Test
     @DisplayName("사용자 목록 조회 - 역할 필터링 (작가만)")
     void getUsers_WithRoleFilter() {
-        // When - 작가만 조회
-        AdminUserResponse result = adminDashboardService.getUsers(
-                TEST_AUTHORIZATION, TEST_ADMIN_ROLE, 0, 20,
-                null, "ARTIST", null, null, null, null, null, "joinedAt", "DESC");
+        // Given
+        AdminUserSearchRequest request = new AdminUserSearchRequest(
+                0, 20, null, "ARTIST", null, null, null, null, null, "joinedAt", "DESC"
+        );
+
+        // When
+        AdminUserResponse result = adminDashboardService.getUsers(request);
 
         // Then
         assertAll(
@@ -226,15 +273,41 @@ class AdminDashboardServiceImplTest {
     }
 
     @Test
+    @DisplayName("매출/정산 조회 - 기본 조회")
+    void getSettlements_Success() {
+        // Given
+        AdminSettlementRequest request = new AdminSettlementRequest(
+                2025, null, "MONTH", "Asia/Seoul"
+        );
+
+        // When
+        AdminSettlementResponse result = adminDashboardService.getSettlements(request);
+
+        // Then
+        assertAll(
+                () -> assertThat(result).isNotNull(),
+                () -> assertThat(result.scope()).isNotNull(),
+                () -> assertThat(result.scope().year()).isEqualTo(2025),
+                () -> assertThat(result.scope().month()).isNull(),
+                () -> assertThat(result.granularity()).isEqualTo("MONTH"),
+                () -> assertThat(result.summary()).isNotNull(),
+                () -> assertThat(result.chart()).isNotNull(),
+                () -> assertThat(result.table()).isNotNull()
+        );
+    }
+
+    @Test
     @DisplayName("펀딩 목록 조회 - 실제 DB 데이터로 검증")
     void getFundings_WithRealData() {
         // Given - TestInitData에 이미 펀딩 존재
         long expectedFundingCount = fundingRepository.count();
 
+        AdminFundingSearchRequest request = new AdminFundingSearchRequest(
+                0, 20, null, null, null, null, null, null, null, null, null, null, "endDate", "ASC"
+        );
+
         // When
-        AdminFundingResponse result = adminDashboardService.getFundings(
-                TEST_AUTHORIZATION, TEST_ADMIN_ROLE, 0, 20,
-                null, null, null, null, null, null, null, null, null, null, "endDate", "ASC");
+        AdminFundingResponse result = adminDashboardService.getFundings(request);
 
         // Then
         assertAll(
@@ -249,8 +322,10 @@ class AdminDashboardServiceImplTest {
                     assertThat(funding.title()).isNotBlank();
                     assertThat(funding.artist()).isNotNull();
                     // 달성률 계산 검증
-                    int expectedRate = (int) ((funding.currentAmount() * 100) / funding.targetAmount());
-                    assertThat(funding.achievementRate()).isEqualTo(expectedRate);
+                    if (funding.targetAmount() > 0) {
+                        int expectedRate = (int) ((funding.currentAmount() * 100) / funding.targetAmount());
+                        assertThat(funding.achievementRate()).isEqualTo(expectedRate);
+                    }
                 })
         );
     }
@@ -262,10 +337,12 @@ class AdminDashboardServiceImplTest {
         Funding openFunding = createTestFunding("진행중 펀딩", FundingStatus.OPEN);
         fundingRepository.save(openFunding);
 
-        // When - OPEN 상태만 조회
-        AdminFundingResponse result = adminDashboardService.getFundings(
-                TEST_AUTHORIZATION, TEST_ADMIN_ROLE, 0, 20,
-                null, "OPEN", null, null, null, null, null, null, null, null, "endDate", "ASC");
+        AdminFundingSearchRequest request = new AdminFundingSearchRequest(
+                0, 20, null, "OPEN", null, null, null, null, null, null, null, null, "endDate", "ASC"
+        );
+
+        // When
+        AdminFundingResponse result = adminDashboardService.getFundings(request);
 
         // Then
         assertAll(
@@ -285,10 +362,12 @@ class AdminDashboardServiceImplTest {
         artistApplicationRepository.save(application1);
         artistApplicationRepository.save(application2);
 
+        AdminArtistApplicationSearchRequest request = new AdminArtistApplicationSearchRequest(
+                0, 20, null, null, null, null, "submittedAt", "DESC"
+        );
+
         // When
-        AdminArtistApplicationResponse result = adminDashboardService.getArtistApplications(
-                TEST_AUTHORIZATION, TEST_ADMIN_ROLE, 0, 20,
-                null, null, null, null, "submittedAt", "DESC");
+        AdminArtistApplicationResponse result = adminDashboardService.getArtistApplications(request);
 
         // Then
         assertAll(
@@ -320,10 +399,12 @@ class AdminDashboardServiceImplTest {
         ArtistApplication pending = createTestApplication("대기중 신청자");
         artistApplicationRepository.save(pending);
 
-        // When - PENDING만 조회
-        AdminArtistApplicationResponse result = adminDashboardService.getArtistApplications(
-                TEST_AUTHORIZATION, TEST_ADMIN_ROLE, 0, 20,
-                null, "PENDING", null, null, "submittedAt", "DESC");
+        AdminArtistApplicationSearchRequest request = new AdminArtistApplicationSearchRequest(
+                0, 20, null, "PENDING", null, null, "submittedAt", "DESC"
+        );
+
+        // When
+        AdminArtistApplicationResponse result = adminDashboardService.getArtistApplications(request);
 
         // Then
         assertAll(
@@ -342,8 +423,8 @@ class AdminDashboardServiceImplTest {
         ArtistApplication saved = artistApplicationRepository.save(application);
 
         // When
-        AdminArtistApplicationDetailResponse result = adminDashboardService.getArtistApplicationDetail(
-                TEST_AUTHORIZATION, TEST_ADMIN_ROLE, saved.getId());
+        AdminArtistApplicationDetailResponse result = 
+                adminDashboardService.getArtistApplicationDetail(saved.getId());
 
         // Then - 필수 정보 검증
         assertAll(

@@ -13,7 +13,7 @@ import static org.junit.jupiter.api.Assertions.assertAll;
 /**
  * ArtistMainResponse DTO 테스트
  * 전체 구조와 핵심 비즈니스 로직에 집중
- * 2025.09.25 수정
+ * 2025.10.01 수정 - GA4 유입 경로 추가
  */
 @DisplayName("ArtistMainResponse DTO 테스트")
 public class ArtistMainResponseTest {
@@ -33,6 +33,7 @@ public class ArtistMainResponseTest {
                 () -> assertThat(response.stats()).isNotNull(),
                 () -> assertThat(response.trends()).isNotNull(),
                 () -> assertThat(response.notifications()).isNotNull(),
+                () -> assertThat(response.trafficSources()).isNotNull(),
                 () -> assertThat(response.serverTime()).isEqualTo(serverTime),
                 () -> assertThat(response.timezone()).isEqualTo("Asia/Seoul")
         );
@@ -48,8 +49,9 @@ public class ArtistMainResponseTest {
         assertAll(
                 () -> assertThat(response.trends().meta().compare()).isNotNull(),
                 () -> assertThat(response.trends().series().sales().points()).isNotEmpty(),
-                () -> assertThat(response.trends().changes().sales().delta()).isNotNull(),
-                () -> assertThat(response.notifications().orderAlerts()).isNotEmpty()
+                () -> assertThat(response.trends().changes().sales().delta()).isNotZero(),
+                () -> assertThat(response.notifications().orderAlerts()).isNotEmpty(),
+                () -> assertThat(response.trafficSources().sources()).isNotEmpty()
         );
     }
 
@@ -65,8 +67,8 @@ public class ArtistMainResponseTest {
                 () -> assertThat(salesData.unit()).isEqualTo("KRW"),
                 () -> assertThat(salesData.points()).hasSize(3),
                 () -> assertThat(salesData.total()).isPositive(),
-                () -> assertThat(salesData.points().get(0).t()).isNotBlank(),
-                () -> assertThat(salesData.points().get(0).v()).isNotNegative()
+                () -> assertThat(salesData.points().getFirst().t()).isNotBlank(),
+                () -> assertThat(salesData.points().getFirst().v()).isNotNegative()
         );
     }
 
@@ -83,7 +85,24 @@ public class ArtistMainResponseTest {
                 () -> assertThat(response.stats().totalSales()).isNotNegative(),
                 () -> assertThat(response.trends().meta().range()).isNotBlank(),
                 () -> assertThat(response.notifications().orderAlerts()).isNotNull(),
-                () -> assertThat(response.notifications().fundingAlerts()).isNotNull()
+                () -> assertThat(response.notifications().fundingAlerts()).isNotNull(),
+                () -> assertThat(response.trafficSources().summary()).isNotNull()
+        );
+    }
+
+    @Test
+    @DisplayName("유입 경로 데이터 구조 검증")
+    void validateTrafficSourcesStructure_Success() {
+        // When
+        ArtistMainResponse response = createSampleResponse(LocalDateTime.now());
+        ArtistMainResponse.TrafficSources trafficSources = response.trafficSources();
+
+        // Then - 유입 경로 데이터 구조 검증
+        assertAll(
+                () -> assertThat(trafficSources.summary().totalSessions()).isPositive(),
+                () -> assertThat(trafficSources.summary().topSource()).isNotBlank(),
+                () -> assertThat(trafficSources.sources()).hasSize(5),
+                () -> assertThat(trafficSources.chart().data()).hasSize(5)
         );
     }
 
@@ -95,6 +114,7 @@ public class ArtistMainResponseTest {
                 createSampleStats(),
                 createSampleTrends(),
                 createSampleNotifications(),
+                createSampleTrafficSources(),
                 serverTime,
                 "Asia/Seoul"
         );
@@ -106,6 +126,7 @@ public class ArtistMainResponseTest {
                 new ArtistMainResponse.Stats(5000, 75, 1000000, 25, 50000000, 2000, 4.9, 12),
                 createSampleTrends(),
                 createSampleNotifications(),
+                createSampleTrafficSources(),
                 LocalDateTime.of(2025, 9, 22, 15, 0),
                 "Asia/Seoul"
         );
@@ -139,8 +160,8 @@ public class ArtistMainResponseTest {
 
         return new ArtistMainResponse.Series(
                 new ArtistMainResponse.SeriesData("KRW", dataPoints, 185000),
-                new ArtistMainResponse.SeriesData("COUNT", Arrays.asList(), 156),
-                new ArtistMainResponse.SeriesData("COUNT", Arrays.asList(), 1250)
+                new ArtistMainResponse.SeriesData("COUNT", List.of(), 156),
+                new ArtistMainResponse.SeriesData("COUNT", List.of(), 1250)
         );
     }
 
@@ -153,10 +174,36 @@ public class ArtistMainResponseTest {
     }
 
     private ArtistMainResponse.Notifications createSampleNotifications() {
-        List<ArtistMainResponse.Alert> orderAlerts = Arrays.asList(
+        List<ArtistMainResponse.Alert> orderAlerts = List.of(
                 new ArtistMainResponse.Alert("NEW_ORDER", "새 주문", 3, LocalDateTime.now())
         );
 
-        return new ArtistMainResponse.Notifications(orderAlerts, Arrays.asList());
+        return new ArtistMainResponse.Notifications(orderAlerts, List.of());
+    }
+
+    private ArtistMainResponse.TrafficSources createSampleTrafficSources() {
+        ArtistMainResponse.Summary summary = new ArtistMainResponse.Summary(
+                15000L, 8500L, 450L, 3.0, "Instagram"
+        );
+
+        List<ArtistMainResponse.Source> sources = Arrays.asList(
+                new ArtistMainResponse.Source("Instagram", 6000L, 3400L, 40.0),
+                new ArtistMainResponse.Source("YouTube", 3750L, 2125L, 25.0),
+                new ArtistMainResponse.Source("Naver", 2250L, 1275L, 15.0),
+                new ArtistMainResponse.Source("Direct", 1500L, 850L, 10.0),
+                new ArtistMainResponse.Source("Others", 1500L, 850L, 10.0)
+        );
+
+        List<ArtistMainResponse.ChartData> chartData = Arrays.asList(
+                new ArtistMainResponse.ChartData("Instagram", 6000L, 40.0, "#E4405F"),
+                new ArtistMainResponse.ChartData("YouTube", 3750L, 25.0, "#FF0000"),
+                new ArtistMainResponse.ChartData("Naver", 2250L, 15.0, "#03C75A"),
+                new ArtistMainResponse.ChartData("Direct", 1500L, 10.0, "#6366F1"),
+                new ArtistMainResponse.ChartData("Others", 1500L, 10.0, "#94A3B8")
+        );
+
+        ArtistMainResponse.Chart chart = new ArtistMainResponse.Chart(chartData);
+
+        return new ArtistMainResponse.TrafficSources(summary, sources, chart);
     }
 }

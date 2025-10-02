@@ -2,6 +2,7 @@ package com.back.domain.product.product.controller;
 
 import com.back.domain.product.product.dto.request.CreateProductRequest;
 import com.back.domain.product.product.dto.response.ProductListResponse;
+import com.back.domain.product.product.dto.response.ShareLinkResponse;
 import com.back.domain.product.product.entity.ProductImage;
 import com.back.domain.product.product.service.ProductService;
 import com.back.global.rsData.RsData;
@@ -327,6 +328,72 @@ public class ProductController {
                 categoryId, tagIds, minPrice, maxPrice, deliveryType, sort, pageable
         );
         return ResponseEntity.ok(RsData.of("200", "상품 목록 조회 성공", products));
+    }
+
+    /**
+     * 상품 공유 링크 생성 (UTM 파라미터 포함)
+     * 
+     * 누구나 공유 가능 (로그인 불필요)
+     */
+    @GetMapping("/{productId}/share-link")
+    @Operation(
+            summary = "상품 공유 링크 생성",
+            description = "누구나 상품을 소셜 미디어에 공유할 수 있는 UTM 파라미터가 포함된 링크를 생성합니다.<br>" +
+                    "로그인 없이도 사용 가능하며, 작가 ID는 상품 소유자 기준으로 자동 설정됩니다.<br><br>" +
+                    "지원 플랫폼: instagram, youtube, naver, kakao, facebook, twitter, band, pinterest, tiktok, linkedin",
+            responses = {
+                    @ApiResponse(
+                            responseCode = "200",
+                            description = "공유 링크 생성 성공",
+                            content = @Content(
+                                    mediaType = "application/json",
+                                    schema = @Schema(
+                                            example = """
+                                                    {
+                                                      "resultCode": "200",
+                                                      "msg": "공유 링크가 생성되었습니다.",
+                                                      "data": {
+                                                        "shareLink": "https://mori-mori.store/product/123?utm_source=instagram&utm_medium=social&utm_campaign=artist_42&utm_content=product_share",
+                                                        "platform": "instagram",
+                                                        "artistId": 42,
+                                                        "productId": 123,
+                                                        "description": "멋진 도자기 작품"
+                                                      }
+                                                    }
+                                                    """
+                                    )
+                            )
+                    ),
+                    @ApiResponse(
+                            responseCode = "400",
+                            description = "잘못된 요청 (플랫폼 누락, 존재하지 않는 상품 등)",
+                            content = @Content(
+                                    mediaType = "application/json",
+                                    schema = @Schema(
+                                            example = """
+                                                    {
+                                                      "resultCode": "400",
+                                                      "msg": "플랫폼을 지정해야 합니다.",
+                                                      "data": null
+                                                    }
+                                                    """
+                                    )
+                            )
+                    )
+            }
+    )
+    public ResponseEntity<RsData<ShareLinkResponse>> generateShareLink(
+            @Parameter(description = "상품 ID", example = "123", required = true)
+            @PathVariable Long productId,
+            
+            @Parameter(description = "공유할 플랫폼 (instagram, youtube, naver, kakao 등)", example = "instagram", required = true)
+            @RequestParam String platform,
+            
+            @Parameter(hidden = true)
+            @AuthenticationPrincipal CustomUserDetails customUserDetails) {
+        
+        ShareLinkResponse response = productService.generateShareLink(productId, platform, customUserDetails);
+        return ResponseEntity.ok(RsData.of("200", "공유 링크가 생성되었습니다.", response));
     }
 
 }

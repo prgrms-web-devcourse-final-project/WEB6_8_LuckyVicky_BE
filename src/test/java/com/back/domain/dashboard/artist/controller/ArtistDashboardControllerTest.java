@@ -3,7 +3,11 @@ package com.back.domain.dashboard.artist.controller;
 import com.back.domain.dashboard.artist.dto.request.*;
 import com.back.domain.dashboard.artist.dto.response.*;
 import com.back.domain.dashboard.artist.service.ArtistDashboardService;
+import com.back.domain.user.entity.Role;
+import com.back.domain.user.entity.User;
 import com.back.global.rsData.RsData;
+import com.back.global.security.auth.CustomUserDetails;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -20,10 +24,12 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertAll;
 import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.Mockito.mock;
 
 /**
  * ArtistDashboardController 테스트
  * 2025.09.30 펀딩 실제 DB 연동에 맞춰 테스트 수정
+ * 2025.10.02 JWT 표준 패턴 적용에 따른 테스트 수정
  */
 @ExtendWith(MockitoExtension.class)
 @DisplayName("작가 대시보드 컨트롤러 테스트")
@@ -35,12 +41,21 @@ class ArtistDashboardControllerTest {
     @InjectMocks
     private ArtistDashboardController artistDashboardController;
 
-    private static final String BEARER_TOKEN = "Bearer test-artist-token-123";
+    private static final Long TEST_ARTIST_ID = 5L;
+    private CustomUserDetails testUserDetails;
 
     // 공통 상수들
     private static final String SUCCESS_CODE = "200";
     private static final int DEFAULT_PAGE = 0;
     private static final int DEFAULT_SIZE = 20;
+
+    @BeforeEach
+    void setUp() {
+        // CustomUserDetails Mock 생성
+        User mockUser = mock(User.class);
+        given(mockUser.getId()).willReturn(TEST_ARTIST_ID);
+        testUserDetails = new CustomUserDetails(mockUser, Role.ARTIST);
+    }
 
     /**
      * 성공 응답 검증 및 데이터 추출 헬퍼 메서드
@@ -121,11 +136,12 @@ class ArtistDashboardControllerTest {
     void getCashBalance_Success() {
         // Given
         ArtistCashResponse.Balance mockBalance = createMockBalance();
-        given(artistDashboardService.getCashBalance(anyString())).willReturn(mockBalance);
+        given(artistDashboardService.getCashBalance(eq(TEST_ARTIST_ID)))
+                .willReturn(mockBalance);
 
         // When
         ResponseEntity<RsData<ArtistCashResponse.Balance>> response =
-                artistDashboardController.getCashBalance(BEARER_TOKEN);
+                artistDashboardController.getCashBalance(testUserDetails);
 
         // Then
         ArtistCashResponse.Balance data = assertSuccessResponse(response, "작가지갑 요약 조회 성공");
@@ -146,8 +162,7 @@ class ArtistDashboardControllerTest {
         ArtistProductResponse.List mockResponse = new ArtistProductResponse.List(
                 content, DEFAULT_PAGE, 10, 28, 3, true, false);
 
-        given(artistDashboardService.getProducts(
-                anyString(), anyInt(), anyInt(), any(), any(), anyString(), anyString()))
+        given(artistDashboardService.getProducts(eq(TEST_ARTIST_ID), any(ArtistProductSearchRequest.class)))
                 .willReturn(mockResponse);
 
         ArtistProductSearchRequest request = new ArtistProductSearchRequest(
@@ -155,7 +170,7 @@ class ArtistDashboardControllerTest {
 
         // When
         ResponseEntity<RsData<ArtistProductResponse.List>> response =
-                artistDashboardController.getProducts(BEARER_TOKEN, request);
+                artistDashboardController.getProducts(testUserDetails, request);
 
         // Then
         ArtistProductResponse.List data = assertSuccessResponse(response, "내 상품 목록 조회 성공");
@@ -190,8 +205,7 @@ class ArtistDashboardControllerTest {
                 summary, content, DEFAULT_PAGE, DEFAULT_SIZE, 2, 1, false, false
         );
 
-        given(artistDashboardService.getCashHistory(
-                anyString(), anyInt(), anyInt(), any(), any(), any(), any(), anyString(), anyString()))
+        given(artistDashboardService.getCashHistory(eq(TEST_ARTIST_ID), any(ArtistCashHistorySearchRequest.class)))
                 .willReturn(mockResponse);
 
         ArtistCashHistorySearchRequest request = new ArtistCashHistorySearchRequest(
@@ -199,23 +213,20 @@ class ArtistDashboardControllerTest {
 
         // When
         ResponseEntity<RsData<ArtistCashHistoryResponse.List>> response =
-                artistDashboardController.getCashHistory(BEARER_TOKEN, request);
+                artistDashboardController.getCashHistory(testUserDetails, request);
 
         // Then
         ArtistCashHistoryResponse.List data = assertSuccessResponse(response, "입금/환전 내역 조회 성공");
         ArtistCashHistoryResponse.Transaction firstTransaction = data.content().getFirst();
 
         assertAll(
-                // 요약 정보 검증
                 () -> assertThat(data.summary()).isNotNull(),
                 () -> assertThat(data.summary().periodDepositTotal()).isNotNegative(),
                 () -> assertThat(data.summary().periodWithdrawalTotal()).isNotNegative(),
-                // 거래 내역 검증
                 () -> assertThat(data.content()).hasSize(2),
                 () -> assertThat(firstTransaction.txId()).isNotBlank(),
                 () -> assertThat(firstTransaction.type()).isNotBlank(),
                 () -> assertThat(firstTransaction.balanceAfter()).isNotNegative(),
-                // 페이징 정보 검증
                 () -> assertThat(data.page()).isEqualTo(DEFAULT_PAGE),
                 () -> assertThat(data.size()).isEqualTo(DEFAULT_SIZE),
                 () -> assertThat(data.totalElements()).isPositive()
@@ -232,18 +243,16 @@ class ArtistDashboardControllerTest {
                 DEFAULT_PAGE, DEFAULT_SIZE, 1, 1, false, false
         );
 
-        given(artistDashboardService.getCashHistory(
-                eq(BEARER_TOKEN), eq(DEFAULT_PAGE), eq(DEFAULT_SIZE), eq("DEPOSIT"), eq("COMPLETED"),
-                eq("2025-09-01"), eq("2025-09-30"), eq("transactedAt"), eq("DESC")))
-                .willReturn(mockResponse);
-
         ArtistCashHistorySearchRequest request = new ArtistCashHistorySearchRequest(
                 DEFAULT_PAGE, DEFAULT_SIZE, "DEPOSIT", "COMPLETED",
                 "2025-09-01", "2025-09-30", "transactedAt", "DESC");
 
+        given(artistDashboardService.getCashHistory(eq(TEST_ARTIST_ID), eq(request)))
+                .willReturn(mockResponse);
+
         // When
         ResponseEntity<RsData<ArtistCashHistoryResponse.List>> response =
-                artistDashboardController.getCashHistory(BEARER_TOKEN, request);
+                artistDashboardController.getCashHistory(testUserDetails, request);
 
         // Then
         ArtistCashHistoryResponse.List data = assertSuccessResponse(response, "입금/환전 내역 조회 성공");
@@ -269,8 +278,7 @@ class ArtistDashboardControllerTest {
                 summary, content, DEFAULT_PAGE, DEFAULT_SIZE, 156, 8, true, false
         );
 
-        given(artistDashboardService.getOrders(
-                anyString(), anyInt(), anyInt(), any(), any(), any(), any(), anyString(), anyString()))
+        given(artistDashboardService.getOrders(eq(TEST_ARTIST_ID), any(ArtistOrderSearchRequest.class)))
                 .willReturn(mockResponse);
 
         ArtistOrderSearchRequest request = new ArtistOrderSearchRequest(
@@ -278,25 +286,22 @@ class ArtistDashboardControllerTest {
 
         // When
         ResponseEntity<RsData<ArtistOrderResponse.List>> response =
-                artistDashboardController.getOrders(BEARER_TOKEN, request);
+                artistDashboardController.getOrders(testUserDetails, request);
 
         // Then
         ArtistOrderResponse.List data = assertSuccessResponse(response, "주문 목록 조회 성공");
         ArtistOrderResponse.Order firstOrder = data.content().getFirst();
 
         assertAll(
-                // 요약 정보 검증
                 () -> assertThat(data.summary()).isNotNull(),
                 () -> assertThat(data.summary().total()).isPositive(),
                 () -> assertThat(data.summary().pending()).isNotNegative(),
-                // 주문 내역 검증
                 () -> assertThat(data.content()).hasSize(2),
                 () -> assertThat(firstOrder.orderNumber()).isNotBlank(),
                 () -> assertThat(firstOrder.status()).isNotBlank(),
                 () -> assertThat(firstOrder.totalAmount()).isPositive(),
                 () -> assertThat(firstOrder.buyer()).isNotNull(),
                 () -> assertThat(firstOrder.permissions()).isNotNull(),
-                // 페이징 정보 검증
                 () -> assertThat(data.page()).isEqualTo(DEFAULT_PAGE),
                 () -> assertThat(data.size()).isEqualTo(DEFAULT_SIZE),
                 () -> assertThat(data.totalElements()).isPositive(),
@@ -323,8 +328,7 @@ class ArtistDashboardControllerTest {
                 DEFAULT_PAGE, DEFAULT_SIZE, 8, 1, false, false
         );
 
-        given(artistDashboardService.getCancellationRequests(
-                anyString(), anyInt(), anyInt(), any(), any(), any(), any(), any(), anyString(), anyString()))
+        given(artistDashboardService.getCancellationRequests(eq(TEST_ARTIST_ID), any(ArtistCancellationSearchRequest.class)))
                 .willReturn(mockResponse);
 
         ArtistCancellationSearchRequest request = new ArtistCancellationSearchRequest(
@@ -332,7 +336,7 @@ class ArtistDashboardControllerTest {
 
         // When
         ResponseEntity<RsData<ArtistCancellationResponse.List>> response =
-                artistDashboardController.getCancellationRequests(BEARER_TOKEN, request);
+                artistDashboardController.getCancellationRequests(testUserDetails, request);
 
         // Then
         ArtistCancellationResponse.List data = assertSuccessResponse(response, "취소 요청 목록 조회 성공");
@@ -358,8 +362,7 @@ class ArtistDashboardControllerTest {
                 DEFAULT_PAGE, DEFAULT_SIZE, 5, 1, false, false
         );
 
-        given(artistDashboardService.getExchangeRequests(
-                anyString(), anyInt(), anyInt(), any(), any(), any(), any(), any(), anyString(), anyString()))
+        given(artistDashboardService.getExchangeRequests(eq(TEST_ARTIST_ID), any(ArtistExchangeSearchRequest.class)))
                 .willReturn(mockResponse);
 
         ArtistExchangeSearchRequest request = new ArtistExchangeSearchRequest(
@@ -367,7 +370,7 @@ class ArtistDashboardControllerTest {
 
         // When
         ResponseEntity<RsData<ArtistExchangeResponse.List>> response =
-                artistDashboardController.getExchangeRequests(BEARER_TOKEN, request);
+                artistDashboardController.getExchangeRequests(testUserDetails, request);
 
         // Then
         ArtistExchangeResponse.List data = assertSuccessResponse(response, "교환 요청 목록 조회 성공");
@@ -390,11 +393,11 @@ class ArtistDashboardControllerTest {
                 new ArtistSettingsResponse.Permissions(true, false, false)
         );
 
-        given(artistDashboardService.getSettings(anyString())).willReturn(mockResponse);
+        given(artistDashboardService.getSettings(eq(TEST_ARTIST_ID))).willReturn(mockResponse);
 
         // When
         ResponseEntity<RsData<ArtistSettingsResponse>> response =
-                artistDashboardController.getSettings(BEARER_TOKEN);
+                artistDashboardController.getSettings(testUserDetails);
 
         // Then
         ArtistSettingsResponse data = assertSuccessResponse(response, "판매자 설정 조회 성공");
@@ -434,8 +437,7 @@ class ArtistDashboardControllerTest {
                 DEFAULT_PAGE, DEFAULT_SIZE, 15, 1, false, false
         );
 
-        given(artistDashboardService.getFundings(
-                anyString(), anyInt(), anyInt(), any(), any(), any(), any(), any(), any(), any(), anyString(), anyString()))
+        given(artistDashboardService.getFundings(eq(TEST_ARTIST_ID), any(ArtistFundingSearchRequest.class)))
                 .willReturn(mockResponse);
 
         ArtistFundingSearchRequest request = new ArtistFundingSearchRequest(
@@ -443,7 +445,7 @@ class ArtistDashboardControllerTest {
 
         // When
         ResponseEntity<RsData<ArtistFundingResponse.List>> response =
-                artistDashboardController.getFundings(BEARER_TOKEN, request);
+                artistDashboardController.getFundings(testUserDetails, request);
 
         // Then
         ArtistFundingResponse.List data = assertSuccessResponse(response, "내 펀딩 모니터링 조회 성공");
@@ -495,8 +497,7 @@ class ArtistDashboardControllerTest {
                 LocalDateTime.now()
         );
 
-        given(artistDashboardService.getSettlements(
-                anyString(), any(), any(), anyString(), any(), any(), anyInt(), anyInt(), anyString(), anyString()))
+        given(artistDashboardService.getSettlements(eq(TEST_ARTIST_ID), any(ArtistSettlementSearchRequest.class)))
                 .willReturn(mockResponse);
 
         ArtistSettlementSearchRequest request = new ArtistSettlementSearchRequest(
@@ -504,38 +505,32 @@ class ArtistDashboardControllerTest {
 
         // When
         ResponseEntity<RsData<ArtistSettlementResponse>> response =
-                artistDashboardController.getSettlements(BEARER_TOKEN, request);
+                artistDashboardController.getSettlements(testUserDetails, request);
 
         // Then
         ArtistSettlementResponse data = assertSuccessResponse(response, "정산 내역 조회 성공");
         
         assertAll(
-                // 기본 구조 검증
                 () -> assertThat(data.scope()).isNotNull(),
                 () -> assertThat(data.summary()).isNotNull(),
                 () -> assertThat(data.chart()).isNotNull(),
                 () -> assertThat(data.table()).isNotNull(),
-                // 범위 정보 검증
                 () -> assertThat(data.scope().year()).isEqualTo(2025),
                 () -> assertThat(data.scope().month()).isNull(),
                 () -> assertThat(data.granularity()).isEqualTo("MONTH"),
-                // 요약 정보 검증
                 () -> assertThat(data.summary().totalSales().amount()).isEqualTo(128000),
                 () -> assertThat(data.summary().totalCommission().amount()).isEqualTo(51264),
                 () -> assertThat(data.summary().totalNetIncome().amount()).isEqualTo(64000),
-                // 테이블 정보 검증
                 () -> assertThat(data.table().getContent()).hasSize(1),
                 () -> assertThat(data.table().getContent().getFirst().settlementId()).isEqualTo(910004L),
                 () -> assertThat(data.table().getContent().getFirst().status()).isEqualTo("PENDING"),
                 () -> assertThat(data.table().getContent().getFirst().grossAmount()).isEqualTo(18000),
                 () -> assertThat(data.table().getContent().getFirst().commission()).isEqualTo(200),
                 () -> assertThat(data.table().getContent().getFirst().netAmount()).isEqualTo(17800),
-                // 페이징 정보 검증
                 () -> assertThat(data.table().getTotalElements()).isEqualTo(124),
                 () -> assertThat(data.table().getTotalPages()).isEqualTo(7),
                 () -> assertThat(data.table().isHasNext()).isTrue(),
                 () -> assertThat(data.table().isHasPrevious()).isFalse(),
-                // 차트 정보 검증
                 () -> assertThat(data.chart().yDomain().min()).isEqualTo(0),
                 () -> assertThat(data.chart().yDomain().max()).isEqualTo(1100000)
         );
@@ -562,17 +557,15 @@ class ArtistDashboardControllerTest {
                 LocalDateTime.now()
         );
 
-        given(artistDashboardService.getSettlements(
-                eq(BEARER_TOKEN), eq(2025), eq(9), eq("DAY"), eq("COMPLETED"), 
-                eq(101L), eq(DEFAULT_PAGE), eq(DEFAULT_SIZE), eq("grossAmount"), eq("ASC")))
-                .willReturn(mockResponse);
-
         ArtistSettlementSearchRequest request = new ArtistSettlementSearchRequest(
                 2025, 9, "DAY", "COMPLETED", 101L, DEFAULT_PAGE, DEFAULT_SIZE, "grossAmount", "ASC");
 
+        given(artistDashboardService.getSettlements(eq(TEST_ARTIST_ID), eq(request)))
+                .willReturn(mockResponse);
+
         // When
         ResponseEntity<RsData<ArtistSettlementResponse>> response =
-                artistDashboardController.getSettlements(BEARER_TOKEN, request);
+                artistDashboardController.getSettlements(testUserDetails, request);
 
         // Then
         ArtistSettlementResponse data = assertSuccessResponse(response, "정산 내역 조회 성공");

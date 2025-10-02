@@ -5,7 +5,6 @@ import java.util.List;
 
 /**
  * 관리자 입점 신청 상세 조회 응답 DTO
- * 2025.09.28 신규 생성
  */
 public record AdminArtistApplicationDetailResponse(
         /** 신청 ID */

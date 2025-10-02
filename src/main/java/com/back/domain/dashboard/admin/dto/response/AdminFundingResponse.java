@@ -4,7 +4,6 @@ import java.util.List;
 
 /**
  * 관리자 펀딩 모니터링 목록 응답 DTO
- * 2025.09.28 신규 생성
  * 2025.10.01 Summary 제거 (화면에서 사용하지 않음)
  */
 public record AdminFundingResponse(
