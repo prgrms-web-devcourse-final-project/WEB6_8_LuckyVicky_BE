@@ -3,7 +3,6 @@ package com.back.domain.order.order.service;
 import com.back.domain.cart.entity.Cart;
 import com.back.domain.cart.repository.CartRepository;
 import com.back.domain.order.order.dto.request.*;
-import com.back.domain.order.order.dto.response.OrderListResponseDto;
 import com.back.domain.order.order.dto.response.OrderResponseDto;
 import com.back.domain.order.order.entity.Order;
 import com.back.domain.order.order.entity.OrderStatus;
@@ -65,30 +64,14 @@ public class OrderService {
     }
 
     /**
-     * 주문 목록 조회 (페이징)
+     * 주문 목록 조회 (페이징) - 모든 상품 상세 정보 포함
      */
-    public Page<OrderListResponseDto> getOrderList(User user, Pageable pageable) {
+    public Page<OrderResponseDto> getOrderList(User user, Pageable pageable) {
         Page<Order> orders = orderRepository.findByUserOrderByOrderDateDesc(user, pageable);
         
         return orders.map(order -> {
-            // 대표 상품 정보 (첫 번째 상품)
-            Product firstProduct = order.getOrderItems().get(0).getProduct();
-            String representativeProductName = firstProduct.getName();
-            String representativeProductThumbnailUrl = getProductThumbnailUrl(firstProduct);
-            
-            return new OrderListResponseDto(
-                    order.getId(),
-                    order.getOrderNumber(),
-                    order.getStatus(),
-                    order.getTotalQuantity(),
-                    order.getTotalAmount(),
-                    order.getShippingFee(),
-                    order.getFinalAmount(),
-                    order.getPaymentMethod(),
-                    order.getOrderDate(),
-                    representativeProductName,
-                    representativeProductThumbnailUrl
-            );
+            // 주문 상세 조회와 동일한 로직 사용
+            return convertToOrderResponseDto(order);
         });
     }
 
@@ -117,8 +100,10 @@ public class OrderService {
         order.validateOwnership(user);
         
         // 취소 가능 여부 체크
-        if (order.getStatus() == OrderStatus.DELIVERED || order.getStatus() == OrderStatus.SHIPPED) {
-            throw new IllegalStateException("발송준비중으로 상태가 변경된 이후에는 취소할 수 없습니다.");
+        if (order.getStatus() == OrderStatus.PREPARING_SHIPMENT || 
+            order.getStatus() == OrderStatus.SHIPPING || 
+            order.getStatus() == OrderStatus.DELIVERED) {
+            throw new IllegalStateException("배송준비중으로 상태가 변경된 이후에는 취소할 수 없습니다.");
         }
         
         // 취소 실행
@@ -184,7 +169,7 @@ public class OrderService {
      * 주문 상태 변경 (관리자용)
      */
     @Transactional
-    public void changeOrderStatus(Long orderId, OrderStatusChangeRequestDto requestDto) {
+    public void changeOrderStatus(Long orderId, OrderStatusChangeRequestDto requestDto, User admin) {
         Order order = orderRepository.findById(orderId)
                 .orElseThrow(() -> new IllegalArgumentException("주문을 찾을 수 없습니다."));
         
@@ -200,7 +185,7 @@ public class OrderService {
     private List<OrderItem> createOrderItems(List<OrderRequestDto.OrderItemRequestDto> orderItemRequests) {
         return orderItemRequests.stream()
                 .map(itemRequest -> {
-                    Product product = productRepository.findById(itemRequest.productId())
+                    Product product = productRepository.findByProductUuid(itemRequest.productUuid())
                             .orElseThrow(() -> new IllegalArgumentException("상품을 찾을 수 없습니다."));
                     
                     return OrderItem.createOrderItem(product, itemRequest.quantity(), itemRequest.optionInfo());
@@ -212,11 +197,11 @@ public class OrderService {
      * 장바구니에서 제거
      */
     private void removeFromCart(User user, List<OrderRequestDto.OrderItemRequestDto> orderItems) {
-        List<Long> productIds = orderItems.stream()
-                .map(OrderRequestDto.OrderItemRequestDto::productId)
+        List<UUID> productUuids = orderItems.stream()
+                .map(OrderRequestDto.OrderItemRequestDto::productUuid)
                 .toList();
         
-        cartRepository.deleteByUserAndProductIdIn(user, productIds);
+        cartRepository.deleteByUserAndProductUuidIn(user, productUuids);
     }
 
     /**
