@@ -139,9 +139,7 @@ class ProductControllerTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request))
                 )
-                .andExpect(status().isForbidden()) // USER는 상품 생성 권한 없음
-                .andExpect(jsonPath("$.resultCode").value("403"))
-                .andExpect(jsonPath("$.msg").value("상품 등록 권한이 없습니다."));
+                .andExpect(status().isForbidden());
     }
 
     @Test

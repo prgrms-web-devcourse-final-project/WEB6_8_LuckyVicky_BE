@@ -44,7 +44,7 @@ public record AdminArtistApplicationResponse(
      */
     public record Application(
             /** 신청 ID */
-            long applicationId,
+            Long applicationId,
             /** 작가 정보 */
             Artist artist,
             /** 신청 상태 */
