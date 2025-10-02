@@ -207,7 +207,8 @@ resource "aws_iam_instance_profile" "instance_profile_1" {
 locals {
   ec2_user_data_base = <<-END_OF_FILE
 #!/bin/bash
-# 가상 메모리 4GB 설정. (EC2 인스턴스 1GB 램을 사용할거기 때문에 메모리 추가로 설정함)
+# 가상 메모리 4GB 설정.
+(EC2 인스턴스 1GB 램을 사용할거기 때문에 메모리 추가로 설정함)
 dd if=/dev/zero of=/swapfile bs=128M count=32
 chmod 600 /swapfile
 mkswap /swapfile
@@ -234,34 +235,25 @@ yum install docker -y
 systemctl enable docker
 systemctl start docker
 
-# 도커 네트워크 생성
-docker network create common
+# Docker Compose 설치 (Amazon Linux 2023)
+dnf install docker-compose -y
 
-# nginx 설치
-docker run -d \
-  --name npm_1 \
-  --restart unless-stopped \
-  --network common \
-  -p 80:80 \
-  -p 443:443 \
-  -p 81:81 \
-  -e TZ=Asia/Seoul \
-  -e INITIAL_ADMIN_EMAIL=admin@npm.com \
-  -e INITIAL_ADMIN_PASSWORD=${var.password} \
-  -v /dockerProjects/npm_1/volumes/data:/data \
-  -v /dockerProjects/npm_1/volumes/etc/letsencrypt:/etc/letsencrypt \
-  jc21/nginx-proxy-manager:latest
+# Compose 파일을 프로젝트 루트에 복사하기 위해 git 설치 및 클론
+yum install git -y
+git clone https://${var.github_access_token_owner}:${var.github_access_token}@github.com/${var.github_repo_owner}/${var.github_repo_name}.git /app/mori-mori
+cd /app/mori-mori
 
-# redis 설치
-docker run -d \
-  --name=redis_1 \
-  --restart unless-stopped \
-  --network common \
-  -p 6379:6379 \
-  -e TZ=Asia/Seoul \
-  -v /dockerProjects/redis_1/volumes/data:/data \
-  redis --requirepass ${var.password}
+# Docker Compose를 위한 .env 파일 생성
+cat <<EOF > .env
+NPM_ADMIN_EMAIL=admin@npm.com
+NPM_ADMIN_PASSWORD=${var.password}
+REDIS_PASSWORD=${var.password}
+EOF
 
+# Docker Compose 실행
+docker-compose up -d
+
+# GHCR 로그인
 echo "${var.github_access_token}" | docker login ghcr.io -u ${var.github_access_token_owner} --password-stdin
 
 END_OF_FILE
