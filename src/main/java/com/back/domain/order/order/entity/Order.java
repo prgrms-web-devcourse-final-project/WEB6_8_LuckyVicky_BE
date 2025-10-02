@@ -77,7 +77,7 @@ public class Order extends BaseEntity {
     }
 
     public void cancel() {
-        this.status = OrderStatus.CANCELLED;
+        this.status = OrderStatus.CANCELLATION_REQUESTED;
     }
 
     public void validateOwnership(User user) {
