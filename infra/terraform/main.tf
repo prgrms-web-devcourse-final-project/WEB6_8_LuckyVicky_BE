@@ -234,8 +234,10 @@ yum install docker -y
 systemctl enable docker
 systemctl start docker
 
-# Docker Compose 설치 (Amazon Linux 2023)
-dnf install docker-compose-plugin -y
+# Docker Compose 설치 (Binary 방식)
+curl -SL https://github.com/docker/compose/releases/download/v2.39.4/docker-compose-linux-x86_64 -o /usr/local/bin/docker-compose
+chmod +x /usr/local/bin/docker-compose
+ln -s /usr/local/bin/docker-compose /usr/bin/docker-compose
 
 # Compose 파일을 프로젝트 루트에 복사하기 위해 git 설치 및 클론
 yum install git -y
@@ -250,7 +252,7 @@ REDIS_PASSWORD=${var.password}
 EOF
 
 # Docker Compose 실행
-docker compose up -d
+docker-compose up -d
 
 # GHCR 로그인
 echo "${var.github_access_token}" | docker login ghcr.io -u ${var.github_access_token_owner} --password-stdin
