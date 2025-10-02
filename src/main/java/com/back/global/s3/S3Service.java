@@ -1,5 +1,6 @@
 package com.back.global.s3;
 
+import com.back.global.exception.ServiceException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -9,10 +10,7 @@ import org.springframework.web.multipart.MultipartFile;
 import software.amazon.awssdk.core.ResponseBytes;
 import software.amazon.awssdk.core.sync.RequestBody;
 import software.amazon.awssdk.services.s3.S3Client;
-import software.amazon.awssdk.services.s3.model.DeleteObjectRequest;
-import software.amazon.awssdk.services.s3.model.GetObjectRequest;
-import software.amazon.awssdk.services.s3.model.GetObjectResponse;
-import software.amazon.awssdk.services.s3.model.PutObjectRequest;
+import software.amazon.awssdk.services.s3.model.*;
 
 import javax.imageio.ImageIO;
 import java.awt.*;
@@ -41,10 +39,10 @@ public class S3Service {
      */
     public List<UploadResultResponse> uploadFiles(List<MultipartFile> files, String folder, List<FileType> types) {
         if (files == null || files.isEmpty()) {
-            throw new IllegalArgumentException("업로드할 파일이 없습니다.");
+            throw new ServiceException("400", "업로드할 파일이 없습니다.");
         }
         if (types == null || files.size() != types.size()) {
-            throw new IllegalArgumentException("files와 types의 개수가 일치해야 하며, null일 수 없습니다.");
+            throw new ServiceException("400", "files와 types의 개수가 일치하지 않습니다.");
         }
 
         List<CompletableFuture<List<UploadResultResponse>>> futures = new ArrayList<>();
@@ -53,7 +51,7 @@ public class S3Service {
             FileType type = types.get(i);
 
             if (type == null) {
-                throw new IllegalArgumentException("파일 타입이 null일 수 없습니다.");
+                throw new ServiceException("400", "파일 타입이 null일 수 없습니다.");
             }
 
             futures.add(uploadFileAsync(file, folder, type));
@@ -75,76 +73,90 @@ public class S3Service {
             return CompletableFuture.completedFuture(uploadFile(file, folder, type));
         } catch (Exception e) {
             log.error("파일 업로드 실패: {}", file.getOriginalFilename(), e);
-            throw new RuntimeException("파일 업로드 실패: " + file.getOriginalFilename(), e);
+            throw new ServiceException("500", "파일 업로드 실패: " + file.getOriginalFilename(), e);
         }
     }
 
     /**
      * 실제 파일 업로드하고, key와 url 생성 담당
      */
-    public List<UploadResultResponse> uploadFile(MultipartFile file, String folder, FileType type) throws IOException {
+    public List<UploadResultResponse> uploadFile(MultipartFile file, String folder, FileType type) {
+        try {
+            List<UploadResultResponse> results = new ArrayList<>();
 
-        List<UploadResultResponse> results = new ArrayList<>();
+            String originalFilename = file.getOriginalFilename();
+            if (originalFilename == null || originalFilename.isBlank()) {
+                throw new ServiceException("400", "파일 이름이 없습니다.");
+            }
 
-        String originalFilename = file.getOriginalFilename();
-        if (originalFilename == null || originalFilename.isBlank()) {
-            throw new IllegalArgumentException("파일 이름이 없습니다.");
+            String extension = originalFilename.substring(originalFilename.lastIndexOf('.') + 1).toLowerCase();
+            FileCategory category = FileCategory.fromExtension(extension);
+            String contentType = file.getContentType() != null ? file.getContentType() : "application/octet-stream";
+
+            // S3 Key 생성 (UUID 사용)
+            String s3Key = folder + "/" + UUID.randomUUID() + "." + extension;
+            // S3 업로드
+            putS3Object(file.getBytes(), s3Key, contentType);
+            // URL 생성
+            String url = s3Client.utilities().getUrl(b -> b.bucket(bucketName).key(s3Key)).toString();
+
+            results.add(new UploadResultResponse(url, type, s3Key, originalFilename));
+
+            if (category == FileCategory.IMAGE && type == FileType.MAIN) {
+                byte[] thumbBytes = resizeImageSafe(file.getBytes(), 300, 300, extension);
+                // 썸네일 S3 Key 생성
+                String thumbKey = folder + "/thumbnail-" + UUID.randomUUID() + "." + extension;
+                //S3에 썸네일 이미지 업로드
+                putS3Object(thumbBytes, thumbKey, contentType);
+                String thumbnailUrl = s3Client.utilities().getUrl(b -> b.bucket(bucketName).key(thumbKey)).toString();
+                results.add(new UploadResultResponse(thumbnailUrl, FileType.THUMBNAIL, thumbKey, "thumb_" + originalFilename));
+            }
+
+            return results;
+        } catch (IOException e) {
+            log.error("파일 처리 실패: {}", file.getOriginalFilename(), e);
+            throw new ServiceException("500", "파일 처리 실패: " + file.getOriginalFilename());
         }
-
-        String extension = originalFilename.substring(originalFilename.lastIndexOf('.') + 1).toLowerCase();
-        FileCategory category = FileCategory.fromExtension(extension);
-        String contentType = file.getContentType() != null ? file.getContentType() : "application/octet-stream";
-
-        // S3 Key 생성 (UUID 사용)
-        String s3Key = folder + "/" + UUID.randomUUID() + "." + extension;
-        // S3 업로드
-        putS3Object(file.getBytes(), s3Key, contentType);
-        // URL 생성
-        String url = s3Client.utilities().getUrl(b -> b.bucket(bucketName).key(s3Key)).toString();
-
-        results.add(new UploadResultResponse(url,type,s3Key,originalFilename));
-
-        if (category == FileCategory.IMAGE && type == FileType.MAIN) {
-            byte[] thumbBytes = resizeImageSafe(file.getBytes(), 300, 300, extension);
-            // S3 Key 생성
-            String thumbKey = folder + "/thumbnail-" + UUID.randomUUID() + "." + extension;
-            //S3에 업로드
-            putS3Object(thumbBytes, thumbKey, contentType);
-            String thumbnailUrl = s3Client.utilities().getUrl(b -> b.bucket(bucketName).key(thumbKey)).toString();
-
-            results.add(new UploadResultResponse(thumbnailUrl,FileType.THUMBNAIL,thumbKey,"thumb_" + originalFilename));
-        }
-
-        return results;
     }
+
     /**
      * 실제 파일 업로드 담당
      */
     private void putS3Object(byte[] data, String key, String contentType) {
-        PutObjectRequest request = PutObjectRequest.builder()
-                .bucket(bucketName)
-                .key(key)
-                .contentType(contentType)
-                .build();
-        s3Client.putObject(request, RequestBody.fromBytes(data));
+        try {
+            PutObjectRequest request = PutObjectRequest.builder()
+                    .bucket(bucketName)
+                    .key(key)
+                    .contentType(contentType)
+                    .build();
+            s3Client.putObject(request, RequestBody.fromBytes(data));
+        } catch (Exception e) {
+            log.error("S3 업로드 실패. key={}", key, e);
+            throw new ServiceException("500", "S3 업로드 실패: " + key);
+        }
     }
+
     /**
      * 썸네일 이미지 리사이징 담당
      */
-    private byte[] resizeImageSafe(byte[] originalImageBytes, int width, int height, String extension) throws IOException {
-        BufferedImage originalImage = ImageIO.read(new ByteArrayInputStream(originalImageBytes));
-        if (originalImage == null) throw new IOException("이미지 형식 오류");
+    private byte[] resizeImageSafe(byte[] originalImageBytes, int width, int height, String extension) {
+        try {
+            BufferedImage originalImage = ImageIO.read(new ByteArrayInputStream(originalImageBytes));
+            if (originalImage == null) throw new IOException("이미지 형식 오류");
 
-        BufferedImage resized = new BufferedImage(width, height,
-                originalImage.getType() == 0 ? BufferedImage.TYPE_INT_ARGB : originalImage.getType());
-        Graphics2D g = resized.createGraphics();
-        g.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BILINEAR);
-        g.drawImage(originalImage, 0, 0, width, height, null);
-        g.dispose();
+            BufferedImage resized = new BufferedImage(width, height,
+                    originalImage.getType() == 0 ? BufferedImage.TYPE_INT_ARGB : originalImage.getType());
+            Graphics2D g = resized.createGraphics();
+            g.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BILINEAR);
+            g.drawImage(originalImage, 0, 0, width, height, null);
+            g.dispose();
 
-        ByteArrayOutputStream bos = new ByteArrayOutputStream();
-        ImageIO.write(resized, extension, bos);
-        return bos.toByteArray();
+            ByteArrayOutputStream bos = new ByteArrayOutputStream();
+            ImageIO.write(resized, extension, bos);
+            return bos.toByteArray();
+        } catch (IOException e) {
+            throw new ServiceException("500", "썸네일 이미지 생성 실패");
+        }
     }
 
     /**
@@ -171,9 +183,11 @@ public class S3Service {
                     .key(key)
                     .build());
             return s3Object.asByteArray();
+        } catch (NoSuchKeyException e) {
+            throw new ServiceException("404", "S3에 파일이 존재하지 않습니다. key=" + key);
         } catch (Exception e) {
             log.error("파일 다운로드 실패: {}", key, e);
-            throw new RuntimeException("파일 다운로드 실패: " + key, e);
+            throw new ServiceException("500", "파일 다운로드 실패: " + key);
         }
     }
 
@@ -188,6 +202,7 @@ public class S3Service {
                     .build());
         } catch (Exception e) {
             log.error("S3 파일 삭제 실패. key: {}", key, e);
+            throw new ServiceException("500", "S3 파일 삭제 실패: " + key);
         }
     }
 }

@@ -6,6 +6,7 @@ import org.springframework.stereotype.Service;
 import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.s3.model.HeadObjectRequest;
 import software.amazon.awssdk.services.s3.model.NoSuchKeyException;
+import com.back.global.exception.ServiceException;
 
 @Service
 @RequiredArgsConstructor
@@ -32,7 +33,7 @@ public class S3ValidationService {
             s3Client.headObject(request);
             return true;
         } catch (NoSuchKeyException e) {
-            throw new IllegalArgumentException("S3에 파일이 존재하지 않습니다. key=" + s3Key);
+            throw new ServiceException("400", "S3에 파일이 존재하지 않습니다");
         }
     }
 }
