@@ -4,7 +4,6 @@ import com.back.domain.artist.entity.ApplicationStatus;
 import com.back.domain.artist.entity.ArtistApplication;
 import com.back.domain.artist.repository.ArtistApplicationRepository;
 import com.back.domain.dashboard.admin.dto.response.*;
-import com.back.domain.dashboard.admin.util.ProductNumberFormatter;
 import com.google.analytics.data.v1beta.*;
 import org.springframework.beans.factory.annotation.Value;
 import com.back.domain.funding.entity.Funding;
@@ -230,8 +229,10 @@ public class AdminDashboardServiceImpl implements AdminDashboardService {
      * Product Entity → DTO 변환
      */
     private AdminProductResponse.Product convertToProductDto(Product product) {
-        /* 상품 번호 ID를 포맷팅하고 있음. Product Entity에 productNumber 컬럼 없어서 추가됨 */
-        String productNumber = ProductNumberFormatter.format(product.getId());
+        // UUID를 상품번호로 사용
+        String productNumber = product.getProductUuid() != null 
+                ? product.getProductUuid().toString() 
+                : String.valueOf(product.getId());
 
         return new AdminProductResponse.Product(
                 product.getId(),
@@ -262,17 +263,24 @@ public class AdminDashboardServiceImpl implements AdminDashboardService {
             // 논리 삭제된 상품 제외
             predicates.add(criteriaBuilder.isFalse(root.get("isDeleted")));
 
-            // 키워드 검색 (상품명, 브랜드명, 작가명)
+            // 키워드 검색 (상품명, 브랜드명, 작가명, UUID)
             if (keyword != null && !keyword.isBlank()) {
                 String likePattern = "%" + keyword + "%";
                 
-                // 숫자인 경우 상품 ID로도 검색 (상품번호는 ID를 포맷팅한 것)
                 List<jakarta.persistence.criteria.Predicate> keywordPredicates = new ArrayList<>();
-                keywordPredicates.add(criteriaBuilder.like(root.get("name"), likePattern));
-                keywordPredicates.add(criteriaBuilder.like(root.get("brandName"), likePattern));
-                keywordPredicates.add(criteriaBuilder.like(root.get("user").get("name"), likePattern)); // 작가명 검색
+                keywordPredicates.add(criteriaBuilder.like(root.get("name"), likePattern)); // 상품명
+                keywordPredicates.add(criteriaBuilder.like(root.get("brandName"), likePattern)); // 브랜드명
+                keywordPredicates.add(criteriaBuilder.like(root.get("user").get("name"), likePattern)); // 작가명
                 
-                // 숫자인 경우 ID로도 검색 (상품번호)
+                // UUID로 검색 (상품번호는 UUID)
+                try {
+                    java.util.UUID uuid = java.util.UUID.fromString(keyword);
+                    keywordPredicates.add(criteriaBuilder.equal(root.get("productUuid"), uuid));
+                } catch (IllegalArgumentException e) {
+                    // UUID 형식이 아니면 UUID 검색 제외
+                }
+                
+                // 숫자인 경우 ID로도 검색 (레거시 지원)
                 try {
                     Long id = Long.parseLong(keyword);
                     keywordPredicates.add(criteriaBuilder.equal(root.get("id"), id));
