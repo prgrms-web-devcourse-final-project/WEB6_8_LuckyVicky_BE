@@ -239,10 +239,10 @@ jobs:
             # ---------------------------------------------------------
             docker rm -f "${GREEN}" >/dev/null 2>&1 || true
             echo "🚀 run new container → ${GREEN}"
-            docker run -d --name "${GREEN}" \
-              --restart unless-stopped \
-              --network "${NET}" \
-              -e TZ=Asia/Seoul \
+            docker run -d --name "${GREEN}" 
+              --restart unless-stopped 
+              --network "${NET}" 
+              -e TZ=Asia/Seoul 
               "${IMAGE}"
 
             # ---------------------------------------------------------
