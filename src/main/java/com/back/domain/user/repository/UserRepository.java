@@ -3,10 +3,11 @@ package com.back.domain.user.repository;
 import com.back.domain.user.entity.Provider;
 import com.back.domain.user.entity.User;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 
 import java.util.Optional;
 
-public interface UserRepository extends JpaRepository<User, Long>{
+public interface UserRepository extends JpaRepository<User, Long>, JpaSpecificationExecutor<User> {
     // 로그인용
     Optional<User> findByEmail(String email);
 

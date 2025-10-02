@@ -25,7 +25,7 @@ public interface AdminDashboardService {
      */
     AdminProductResponse getProducts(String authorization, String adminRole, int page, int size,
                                      String keyword, String sellingStatus, Long categoryId, Long artistId,
-                                     String startDate, String endDate, String sort, String order, boolean metrics);
+                                     String startDate, String endDate, String sort, String order);
 
     /**
      * 관리자 사용자 목록 조회

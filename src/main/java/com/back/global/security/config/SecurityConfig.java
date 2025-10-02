@@ -113,6 +113,17 @@ public class SecurityConfig {
                         )
                 )
 
+                // 예외 처리 추가
+                .exceptionHandling(exception -> exception
+                        .authenticationEntryPoint((request, response, authException) -> {
+                            response.setStatus(401);
+                            response.setContentType("application/json;charset=UTF-8");
+                            response.getWriter().write(
+                                    "{\"resultCode\":\"401\",\"msg\":\"인증이 필요합니다.\",\"data\":null}"
+                            );
+                        })
+                )
+
                 // H2 콘솔 프레임 허용
                 .headers(headers -> headers.frameOptions(HeadersConfigurer.FrameOptionsConfig::disable))
 

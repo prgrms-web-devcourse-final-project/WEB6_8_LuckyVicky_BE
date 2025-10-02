@@ -9,7 +9,7 @@ import java.util.List;
  */
 public record AdminArtistApplicationDetailResponse(
         /** 신청 ID */
-        long applicationId,
+        Long applicationId,
         /** 신청 상태 */
         String status,
         /** 신청일시 */
@@ -35,7 +35,7 @@ public record AdminArtistApplicationDetailResponse(
      */
     public record Artist(
             /** 사용자 ID */
-            long userId,
+            Long userId,
             /** 회원 ID */
             String memberId,
             /** 작가명 */

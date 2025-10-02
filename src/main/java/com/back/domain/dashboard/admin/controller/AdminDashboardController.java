@@ -79,19 +79,19 @@ public class AdminDashboardController {
      */
     @GetMapping("/products")
     @Operation(summary = "관리자 상품 목록 조회",
-               description = "전체 상품을 페이지 단위로 조회하고 필터링/정렬할 수 있습니다. metrics=true 시 평균평점/리뷰/매출 포함")
+               description = "전체 상품을 페이지 단위로 조회하고 필터링/정렬할 수 있습니다")
     public ResponseEntity<RsData<AdminProductResponse>> getProducts(
             @RequestHeader("Authorization") String authorization,
             @RequestHeader(value = "X-Admin-Role", required = false) String adminRole,
             @Valid @ModelAttribute AdminProductSearchRequest request) {
 
-        log.info("관리자 상품 목록 조회 - page: {}, size: {}, keyword: {}, sellingStatus: {}, metrics: {}, adminRole: {}",
-                request.page(), request.size(), request.keyword(), request.sellingStatus(), request.metrics(), adminRole);
+        log.info("관리자 상품 목록 조회 - page: {}, size: {}, keyword: {}, sellingStatus: {}, adminRole: {}",
+                request.page(), request.size(), request.keyword(), request.sellingStatus(), adminRole);
 
         AdminProductResponse response = adminDashboardService.getProducts(
                 authorization, adminRole, request.page(), request.size(),
                 request.keyword(), request.sellingStatus(), request.categoryId(), request.artistId(),
-                request.startDate(), request.endDate(), request.sort(), request.order(), request.metrics());
+                request.startDate(), request.endDate(), request.sort(), request.order());
 
         return ResponseEntity.ok(RsData.ok("관리자 상품 목록 조회 성공", response));
     }

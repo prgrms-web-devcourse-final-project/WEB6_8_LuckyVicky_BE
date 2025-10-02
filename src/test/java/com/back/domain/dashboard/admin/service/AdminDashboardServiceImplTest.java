@@ -1,206 +1,433 @@
 package com.back.domain.dashboard.admin.service;
 
-import com.back.domain.dashboard.admin.dto.response.AdminArtistApplicationDetailResponse;
-import com.back.domain.dashboard.admin.dto.response.AdminArtistApplicationResponse;
-import com.back.domain.dashboard.admin.dto.response.AdminFundingResponse;
-import com.back.domain.dashboard.admin.dto.response.AdminOverviewResponse;
-import com.back.domain.dashboard.admin.dto.response.AdminProductResponse;
-import com.back.domain.dashboard.admin.dto.response.AdminSettlementResponse;
-import com.back.domain.dashboard.admin.dto.response.AdminUserResponse;
+import com.back.domain.artist.entity.ArtistApplication;
+import com.back.domain.artist.repository.ArtistApplicationRepository;
+import com.back.domain.dashboard.admin.dto.response.*;
+import com.back.domain.funding.entity.Funding;
+import com.back.domain.funding.entity.FundingOption;
+import com.back.domain.funding.entity.FundingStatus;
+import com.back.domain.funding.repository.FundingRepository;
+import com.back.domain.product.category.entity.Category;
+import com.back.domain.product.category.repository.CategoryRepository;
+import com.back.domain.product.product.entity.DeliveryType;
+import com.back.domain.product.product.entity.DisplayStatus;
+import com.back.domain.product.product.entity.Product;
+import com.back.domain.product.product.entity.SellingStatus;
+import com.back.domain.product.product.repository.ProductRepository;
+import com.back.domain.user.entity.User;
+import com.back.domain.user.repository.UserRepository;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.InjectMocks;
-import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.test.context.ActiveProfiles;
+import org.springframework.transaction.annotation.Transactional;
+
+import java.time.LocalDateTime;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertAll;
 
 /**
- * AdminDashboardServiceImpl 테스트
- * 핵심 비즈니스 로직과 데이터 일관성에 집중
- * 2025.09.28 수정
+ * AdminDashboardServiceImpl 통합 테스트
+ * 실제 DB 연동을 통한 비즈니스 로직 검증
+ * 2025.10.01 실제 DB 연동으로 수정
  */
-@ExtendWith(MockitoExtension.class)
-@DisplayName("관리자 대시보드 서비스 구현체 테스트")
+@SpringBootTest
+@ActiveProfiles("test")
+@Transactional
+@DisplayName("관리자 대시보드 서비스 통합 테스트")
 class AdminDashboardServiceImplTest {
 
-    @InjectMocks
-    private AdminDashboardServiceImpl adminDashboardService;
+    @Autowired
+    private AdminDashboardService adminDashboardService;
+
+    @Autowired
+    private UserRepository userRepository;
+
+    @Autowired
+    private ProductRepository productRepository;
+
+    @Autowired
+    private FundingRepository fundingRepository;
+
+    @Autowired
+    private ArtistApplicationRepository artistApplicationRepository;
+
+    @Autowired
+    private CategoryRepository categoryRepository;
 
     private static final String TEST_AUTHORIZATION = "Bearer test-admin-token";
     private static final String TEST_ADMIN_ROLE = "SUPER_ADMIN";
 
+    private User artistUser;
+    private User customerUser;
+    private Category defaultCategory;
+
+    @BeforeEach
+    void setUp() {
+        // TestInitData에서 생성된 사용자 조회
+        artistUser = userRepository.findByEmail("user1@user.com").orElseThrow();
+        customerUser = userRepository.findByEmail("user2@user.com").orElseThrow();
+
+        // TestInitData에서 생성된 카테고리 조회
+        defaultCategory = categoryRepository.findAll().stream()
+                .filter(c -> "회화".equals(c.getCategoryName()))
+                .findFirst()
+                .orElseThrow();
+    }
+
     @Test
-    @DisplayName("전체 현황 조회 - 핵심 비즈니스 규칙 검증")
-    void getOverview_ValidatesEssentialBusinessRules() {
+    @DisplayName("전체 현황 조회 - 실제 DB 데이터로 검증 (일부 더미 데이터 포함)")
+    void getOverview_WithRealData() {
+        // Given - TestInitData에 이미 데이터 존재
+        long expectedUserCount = userRepository.count();
+        long expectedProductCount = productRepository.count();
+        long expectedFundingCount = fundingRepository.count();
+
         // When
         AdminOverviewResponse result = adminDashboardService.getOverview(
                 TEST_AUTHORIZATION, TEST_ADMIN_ROLE, "1M", "DAY", "MONTH", "Asia/Seoul");
 
-        // Then - 핵심 비즈니스 규칙만 검증
+        // Then - 실제 DB 연동된 부분만 검증 (Order, 차트는 더미)
         assertAll(
                 () -> assertThat(result).isNotNull(),
                 () -> assertThat(result.timezone()).isEqualTo("Asia/Seoul"),
-                // 음수 방지 규칙
-                () -> assertThat(result.overview().userCount().count()).isNotNegative(),
-                () -> assertThat(result.overview().orderStats().count()).isNotNegative(),
-                () -> assertThat(result.overview().salesStats().count()).isNotNegative()
+                // 실제 DB 데이터와 일치
+                () -> assertThat(result.overview().userCount().count()).isEqualTo(expectedUserCount),
+                () -> assertThat(result.overview().productCount().count()).isEqualTo(expectedProductCount),
+                () -> assertThat(result.overview().fundingCount().count()).isEqualTo(expectedFundingCount),
+                // Order 관련은 더미 (0) - TODO: Order 테이블 연동 후 검증
+                () -> assertThat(result.overview().orderStats().count()).isEqualTo(0L),
+                () -> assertThat(result.overview().salesStats().count()).isEqualTo(0L),
+                // 알림 데이터는 실제 DB
+                () -> assertThat(result.alerts()).isNotNull()
+                // 차트 데이터는 더미 - 검증하지 않음
         );
     }
 
     @Test
-    @DisplayName("상품 목록 조회 - 핵심 비즈니스 규칙 검증")
-    void getProducts_ValidatesEssentialBusinessRules() {
+    @DisplayName("상품 목록 조회 - 실제 DB 데이터로 검증")
+    void getProducts_WithRealData() {
+        // Given - 테스트 상품 생성
+        Product product1 = createTestProduct("테스트 상품 1", SellingStatus.SELLING);
+        Product product2 = createTestProduct("테스트 상품 2", SellingStatus.END_OF_SALE);
+        productRepository.save(product1);
+        productRepository.save(product2);
+
         // When
         AdminProductResponse result = adminDashboardService.getProducts(
                 TEST_AUTHORIZATION, TEST_ADMIN_ROLE, 0, 20,
-                null, null, null, null, null, null, "registeredAt", "DESC", false);
+                null, null, null, null, null, null, "registeredAt", "DESC");
 
-        // Then - 핵심 비즈니스 규칙만 검증
+        // Then
         assertAll(
                 () -> assertThat(result).isNotNull(),
                 () -> assertThat(result.content()).isNotEmpty(),
-                // 전체 = 판매중 + 판매중지
-                () -> assertThat(result.summary().totalProducts())
-                        .isEqualTo(result.summary().sellingProducts() + result.summary().stoppedProducts())
+                () -> assertThat(result.totalElements()).isGreaterThanOrEqualTo(2),
+                () -> assertThat(result.page()).isEqualTo(0),
+                () -> assertThat(result.size()).isEqualTo(20),
+                // 상품 데이터 검증
+                () -> result.content().forEach(product -> {
+                    assertThat(product.productId()).isNotNull();
+                    assertThat(product.name()).isNotBlank();
+                    assertThat(product.artist()).isNotNull();
+                    assertThat(product.artist().name()).isNotBlank();
+                })
         );
     }
 
     @Test
-    @DisplayName("상품 목록 조회 - metrics 옵션 동작 검증")
-    void getProducts_ValidatesMetricsOption() {
-        // When
-        AdminProductResponse withoutMetrics = adminDashboardService.getProducts(
-                TEST_AUTHORIZATION, TEST_ADMIN_ROLE, 0, 20,
-                null, null, null, null, null, null, "registeredAt", "DESC", false);
-        
-        AdminProductResponse withMetrics = adminDashboardService.getProducts(
-                TEST_AUTHORIZATION, TEST_ADMIN_ROLE, 0, 20,
-                null, null, null, null, null, null, "registeredAt", "DESC", true);
+    @DisplayName("상품 목록 조회 - 판매 상태 필터링")
+    void getProducts_WithSellingStatusFilter() {
+        // Given
+        Product selling = createTestProduct("판매중 상품", SellingStatus.SELLING);
+        Product ended = createTestProduct("판매종료 상품", SellingStatus.END_OF_SALE);
+        productRepository.save(selling);
+        productRepository.save(ended);
 
-        // Then - metrics 옵션 동작 검증
+        // When - 판매중인 상품만 조회
+        AdminProductResponse result = adminDashboardService.getProducts(
+                TEST_AUTHORIZATION, TEST_ADMIN_ROLE, 0, 20,
+                null, "SELLING", null, null, null, null, "registeredAt", "DESC");
+
+        // Then
         assertAll(
-                // metrics=false일 때 null
-                () -> assertThat(withoutMetrics.content().get(0).averageRating()).isNull(),
-                () -> assertThat(withoutMetrics.content().get(0).reviewCount()).isNull(),
-                () -> assertThat(withoutMetrics.content().get(0).revenue()).isNull(),
-                
-                // metrics=true일 때 값 존재
-                () -> assertThat(withMetrics.content().get(0).averageRating()).isNotNull(),
-                () -> assertThat(withMetrics.content().get(0).reviewCount()).isNotNull(),
-                () -> assertThat(withMetrics.content().get(0).revenue()).isNotNull()
+                () -> assertThat(result).isNotNull(),
+                () -> assertThat(result.content()).isNotEmpty(),
+                () -> result.content().forEach(product ->
+                        assertThat(product.sellingStatus()).isEqualTo("SELLING"))
         );
     }
 
     @Test
-    @DisplayName("사용자 목록 조회 - 핵심 비즈니스 규칙 검증")
-    void getUsers_ValidatesEssentialBusinessRules() {
+    @DisplayName("상품 목록 조회 - 키워드 검색")
+    void getProducts_WithKeywordSearch() {
+        // Given
+        Product product = createTestProduct("특별한 작품", SellingStatus.SELLING);
+        productRepository.save(product);
+
+        // When
+        AdminProductResponse result = adminDashboardService.getProducts(
+                TEST_AUTHORIZATION, TEST_ADMIN_ROLE, 0, 20,
+                "특별한", null, null, null, null, null, "registeredAt", "DESC");
+
+        // Then
+        assertAll(
+                () -> assertThat(result).isNotNull(),
+                () -> assertThat(result.content()).isNotEmpty(),
+                () -> assertThat(result.content().get(0).name()).contains("특별한")
+        );
+    }
+
+    @Test
+    @DisplayName("사용자 목록 조회 - 실제 DB 데이터로 검증")
+    void getUsers_WithRealData() {
+        // Given - TestInitData에 이미 사용자 존재
+        long expectedUserCount = userRepository.count();
+
         // When
         AdminUserResponse result = adminDashboardService.getUsers(
                 TEST_AUTHORIZATION, TEST_ADMIN_ROLE, 0, 20,
                 null, null, null, null, null, null, null, "joinedAt", "DESC");
 
-        // Then - 핵심 비즈니스 규칙만 검증
+        // Then
         assertAll(
                 () -> assertThat(result).isNotNull(),
                 () -> assertThat(result.content()).isNotEmpty(),
-                // 전체 = 활동중 + 정지 + 블랙리스트
-                () -> assertThat(result.summary().totalUsers())
-                        .isEqualTo(result.summary().activeUsers() + 
-                                  result.summary().suspendedUsers() + 
-                                  result.summary().blacklistedUsers())
+                () -> assertThat(result.totalElements()).isEqualTo(expectedUserCount),
+                () -> assertThat(result.page()).isEqualTo(0),
+                () -> assertThat(result.size()).isEqualTo(20),
+                // 사용자 데이터 검증
+                () -> result.content().forEach(user -> {
+                    assertThat(user.userId()).isNotNull();
+                    assertThat(user.nickname()).isNotBlank();
+                    assertThat(user.grade()).isNotBlank();
+                })
         );
     }
 
     @Test
-    @DisplayName("매출/정산 조회 - 핵심 비즈니스 규칙 검증")
-    void getSettlements_ValidatesEssentialBusinessRules() {
-        // When
-        AdminSettlementResponse result = adminDashboardService.getSettlements(
-                TEST_AUTHORIZATION, TEST_ADMIN_ROLE, 2025, null, "MONTH", "Asia/Seoul");
-
-        // Then - 핵심 비즈니스 규칙만 검증
-        assertAll(
-                () -> assertThat(result).isNotNull(),
-                () -> assertThat(result.table()).hasSize(12), // 연도별 12개월
-                // 순수익 = 매출 - 정산금
-                () -> result.table().forEach(row -> 
-                        assertThat(row.netIncome()).isEqualTo(row.grossSales() - row.artistPayout()))
-        );
-    }
-
-    @Test
-    @DisplayName("매출/정산 조회 - 기본값 연도 처리 검증")
-    void getSettlements_HandlesDefaultYear() {
-        // When
-        AdminSettlementResponse result = adminDashboardService.getSettlements(
-                TEST_AUTHORIZATION, TEST_ADMIN_ROLE, null, null, "MONTH", "Asia/Seoul");
+    @DisplayName("사용자 목록 조회 - 역할 필터링 (작가만)")
+    void getUsers_WithRoleFilter() {
+        // When - 작가만 조회
+        AdminUserResponse result = adminDashboardService.getUsers(
+                TEST_AUTHORIZATION, TEST_ADMIN_ROLE, 0, 20,
+                null, "ARTIST", null, null, null, null, null, "joinedAt", "DESC");
 
         // Then
-        assertThat(result.scope().year()).isEqualTo(java.time.Year.now().getValue());
+        assertAll(
+                () -> assertThat(result).isNotNull(),
+                () -> assertThat(result.content()).isNotEmpty(),
+                () -> result.content().forEach(user ->
+                        assertThat(user.artistName()).isNotNull())
+        );
     }
 
     @Test
-    @DisplayName("펀딩 목록 조회 - 핵심 비즈니스 규칙 검증")
-    void getFundings_ValidatesEssentialBusinessRules() {
+    @DisplayName("펀딩 목록 조회 - 실제 DB 데이터로 검증")
+    void getFundings_WithRealData() {
+        // Given - TestInitData에 이미 펀딩 존재
+        long expectedFundingCount = fundingRepository.count();
+
         // When
         AdminFundingResponse result = adminDashboardService.getFundings(
                 TEST_AUTHORIZATION, TEST_ADMIN_ROLE, 0, 20,
                 null, null, null, null, null, null, null, null, null, null, "endDate", "ASC");
 
-        // Then - 핵심 비즈니스 규칙만 검증
+        // Then
         assertAll(
                 () -> assertThat(result).isNotNull(),
                 () -> assertThat(result.content()).isNotEmpty(),
-                // 전체 = 진행중 + 일시정지 + 완료 + 취소
-                () -> assertThat(result.summary().totalFundings())
-                        .isEqualTo(result.summary().activeFundings() + 
-                                  result.summary().pausedFundings() + 
-                                  result.summary().completedFundings() + 
-                                  result.summary().cancelledFundings()),
-                // 달성률 계산 검증
-                () -> result.content().forEach(funding -> 
-                        assertThat(funding.achievementRate())
-                                .isEqualTo((int) ((funding.currentAmount() * 100) / funding.targetAmount())))
+                () -> assertThat(result.totalElements()).isEqualTo(expectedFundingCount),
+                () -> assertThat(result.page()).isEqualTo(0),
+                () -> assertThat(result.size()).isEqualTo(20),
+                // 펀딩 데이터 검증
+                () -> result.content().forEach(funding -> {
+                    assertThat(funding.fundingId()).isNotNull();
+                    assertThat(funding.title()).isNotBlank();
+                    assertThat(funding.artist()).isNotNull();
+                    // 달성률 계산 검증
+                    int expectedRate = (int) ((funding.currentAmount() * 100) / funding.targetAmount());
+                    assertThat(funding.achievementRate()).isEqualTo(expectedRate);
+                })
         );
     }
 
     @Test
-    @DisplayName("입점 신청 목록 조회 - 핵심 비즈니스 규칙 검증")
-    void getArtistApplications_ValidatesEssentialBusinessRules() {
+    @DisplayName("펀딩 목록 조회 - 상태 필터링")
+    void getFundings_WithStatusFilter() {
+        // Given - 추가 펀딩 생성
+        Funding openFunding = createTestFunding("진행중 펀딩", FundingStatus.OPEN);
+        fundingRepository.save(openFunding);
+
+        // When - OPEN 상태만 조회
+        AdminFundingResponse result = adminDashboardService.getFundings(
+                TEST_AUTHORIZATION, TEST_ADMIN_ROLE, 0, 20,
+                null, "OPEN", null, null, null, null, null, null, null, null, "endDate", "ASC");
+
+        // Then
+        assertAll(
+                () -> assertThat(result).isNotNull(),
+                () -> assertThat(result.content()).isNotEmpty(),
+                () -> result.content().forEach(funding ->
+                        assertThat(funding.status()).isEqualTo("OPEN"))
+        );
+    }
+
+    @Test
+    @DisplayName("입점 신청 목록 조회 - 실제 DB 데이터로 검증")
+    void getArtistApplications_WithRealData() {
+        // Given - 테스트 입점 신청 생성
+        ArtistApplication application1 = createTestApplication("신청자1");
+        ArtistApplication application2 = createTestApplication("신청자2");
+        artistApplicationRepository.save(application1);
+        artistApplicationRepository.save(application2);
+
         // When
         AdminArtistApplicationResponse result = adminDashboardService.getArtistApplications(
                 TEST_AUTHORIZATION, TEST_ADMIN_ROLE, 0, 20,
                 null, null, null, null, "submittedAt", "DESC");
 
-        // Then - 핵심 비즈니스 규칙만 검증
+        // Then
         assertAll(
                 () -> assertThat(result).isNotNull(),
+                () -> assertThat(result.summary()).isNotNull(),
                 () -> assertThat(result.content()).isNotEmpty(),
-                // 전체 = 대기 + 승인 + 거절
-                () -> assertThat(result.summary().totalApplications())
-                        .isEqualTo(result.summary().pending() + 
-                                  result.summary().approved() + 
-                                  result.summary().rejected())
+                () -> assertThat(result.totalElements()).isGreaterThanOrEqualTo(2),
+                // Summary 검증
+                () -> {
+                    int total = result.summary().totalApplications();
+                    int pending = result.summary().pending();
+                    int approved = result.summary().approved();
+                    int rejected = result.summary().rejected();
+                    assertThat(total).isEqualTo(pending + approved + rejected);
+                },
+                // 신청 데이터 검증
+                () -> result.content().forEach(app -> {
+                    assertThat(app.applicationId()).isNotNull();
+                    assertThat(app.artist().name()).isNotBlank();
+                    assertThat(app.status()).isNotBlank();
+                })
         );
     }
 
     @Test
-    @DisplayName("입점 신청 상세 조회 - 필수 정보 검증")
-    void getArtistApplicationDetail_ValidatesEssentialInfo() {
-        // When
-        AdminArtistApplicationDetailResponse result = adminDashboardService.getArtistApplicationDetail(
-                TEST_AUTHORIZATION, TEST_ADMIN_ROLE, 80123L);
+    @DisplayName("입점 신청 목록 조회 - 상태 필터링 (대기중)")
+    void getArtistApplications_WithPendingFilter() {
+        // Given
+        ArtistApplication pending = createTestApplication("대기중 신청자");
+        artistApplicationRepository.save(pending);
 
-        // Then - 필수 정보만 검증
+        // When - PENDING만 조회
+        AdminArtistApplicationResponse result = adminDashboardService.getArtistApplications(
+                TEST_AUTHORIZATION, TEST_ADMIN_ROLE, 0, 20,
+                null, "PENDING", null, null, "submittedAt", "DESC");
+
+        // Then
         assertAll(
                 () -> assertThat(result).isNotNull(),
-                () -> assertThat(result.applicationId()).isEqualTo(80123L),
-                () -> assertThat(result.status()).isEqualTo("PENDING"),
-                () -> assertThat(result.artist().userId()).isPositive(),
-                () -> assertThat(result.contact().email()).contains("@"),
-                () -> assertThat(result.business().registrationNo()).isNotBlank()
+                () -> assertThat(result.content()).isNotEmpty(),
+                () -> result.content().forEach(app ->
+                        assertThat(app.status()).isEqualTo("PENDING"))
         );
+    }
+
+    @Test
+    @DisplayName("입점 신청 상세 조회 - 실제 DB 데이터로 검증")
+    void getArtistApplicationDetail_WithRealData() {
+        // Given - 테스트 입점 신청 생성
+        ArtistApplication application = createTestApplication("상세조회 테스트");
+        ArtistApplication saved = artistApplicationRepository.save(application);
+
+        // When
+        AdminArtistApplicationDetailResponse result = adminDashboardService.getArtistApplicationDetail(
+                TEST_AUTHORIZATION, TEST_ADMIN_ROLE, saved.getId());
+
+        // Then - 필수 정보 검증
+        assertAll(
+                () -> assertThat(result).isNotNull(),
+                () -> assertThat(result.applicationId()).isEqualTo(saved.getId()),
+                () -> assertThat(result.status()).isEqualTo("PENDING"),
+                () -> assertThat(result.artist()).isNotNull(),
+                () -> assertThat(result.artist().userId()).isNotNull(),
+                () -> assertThat(result.contact()).isNotNull(),
+                () -> assertThat(result.contact().email()).contains("@"),
+                () -> assertThat(result.business()).isNotNull(),
+                () -> assertThat(result.business().registrationNo()).isNotBlank(),
+                () -> assertThat(result.profile()).isNotNull(),
+                () -> assertThat(result.permissions()).isNotNull()
+        );
+    }
+
+    // ===== 헬퍼 메서드 =====
+
+    /**
+     * 테스트용 상품 생성
+     */
+    private Product createTestProduct(String name, SellingStatus status) {
+        return Product.builder()
+                .name(name)
+                .brandName("테스트 브랜드")
+                .user(artistUser)
+                .category(defaultCategory)
+                .sellingStatus(status)
+                .displayStatus(DisplayStatus.DISPLAYING)
+                .price(10000)
+                .discountRate(0)
+                .stock(100)
+                .description("테스트 상품 설명")
+                .bundleShippingAvailable(false)
+                .deliveryCharge(3000)
+                .additionalShippingCharge(3000)
+                .deliveryType(DeliveryType.FREE)
+                .minQuantity(1)
+                .maxQuantity(10)
+                .productModelName("테스트 모델")
+                .certification(false)
+                .origin("대한민국")
+                .material("종이")
+                .size("A4")
+                .isPlanned(false)
+                .isRestock(false)
+                .isDeleted(false)
+                .build();
+    }
+
+    /**
+     * 테스트용 펀딩 생성
+     */
+    private Funding createTestFunding(String title, FundingStatus status) {
+        Funding funding = Funding.builder()
+                .user(artistUser)
+                .title(title)
+                .description("테스트 펀딩 설명")
+                .imageUrl("https://example.com/image.jpg")
+                .targetAmount(1000000)
+                .startDate(LocalDateTime.now().minusDays(5))
+                .endDate(LocalDateTime.now().plusDays(25))
+                .status(status)
+                .build();
+
+        funding.attachOption(FundingOption.create("기본 옵션", 10000, 100, 1));
+        return funding;
+    }
+
+    /**
+     * 테스트용 입점 신청 생성
+     */
+    private ArtistApplication createTestApplication(String artistName) {
+        return ArtistApplication.builder()
+                .user(customerUser)
+                .ownerName("대표자명")
+                .artistName(artistName)
+                .email("test@test.com")
+                .phone("010-1234-5678")
+                .businessNumber("123-45-67890")
+                .businessAddress("서울특별시 강남구")
+                .businessAddressDetail("123동 456호")
+                .mainProducts("회화,조각")
+                .build();
     }
 }

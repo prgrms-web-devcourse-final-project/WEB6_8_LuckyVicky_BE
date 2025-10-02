@@ -1,80 +1,127 @@
 package com.back.domain.dashboard.admin.service;
 
-import com.back.domain.dashboard.admin.dto.response.AdminArtistApplicationDetailResponse;
-import com.back.domain.dashboard.admin.dto.response.AdminArtistApplicationResponse;
-import com.back.domain.dashboard.admin.dto.response.AdminFundingResponse;
-import com.back.domain.dashboard.admin.dto.response.AdminOverviewResponse;
-import com.back.domain.dashboard.admin.dto.response.AdminProductResponse;
-import com.back.domain.dashboard.admin.dto.response.AdminSettlementResponse;
-import com.back.domain.dashboard.admin.dto.response.AdminUserResponse;
+import com.back.domain.artist.entity.ApplicationStatus;
+import com.back.domain.artist.entity.ArtistApplication;
+import com.back.domain.artist.repository.ArtistApplicationRepository;
+import com.back.domain.dashboard.admin.dto.response.*;
+import com.back.domain.dashboard.admin.util.ProductNumberFormatter;
+import com.back.domain.funding.entity.Funding;
+import com.back.domain.funding.entity.FundingStatus;
+import com.back.domain.funding.repository.FundingRepository;
+import com.back.domain.product.product.entity.Product;
+import com.back.domain.product.product.entity.SellingStatus;
+import com.back.domain.product.product.repository.ProductRepository;
+import com.back.domain.user.entity.Role;
+import com.back.domain.user.entity.Status;
+import com.back.domain.user.entity.User;
+import com.back.domain.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.Year;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
 
 /**
  * 관리자용 대시보드 서비스 구현체
- * 2025.09.28 수정
+ * 2025.10.01 DB 연동 작업 완료
  */
 @Service
 @RequiredArgsConstructor
 @Slf4j
+@Transactional(readOnly = true)
 public class AdminDashboardServiceImpl implements AdminDashboardService {
+
+    private final ProductRepository productRepository;
+    private final UserRepository userRepository;
+    private final FundingRepository fundingRepository;
+    private final ArtistApplicationRepository artistApplicationRepository;
 
     @Override
     public AdminOverviewResponse getOverview(String authorization, String adminRole, String range,
                                              String granularity, String period, String timezone) {
         // TODO: JWT 토큰에서 관리자 정보 추출 및 권한 검증
-        // TODO: 실제 데이터베이스에서 통계 데이터 조회
 
         log.info("관리자 현황 조회 - range: {}, granularity: {}, adminRole: {}", range, granularity, adminRole);
 
-        // 전체 현황 통계 (최소한의 더미 데이터)
+        // 전체 현황 통계 계산
+        long totalUsers = userRepository.count();
+        long totalProducts = productRepository.count();
+        long totalFundings = fundingRepository.count();
+        
+        // 작가 수는 직접 조회 (countByRole 제거됨)
+        long artistCount = userRepository.findAll().stream()
+                .filter(User::isArtist)
+                .count();
+        
+        // TODO: Order 테이블 연동 후 실제 주문 수, 매출 계산
+        long orderCount = 0L; // orderRepository.count();
+        long totalRevenue = 0L; // 실제 매출 집계 필요
+        
         AdminOverviewResponse.Overview overview = new AdminOverviewResponse.Overview(
-                new AdminOverviewResponse.StatInfo(12450L, "가입자 수", "명", 234L, 0.019),
-                new AdminOverviewResponse.StatInfo(8945L, "주문", "건", 156L, 0.018),
-                new AdminOverviewResponse.StatInfo(145780000L, "매출", "원", 19560000L, 0.155),
-                new AdminOverviewResponse.StatInfo(2340L, "상품수", "개", 45L, 0.02),
-                new AdminOverviewResponse.StatInfo(45L, "펀딩수", "개", 8L, 0.216),
-                new AdminOverviewResponse.StatInfo(156L, "작가수", "명", 12L, 0.083)
+                new AdminOverviewResponse.StatInfo(totalUsers, "가입자 수", "명", 0L, 0.0),
+                new AdminOverviewResponse.StatInfo(orderCount, "주문", "건", 0L, 0.0),
+                new AdminOverviewResponse.StatInfo(totalRevenue, "매출", "원", 0L, 0.0),
+                new AdminOverviewResponse.StatInfo(totalProducts, "상품수", "개", 0L, 0.0),
+                new AdminOverviewResponse.StatInfo(totalFundings, "펀딩수", "개", 0L, 0.0),
+                new AdminOverviewResponse.StatInfo(artistCount, "작가수", "명", 0L, 0.0)
         );
 
-        // 차트 데이터 (최소한)
+        // 차트 데이터 (최소한) - 실제 집계는 추후 구현
         AdminOverviewResponse.Charts charts = new AdminOverviewResponse.Charts(
                 new AdminOverviewResponse.ChartMeta(range, granularity, timezone),
                 new AdminOverviewResponse.SalesTrend(
                         new AdminOverviewResponse.SalesSeries(
-                                List.of(new AdminOverviewResponse.DataPoint("2025-12-24", 2340000L)),
-                                List.of(new AdminOverviewResponse.DataPoint("2025-12-24", 234L))
+                                List.of(new AdminOverviewResponse.DataPoint(LocalDate.now().toString(), 0L)),
+                                List.of(new AdminOverviewResponse.DataPoint(LocalDate.now().toString(), 0L))
                         ),
                         new AdminOverviewResponse.SalesDelta(
-                                new AdminOverviewResponse.DeltaInfo(480000L, 0.23),
-                                new AdminOverviewResponse.DeltaInfo(18L, 0.084)
+                                new AdminOverviewResponse.DeltaInfo(0L, 0.0),
+                                new AdminOverviewResponse.DeltaInfo(0L, 0.0)
                         )
                 ),
                 new AdminOverviewResponse.UserGrowth(
                         new AdminOverviewResponse.UserSeries(
-                                List.of(new AdminOverviewResponse.DataPoint("2025-12-01", 12450L)),
-                                List.of(new AdminOverviewResponse.DataPoint("2025-12-01", 156L))
+                                List.of(new AdminOverviewResponse.DataPoint(LocalDate.now().toString(), totalUsers)),
+                                List.of(new AdminOverviewResponse.DataPoint(LocalDate.now().toString(), artistCount))
                         ),
                         new AdminOverviewResponse.UserDelta(
-                                new AdminOverviewResponse.DeltaInfo(450L, 0.037),
-                                new AdminOverviewResponse.DeltaInfo(36L, 0.30)
+                                new AdminOverviewResponse.DeltaInfo(0L, 0.0),
+                                new AdminOverviewResponse.DeltaInfo(0L, 0.0)
                         )
                 ),
-                new AdminOverviewResponse.CategoryDistribution("2025-12-24", 2340,
-                        List.of(new AdminOverviewResponse.CategoryBucket(1L, "스티커", 820, 0.35)))
+                new AdminOverviewResponse.CategoryDistribution(LocalDate.now().toString(), (int) totalProducts,
+                        List.of()) // TODO: 카테고리별 집계
         );
 
-        // 승인 대기 알림 (최소한)
+        // 승인 대기 알림 - 실제 데이터
+        List<ArtistApplication> pendingApplications = artistApplicationRepository
+                .findByStatusOrderByCreateDateDesc(ApplicationStatus.PENDING, PageRequest.of(0, 5))
+                .getContent();
+
+        List<AdminOverviewResponse.ArtistApproval> artistApprovals = pendingApplications.stream()
+                .map(app -> new AdminOverviewResponse.ArtistApproval(
+                        app.getUser().getId(),
+                        app.getArtistName(),
+                        app.getCreateDate()
+                ))
+                .toList();
+
+        // TODO: 펀딩 승인 대기는 현재 없음 (펀딩 승인 프로세스 추가 시 구현)
+        List<AdminOverviewResponse.FundingApproval> fundingApprovals = List.of();
+
         AdminOverviewResponse.Alerts alerts = new AdminOverviewResponse.Alerts(
-                List.of(new AdminOverviewResponse.ArtistApproval(1001L, "작가A", LocalDateTime.of(2025, 12, 23, 9, 10))),
-                List.of(new AdminOverviewResponse.FundingApproval(456789L, "한정 제품", LocalDateTime.of(2025, 12, 23, 10, 15)))
+                artistApprovals,
+                fundingApprovals
         );
 
         return new AdminOverviewResponse(overview, charts, alerts, LocalDateTime.now(), timezone);
@@ -83,48 +130,137 @@ public class AdminDashboardServiceImpl implements AdminDashboardService {
     @Override
     public AdminProductResponse getProducts(String authorization, String adminRole, int page, int size,
                                             String keyword, String sellingStatus, Long categoryId, Long artistId,
-                                            String startDate, String endDate, String sort, String order, boolean metrics) {
+                                            String startDate, String endDate, String sort, String order) {
         // TODO: JWT 토큰에서 관리자 정보 추출 및 권한 검증
-        // TODO: 실제 데이터베이스에서 상품 데이터 조회 및 필터링
-        // TODO: 동적 정렬 및 페이징 처리
 
-        log.info("관리자 상품 목록 조회 - page: {}, size: {}, keyword: {}, sellingStatus: {}, categoryId: {}, artistId: {}, metrics: {}, adminRole: {}",
-                page, size, keyword, sellingStatus, categoryId, artistId, metrics, adminRole);
+        log.info("관리자 상품 목록 조회 - page: {}, size: {}, keyword: {}, sellingStatus: {}, categoryId: {}, artistId: {}, adminRole: {}",
+                page, size, keyword, sellingStatus, categoryId, artistId, adminRole);
 
-        // 요약 정보 (더미 데이터)
-        AdminProductResponse.Summary summary = new AdminProductResponse.Summary(
-                2340, 2105, 235
+        // 페이징 및 정렬 설정
+        Sort.Direction direction = "ASC".equalsIgnoreCase(order) ? Sort.Direction.ASC : Sort.Direction.DESC;
+        String sortField = mapProductSortField(sort);
+        Pageable pageable = PageRequest.of(page, size, Sort.by(direction, sortField));
+
+        // 실제 DB에서 상품 조회 (논리 삭제된 상품 제외)
+        Page<Product> productPage = productRepository.findAll(
+                buildProductSpecification(keyword, sellingStatus, categoryId, artistId, startDate, endDate),
+                pageable
         );
 
-        // 상품 목록 (최소한의 더미 데이터)
-        List<AdminProductResponse.Product> products = List.of(
-                new AdminProductResponse.Product(
-                        123357L, "0123357", "상품명입니다",
-                        new AdminProductResponse.Artist(9001L, "작가이름입니다"),
-                        "SELLING", new AdminProductResponse.Category(1L, "스티커"),
-                        LocalDate.of(2025, 9, 18), new AdminProductResponse.Permissions(true, true, true),
-                        metrics ? 4.5 : null, metrics ? 12 : null, metrics ? 2250000L : null,
-                        new AdminProductResponse.Moderation(false, null)
-                ),
-                new AdminProductResponse.Product(
-                        123356L, "0123356", "상품명입니다2",
-                        new AdminProductResponse.Artist(9002L, "작가가나다"),
-                        "STOPPED", new AdminProductResponse.Category(3L, "포스터"),
-                        LocalDate.of(2025, 9, 18), new AdminProductResponse.Permissions(true, true, true),
-                        metrics ? 4.2 : null, metrics ? 8 : null, metrics ? 1800000L : null,
-                        new AdminProductResponse.Moderation(false, null)
-                )
-        );
-
-        // 페이지 정보
-        int totalElements = 2340;
-        int totalPages = (int) Math.ceil((double) totalElements / size);
-        boolean hasNext = page < totalPages - 1;
-        boolean hasPrevious = page > 0;
+        // Entity → DTO 변환
+        List<AdminProductResponse.Product> products = productPage.getContent().stream()
+                .map(this::convertToProductDto)
+                .toList();
 
         return new AdminProductResponse(
-                summary, products, page, size, totalElements, totalPages, hasNext, hasPrevious
+                products,
+                page,
+                size,
+                productPage.getTotalElements(),
+                productPage.getTotalPages(),
+                productPage.hasNext(),
+                productPage.hasPrevious()
         );
+    }
+
+    /**
+     * Product Entity → DTO 변환
+     */
+    private AdminProductResponse.Product convertToProductDto(Product product) {
+        /* 상품 번호 ID를 포맷팅하고 있음. Product Entity에 productNumber 컬럼 없어서 추가됨 */
+        String productNumber = ProductNumberFormatter.format(product.getId());
+
+        return new AdminProductResponse.Product(
+                product.getId(),
+                productNumber,
+                product.getName(),
+                new AdminProductResponse.Artist(
+                        product.getUser().getId(),
+                        product.getUser().getName() // User에서 작가명 추출
+                ),
+                product.getSellingStatus().name(),
+                new AdminProductResponse.Category(
+                        product.getCategory().getId(),
+                        product.getCategory().getCategoryName() // categoryName 사용
+                ),
+                product.getCreateDate().toLocalDate()
+        );
+    }
+
+    /**
+     * 상품 검색 조건 빌더
+     */
+    private org.springframework.data.jpa.domain.Specification<Product> buildProductSpecification(
+            String keyword, String sellingStatus, Long categoryId, Long artistId, String startDate, String endDate) {
+        
+        return (root, query, criteriaBuilder) -> {
+            List<jakarta.persistence.criteria.Predicate> predicates = new ArrayList<>();
+
+            // 논리 삭제된 상품 제외
+            predicates.add(criteriaBuilder.isFalse(root.get("isDeleted")));
+
+            // 키워드 검색 (상품명, 브랜드명, 작가명)
+            if (keyword != null && !keyword.isBlank()) {
+                String likePattern = "%" + keyword + "%";
+                
+                // 숫자인 경우 상품 ID로도 검색 (상품번호는 ID를 포맷팅한 것)
+                List<jakarta.persistence.criteria.Predicate> keywordPredicates = new ArrayList<>();
+                keywordPredicates.add(criteriaBuilder.like(root.get("name"), likePattern));
+                keywordPredicates.add(criteriaBuilder.like(root.get("brandName"), likePattern));
+                keywordPredicates.add(criteriaBuilder.like(root.get("user").get("name"), likePattern)); // 작가명 검색
+                
+                // 숫자인 경우 ID로도 검색 (상품번호)
+                try {
+                    Long id = Long.parseLong(keyword);
+                    keywordPredicates.add(criteriaBuilder.equal(root.get("id"), id));
+                } catch (NumberFormatException e) {
+                    // 숫자가 아니면 ID 검색 제외
+                }
+                
+                predicates.add(criteriaBuilder.or(keywordPredicates.toArray(new jakarta.persistence.criteria.Predicate[0])));
+            }
+
+            // 판매 상태 필터
+            if (sellingStatus != null && !sellingStatus.isBlank()) {
+                predicates.add(criteriaBuilder.equal(root.get("sellingStatus"), SellingStatus.valueOf(sellingStatus)));
+            }
+
+            // 카테고리 필터
+            if (categoryId != null) {
+                predicates.add(criteriaBuilder.equal(root.get("category").get("id"), categoryId));
+            }
+
+            // 작가 필터
+            if (artistId != null) {
+                predicates.add(criteriaBuilder.equal(root.get("user").get("id"), artistId));
+            }
+
+            // 등록일 기간 필터
+            if (startDate != null && !startDate.isBlank()) {
+                LocalDate start = LocalDate.parse(startDate);
+                predicates.add(criteriaBuilder.greaterThanOrEqualTo(root.get("createDate"), start.atStartOfDay()));
+            }
+            if (endDate != null && !endDate.isBlank()) {
+                LocalDate end = LocalDate.parse(endDate);
+                predicates.add(criteriaBuilder.lessThanOrEqualTo(root.get("createDate"), end.atTime(23, 59, 59)));
+            }
+
+            return criteriaBuilder.and(predicates.toArray(new jakarta.persistence.criteria.Predicate[0]));
+        };
+    }
+
+    /**
+     * 상품 정렬 필드 매핑
+     */
+    private String mapProductSortField(String sort) {
+        return switch (sort) {
+            case "productNumber" -> "id"; // productNumber는 ID 기반
+            case "name" -> "name";
+            case "artistName" -> "user.name";
+            case "sellingStatus" -> "sellingStatus";
+            case "registeredAt" -> "createDate";
+            default -> "createDate";
+        };
     }
 
     @Override
@@ -133,58 +269,140 @@ public class AdminDashboardServiceImpl implements AdminDashboardService {
                                       String joinedStartDate, String joinedEndDate, Long artistId,
                                       String sort, String order) {
         // TODO: JWT 토큰에서 관리자 정보 추출 및 권한 검증
-        // TODO: 실제 데이터베이스에서 사용자 데이터 조회 및 필터링
-        // TODO: 동적 정렬 및 페이징 처리
 
         log.info("관리자 사용자 목록 조회 - page: {}, size: {}, keyword: {}, role: {}, accountStatus: {}, grade: {}, artistId: {}, adminRole: {}",
                 page, size, keyword, role, accountStatus, grade, artistId, adminRole);
 
-        // 요약 정보 (더미 데이터)
-        AdminUserResponse.Summary summary = new AdminUserResponse.Summary(
-                13240, 12810, 280, 150, 1000
+        // 페이징 및 정렬 설정
+        Sort.Direction direction = "ASC".equalsIgnoreCase(order) ? Sort.Direction.ASC : Sort.Direction.DESC;
+        String sortField = mapUserSortField(sort);
+        Pageable pageable = PageRequest.of(page, size, Sort.by(direction, sortField));
+
+        // 실제 DB에서 사용자 조회
+        Page<User> userPage = userRepository.findAll(
+                buildUserSpecification(keyword, role, accountStatus, grade, joinedStartDate, joinedEndDate, artistId),
+                pageable
         );
 
-        // 사용자 목록 (최소한의 더미 데이터)
-        List<AdminUserResponse.User> users = List.of(
-                new AdminUserResponse.User(
-                        100136L, "abc136", "닉네임입니다", "USER",
-                        new AdminUserResponse.Artist(null, null),
-                        new AdminUserResponse.Grade("SEED", "새싹"), "ACTIVE",
-                        LocalDate.of(2025, 9, 18), LocalDateTime.of(2025, 9, 18, 10, 20, 0),
-                        new AdminUserResponse.Permissions(true, false)
-                ),
-                new AdminUserResponse.User(
-                        100131L, "abc131", "작가명입니다", "ARTIST",
-                        new AdminUserResponse.Artist(90031L, "작가명입니다"),
-                        new AdminUserResponse.Grade("SEED", "새싹"), "ACTIVE",
-                        LocalDate.of(2025, 9, 18), LocalDateTime.of(2025, 9, 18, 8, 5, 0),
-                        new AdminUserResponse.Permissions(true, false)
-                ),
-                new AdminUserResponse.User(
-                        100123L, "abc123", "블랙리스트사용자", "ARTIST",
-                        new AdminUserResponse.Artist(90023L, "블랙리스트작가"),
-                        new AdminUserResponse.Grade("SEED", "새싹"), "BLACKLISTED",
-                        LocalDate.of(2025, 9, 18), LocalDateTime.of(2025, 9, 16, 13, 30, 0),
-                        new AdminUserResponse.Permissions(false, true)
-                )
-        );
-
-        // 페이지 정보
-        int totalElements = 13240;
-        int totalPages = (int) Math.ceil((double) totalElements / size);
-        boolean hasNext = page < totalPages - 1;
-        boolean hasPrevious = page > 0;
+        // Entity → DTO 변환
+        List<AdminUserResponse.User> users = userPage.getContent().stream()
+                .map(this::convertToUserDto)
+                .toList();
 
         return new AdminUserResponse(
-                summary, users, page, size, totalElements, totalPages, hasNext, hasPrevious
+                users,
+                page,
+                size,
+                userPage.getTotalElements(),
+                userPage.getTotalPages(),
+                userPage.hasNext(),
+                userPage.hasPrevious()
         );
+    }
+
+    /**
+     * User Entity → DTO 변환
+     */
+    private AdminUserResponse.User convertToUserDto(User user) {
+        // 작가명 (작가인 경우만)
+        String artistName = user.isArtist() ? user.getName() : null;
+        
+        // 수수료율 (작가인 경우만, 현재는 기본값 0% - TODO: User 엔티티에 필드 추가 시 수정)
+        Integer commissionRate = user.isArtist() ? 0 : null;
+
+        return new AdminUserResponse.User(
+                user.getId(),
+                user.getEmail() != null ? user.getEmail() : "N/A", // OAuth 사용자는 email이 null일 수 있음
+                user.getName(),
+                artistName,
+                commissionRate,
+                user.getGrade().name(),
+                user.getStatus().name(),
+                user.getCreateDate().toLocalDate()
+        );
+    }
+
+    /**
+     * 사용자 검색 조건 빌더
+     */
+    private org.springframework.data.jpa.domain.Specification<User> buildUserSpecification(
+            String keyword, String role, String accountStatus, String grade,
+            String joinedStartDate, String joinedEndDate, Long artistId) {
+
+        return (root, query, criteriaBuilder) -> {
+            List<jakarta.persistence.criteria.Predicate> predicates = new ArrayList<>();
+
+            // 키워드 검색 (회원ID=email, 작가명만)
+            if (keyword != null && !keyword.isBlank()) {
+                String likePattern = "%" + keyword + "%";
+                
+                List<jakarta.persistence.criteria.Predicate> keywordPredicates = new ArrayList<>();
+                keywordPredicates.add(criteriaBuilder.like(root.get("email"), likePattern)); // 회원ID (email)
+                
+                // 작가인 경우 작가명으로 검색
+                jakarta.persistence.criteria.Predicate isArtist = criteriaBuilder.equal(root.get("role"), Role.ARTIST);
+                jakarta.persistence.criteria.Predicate artistNameMatch = criteriaBuilder.like(root.get("name"), likePattern);
+                keywordPredicates.add(criteriaBuilder.and(isArtist, artistNameMatch));
+                
+                predicates.add(criteriaBuilder.or(keywordPredicates.toArray(new jakarta.persistence.criteria.Predicate[0])));
+            }
+
+            // 역할 필터
+            if (role != null && !role.isBlank()) {
+                predicates.add(criteriaBuilder.equal(root.get("role"), Role.valueOf(role)));
+            }
+
+            // 계정 상태 필터
+            if (accountStatus != null && !accountStatus.isBlank()) {
+                predicates.add(criteriaBuilder.equal(root.get("status"), Status.valueOf(accountStatus)));
+            }
+
+            // 등급 필터
+            if (grade != null && !grade.isBlank()) {
+                predicates.add(criteriaBuilder.equal(root.get("grade"), com.back.domain.user.entity.Grade.valueOf(grade)));
+            }
+
+            // 작가 ID 필터
+            if (artistId != null) {
+                predicates.add(criteriaBuilder.equal(root.get("id"), artistId));
+                predicates.add(criteriaBuilder.equal(root.get("role"), Role.ARTIST));
+            }
+
+            // 가입일 기간 필터
+            if (joinedStartDate != null && !joinedStartDate.isBlank()) {
+                LocalDate start = LocalDate.parse(joinedStartDate);
+                predicates.add(criteriaBuilder.greaterThanOrEqualTo(root.get("createDate"), start.atStartOfDay()));
+            }
+            if (joinedEndDate != null && !joinedEndDate.isBlank()) {
+                LocalDate end = LocalDate.parse(joinedEndDate);
+                predicates.add(criteriaBuilder.lessThanOrEqualTo(root.get("createDate"), end.atTime(23, 59, 59)));
+            }
+
+            return criteriaBuilder.and(predicates.toArray(new jakarta.persistence.criteria.Predicate[0]));
+        };
+    }
+
+    /**
+     * 사용자 정렬 필드 매핑
+     */
+    private String mapUserSortField(String sort) {
+        return switch (sort) {
+            case "memberId" -> "email";
+            case "nickname" -> "name";
+            case "artistName" -> "name";
+            case "commissionRate" -> "id"; // TODO: User 엔티티에 commissionRate 필드 추가 시 수정
+            case "grade" -> "grade";
+            case "accountStatus" -> "status";
+            case "joinedAt" -> "createDate";
+            default -> "createDate";
+        };
     }
 
     @Override
     public AdminSettlementResponse getSettlements(String authorization, String adminRole, Integer year,
                                                   Integer month, String granularity, String timezone) {
         // TODO: JWT 토큰에서 관리자 정보 추출 및 권한 검증
-        // TODO: 실제 데이터베이스에서 매출/정산 데이터 조회
+        // TODO: Order 테이블에서 실제 매출/정산 데이터 조회 및 집계
 
         // 연도 기본값 설정 (현재 연도)
         if (year == null) {
@@ -197,14 +415,14 @@ public class AdminDashboardServiceImpl implements AdminDashboardService {
         // 조회 범위
         AdminSettlementResponse.Scope scope = new AdminSettlementResponse.Scope(year, month);
 
-        // 요약 정보
+        // 요약 정보 (더미 데이터 - Order 테이블 연동 필요)
         AdminSettlementResponse.Summary summary = new AdminSettlementResponse.Summary(
-                108000000L,  // 총 매출액
-                12000000L,   // 총 작가 정산금
-                96000000L    // 총 순수익
+                0L,  // 총 매출액
+                0L,  // 총 작가 정산금
+                0L   // 총 순수익
         );
 
-        // 차트 데이터 생성 (간소화)
+        // 차트 데이터 생성 (더미 데이터)
         List<AdminSettlementResponse.DataPoint> grossSalesData = new ArrayList<>();
         List<AdminSettlementResponse.DataPoint> artistPayoutData = new ArrayList<>();
         List<AdminSettlementResponse.DataPoint> netIncomeData = new ArrayList<>();
@@ -235,7 +453,8 @@ public class AdminDashboardServiceImpl implements AdminDashboardService {
     }
 
     /**
-     * 정산 데이터 포인트 생성 헬퍼 메서드
+     * 정산 데이터 포인트 생성 헬퍼 메서드 (더미 데이터)
+     * TODO: Order 테이블에서 실제 집계로 교체 필요
      */
     private void addDataPoint(int year, int monthOrMonth, int dayOrOne,
                               List<AdminSettlementResponse.DataPoint> grossSalesData,
@@ -243,9 +462,11 @@ public class AdminDashboardServiceImpl implements AdminDashboardService {
                               List<AdminSettlementResponse.DataPoint> netIncomeData,
                               List<AdminSettlementResponse.TableRow> tableData) {
         String bucketStart = String.format("%d-%02d-%02d", year, monthOrMonth, dayOrOne);
-        long grossSales = 3000000L + (monthOrMonth * 50000L) + (dayOrOne * 10000L);
-        long artistPayout = grossSales / 10;
-        long netIncome = grossSales - artistPayout;
+        
+        // 더미 데이터 - 실제로는 Order 테이블에서 집계
+        long grossSales = 0L;
+        long artistPayout = 0L;
+        long netIncome = 0L;
 
         grossSalesData.add(new AdminSettlementResponse.DataPoint(bucketStart, grossSales));
         artistPayoutData.add(new AdminSettlementResponse.DataPoint(bucketStart, artistPayout));
@@ -260,48 +481,166 @@ public class AdminDashboardServiceImpl implements AdminDashboardService {
                                             String registeredFrom, String registeredTo,
                                             String dueFrom, String dueTo, String sort, String order) {
         // TODO: JWT 토큰에서 관리자 정보 추출 및 권한 검증
-        // TODO: 실제 데이터베이스에서 펀딩 데이터 조회 및 필터링
-        // TODO: 동적 정렬 및 페이징 처리
 
         log.info("관리자 펀딩 목록 조회 - page: {}, size: {}, keyword: {}, status: {}, categoryId: {}, artistId: {}, adminRole: {}",
                 page, size, keyword, status, categoryId, artistId, adminRole);
 
-        // 요약 정보 (더미 데이터)
-        AdminFundingResponse.Summary summary = new AdminFundingResponse.Summary(
-                120, 86, 5, 23, 6
+        // 페이징 및 정렬 설정
+        Sort.Direction direction = "ASC".equalsIgnoreCase(order) ? Sort.Direction.ASC : Sort.Direction.DESC;
+        String sortField = mapFundingSortField(sort);
+        Pageable pageable = PageRequest.of(page, size, Sort.by(direction, sortField));
+
+        // 실제 DB에서 펀딩 조회
+        Page<Funding> fundingPage = fundingRepository.findAll(
+                buildFundingSpecification(keyword, status, categoryId, artistId, minAchievement, maxAchievement,
+                        registeredFrom, registeredTo, dueFrom, dueTo),
+                pageable
         );
 
-        // 펀딩 목록 (최소한의 더미 데이터)
-        List<AdminFundingResponse.Funding> fundings = List.of(
-                new AdminFundingResponse.Funding(
-                        456789L, "펀딩 제목입니다",
-                        new AdminFundingResponse.Artist(90036L, "abc136", "작가명입니다"),
-                        new AdminFundingResponse.Category(1L, "스티커"), "ACTIVE",
-                        1000000L, 1000000L, 100, 45, "2025-09-18", "2025-09-01", 15,
-                        "https://example.com/image.jpg",
-                        new AdminFundingResponse.Permissions(true, true),
-                        new AdminFundingResponse.Flags(true, false)
-                ),
-                new AdminFundingResponse.Funding(
-                        456788L, "펀딩 제목2",
-                        new AdminFundingResponse.Artist(90035L, "abc135", "작가명2"),
-                        new AdminFundingResponse.Category(2L, "다이어리"), "ACTIVE",
-                        600000L, 900000L, 150, 220, "2025-09-18", "2025-08-20", 12,
-                        "https://example.com/image2.jpg",
-                        new AdminFundingResponse.Permissions(true, true),
-                        new AdminFundingResponse.Flags(true, true)
-                )
-        );
-
-        // 페이지 정보
-        int totalElements = 120;
-        int totalPages = (int) Math.ceil((double) totalElements / size);
-        boolean hasNext = page < totalPages - 1;
-        boolean hasPrevious = page > 0;
+        // Entity → DTO 변환
+        List<AdminFundingResponse.Funding> fundings = fundingPage.getContent().stream()
+                .map(this::convertToFundingDto)
+                .toList();
 
         return new AdminFundingResponse(
-                summary, fundings, page, size, totalElements, totalPages, hasNext, hasPrevious
+                fundings,
+                page,
+                size,
+                (int) fundingPage.getTotalElements(),
+                fundingPage.getTotalPages(),
+                fundingPage.hasNext(),
+                fundingPage.hasPrevious()
         );
+    }
+
+    /**
+     * Funding Entity → DTO 변환
+     */
+    private AdminFundingResponse.Funding convertToFundingDto(Funding funding) {
+        // 달성률 계산
+        int achievementRate = funding.getTargetAmount() > 0
+                ? (int) ((funding.getCollectedAmount() * 100) / funding.getTargetAmount())
+                : 0;
+
+        // 남은 일수 계산
+        long remainingDays = java.time.temporal.ChronoUnit.DAYS.between(
+                LocalDateTime.now(),
+                funding.getEndDate()
+        );
+
+        DateTimeFormatter dateFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd");
+
+        return new AdminFundingResponse.Funding(
+                funding.getId(),
+                funding.getTitle(),
+                new AdminFundingResponse.Artist(
+                        funding.getUser().getId(),
+                        funding.getUser().getEmail() != null ? funding.getUser().getEmail() : "N/A",
+                        funding.getUser().getName()
+                ),
+                // TODO: Funding에 Category 연동 후 수정 (현재 주석 처리됨)
+                new AdminFundingResponse.Category(1L, "미분류"),
+                funding.getStatus().name(),
+                funding.getTargetAmount(),
+                funding.getCollectedAmount(),
+                achievementRate,
+                funding.getParticipantCount(),
+                funding.getEndDate().format(dateFormatter),
+                funding.getCreateDate().format(dateFormatter),
+                (int) Math.max(0, remainingDays),
+                funding.getImageUrl(),
+                new AdminFundingResponse.Permissions(true, true),
+                new AdminFundingResponse.Flags(
+                        achievementRate >= 100,
+                        remainingDays <= 7 && remainingDays > 0
+                )
+        );
+    }
+
+    /**
+     * 펀딩 검색 조건 빌더
+     */
+    private org.springframework.data.jpa.domain.Specification<Funding> buildFundingSpecification(
+            String keyword, String status, Long categoryId, Long artistId,
+            Integer minAchievement, Integer maxAchievement,
+            String registeredFrom, String registeredTo, String dueFrom, String dueTo) {
+
+        return (root, query, criteriaBuilder) -> {
+            List<jakarta.persistence.criteria.Predicate> predicates = new ArrayList<>();
+
+            // 키워드 검색 (제목, 작가명, 작가ID)
+            if (keyword != null && !keyword.isBlank()) {
+                String likePattern = "%" + keyword + "%";
+                
+                List<jakarta.persistence.criteria.Predicate> keywordPredicates = new ArrayList<>();
+                keywordPredicates.add(criteriaBuilder.like(root.get("title"), likePattern)); // 제목
+                keywordPredicates.add(criteriaBuilder.like(root.get("user").get("name"), likePattern)); // 작가명
+                
+                // 숫자인 경우 작가ID로도 검색
+                try {
+                    Long id = Long.parseLong(keyword);
+                    keywordPredicates.add(criteriaBuilder.equal(root.get("user").get("id"), id));
+                } catch (NumberFormatException e) {
+                    // 숫자가 아니면 ID 검색 제외
+                }
+                
+                predicates.add(criteriaBuilder.or(keywordPredicates.toArray(new jakarta.persistence.criteria.Predicate[0])));
+            }
+
+            // 펀딩 상태 필터
+            if (status != null && !status.isBlank()) {
+                predicates.add(criteriaBuilder.equal(root.get("status"), FundingStatus.valueOf(status)));
+            }
+
+            // 작가 필터
+            if (artistId != null) {
+                predicates.add(criteriaBuilder.equal(root.get("user").get("id"), artistId));
+            }
+
+            // 달성률 필터 - 애플리케이션 레벨에서 처리하는 것이 더 안전
+            // JPA Criteria에서 복잡한 계산식은 타입 문제가 발생할 수 있음
+            // TODO: 필요시 네이티브 쿼리나 JPQL로 대체
+
+            // 등록일 기간 필터
+            if (registeredFrom != null && !registeredFrom.isBlank()) {
+                LocalDate start = LocalDate.parse(registeredFrom);
+                predicates.add(criteriaBuilder.greaterThanOrEqualTo(root.get("createDate"), start.atStartOfDay()));
+            }
+            if (registeredTo != null && !registeredTo.isBlank()) {
+                LocalDate end = LocalDate.parse(registeredTo);
+                predicates.add(criteriaBuilder.lessThanOrEqualTo(root.get("createDate"), end.atTime(23, 59, 59)));
+            }
+
+            // 마감일 기간 필터
+            if (dueFrom != null && !dueFrom.isBlank()) {
+                LocalDate start = LocalDate.parse(dueFrom);
+                predicates.add(criteriaBuilder.greaterThanOrEqualTo(root.get("endDate"), start.atStartOfDay()));
+            }
+            if (dueTo != null && !dueTo.isBlank()) {
+                LocalDate end = LocalDate.parse(dueTo);
+                predicates.add(criteriaBuilder.lessThanOrEqualTo(root.get("endDate"), end.atTime(23, 59, 59)));
+            }
+
+            return criteriaBuilder.and(predicates.toArray(new jakarta.persistence.criteria.Predicate[0]));
+        };
+    }
+
+    /**
+     * 펀딩 정렬 필드 매핑
+     */
+    private String mapFundingSortField(String sort) {
+        return switch (sort) {
+            case "title" -> "title";
+            case "artistId" -> "user.id";
+            case "artistName" -> "user.name";
+            case "achievementRate" -> "collectedAmount"; // 달성률은 수집금액 기준 정렬
+            case "status" -> "status";
+            case "remainingDays", "endDate" -> "endDate";
+            case "currentAmount" -> "collectedAmount";
+            case "supporterCount" -> "participantCount";
+            case "registeredAt" -> "createDate";
+            default -> "endDate";
+        };
     }
 
     @Override
@@ -310,91 +649,173 @@ public class AdminDashboardServiceImpl implements AdminDashboardService {
                                                                 String submittedFrom, String submittedTo,
                                                                 String sort, String order) {
         // TODO: JWT 토큰에서 관리자 정보 추출 및 권한 검증
-        // TODO: 실제 데이터베이스에서 입점 신청 데이터 조회 및 필터링
-        // TODO: 동적 정렬 및 페이징 처리
 
         log.info("관리자 입점 신청 목록 조회 - page: {}, size: {}, keyword: {}, status: {}, adminRole: {}",
                 page, size, keyword, status, adminRole);
 
-        // 요약 정보 (더미 데이터)
+        // 페이징 및 정렬 설정
+        Sort.Direction direction = "ASC".equalsIgnoreCase(order) ? Sort.Direction.ASC : Sort.Direction.DESC;
+        String sortField = "createDate"; // 기본 정렬은 신청일
+        Pageable pageable = PageRequest.of(page, size, Sort.by(direction, sortField));
+
+        // 실제 DB에서 입점 신청 조회
+        Page<ArtistApplication> applicationPage;
+        
+        if (status != null && !status.isBlank()) {
+            ApplicationStatus appStatus = ApplicationStatus.valueOf(status);
+            if (keyword != null && !keyword.isBlank()) {
+                applicationPage = artistApplicationRepository.findByArtistNameContainingOrderByCreateDateDesc(keyword, pageable);
+            } else {
+                applicationPage = artistApplicationRepository.findByStatusOrderByCreateDateDesc(appStatus, pageable);
+            }
+        } else {
+            if (keyword != null && !keyword.isBlank()) {
+                applicationPage = artistApplicationRepository.findByArtistNameContainingOrderByCreateDateDesc(keyword, pageable);
+            } else {
+                applicationPage = artistApplicationRepository.findAllByOrderByCreateDateDesc(pageable);
+            }
+        }
+
+        // 요약 정보 계산
+        long totalApplications = artistApplicationRepository.count();
+        long pending = artistApplicationRepository.countByStatus(ApplicationStatus.PENDING);
+        long approved = artistApplicationRepository.countByStatus(ApplicationStatus.APPROVED);
+        long rejected = artistApplicationRepository.countByStatus(ApplicationStatus.REJECTED);
+
         AdminArtistApplicationResponse.Summary summary = new AdminArtistApplicationResponse.Summary(
-                120, 86, 23, 11
+                (int) totalApplications,
+                (int) pending,
+                (int) approved,
+                (int) rejected
         );
 
-        // 입점 신청 목록 (최소한의 더미 데이터)
-        List<AdminArtistApplicationResponse.Application> applications = List.of(
-                new AdminArtistApplicationResponse.Application(
-                        80136L, new AdminArtistApplicationResponse.Artist("abc136", "작가명입니다"),
-                        "PENDING", "2025-09-18", new AdminArtistApplicationResponse.Permissions(true, true)
-                ),
-                new AdminArtistApplicationResponse.Application(
-                        80135L, new AdminArtistApplicationResponse.Artist("abc135", "작가명2"),
-                        "PENDING", "2025-09-18", new AdminArtistApplicationResponse.Permissions(true, true)
-                ),
-                new AdminArtistApplicationResponse.Application(
-                        80134L, new AdminArtistApplicationResponse.Artist("abc134", "승인된작가"),
-                        "APPROVED", "2025-09-17", new AdminArtistApplicationResponse.Permissions(false, false)
-                ),
-                new AdminArtistApplicationResponse.Application(
-                        80133L, new AdminArtistApplicationResponse.Artist("abc133", "거절된작가"),
-                        "REJECTED", "2025-09-16", new AdminArtistApplicationResponse.Permissions(false, false)
-                )
-        );
-
-        // 페이지 정보
-        int totalElements = 120;
-        int totalPages = (int) Math.ceil((double) totalElements / size);
-        boolean hasNext = page < totalPages - 1;
-        boolean hasPrevious = page > 0;
+        // Entity → DTO 변환
+        List<AdminArtistApplicationResponse.Application> applications = applicationPage.getContent().stream()
+                .map(this::convertToApplicationDto)
+                .toList();
 
         return new AdminArtistApplicationResponse(
-                summary, applications, page, size, totalElements, totalPages, hasNext, hasPrevious
+                summary,
+                applications,
+                page,
+                size,
+                (int) applicationPage.getTotalElements(),
+                applicationPage.getTotalPages(),
+                applicationPage.hasNext(),
+                applicationPage.hasPrevious()
+        );
+    }
+
+    /**
+     * ArtistApplication Entity → DTO 변환
+     */
+    private AdminArtistApplicationResponse.Application convertToApplicationDto(ArtistApplication application) {
+        DateTimeFormatter dateFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd");
+
+        return new AdminArtistApplicationResponse.Application(
+                application.getId(),
+                new AdminArtistApplicationResponse.Artist(
+                        application.getUser().getEmail() != null ? application.getUser().getEmail() : "N/A",
+                        application.getArtistName()
+                ),
+                application.getStatus().name(),
+                application.getCreateDate().format(dateFormatter),
+                new AdminArtistApplicationResponse.Permissions(
+                        application.isPending(), // 대기중일 때만 승인 가능
+                        application.isPending()  // 대기중일 때만 거절 가능
+                )
         );
     }
 
     @Override
     public AdminArtistApplicationDetailResponse getArtistApplicationDetail(String authorization, String adminRole, Long applicationId) {
         // TODO: JWT 토큰에서 관리자 정보 추출 및 권한 검증
-        // TODO: 실제 데이터베이스에서 입점 신청 상세 데이터 조회
-        // TODO: 신청 ID 존재 여부 검증
 
         log.info("관리자 입점 신청 상세 조회 - applicationId: {}, adminRole: {}", applicationId, adminRole);
 
-        // 작가 정보 (최소한의 더미 데이터)
+        // 실제 DB에서 입점 신청 상세 조회
+        ArtistApplication application = artistApplicationRepository.findById(applicationId)
+                .orElseThrow(() -> new IllegalArgumentException("입점 신청을 찾을 수 없습니다. ID: " + applicationId));
+
+        // 작가 정보
         AdminArtistApplicationDetailResponse.Artist artist = new AdminArtistApplicationDetailResponse.Artist(
-                100123L, "abc123", "작가명입니다", null);
+                application.getUser().getId(),
+                application.getUser().getEmail() != null ? application.getUser().getEmail() : "N/A",
+                application.getArtistName(),
+                application.getUser().getProfileImageUrl()
+        );
 
         // 연락처 정보
         AdminArtistApplicationDetailResponse.Contact contact = new AdminArtistApplicationDetailResponse.Contact(
-                "abc123@abc.com", "010-1234-5678");
+                application.getEmail(),
+                application.getPhone()
+        );
 
         // 사업자 정보
+        String fullAddress = application.getBusinessAddress();
+        if (application.getBusinessAddressDetail() != null) {
+            fullAddress += " " + application.getBusinessAddressDetail();
+        }
+        
         AdminArtistApplicationDetailResponse.Business business = new AdminArtistApplicationDetailResponse.Business(
-                "123-45-67890", "2025-서울강남-1234", "서울특별시 강남구 테헤란로 123 2층");
+                application.getBusinessNumber(),
+                application.getTelecomSalesNumber(),
+                fullAddress
+        );
 
-        // 프로필 정보 (최소한)
+        // 프로필 정보
+        List<String> mainCategories = application.getMainProducts() != null
+                ? List.of(application.getMainProducts().split(","))
+                : List.of();
+
+        List<AdminArtistApplicationDetailResponse.SnsInfo> snsList = new ArrayList<>();
+        if (application.getSnsAccount() != null && !application.getSnsAccount().isBlank()) {
+            snsList.add(new AdminArtistApplicationDetailResponse.SnsInfo("SNS", application.getSnsAccount()));
+        }
+
+        // TODO: 포트폴리오 파일은 ArtistDocument 연동 후 구현
+        List<AdminArtistApplicationDetailResponse.PortfolioFile> portfolioFiles = List.of();
+
         AdminArtistApplicationDetailResponse.Profile profile = new AdminArtistApplicationDetailResponse.Profile(
-                List.of("스티커", "메모지"),
-                List.of(new AdminArtistApplicationDetailResponse.SnsInfo("Instagram", "@moriomori_official")),
-                List.of(new AdminArtistApplicationDetailResponse.PortfolioFile(
-                        "pf-1", "포트폴리오.pdf", "https://example.com/signed/pf-1"))
+                mainCategories,
+                snsList,
+                portfolioFiles
         );
 
         // 검토 정보
         AdminArtistApplicationDetailResponse.Review review = new AdminArtistApplicationDetailResponse.Review(
-                null, new AdminArtistApplicationDetailResponse.Verifications(true, true));
+                null, // 신청자 메모는 현재 없음
+                new AdminArtistApplicationDetailResponse.Verifications(
+                        application.getBusinessNumber() != null, // 사업자 정보 있으면 검증됨으로 간주
+                        application.getPhone() != null // 연락처 있으면 검증됨으로 간주
+                )
+        );
 
-        // 결정 정보 (PENDING 상태이므로 null)
+        // 결정 정보
         AdminArtistApplicationDetailResponse.Decision decision = new AdminArtistApplicationDetailResponse.Decision(
-                null, null, null, null);
+                application.getStatus().name(),
+                application.getRejectionReason(),
+                application.getReviewedAt(),
+                application.getReviewedByName()
+        );
 
-        // 권한 정보 (PENDING 상태이므로 승인/거절 가능)
+        // 권한 정보
         AdminArtistApplicationDetailResponse.Permissions permissions = new AdminArtistApplicationDetailResponse.Permissions(
-                true, true);
+                application.isPending(), // 대기중일 때만 승인 가능
+                application.isPending()  // 대기중일 때만 거절 가능
+        );
 
         return new AdminArtistApplicationDetailResponse(
-                80123L, "PENDING", LocalDateTime.of(2025, 9, 18, 10, 20, 0),
-                artist, contact, business, profile, review, decision, permissions
+                application.getId(),
+                application.getStatus().name(),
+                application.getCreateDate(),
+                artist,
+                contact,
+                business,
+                profile,
+                review,
+                decision,
+                permissions
         );
     }
 }

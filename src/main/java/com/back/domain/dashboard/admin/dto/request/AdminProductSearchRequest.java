@@ -22,8 +22,8 @@ public record AdminProductSearchRequest(
         String keyword,
 
         /** 판매 상태 */
-        @Pattern(regexp = "^(SELLING|STOPPED)$",
-                message = "sellingStatus는 SELLING 또는 STOPPED여야 합니다")
+        @Pattern(regexp = "^(BEFORE_SELLING|SELLING|SOLD_OUT|END_OF_SALE)$",
+                message = "sellingStatus는 BEFORE_SELLING, SELLING, SOLD_OUT, END_OF_SALE 중 하나여야 합니다")
         String sellingStatus,
 
         /** 카테고리 ID */
@@ -50,10 +50,7 @@ public record AdminProductSearchRequest(
         /** 정렬 순서 */
         @Pattern(regexp = "^(ASC|DESC)$",
                 message = "order는 ASC 또는 DESC여야 합니다")
-        String order,
-
-        /** 메트릭 포함 여부 (평균평점/리뷰/매출) */
-        Boolean metrics
+        String order
 ) {
     /**
      * 기본값이 적용된 생성자
@@ -63,6 +60,5 @@ public record AdminProductSearchRequest(
         if (size == null) size = 20;
         if (sort == null) sort = "registeredAt";
         if (order == null) order = "DESC";
-        if (metrics == null) metrics = false;
     }
 }
