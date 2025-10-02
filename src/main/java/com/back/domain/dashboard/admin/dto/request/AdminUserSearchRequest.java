@@ -27,13 +27,13 @@ public record AdminUserSearchRequest(
         String role,
 
         /** 계정 상태 */
-        @Pattern(regexp = "^(ACTIVE|SUSPENDED|BLACKLISTED)$",
-                message = "accountStatus는 ACTIVE, SUSPENDED, BLACKLISTED 중 하나여야 합니다")
+        @Pattern(regexp = "^(ACTIVE|BLOCKED|DELETED)$",
+                message = "accountStatus는 ACTIVE, BLOCKED, DELETED 중 하나여야 합니다")
         String accountStatus,
 
         /** 회원 등급 */
-        @Pattern(regexp = "^(SEED|BRONZE|SILVER|GOLD|PLATINUM)$",
-                message = "grade는 SEED, BRONZE, SILVER, GOLD, PLATINUM 중 하나여야 합니다")
+        @Pattern(regexp = "^(SPROUT|GRASS|TREE|FOREST|GUARDIAN)$",
+                message = "grade는 SPROUT, GRASS, TREE, FOREST, GUARDIAN 중 하나여야 합니다")
         String grade,
 
         /** 가입일 시작 (yyyy-MM-dd) */
@@ -50,8 +50,8 @@ public record AdminUserSearchRequest(
         Long artistId,
 
         /** 정렬 기준 */
-        @Pattern(regexp = "^(memberId|nickname|artistName|grade|accountStatus|joinedAt)$",
-                message = "sort는 memberId, nickname, artistName, grade, accountStatus, joinedAt 중 하나여야 합니다")
+        @Pattern(regexp = "^(memberId|nickname|artistName|commissionRate|grade|accountStatus|joinedAt)$",
+                message = "sort는 memberId, nickname, artistName, commissionRate, grade, accountStatus, joinedAt 중 하나여야 합니다")
         String sort,
 
         /** 정렬 순서 */

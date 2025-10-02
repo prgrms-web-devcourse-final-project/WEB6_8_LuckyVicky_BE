@@ -159,7 +159,7 @@ public record AdminOverviewResponse(
      */
     public record CategoryBucket(
             /** 카테고리 ID */
-            long categoryId,
+            Long categoryId,
             /** 카테고리명 */
             String name,
             /** 상품 수 */
@@ -203,7 +203,7 @@ public record AdminOverviewResponse(
      */
     public record ArtistApproval(
             /** 작가 ID */
-            long artistId,
+            Long artistId,
             /** 닉네임 */
             String nickname,
             /** 요청 시간 */
@@ -215,7 +215,7 @@ public record AdminOverviewResponse(
      */
     public record FundingApproval(
             /** 펀딩 ID */
-            long fundingId,
+            Long fundingId,
             /** 상품명 */
             String productName,
             /** 요청 시간 */
