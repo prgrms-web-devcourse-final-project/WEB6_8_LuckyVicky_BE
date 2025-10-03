@@ -90,12 +90,6 @@ jobs:
           mkdir -p "${{ env.BACKEND_DIR }}"
           printf "%s" "${DOT_ENV}" > "${{ env.BACKEND_DIR }}/.env"
 
-      # GA4 서비스 계정 파일 생성
-      - name: Create GA4 Service Account Key
-        run: | 
-          mkdir -p src/main/resources 
-          echo "${{ secrets.GA4_JSON }}" > src/main/resources/ga4-service-account.json
-
       - name: Docker Buildx 설치
         uses: docker/setup-buildx-action@v3
 
@@ -150,6 +144,18 @@ jobs:
             --query "Reservations[].Instances[].InstanceId" --output text)
           [[ -n "${INSTANCE_ID}" && "${INSTANCE_ID}" != "None" ]] || { echo "No running instance found"; exit 1; }
           echo "INSTANCE_ID=${INSTANCE_ID}" >> "${GITHUB_ENV}"
+
+      # 3) GA4 JSON을 EC2에 복사
+      - name: Copy GA4 JSON to EC2
+        run: |
+          echo "${{ secrets.GA4_JSON }}" > ga4-service-account.json
+          aws ssm send-command \
+            --document-name "AWS-RunShellScript" \
+            --targets "Key=instanceIds,Values=${{ env.INSTANCE_ID }}" \
+            --parameters 'commands=["mkdir -p /home/ec2-user/secrets", "echo \"$GA4_JSON\" > /home/ec2-user/secrets/ga4-service-account.json"]' \
+            --region ${{ secrets.AWS_REGION }}
+        env:
+          GA4_JSON: ${{ secrets.GA4_JSON }}
 
       # 원격(SSM)으로 Blue/Green 스위치 수행
       - name: AWS SSM Send-Command
@@ -243,6 +249,7 @@ jobs:
               --restart unless-stopped \
               --network "${NET}" \
               -e TZ=Asia/Seoul \
+              -v /home/ec2-user/secrets/ga4-service-account.json:/app/secrets/ga4-service-account.json:ro \
               "${IMAGE}"
 
             # ---------------------------------------------------------
