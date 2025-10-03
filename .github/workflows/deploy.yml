@@ -243,6 +243,7 @@ jobs:
               --restart unless-stopped \
               --network "${NET}" \
               -e TZ=Asia/Seoul \
+              -v /resources/ga4-service-account.json:/app/ga4-service-account.json \
               "${IMAGE}"
 
             # ---------------------------------------------------------
