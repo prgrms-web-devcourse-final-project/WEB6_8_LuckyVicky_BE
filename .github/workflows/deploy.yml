@@ -92,9 +92,9 @@ jobs:
 
       # GA4 서비스 계정 파일 생성
       - name: Create GA4 Service Account Key
-        run: | 
-          mkdir -p src/main/resources 
-          printf "%s" "${{ secrets.GA4_JSON }}" > src/main/resources/ga4-service-account.json
+        run: |
+          mkdir -p src/main/resources
+          echo "${{ secrets.GA4_JSON }}" | cat > src/main/resources/ga4-service-account.json
 
       - name: Docker Buildx 설치
         uses: docker/setup-buildx-action@v3
