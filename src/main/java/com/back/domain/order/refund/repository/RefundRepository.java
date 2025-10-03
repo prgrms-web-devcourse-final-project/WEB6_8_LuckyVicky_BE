@@ -23,11 +23,11 @@ public interface RefundRepository extends JpaRepository<Refund, Long> {
     List<Refund> findByStatus(Refund.RefundStatus status);
     
     // 사용자별 환불 목록 (페이징, 최신순)
-    Page<Refund> findByUserOrderByCreatedAtDesc(User user, Pageable pageable);
-    
+    Page<Refund> findByUserOrderByCreateDateDesc(User user, Pageable pageable);
+
     // 주문별 환불 목록 (페이징, 최신순)
-    Page<Refund> findByOrderOrderByCreatedAtDesc(Order order, Pageable pageable);
-    
+    Page<Refund> findByOrderOrderByCreateDateDesc(Order order, Pageable pageable);
+
     // 상태별 환불 목록 (페이징, 최신순)
-    Page<Refund> findByStatusOrderByCreatedAtDesc(Refund.RefundStatus status, Pageable pageable);
+    Page<Refund> findByStatusOrderByCreateDateDesc(Refund.RefundStatus status, Pageable pageable);
 }

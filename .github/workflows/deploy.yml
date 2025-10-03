@@ -90,6 +90,12 @@ jobs:
           mkdir -p "${{ env.BACKEND_DIR }}"
           printf "%s" "${DOT_ENV}" > "${{ env.BACKEND_DIR }}/.env"
 
+      # GA4 서비스 계정 파일 생성
+      - name: Create GA4 Service Account Key
+        run: | 
+          mkdir -p src/main/resources 
+          echo "${{ secrets.GA4_JSON }}" > src/main/resources/ga4-service-account.json 
+
       - name: Docker Buildx 설치
         uses: docker/setup-buildx-action@v3
 
@@ -165,12 +171,6 @@ jobs:
             exec > >(awk '{ fflush(); print strftime("[%Y-%m-%d %H:%M:%S]"), $0 }' | tee -a "$LOG")
             exec 2> >(awk '{ fflush(); print strftime("[%Y-%m-%d %H:%M:%S]"), $0 }' | tee -a "$LOG" >&2)
             
-            # ---------------------------------------------------------
-            # 0.5) GA4 서비스 계정 파일 생성 //추가함
-            # ---------------------------------------------------------
-            mkdir -p resources
-            echo "${{ secrets.GA4_JSON }}" > resources/ga4-service-account.json
-
             # ---------------------------------------------------------
             # 1) 변수 정의
             #    - 슬롯 이름은 고정(두 개의 컨테이너 이름)
