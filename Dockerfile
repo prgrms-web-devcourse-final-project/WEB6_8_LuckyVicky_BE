@@ -15,10 +15,7 @@ RUN gradle dependencies --no-daemon
 COPY .env .
 COPY src src
 
-# --- 디버깅용 명령어 추가 ---
-# ga4-service-account.json 파일이 src/main/resources에 있는지 확인
-RUN ls -l /app/src/main/resources/ga4-service-account.json || echo "ga4-service-account.json not found in /app/src/main/resources"
-# --- 디버깅용 명령어 끝 ---
+COPY src/main/resources/ga4-service-account.json /app/src/main/resources/ga4-service-account.json
 
 # 애플리케이션 빌드
 RUN gradle build -x test --no-daemon
