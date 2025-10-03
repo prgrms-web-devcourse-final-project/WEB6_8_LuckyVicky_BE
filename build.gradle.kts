@@ -69,9 +69,3 @@ dependencies {
 tasks.withType<Test> {
     useJUnitPlatform()
 }
-
-tasks.bootJar {
-    from("src/main/resources") {
-        include("ga4-service-account.json")
-    }
-}
