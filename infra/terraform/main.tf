@@ -234,8 +234,10 @@ yum install docker -y
 systemctl enable docker
 systemctl start docker
 
-# Docker Compose 설치 (Amazon Linux 2023)
-dnf install docker-compose-plugin -y
+# Docker Compose 설치 (Binary 방식)
+curl -SL https://github.com/docker/compose/releases/download/v2.39.4/docker-compose-linux-x86_64 -o /usr/local/bin/docker-compose
+chmod +x /usr/local/bin/docker-compose
+ln -s /usr/local/bin/docker-compose /usr/bin/docker-compose
 
 # Compose 파일을 프로젝트 루트에 복사하기 위해 git 설치 및 클론
 yum install git -y
@@ -247,13 +249,22 @@ cat <<EOF > .env
 NPM_ADMIN_EMAIL=admin@npm.com
 NPM_ADMIN_PASSWORD=${var.password}
 REDIS_PASSWORD=${var.password}
-EOF
 
-# Docker Compose 실행
-docker compose up -d
+DB_HOST=${aws_db_instance.rds_postgres.endpoint}
+DB_PORT=5432
+DB_NAME=morimori
+DB_USERNAME=${var.db_username}
+DB_PASSWORD=${var.db_password}
+APP_1_DOMAIN=${var.morimori_domain}
+GITHUB_ACCESS_TOKEN_1_OWNER=${var.github_access_token_owner}
+GITHUB_ACCESS_TOKEN_1=${var.github_access_token}
+EOF
 
 # GHCR 로그인
 echo "${var.github_access_token}" | docker login ghcr.io -u ${var.github_access_token_owner} --password-stdin
+
+# Docker Compose 실행
+docker-compose up -d
 
 END_OF_FILE
 }
