@@ -29,4 +29,4 @@ COPY --from=builder /app/build/libs/*.jar app.jar
 COPY --from=builder /app/.env .env
 
 # 실행할 JAR 파일 지정
-ENTRYPOINT ["java", "-Dspring.profiles.active=prod", "-Dloader.path=/app/secrets", "-jar", "app.jar"]
+ENTRYPOINT ["java", "-Dspring.profiles.active=prod", "-jar", "app.jar"]
