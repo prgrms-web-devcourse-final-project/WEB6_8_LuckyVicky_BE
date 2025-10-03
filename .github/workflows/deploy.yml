@@ -250,6 +250,7 @@ jobs:
               --restart unless-stopped \
               --network "${NET}" \
               -e TZ=Asia/Seoul \
+              -e GOOGLE_APPLICATION_CREDENTIALS=/app/secrets/ga4-service-account.json \
               -v /home/ec2-user/secrets/ga4-service-account.json:/app/secrets/ga4-service-account.json:ro \
               "${IMAGE}"
 
