@@ -249,7 +249,7 @@ jobs:
             # 5) 헬스체크 (/actuator/health 200 OK까지 대기))
             # ---------------------------------------------------------
             echo "⏱ health-check: ${GREEN}"
-            TIMEOUT=180 # 
+            TIMEOUT=120 
             INTERVAL=3
             ELAPSED=0
             sleep 8  # 초기 부팅 여유
