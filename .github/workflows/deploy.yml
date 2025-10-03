@@ -94,7 +94,11 @@ jobs:
       - name: Create GA4 Service Account Key
         run: | 
           mkdir -p src/main/resources 
-          echo "${{ secrets.GA4_JSON }}" | jq . > src/main/resources/ga4-service-account.json
+          printf '%s' "${{ secrets.GA4_JSON }}" > src/main/resources/ga4-service-account.json
+
+      - name: Validate GA4 JSON
+        run: |
+          jq . src/main/resources/ga4-service-account.json
 
       - name: Docker Buildx 설치
         uses: docker/setup-buildx-action@v3
