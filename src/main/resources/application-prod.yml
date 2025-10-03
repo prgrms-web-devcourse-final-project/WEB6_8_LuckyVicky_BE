@@ -20,7 +20,7 @@ spring:
   analytics:
     google:
       analytics:
-        credentials-path: file:/app/secrets/ga4-service-account.json
+        credentials-path: classpath:ga4-service-account.json
 
 logging:
   level:
