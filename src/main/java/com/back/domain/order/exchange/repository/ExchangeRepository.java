@@ -23,11 +23,11 @@ public interface ExchangeRepository extends JpaRepository<Exchange, Long> {
     List<Exchange> findByStatus(Exchange.ExchangeStatus status);
     
     // 사용자별 교환 목록 (페이징, 최신순)
-    Page<Exchange> findByUserOrderByCreatedAtDesc(User user, Pageable pageable);
-    
+    Page<Exchange> findByUserOrderByCreateDateDesc(User user, Pageable pageable);
+
     // 주문별 교환 목록 (페이징, 최신순)
-    Page<Exchange> findByOrderOrderByCreatedAtDesc(Order order, Pageable pageable);
-    
+    Page<Exchange> findByOrderOrderByCreateDateDesc(Order order, Pageable pageable);
+
     // 상태별 교환 목록 (페이징, 최신순)
-    Page<Exchange> findByStatusOrderByCreatedAtDesc(Exchange.ExchangeStatus status, Pageable pageable);
+    Page<Exchange> findByStatusOrderByCreateDateDesc(Exchange.ExchangeStatus status, Pageable pageable);
 }
