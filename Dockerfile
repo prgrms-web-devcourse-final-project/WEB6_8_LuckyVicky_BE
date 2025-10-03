@@ -14,14 +14,9 @@ RUN gradle dependencies --no-daemon
 # 소스 코드 복사
 COPY .env .
 COPY src src
-COPY src/main/resources/ga4-service-account.json /tmp/ga4-service-account.json
-
-RUN apt-get update && apt-get install -y zip
 
 # 애플리케이션 빌드
 RUN gradle build -x test --no-daemon
-
-RUN cd build/libs && zip -u *.jar BOOT-INF/classes/ga4-service-account.json -@ < /tmp/ga4-service-account.json
 
 # 두 번째 스테이지: 실행 스테이지
 FROM container-registry.oracle.com/graalvm/jdk:21
