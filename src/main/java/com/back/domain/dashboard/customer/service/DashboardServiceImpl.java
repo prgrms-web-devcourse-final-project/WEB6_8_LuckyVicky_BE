@@ -18,6 +18,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.Arrays;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -25,6 +26,7 @@ import java.util.stream.Collectors;
 /**
  * 고객용 대시보드 서비스 구현체
  * 2025.10.02 수정 - JWT 표준 패턴 적용, Request DTO 활용
+ * 2025.10.03 수정 - 주문일자 포맷팅 추가
  */
 @Service
 @RequiredArgsConstructor
@@ -34,6 +36,9 @@ public class DashboardServiceImpl implements DashboardService {
 
     private final FundingContributionRepository fundingContributionRepository;
     private final UserRepository userRepository;
+    private final com.back.domain.order.order.repository.OrderRepository orderRepository;
+
+    private static final DateTimeFormatter ORDER_DATE_FORMATTER = DateTimeFormatter.ofPattern("yyyy. MM. dd");
 
     @Override
     public AccountResponse.Settings getAccountSettings(Long userId, String include) {
@@ -141,74 +146,202 @@ public class DashboardServiceImpl implements DashboardService {
 
     @Override
     public OrderResponse.List getOrders(Long userId, OrderSearchRequest request) {
-        // TODO: 실제 주문 데이터 조회 로직 구현
         log.debug("주문 목록 조회 - userId: {}, request: {}", userId, request);
 
+        // 1. 사용자 조회
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new ServiceException("USER_NOT_FOUND", "사용자를 찾을 수 없습니다."));
+
+        // 2. Pageable 생성 (정렬 처리)
+        Pageable pageable = createOrderPageable(request);
+
+        // 3. 주문 목록 조회 (검색 + 정렬 + 페이징)
+        Page<com.back.domain.order.order.entity.Order> orderPage =
+                orderRepository.findOrdersForDashboard(user, request.keyword(), pageable);
+
+        // 4. 엔티티 → DTO 변환
+        List<OrderResponse.Summary> content = orderPage.getContent().stream()
+                .map(this::convertToOrderSummary)
+                .collect(Collectors.toList());
+
+        // 5. 통계 계산
         OrderResponse.SummaryDto summary = new OrderResponse.SummaryDto(
-                25, 3, 2, 5, 10, 5, 2, 1, 0, 1, 1, 0, 1
+                (int) orderPage.getTotalElements()
         );
 
-        List<OrderResponse.Summary> content = List.of(
-                new OrderResponse.Summary(
-                        "ORDER-001",
-                        "0123157",
-                        "2025-09-18T11:20:00+09:00",
-                        "PENDING",
-                        "결제완료",
-                        47500,
-                        2,
-                        new OrderResponse.Product(
-                                101L,
-                                "감성 포스터",
-                                1,
-                                25000,
-                                "https://example.com/product101.jpg"
-                        ),
-                        new OrderResponse.Shipping(
-                                "서울시 강남구",
-                                "홍길동"
-                        ),
-                        null, // aftersales
-                        new OrderResponse.Permission(
-                                true,
-                                false,
-                                false
-                        ),
-                        new OrderResponse.Link(
-                                "/orders/0123157"
-                        ),
-                        Arrays.asList(
-                                new OrderResponse.OrderItem(
-                                        1L,
-                                        101L,
-                                        "감성 포스터",
-                                        1,
-                                        25000,
-                                        "https://example.com/product101.jpg"
-                                ),
-                                new OrderResponse.OrderItem(
-                                        2L,
-                                        102L,
-                                        "아트 스티커",
-                                        1,
-                                        22500,
-                                        "https://example.com/product102.jpg"
-                                )
-                        )
-                )
-        );
-
-        OrderResponse.PeriodInfo periodInfo = new OrderResponse.PeriodInfo(
-                request.period() != null ? request.period() : "MONTH",
-                request.from() != null ? request.from() : "2025-09-01",
-                request.to() != null ? request.to() : "2025-09-30"
-        );
-
+        // 6. 응답 생성
         return new OrderResponse.List(
-                summary, content,
-                request.page(), request.size(),
-                25, 3, true, false,
-                "Asia/Seoul", periodInfo);
+                summary,
+                content,
+                orderPage.getNumber(),
+                orderPage.getSize(),
+                orderPage.getTotalElements(),
+                orderPage.getTotalPages(),
+                orderPage.hasNext(),
+                orderPage.hasPrevious()
+        );
+    }
+
+    /**
+     * 주문용 Pageable 생성 (정렬 포함)
+     */
+    private Pageable createOrderPageable(OrderSearchRequest request) {
+        String sort = request.sort() != null ? request.sort() : "orderDate";
+        String order = request.order() != null ? request.order() : "DESC";
+
+        org.springframework.data.domain.Sort.Direction direction =
+                "ASC".equalsIgnoreCase(order) ?
+                        org.springframework.data.domain.Sort.Direction.ASC :
+                        org.springframework.data.domain.Sort.Direction.DESC;
+
+        // 정렬 필드 매핑
+        String sortField = switch (sort) {
+            case "totalAmount" -> "totalAmount";
+            case "status" -> "status";
+            case "productName" -> "orderDate"; // 상품명 정렬은 복잡하므로 일단 날짜순으로 대체
+            default -> "orderDate";
+        };
+
+        return PageRequest.of(request.page(), request.size(),
+                org.springframework.data.domain.Sort.by(direction, sortField));
+    }
+
+    /**
+     * Order 엔티티를 OrderResponse.Summary로 변환
+     */
+    private OrderResponse.Summary convertToOrderSummary(com.back.domain.order.order.entity.Order order) {
+        List<com.back.domain.order.orderItem.entity.OrderItem> orderItems = order.getOrderItems();
+
+        // 화면 표시용 주문번호 생성 (7자리 포맷)
+        String displayOrderNumber = String.format("%07d", order.getId());
+
+        // 대표 상품 (첫 번째 상품)
+        OrderResponse.Product representativeProduct = null;
+        if (!orderItems.isEmpty()) {
+            com.back.domain.order.orderItem.entity.OrderItem firstItem = orderItems.get(0);
+            representativeProduct = convertToProductDto(firstItem);
+        }
+
+        // 모든 주문 상품 변환
+        List<OrderResponse.OrderItem> items = orderItems.stream()
+                .map(this::convertToOrderItemDto)
+                .collect(Collectors.toList());
+
+        // 배송 정보
+        OrderResponse.Shipping shipping = new OrderResponse.Shipping(
+                order.getShippingAddress1() != null ? order.getShippingAddress1() : "",
+                order.getRecipientName() != null ? order.getRecipientName() : ""
+        );
+
+        // 주문 상태 매핑 (4가지 상태만)
+        String status = mapOrderStatus(order.getStatus());
+        String statusText = mapOrderStatusText(order.getStatus());
+
+        // 권한 정보 (결제완료일 때만 취소 가능)
+        OrderResponse.Permission permissions = new OrderResponse.Permission(
+                order.getStatus() == com.back.domain.order.order.entity.OrderStatus.PAYMENT_COMPLETED,
+                false, // 반품 기능 제거
+                false  // 교환 기능 제거
+        );
+
+        // 링크 정보 (실제 orderNumber 사용)
+        OrderResponse.Link links = new OrderResponse.Link("/orders/" + order.getOrderNumber());
+
+        return new OrderResponse.Summary(
+                order.getId().toString(),
+                displayOrderNumber,  // 화면에는 7자리 포맷팅된 번호 표시
+                order.getOrderDate().format(ORDER_DATE_FORMATTER),  // "2025. 09. 18" 형식
+                status,
+                statusText,
+                order.getTotalAmount().intValue(),
+                orderItems.size(),
+                representativeProduct,
+                shipping,
+                null,  // A/S 정보 제거
+                permissions,
+                links,
+                items
+        );
+    }
+
+    /**
+     * OrderItem을 Product DTO로 변환 (삭제된 상품 처리 포함)
+     */
+    private OrderResponse.Product convertToProductDto(com.back.domain.order.orderItem.entity.OrderItem orderItem) {
+        com.back.domain.product.product.entity.Product product = orderItem.getProduct();
+
+        // 삭제된 상품 체크
+        boolean isDeleted = product.isDeleted();
+        String productName = isDeleted ? "[삭제된 상품] " + product.getName() : product.getName();
+        String imageUrl = isDeleted ? null : getProductThumbnailUrl(product);
+
+        return new OrderResponse.Product(
+                product.getId(),
+                productName,
+                orderItem.getQuantity(),
+                orderItem.getPrice().intValue(),
+                imageUrl
+        );
+    }
+
+    /**
+     * OrderItem을 OrderItem DTO로 변환 (삭제된 상품 처리 포함)
+     */
+    private OrderResponse.OrderItem convertToOrderItemDto(com.back.domain.order.orderItem.entity.OrderItem orderItem) {
+        com.back.domain.product.product.entity.Product product = orderItem.getProduct();
+
+        // 삭제된 상품 체크
+        boolean isDeleted = product.isDeleted();
+        String productName = isDeleted ? "[삭제된 상품] " + product.getName() : product.getName();
+        String imageUrl = isDeleted ? null : getProductThumbnailUrl(product);
+
+        return new OrderResponse.OrderItem(
+                orderItem.getId(),
+                product.getId(),
+                productName,
+                orderItem.getQuantity(),
+                orderItem.getPrice().intValue(),
+                imageUrl
+        );
+    }
+
+    /**
+     * 상품 썸네일 이미지 URL 조회
+     */
+    private String getProductThumbnailUrl(com.back.domain.product.product.entity.Product product) {
+        return product.getImages().stream()
+                .filter(image -> "THUMBNAIL".equals(image.getFileType().name()))
+                .findFirst()
+                .map(com.back.domain.product.product.entity.ProductImage::getFileUrl)
+                .orElse(null);
+    }
+
+    /**
+     * OrderStatus를 프론트엔드용 상태 코드로 매핑 (4가지 상태만)
+     * 주문/배송 조회에서는 이 4가지 상태만 조회되므로 default 케이스는 발생하지 않음
+     */
+    private String mapOrderStatus(com.back.domain.order.order.entity.OrderStatus status) {
+        return switch (status) {
+            case PAYMENT_COMPLETED -> "PAYMENT_COMPLETED";
+            case PREPARING_SHIPMENT -> "PREPARING";
+            case SHIPPING -> "SHIPPING";
+            case DELIVERED -> "DELIVERED";
+            default -> throw new IllegalArgumentException("주문/배송 조회에서 허용되지 않는 상태: " + status);
+        };
+    }
+
+    /**
+     * OrderStatus를 한글 텍스트로 매핑 (4가지 상태만)
+     * 주문/배송 조회에서는 이 4가지 상태만 조회되므로 default 케이스는 발생하지 않음
+     */
+    private String mapOrderStatusText(com.back.domain.order.order.entity.OrderStatus status) {
+        return switch (status) {
+            case PAYMENT_COMPLETED -> "결제완료";
+            case PREPARING_SHIPMENT -> "배송준비중";
+            case SHIPPING -> "배송중";
+            case DELIVERED -> "배송완료";
+            default -> throw new IllegalArgumentException("주문/배송 조회에서 허용되지 않는 상태: " + status);
+        };
     }
 
     @Override
