@@ -249,7 +249,7 @@ jobs:
             # 5) 헬스체크 (/actuator/health 200 OK까지 대기))
             # ---------------------------------------------------------
             echo "⏱ health-check: ${GREEN}"
-            TIMEOUT=120
+            TIMEOUT=180 # 
             INTERVAL=3
             ELAPSED=0
             sleep 8  # 초기 부팅 여유
@@ -260,7 +260,7 @@ jobs:
               sleep "${INTERVAL}"
               ELAPSED=$((ELAPSED + INTERVAL))
             done
-            [[ "${CODE:-000}" == "200" ]] || { echo "❌ ${GREEN} health failed"; docker logs --tail=200 "${GREEN}" || true; }
+            [[ "${CODE:-000}" == "200" ]] || { echo "❌ ${GREEN} health failed"; docker logs --tail=200 "${GREEN}" || true; docker rm -f "${GREEN}" || true; exit 1; }
 
             # ---------------------------------------------------------
             # 6) 업스트림 전환 (forward_host/forward_port만 업데이트)
