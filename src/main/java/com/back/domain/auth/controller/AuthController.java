@@ -18,6 +18,7 @@ import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.ResponseCookie;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
@@ -90,9 +91,13 @@ public class AuthController {
         ResponseCookie refreshTokenCookie = createTokenCookie("refreshToken", response.refreshToken(), 7 * 24 * 60 * 60);
         ResponseCookie accessTokenCookie = createTokenCookie("accessToken", response.accessToken(), 15 * 60);
 
+        // HttpHeaders를 사용하여 여러 Set-Cookie 헤더 추가
+        HttpHeaders headers = new HttpHeaders();
+        headers.add(HttpHeaders.SET_COOKIE, refreshTokenCookie.toString());
+        headers.add(HttpHeaders.SET_COOKIE, accessTokenCookie.toString());
+
         return ResponseEntity.ok()
-                .header("Set-Cookie", refreshTokenCookie.toString())
-                .header("Set-Cookie", accessTokenCookie.toString())
+                .headers(headers)
                 .body(RsData.of("200", "로그인 성공", response));
     }
 
@@ -106,9 +111,12 @@ public class AuthController {
     ) {
         authService.logout(request.refreshToken());
 
+        HttpHeaders headers = new HttpHeaders();
+        headers.add(HttpHeaders.SET_COOKIE, deleteCookie("refreshToken").toString());
+        headers.add(HttpHeaders.SET_COOKIE, deleteCookie("accessToken").toString());
+
         return ResponseEntity.ok()
-                .header("Set-Cookie", deleteCookie("refreshToken").toString())
-                .header("Set-Cookie", deleteCookie("accessToken").toString())
+                .headers(headers)
                 .body(RsData.of("200", "로그아웃 성공"));
     }
 
