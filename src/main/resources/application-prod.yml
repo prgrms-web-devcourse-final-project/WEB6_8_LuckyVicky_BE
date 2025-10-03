@@ -18,8 +18,9 @@ spring:
         dialect: org.hibernate.dialect.PostgreSQLDialect
     show-sql: true
   analytics:
-    ga4:
-      credentials-file: file:/app/ga4-service-account.json
+    google:
+      analytics:
+        credentials-path: file:/app/secrets/ga4-service-account.json
 
 logging:
   level:
