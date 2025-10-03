@@ -148,14 +148,16 @@ jobs:
       # 3) GA4 JSON을 EC2에 복사
       - name: Copy GA4 JSON to EC2 safely
         run: |
+          echo "${GA4_JSON}" | base64 > /tmp/ga4-service-account.json.b64
           aws ssm send-command \
             --document-name "AWS-RunShellScript" \
-            --targets "Key=instanceIds,Values=${{ env.INSTANCE_ID }}" \
-            --parameters 'commands=["mkdir -p /home/ec2-user/secrets",
-                                   "echo $GA4_JSON | base64 -d > /home/ec2-user/secrets/ga4-service-account.json"]' \
+            --targets "Key=instanceIds,Values=${INSTANCE_ID}" \
+            --parameters 'commands=["mkdir -p /home/ec2-user/secrets", "base64 -d /tmp/ga4-service-account.json.b64 > /home/ec2-user/secrets/ga4-service-account.json"]' \
             --region ${{ secrets.AWS_REGION }}
         env:
-          GA4_JSON: ${{ secrets.GA4_JSON | base64 }}
+          GA4_JSON: ${{ secrets.GA4_JSON }}
+          INSTANCE_ID: ${{ env.INSTANCE_ID }}
+
 
       # 원격(SSM)으로 Blue/Green 스위치 수행
       - name: AWS SSM Send-Command
