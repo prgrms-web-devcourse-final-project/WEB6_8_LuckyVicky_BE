@@ -146,16 +146,16 @@ jobs:
           echo "INSTANCE_ID=${INSTANCE_ID}" >> "${GITHUB_ENV}"
 
       # 3) GA4 JSON을 EC2에 복사
-      - name: Copy GA4 JSON to EC2
+      - name: Copy GA4 JSON to EC2 safely
         run: |
-          echo "${{ secrets.GA4_JSON }}" > ga4-service-account.json
           aws ssm send-command \
             --document-name "AWS-RunShellScript" \
             --targets "Key=instanceIds,Values=${{ env.INSTANCE_ID }}" \
-            --parameters 'commands=["mkdir -p /home/ec2-user/secrets", "echo \"$GA4_JSON\" > /home/ec2-user/secrets/ga4-service-account.json"]' \
+            --parameters 'commands=["mkdir -p /home/ec2-user/secrets",
+                                   "echo $GA4_JSON | base64 -d > /home/ec2-user/secrets/ga4-service-account.json"]' \
             --region ${{ secrets.AWS_REGION }}
         env:
-          GA4_JSON: ${{ secrets.GA4_JSON }}
+          GA4_JSON: ${{ secrets.GA4_JSON | base64 }}
 
       # 원격(SSM)으로 Blue/Green 스위치 수행
       - name: AWS SSM Send-Command
