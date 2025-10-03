@@ -16,6 +16,8 @@ COPY .env .
 COPY src src
 COPY src/main/resources/ga4-service-account.json /tmp/ga4-service-account.json
 
+RUN apt-get update && apt-get install -y zip
+
 # 애플리케이션 빌드
 RUN gradle build -x test --no-daemon
 
