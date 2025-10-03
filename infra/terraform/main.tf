@@ -222,11 +222,6 @@ echo "PASSWORD_1=${var.password}" >> /etc/environment
 echo "APP_1_DOMAIN=${var.morimori_domain}" >> /etc/environment
 echo "GITHUB_ACCESS_TOKEN_1_OWNER=${var.github_access_token_owner}" >> /etc/environment
 echo "GITHUB_ACCESS_TOKEN_1=${var.github_access_token}" >> /etc/environment
-echo "DB_HOST=${aws_db_instance.rds_postgres.endpoint}" >> /etc/environment
-echo "DB_PORT=5432" >> /etc/environment
-echo "DB_NAME=morimori" >> /etc/environment
-echo "DB_USERNAME=${var.db_username}" >> /etc/environment
-echo "DB_PASSWORD=${var.db_password}" >> /etc/environment
 source /etc/environment
 
 # 도커 설치 및 실행/활성화
