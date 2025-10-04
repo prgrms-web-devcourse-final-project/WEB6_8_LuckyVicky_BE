@@ -19,11 +19,11 @@ public record ArtistOrderSearchRequest(
         Integer size,
 
         /** 주문 상태 필터 */
-        @Pattern(regexp = "^(PENDING|CONFIRMED|PREPARING|SHIPPED|DELIVERED|CANCELED)$",
-                message = "status는 PENDING, CONFIRMED, PREPARING, SHIPPED, DELIVERED, CANCELED 중 하나여야 합니다")
+        @Pattern(regexp = "^(PENDING|PREPARING|SHIPPED|DELIVERED)$",
+                message = "status는 PENDING, PREPARING, SHIPPED, DELIVERED 중 하나여야 합니다")
         String status,
 
-        /** 검색 키워드 (주문번호, 고객명, 상품명) */
+        /** 검색 키워드 (고객명, 상품명) */
         String keyword,
 
         /** 시작 날짜 */
@@ -37,8 +37,8 @@ public record ArtistOrderSearchRequest(
         String endDate,
 
         /** 정렬 기준 */
-        @Pattern(regexp = "^(orderDate|orderNumber|status|totalAmount|customerName)$",
-                message = "sort는 orderDate, orderNumber, status, totalAmount, customerName 중 하나여야 합니다")
+        @Pattern(regexp = "^(orderDate|status|totalAmount|customerName|productName)$",
+                message = "sort는 orderDate, status, totalAmount, customerName, productName 중 하나여야 합니다")
         String sort,
 
         /** 정렬 방향 */
@@ -51,7 +51,7 @@ public record ArtistOrderSearchRequest(
      */
     public ArtistOrderSearchRequest {
         if (page == null) page = 0;
-        if (size == null) size = 20;
+        if (size == null) size = 10;
         if (sort == null) sort = "orderDate";
         if (order == null) order = "DESC";
     }

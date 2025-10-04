@@ -5,16 +5,12 @@ import com.back.domain.dashboard.admin.dto.response.*;
 
 /**
  * 관리자용 대시보드 서비스 인터페이스
- * 2025.10.01 GA4 유입 경로 통합 - 메인 현황에 포함
-<<<<<<< HEAD
- * 2025.10.02 JWT 표준 패턴 적용 - Request DTO 사용, SecurityContext 활용
-=======
->>>>>>> 2f4795372b442dd5b55cfd8b8cfe7ba547b36a98
+ * 2025.10.04 수정 - GA4 유입 경로 제거 (작가 대시보드 전용)
  */
 public interface AdminDashboardService {
 
     /**
-     * 관리자 대시보드 전체 현황 조회 (유입 경로 포함)
+     * 관리자 대시보드 전체 현황 조회 (카테고리별 분포 포함)
      */
     AdminOverviewResponse getOverview(AdminOverviewRequest request);
 
@@ -46,12 +42,5 @@ public interface AdminDashboardService {
     /**
      * 관리자 입점 신청 상세 조회
      */
-
     AdminArtistApplicationDetailResponse getArtistApplicationDetail(Long applicationId);
-
-    /**
-     * 관리자 유입 경로 분석 조회 (GA4) - 내부 사용 전용
-     * getOverview()에서 내부적으로 호출됨
-     */
-    AdminTrafficSourceResponse getTrafficSources(int days, String timezone);
 }

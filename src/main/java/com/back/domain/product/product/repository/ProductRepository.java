@@ -1,5 +1,6 @@
 package com.back.domain.product.product.repository;
 
+import com.back.domain.product.category.entity.Category;
 import com.back.domain.product.product.entity.Product;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
@@ -10,4 +11,9 @@ import java.util.UUID;
 
 public interface ProductRepository extends JpaRepository<Product, Long>, ProductCustomRepository, JpaSpecificationExecutor<Product> {
     Optional<Product> findByProductUuid(UUID productUuid);
+    
+    /**
+     * 특정 카테고리의 상품 수 조회
+     */
+    long countByCategoryAndIsDeletedFalse(Category category);
 }
