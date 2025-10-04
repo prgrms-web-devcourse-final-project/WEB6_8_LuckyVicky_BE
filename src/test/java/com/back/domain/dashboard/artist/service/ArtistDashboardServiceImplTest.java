@@ -56,6 +56,9 @@ class ArtistDashboardServiceImplTest {
     @Mock
     private com.back.domain.artist.repository.ArtistProfileRepository artistProfileRepository;
 
+    @Mock
+    private com.back.domain.order.refund.repository.RefundRepository refundRepository;
+
     private static final Long TEST_ARTIST_ID = 5L;
 
     @Test
@@ -296,7 +299,7 @@ class ArtistDashboardServiceImplTest {
                 .thenReturn(java.util.Optional.of(mockProfile));
 
         // When
-        com.back.domain.dashboard.artist.dto.response.ArtistSettingsResponse result = 
+        com.back.domain.dashboard.artist.dto.response.ArtistSettingsResponse result =
                 artistDashboardService.getSettings(TEST_ARTIST_ID);
 
         // Then
@@ -347,7 +350,7 @@ class ArtistDashboardServiceImplTest {
     void accountNumberMasking_Success() {
         // Given
         User mockUser = createMockUser(TEST_ARTIST_ID, "작가");
-        
+
         // 다양한 계좌번호 패턴 테스트
         com.back.domain.artist.entity.ArtistProfile profile1 = createMockArtistProfileWithAccount(mockUser, "123-456-789012");
         com.back.domain.artist.entity.ArtistProfile profile2 = createMockArtistProfileWithAccount(mockUser, "1234567890");
@@ -359,11 +362,11 @@ class ArtistDashboardServiceImplTest {
                 .thenReturn(java.util.Optional.of(profile3));
 
         // When
-        com.back.domain.dashboard.artist.dto.response.ArtistSettingsResponse result1 = 
+        com.back.domain.dashboard.artist.dto.response.ArtistSettingsResponse result1 =
                 artistDashboardService.getSettings(TEST_ARTIST_ID);
-        com.back.domain.dashboard.artist.dto.response.ArtistSettingsResponse result2 = 
+        com.back.domain.dashboard.artist.dto.response.ArtistSettingsResponse result2 =
                 artistDashboardService.getSettings(TEST_ARTIST_ID);
-        com.back.domain.dashboard.artist.dto.response.ArtistSettingsResponse result3 = 
+        com.back.domain.dashboard.artist.dto.response.ArtistSettingsResponse result3 =
                 artistDashboardService.getSettings(TEST_ARTIST_ID);
 
         // Then
@@ -420,4 +423,387 @@ class ArtistDashboardServiceImplTest {
 
     // 나머지 Mock 데이터 기반 테스트들은 아직 실제 구현이 없으므로 주석 처리
     // TODO: 실제 Order, Cash, Settlement 등의 CRUD 구현 후 테스트 재작성
+
+    @Test
+    @DisplayName("취소 요청 목록 조회 - 기본 조회")
+    void getCancellationRequests_Success() {
+        // Given
+        User mockCustomer = createMockUser(201L, "고객A");
+        User mockArtist = createMockUser(TEST_ARTIST_ID, "작가");
+        Product mockProduct = createMockProduct(101L, "테스트 상품", 15000, 0, SellingStatus.SELLING);
+
+        // Product의 user 설정 (작가)
+        setProductUser(mockProduct, mockArtist);
+
+        com.back.domain.order.order.entity.Order mockOrder = createMockOrder(1L, mockCustomer, "ORD123456");
+        com.back.domain.order.orderItem.entity.OrderItem mockOrderItem = createMockOrderItem(1L, mockOrder, mockProduct, 1);
+        com.back.domain.order.refund.entity.RefundItem mockRefundItem = createMockRefundItem(1L, mockOrderItem, 1);
+        com.back.domain.order.refund.entity.Refund mockRefund = createMockRefund(
+                1L, mockOrder, mockCustomer, java.util.List.of(mockRefundItem),
+                com.back.domain.order.refund.entity.Refund.RefundStatus.REQUESTED
+        );
+
+        Page<com.back.domain.order.refund.entity.Refund> mockPage = new PageImpl<>(
+                List.of(mockRefund),
+                PageRequest.of(0, 20),
+                1
+        );
+
+        when(refundRepository.findRefundsByArtist(
+                eq(TEST_ARTIST_ID), isNull(), isNull(), any(PageRequest.class)))
+                .thenReturn(mockPage);
+
+        com.back.domain.dashboard.artist.dto.request.ArtistCancellationSearchRequest request =
+                new com.back.domain.dashboard.artist.dto.request.ArtistCancellationSearchRequest(
+                        0, 20, null, null, null, null, null, null, null
+                );
+
+        // When
+        com.back.domain.dashboard.artist.dto.response.ArtistCancellationResponse.List result =
+                artistDashboardService.getCancellationRequests(TEST_ARTIST_ID, request);
+
+        // Then
+        assertAll(
+                () -> assertThat(result).isNotNull(),
+                () -> assertThat(result.summary()).isNull(), // summary는 null
+                () -> assertThat(result.content()).hasSize(1),
+                () -> assertThat(result.totalElements()).isEqualTo(1),
+                () -> assertThat(result.totalPages()).isEqualTo(1),
+                () -> assertThat(result.hasNext()).isFalse(),
+                // 첫 번째 취소요청 검증
+                () -> assertThat(result.content().getFirst().orderId()).isEqualTo("1"),
+                () -> assertThat(result.content().getFirst().orderNumber()).isEqualTo("ORD123456"),
+                () -> assertThat(result.content().getFirst().status()).isEqualTo("REQUESTED"),
+                () -> assertThat(result.content().getFirst().statusText()).isEqualTo("처리대기"),
+                () -> assertThat(result.content().getFirst().customer().nickname()).isEqualTo("고객A"),
+                () -> assertThat(result.content().getFirst().orderItem().productName()).isEqualTo("테스트 상품"),
+                // 권한 검증 (REQUESTED 상태이므로 승인/거절 가능)
+                () -> assertThat(result.content().getFirst().permissions().canApprove()).isTrue(),
+                () -> assertThat(result.content().getFirst().permissions().canReject()).isTrue()
+        );
+    }
+
+    @Test
+    @DisplayName("취소 요청 목록 조회 - 키워드 검색 (상품명)")
+    void getCancellationRequests_WithProductNameKeyword() {
+        // Given
+        User mockCustomer = createMockUser(201L, "고객");
+        User mockArtist = createMockUser(TEST_ARTIST_ID, "작가");
+        Product mockProduct = createMockProduct(101L, "손흥민 포스터", 15000, 0, SellingStatus.SELLING);
+        setProductUser(mockProduct, mockArtist);
+
+        com.back.domain.order.order.entity.Order mockOrder = createMockOrder(1L, mockCustomer, "ORD123");
+        com.back.domain.order.orderItem.entity.OrderItem mockOrderItem = createMockOrderItem(1L, mockOrder, mockProduct, 1);
+        com.back.domain.order.refund.entity.RefundItem mockRefundItem = createMockRefundItem(1L, mockOrderItem, 1);
+        com.back.domain.order.refund.entity.Refund mockRefund = createMockRefund(
+                1L, mockOrder, mockCustomer, List.of(mockRefundItem),
+                com.back.domain.order.refund.entity.Refund.RefundStatus.REQUESTED
+        );
+
+        Page<com.back.domain.order.refund.entity.Refund> mockPage = new PageImpl<>(
+                List.of(mockRefund),
+                PageRequest.of(0, 20),
+                1
+        );
+
+        when(refundRepository.findRefundsByArtist(
+                eq(TEST_ARTIST_ID), isNull(), eq("손흥민"), any(PageRequest.class)))
+                .thenReturn(mockPage);
+
+        com.back.domain.dashboard.artist.dto.request.ArtistCancellationSearchRequest request =
+                new com.back.domain.dashboard.artist.dto.request.ArtistCancellationSearchRequest(
+                        0, 20, null, "손흥민", null, null, null, null, null
+                );
+
+        // When
+        com.back.domain.dashboard.artist.dto.response.ArtistCancellationResponse.List result =
+                artistDashboardService.getCancellationRequests(TEST_ARTIST_ID, request);
+
+        // Then
+        assertAll(
+                () -> assertThat(result.content()).hasSize(1),
+                () -> assertThat(result.content().getFirst().orderItem().productName()).contains("손흥민")
+        );
+    }
+
+    @Test
+    @DisplayName("취소 요청 목록 조회 - 키워드 검색 (구매자 이름)")
+    void getCancellationRequests_WithCustomerNameKeyword() {
+        // Given
+        User mockCustomer = createMockUser(201L, "홍길동");
+        User mockArtist = createMockUser(TEST_ARTIST_ID, "작가");
+        Product mockProduct = createMockProduct(101L, "상품", 15000, 0, SellingStatus.SELLING);
+        setProductUser(mockProduct, mockArtist);
+
+        com.back.domain.order.order.entity.Order mockOrder = createMockOrder(1L, mockCustomer, "ORD123");
+        com.back.domain.order.orderItem.entity.OrderItem mockOrderItem = createMockOrderItem(1L, mockOrder, mockProduct, 1);
+        com.back.domain.order.refund.entity.RefundItem mockRefundItem = createMockRefundItem(1L, mockOrderItem, 1);
+        com.back.domain.order.refund.entity.Refund mockRefund = createMockRefund(
+                1L, mockOrder, mockCustomer, List.of(mockRefundItem),
+                com.back.domain.order.refund.entity.Refund.RefundStatus.REQUESTED
+        );
+
+        Page<com.back.domain.order.refund.entity.Refund> mockPage = new PageImpl<>(
+                List.of(mockRefund),
+                PageRequest.of(0, 20),
+                1
+        );
+
+        when(refundRepository.findRefundsByArtist(
+                eq(TEST_ARTIST_ID), isNull(), eq("홍길동"), any(PageRequest.class)))
+                .thenReturn(mockPage);
+
+        com.back.domain.dashboard.artist.dto.request.ArtistCancellationSearchRequest request =
+                new com.back.domain.dashboard.artist.dto.request.ArtistCancellationSearchRequest(
+                        0, 20, null, "홍길동", null, null, null, null, null
+                );
+
+        // When
+        com.back.domain.dashboard.artist.dto.response.ArtistCancellationResponse.List result =
+                artistDashboardService.getCancellationRequests(TEST_ARTIST_ID, request);
+
+        // Then
+        assertAll(
+                () -> assertThat(result.content()).hasSize(1),
+                () -> assertThat(result.content().getFirst().customer().nickname()).contains("홍길동")
+        );
+    }
+
+    @Test
+    @DisplayName("취소 요청 목록 조회 - 상태별 필터")
+    void getCancellationRequests_WithStatusFilter() {
+        // Given
+        User mockCustomer = createMockUser(201L, "고객");
+        User mockArtist = createMockUser(TEST_ARTIST_ID, "작가");
+        Product mockProduct = createMockProduct(101L, "상품", 15000, 0, SellingStatus.SELLING);
+        setProductUser(mockProduct, mockArtist);
+
+        com.back.domain.order.order.entity.Order mockOrder = createMockOrder(1L, mockCustomer, "ORD123");
+        com.back.domain.order.orderItem.entity.OrderItem mockOrderItem = createMockOrderItem(1L, mockOrder, mockProduct, 1);
+        com.back.domain.order.refund.entity.RefundItem mockRefundItem = createMockRefundItem(1L, mockOrderItem, 1);
+        com.back.domain.order.refund.entity.Refund mockRefund = createMockRefund(
+                1L, mockOrder, mockCustomer, List.of(mockRefundItem),
+                com.back.domain.order.refund.entity.Refund.RefundStatus.COMPLETED
+        );
+
+        Page<com.back.domain.order.refund.entity.Refund> mockPage = new PageImpl<>(
+                List.of(mockRefund),
+                PageRequest.of(0, 20),
+                1
+        );
+
+        when(refundRepository.findRefundsByArtist(
+                eq(TEST_ARTIST_ID), eq(com.back.domain.order.refund.entity.Refund.RefundStatus.COMPLETED),
+                isNull(), any(PageRequest.class)))
+                .thenReturn(mockPage);
+
+        com.back.domain.dashboard.artist.dto.request.ArtistCancellationSearchRequest request =
+                new com.back.domain.dashboard.artist.dto.request.ArtistCancellationSearchRequest(
+                        0, 20, "COMPLETED", null, null, null, null, null, null
+                );
+
+        // When
+        com.back.domain.dashboard.artist.dto.response.ArtistCancellationResponse.List result =
+                artistDashboardService.getCancellationRequests(TEST_ARTIST_ID, request);
+
+        // Then
+        assertAll(
+                () -> assertThat(result.content()).hasSize(1),
+                () -> assertThat(result.content().getFirst().status()).isEqualTo("COMPLETED"),
+                () -> assertThat(result.content().getFirst().statusText()).isEqualTo("승인됨"),
+                // COMPLETED 상태이므로 승인/거절 불가
+                () -> assertThat(result.content().getFirst().permissions().canApprove()).isFalse(),
+                () -> assertThat(result.content().getFirst().permissions().canReject()).isFalse()
+        );
+    }
+
+    @Test
+    @DisplayName("취소 요청 목록 조회 - 상품명 정렬 (오름차순)")
+    void getCancellationRequests_SortByProductNameAsc() {
+        // Given
+        User mockCustomer = createMockUser(201L, "고객");
+        User mockArtist = createMockUser(TEST_ARTIST_ID, "작가");
+        Product mockProduct1 = createMockProduct(101L, "A상품", 10000, 0, SellingStatus.SELLING);
+        Product mockProduct2 = createMockProduct(102L, "B상품", 20000, 0, SellingStatus.SELLING);
+        setProductUser(mockProduct1, mockArtist);
+        setProductUser(mockProduct2, mockArtist);
+
+        com.back.domain.order.order.entity.Order mockOrder1 = createMockOrder(1L, mockCustomer, "ORD001");
+        com.back.domain.order.order.entity.Order mockOrder2 = createMockOrder(2L, mockCustomer, "ORD002");
+
+        com.back.domain.order.orderItem.entity.OrderItem mockOrderItem1 = createMockOrderItem(1L, mockOrder1, mockProduct1, 1);
+        com.back.domain.order.orderItem.entity.OrderItem mockOrderItem2 = createMockOrderItem(2L, mockOrder2, mockProduct2, 1);
+
+        com.back.domain.order.refund.entity.RefundItem mockRefundItem1 = createMockRefundItem(1L, mockOrderItem1, 1);
+        com.back.domain.order.refund.entity.RefundItem mockRefundItem2 = createMockRefundItem(2L, mockOrderItem2, 1);
+
+        com.back.domain.order.refund.entity.Refund mockRefund1 = createMockRefund(
+                1L, mockOrder1, mockCustomer, List.of(mockRefundItem1),
+                com.back.domain.order.refund.entity.Refund.RefundStatus.REQUESTED
+        );
+        com.back.domain.order.refund.entity.Refund mockRefund2 = createMockRefund(
+                2L, mockOrder2, mockCustomer, List.of(mockRefundItem2),
+                com.back.domain.order.refund.entity.Refund.RefundStatus.REQUESTED
+        );
+
+        Page<com.back.domain.order.refund.entity.Refund> mockPage = new PageImpl<>(
+                List.of(mockRefund1, mockRefund2),
+                PageRequest.of(0, 20),
+                2
+        );
+
+        when(refundRepository.findRefundsByArtist(
+                eq(TEST_ARTIST_ID), isNull(), isNull(), any(PageRequest.class)))
+                .thenReturn(mockPage);
+
+        com.back.domain.dashboard.artist.dto.request.ArtistCancellationSearchRequest request =
+                new com.back.domain.dashboard.artist.dto.request.ArtistCancellationSearchRequest(
+                        0, 20, null, null, null, null, null, "productName", "ASC"
+                );
+
+        // When
+        com.back.domain.dashboard.artist.dto.response.ArtistCancellationResponse.List result =
+                artistDashboardService.getCancellationRequests(TEST_ARTIST_ID, request);
+
+        // Then
+        assertAll(
+                () -> assertThat(result.content()).hasSize(2),
+                () -> assertThat(result.content().get(0).orderItem().productName()).isEqualTo("A상품"),
+                () -> assertThat(result.content().get(1).orderItem().productName()).isEqualTo("B상품")
+        );
+    }
+
+    /**
+     * Product에 User 설정 헬퍼 메서드
+     */
+    private void setProductUser(Product product, User user) {
+        try {
+            java.lang.reflect.Field userField = product.getClass().getDeclaredField("user");
+            userField.setAccessible(true);
+            userField.set(product, user);
+        } catch (Exception e) {
+            throw new RuntimeException("Failed to set user for product", e);
+        }
+    }
+
+    /**
+     * Mock Order 생성 헬퍼 메서드
+     */
+    private com.back.domain.order.order.entity.Order createMockOrder(Long id, User user, String orderNumber) {
+        com.back.domain.order.order.entity.Order order = com.back.domain.order.order.entity.Order.builder()
+                .user(user)
+                .orderNumber(orderNumber)
+                .status(com.back.domain.order.order.entity.OrderStatus.PAYMENT_COMPLETED)
+                .totalQuantity(1)
+                .totalAmount(java.math.BigDecimal.valueOf(15000))
+                .shippingFee(java.math.BigDecimal.ZERO)
+                .finalAmount(java.math.BigDecimal.valueOf(15000))
+                .paymentMethod(com.back.domain.order.order.entity.PaymentMethod.CARD)
+                .orderDate(LocalDateTime.now())
+                .build();
+
+        try {
+            java.lang.reflect.Field idField = order.getClass().getSuperclass().getDeclaredField("id");
+            idField.setAccessible(true);
+            idField.set(order, id);
+        } catch (Exception e) {
+            throw new RuntimeException("Failed to set id", e);
+        }
+
+        return order;
+    }
+
+    /**
+     * Mock OrderItem 생성 헬퍼 메서드
+     */
+    private com.back.domain.order.orderItem.entity.OrderItem createMockOrderItem(
+            Long id, com.back.domain.order.order.entity.Order order, Product product, int quantity) {
+
+        com.back.domain.order.orderItem.entity.OrderItem orderItem =
+                com.back.domain.order.orderItem.entity.OrderItem.builder()
+                        .order(order)
+                        .product(product)
+                        .quantity(quantity)
+                        .price(java.math.BigDecimal.valueOf(product.getPrice()))
+                        .build();
+
+        try {
+            java.lang.reflect.Field idField = orderItem.getClass().getSuperclass().getDeclaredField("id");
+            idField.setAccessible(true);
+            idField.set(orderItem, id);
+        } catch (Exception e) {
+            throw new RuntimeException("Failed to set id", e);
+        }
+
+        return orderItem;
+    }
+
+    /**
+     * Mock RefundItem 생성 헬퍼 메서드
+     */
+    private com.back.domain.order.refund.entity.RefundItem createMockRefundItem(
+            Long id, com.back.domain.order.orderItem.entity.OrderItem orderItem, int quantity) {
+
+        com.back.domain.order.refund.entity.RefundItem refundItem =
+                com.back.domain.order.refund.entity.RefundItem.builder()
+                        .orderItem(orderItem)
+                        .quantity(quantity)
+                        .refundPrice(orderItem.getPrice())
+                        .build();
+
+        try {
+            java.lang.reflect.Field idField = refundItem.getClass().getSuperclass().getDeclaredField("id");
+            idField.setAccessible(true);
+            idField.set(refundItem, id);
+        } catch (Exception e) {
+            throw new RuntimeException("Failed to set id", e);
+        }
+
+        return refundItem;
+    }
+
+    /**
+     * Mock Refund 생성 헬퍼 메서드
+     */
+    private com.back.domain.order.refund.entity.Refund createMockRefund(
+            Long id, com.back.domain.order.order.entity.Order order, User user,
+            List<com.back.domain.order.refund.entity.RefundItem> refundItems,
+            com.back.domain.order.refund.entity.Refund.RefundStatus status) {
+
+        com.back.domain.order.refund.entity.Refund refund =
+                com.back.domain.order.refund.entity.Refund.builder()
+                        .order(order)
+                        .user(user)
+                        .status(status)
+                        .reason("상품불량")
+                        .detailReason("상세 사유입니다")
+                        .refundAmount(java.math.BigDecimal.valueOf(15000))
+                        .refundMethod(com.back.domain.order.refund.entity.Refund.RefundMethod.ORIGINAL_PAYMENT)
+                        .build();
+
+        try {
+            java.lang.reflect.Field idField = refund.getClass().getSuperclass().getDeclaredField("id");
+            idField.setAccessible(true);
+            idField.set(refund, id);
+
+            java.lang.reflect.Field createDateField = refund.getClass().getSuperclass().getDeclaredField("createDate");
+            createDateField.setAccessible(true);
+            createDateField.set(refund, LocalDateTime.now());
+
+            java.lang.reflect.Field refundItemsField = refund.getClass().getDeclaredField("refundItems");
+            refundItemsField.setAccessible(true);
+            refundItemsField.set(refund, refundItems);
+
+            // RefundItem에 Refund 설정
+            for (com.back.domain.order.refund.entity.RefundItem item : refundItems) {
+                java.lang.reflect.Field refundField = item.getClass().getDeclaredField("refund");
+                refundField.setAccessible(true);
+                refundField.set(item, refund);
+            }
+        } catch (Exception e) {
+            throw new RuntimeException("Failed to set refund fields", e);
+        }
+
+        return refund;
+    }
 }

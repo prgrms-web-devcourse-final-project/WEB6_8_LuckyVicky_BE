@@ -376,8 +376,8 @@ public class ArtistDashboardServiceImpl implements ArtistDashboardService {
 
     @Override
     public ArtistCancellationResponse.List getCancellationRequests(Long artistId, ArtistCancellationSearchRequest request) {
-        log.info("작가 취소 요청 목록 조회 시작 - artistId: {}, page: {}, size: {}, status: {}, keyword: {}, sort: {}, order: {}",
-                artistId, request.page(), request.size(), request.status(), request.keyword(), request.sort(), request.order());
+        log.info("작가 취소 요청 목록 조회 시작 - artistId: {}, page: {}, size: {}, status: {}, keyword: {}",
+                artistId, request.page(), request.size(), request.status(), request.keyword());
 
         // status 문자열을 RefundStatus enum으로 변환
         com.back.domain.order.refund.entity.Refund.RefundStatus refundStatus = null;
@@ -389,13 +389,11 @@ public class ArtistDashboardServiceImpl implements ArtistDashboardService {
             }
         }
 
-        // Repository를 통한 실제 DB 조회 (검색, 정렬 포함)
+        // Repository를 통한 실제 DB 조회 (최신순 정렬)
         Page<com.back.domain.order.refund.entity.Refund> refundPage = refundRepository.findRefundsByArtist(
                 artistId,
                 refundStatus,
                 request.keyword(),
-                request.sort(),
-                request.order(),
                 PageRequest.of(request.page(), request.size())
         );
 
@@ -403,6 +401,11 @@ public class ArtistDashboardServiceImpl implements ArtistDashboardService {
         List<ArtistCancellationResponse.CancellationRequest> content = refundPage.getContent().stream()
                 .map(this::convertToCancellationDto)
                 .toList();
+
+        // 메모리에서 정렬 (간단한 정렬만 지원)
+        if (request.sort() != null && !request.sort().equals("requestDate")) {
+            content = sortInMemory(content, request.sort(), request.order());
+        }
 
         int totalPages = refundPage.getTotalPages();
         long totalElements = refundPage.getTotalElements();
@@ -421,6 +424,39 @@ public class ArtistDashboardServiceImpl implements ArtistDashboardService {
                 hasNext,
                 hasPrevious
         );
+    }
+
+    /**
+     * 메모리에서 정렬 처리
+     */
+    private List<ArtistCancellationResponse.CancellationRequest> sortInMemory(
+            List<ArtistCancellationResponse.CancellationRequest> list, String sort, String order) {
+
+        boolean asc = "ASC".equalsIgnoreCase(order);
+
+        return list.stream()
+                .sorted((a, b) -> {
+                    int cmp = 0;
+                    switch (sort) {
+                        case "productName":
+                            String nameA = a.orderItem() != null ? a.orderItem().productName() : "";
+                            String nameB = b.orderItem() != null ? b.orderItem().productName() : "";
+                            cmp = nameA.compareTo(nameB);
+                            break;
+                        case "customerName":
+                            String customerA = a.customer() != null ? a.customer().nickname() : "";
+                            String customerB = b.customer() != null ? b.customer().nickname() : "";
+                            cmp = customerA.compareTo(customerB);
+                            break;
+                        case "status":
+                            cmp = a.status().compareTo(b.status());
+                            break;
+                        default:
+                            cmp = a.requestDate().compareTo(b.requestDate());
+                    }
+                    return asc ? cmp : -cmp;
+                })
+                .toList();
     }
 
     /**
@@ -477,7 +513,7 @@ public class ArtistDashboardServiceImpl implements ArtistDashboardService {
                 "CANCEL", // 또는 refund 타입에 따라 "REFUND"
                 refund.getStatus().name(),
                 statusText,
-                refund.getCreateDate().format(java.time.format.DateTimeFormatter.ISO_OFFSET_DATE_TIME),
+                refund.getCreateDate().atZone(java.time.ZoneId.systemDefault()).format(java.time.format.DateTimeFormatter.ISO_OFFSET_DATE_TIME),
                 refund.getReason(),
                 refund.getDetailReason() != null ? refund.getDetailReason() : "",
                 customerDto,

@@ -43,14 +43,9 @@ public interface RefundRepository extends JpaRepository<Refund, Long> {
     List<Refund> findByUserWithItems(@Param("user") User user);
 
     /**
-     * 작가의 상품에 대한 취소/환불 요청 조회 (페이징, 검색, 정렬)
-     * 작가가 판매한 상품에 대한 취소/환불 요청만 조회
-     * 상태별 필터링 가능
-     * 검색: 상품명, 구매자 이름
-     * 정렬: 상품명, 구매자 이름, 주문상태, 주문일자
-     * N+1 문제 해결을 위한 fetch join 사용
+     * 작가의 상품에 대한 취소/환불 요청 조회 (검색만 쿼리, 정렬은 메모리)
      */
-    @Query("SELECT DISTINCT r FROM Refund r " +
+    @Query(value = "SELECT DISTINCT r FROM Refund r " +
             "JOIN FETCH r.order o " +
             "JOIN FETCH r.user u " +
             "LEFT JOIN FETCH r.refundItems ri " +
@@ -59,23 +54,21 @@ public interface RefundRepository extends JpaRepository<Refund, Long> {
             "WHERE p.user.id = :artistId " +
             "AND (:status IS NULL OR r.status = :status) " +
             "AND (:keyword IS NULL OR :keyword = '' OR " +
-            "     p.name LIKE %:keyword% OR " +
-            "     u.name LIKE %:keyword%) " +
-            "ORDER BY " +
-            "CASE WHEN :sort = 'productName' AND :order = 'ASC' THEN p.name END ASC, " +
-            "CASE WHEN :sort = 'productName' AND :order = 'DESC' THEN p.name END DESC, " +
-            "CASE WHEN :sort = 'customerName' AND :order = 'ASC' THEN u.name END ASC, " +
-            "CASE WHEN :sort = 'customerName' AND :order = 'DESC' THEN u.name END DESC, " +
-            "CASE WHEN :sort = 'status' AND :order = 'ASC' THEN r.status END ASC, " +
-            "CASE WHEN :sort = 'status' AND :order = 'DESC' THEN r.status END DESC, " +
-            "CASE WHEN :sort = 'requestDate' AND :order = 'ASC' THEN r.createDate END ASC, " +
-            "CASE WHEN :sort = 'requestDate' AND :order = 'DESC' THEN r.createDate END DESC")
+            "     p.name LIKE CONCAT('%', :keyword, '%') OR " +
+            "     u.name LIKE CONCAT('%', :keyword, '%'))",
+            countQuery = "SELECT COUNT(DISTINCT r) FROM Refund r " +
+                    "JOIN r.refundItems ri " +
+                    "JOIN ri.orderItem oi " +
+                    "JOIN oi.product p " +
+                    "WHERE p.user.id = :artistId " +
+                    "AND (:status IS NULL OR r.status = :status) " +
+                    "AND (:keyword IS NULL OR :keyword = '' OR " +
+                    "     p.name LIKE CONCAT('%', :keyword, '%') OR " +
+                    "     r.user.name LIKE CONCAT('%', :keyword, '%'))")
     Page<Refund> findRefundsByArtist(
             @Param("artistId") Long artistId,
             @Param("status") Refund.RefundStatus status,
             @Param("keyword") String keyword,
-            @Param("sort") String sort,
-            @Param("order") String order,
             Pageable pageable
     );
 }
