@@ -51,7 +51,7 @@ public record ArtistOrderSearchRequest(
      */
     public ArtistOrderSearchRequest {
         if (page == null) page = 0;
-        if (size == null) size = 20;
+        if (size == null) size = 10;
         if (sort == null) sort = "orderDate";
         if (order == null) order = "DESC";
     }

@@ -54,6 +54,7 @@ public class ArtistDashboardServiceImpl implements ArtistDashboardService {
     private final FundingRepository fundingRepository;
     private final FundingContributionRepository fundingContributionRepository;
     private final RefundRepository refundRepository;
+    private final com.back.domain.order.exchange.repository.ExchangeRepository exchangeRepository;
     private final BetaAnalyticsDataClient analyticsDataClient;
     private final com.back.domain.artist.repository.ArtistProfileRepository artistProfileRepository;
 
@@ -535,41 +536,201 @@ public class ArtistDashboardServiceImpl implements ArtistDashboardService {
 
     @Override
     public ArtistExchangeResponse.List getExchangeRequests(Long artistId, ArtistExchangeSearchRequest request) {
-        // TODO: 실제 데이터베이스에서 교환 요청 목록 조회
-        log.info("작가 교환 요청 목록 조회 - artistId: {}, page: {}, size: {}, status: {}",
-                artistId, request.page(), request.size(), request.status());
+        log.info("작가 교환 요청 목록 조회 시작 - artistId: {}, page: {}, size: {}, status: {}, keyword: {}",
+                artistId, request.page(), request.size(), request.status(), request.keyword());
 
-        ArtistExchangeResponse.Summary summary = new ArtistExchangeResponse.Summary(5, 3, 1, 1);
+        // status 문자열을 ExchangeStatus enum으로 변환
+        com.back.domain.order.exchange.entity.Exchange.ExchangeStatus exchangeStatus = null;
+        if (request.status() != null && !request.status().isBlank()) {
+            try {
+                // PENDING, APPROVED 등을 REQUESTED, COMPLETED로 매핑
+                exchangeStatus = switch (request.status()) {
+                    case "PENDING" -> com.back.domain.order.exchange.entity.Exchange.ExchangeStatus.REQUESTED;
+                    case "APPROVED" -> com.back.domain.order.exchange.entity.Exchange.ExchangeStatus.COMPLETED;
+                    default -> com.back.domain.order.exchange.entity.Exchange.ExchangeStatus.valueOf(request.status());
+                };
+            } catch (IllegalArgumentException e) {
+                log.warn("잘못된 교환 요청 상태값: {}", request.status());
+            }
+        }
 
-        List<ArtistExchangeResponse.ExchangeRequest> content = List.of(
-                new ArtistExchangeResponse.ExchangeRequest(
-                        21L,
-                        "ORDER-002",
-                        "0123156",
-                        "EXCHANGE",
-                        "PENDING",
-                        "처리대기",
-                        "2024-12-26T11:10:00+09:00",
-                        "사이즈 변경",
-                        "L사이즈로 교환 요청",
-                        new ArtistExchangeResponse.Customer(204L, "고객B"),
-                        new ArtistExchangeResponse.OrderItem(103L, "아티스트 티셔츠", 1, 28500),
-                        new ArtistExchangeResponse.ExchangeRequested("사이즈=L", 1),
-                        new ArtistExchangeResponse.Permissions(true, true)
-                )
+        // Repository를 통한 실제 DB 조회 (최신순 정렬)
+        Page<com.back.domain.order.exchange.entity.Exchange> exchangePage = exchangeRepository.findExchangesByArtist(
+                artistId,
+                exchangeStatus,
+                request.keyword(),
+                PageRequest.of(request.page(), request.size())
         );
 
+        // Entity → DTO 변환
+        List<ArtistExchangeResponse.ExchangeRequest> content = exchangePage.getContent().stream()
+                .map(this::convertToExchangeDto)
+                .toList();
+
+        // 메모리에서 정렬 (간단한 정렬만 지원)
+        if (request.sort() != null && !request.sort().equals("requestDate")) {
+            content = sortExchangesInMemory(content, request.sort(), request.order());
+        }
+
+        int totalPages = exchangePage.getTotalPages();
+        long totalElements = exchangePage.getTotalElements();
+        boolean hasNext = exchangePage.hasNext();
+        boolean hasPrevious = exchangePage.hasPrevious();
+
+        log.info("작가 교환 요청 목록 조회 완료 - 조회된 요청 수: {}, 전체: {}", content.size(), totalElements);
+
         return new ArtistExchangeResponse.List(
-                summary,
+                null,  // summary는 필요 없음
                 content,
                 request.page(),
                 request.size(),
-                5,
-                1,
-                false,
-                false
+                totalElements,
+                totalPages,
+                hasNext,
+                hasPrevious
         );
     }
+
+    /**
+     * 메모리에서 교환 요청 정렬 처리
+     */
+    private List<ArtistExchangeResponse.ExchangeRequest> sortExchangesInMemory(
+            List<ArtistExchangeResponse.ExchangeRequest> list, String sort, String order) {
+
+        boolean asc = "ASC".equalsIgnoreCase(order);
+
+        return list.stream()
+                .sorted((a, b) -> {
+                    int cmp = 0;
+                    switch (sort) {
+                        case "productName":
+                            String nameA = a.orderItem() != null ? a.orderItem().productName() : "";
+                            String nameB = b.orderItem() != null ? b.orderItem().productName() : "";
+                            cmp = nameA.compareTo(nameB);
+                            break;
+                        case "customerName":
+                            String customerA = a.customer() != null ? a.customer().nickname() : "";
+                            String customerB = b.customer() != null ? b.customer().nickname() : "";
+                            cmp = customerA.compareTo(customerB);
+                            break;
+                        case "status":
+                            cmp = a.status().compareTo(b.status());
+                            break;
+                        default:
+                            cmp = a.requestDate().compareTo(b.requestDate());
+                    }
+                    return asc ? cmp : -cmp;
+                })
+                .toList();
+    }
+
+    /**
+     * Exchange 엔티티를 ExchangeRequest DTO로 변환
+     */
+    private ArtistExchangeResponse.ExchangeRequest convertToExchangeDto(
+            com.back.domain.order.exchange.entity.Exchange exchange) {
+
+        // 주문 정보
+        com.back.domain.order.order.entity.Order order = exchange.getOrder();
+
+        // 첫 번째 교환 아이템 가져오기 (주문 상품 정보용)
+        com.back.domain.order.exchange.entity.ExchangeItem firstExchangeItem = exchange.getExchangeItems().isEmpty()
+                ? null
+                : exchange.getExchangeItems().get(0);
+
+        // 주문 상품 정보
+        ArtistExchangeResponse.OrderItem orderItemDto = null;
+        if (firstExchangeItem != null) {
+            com.back.domain.order.orderItem.entity.OrderItem orderItem = firstExchangeItem.getOrderItem();
+            com.back.domain.product.product.entity.Product product = orderItem.getProduct();
+
+            orderItemDto = new ArtistExchangeResponse.OrderItem(
+                    product.getId(),
+                    product.getName(),
+                    firstExchangeItem.getQuantity(),
+                    orderItem.getPrice().intValue()
+            );
+        }
+
+        // 고객 정보
+        com.back.domain.user.entity.User customer = exchange.getUser();
+        ArtistExchangeResponse.Customer customerDto = new ArtistExchangeResponse.Customer(
+                customer.getId(),
+                customer.getName()
+        );
+
+        // TODO: 교환 요청 상세 조회 API 구현 시 활성화
+        // 교환 요청 정보 (교환 방법 정보를 옵션으로 표시)
+        // String exchangeOption = exchange.getExchangeMethod() != null 
+        //         ? convertExchangeMethodToKorean(exchange.getExchangeMethod()) 
+        //         : "";
+        int exchangeQuantity = firstExchangeItem != null ? firstExchangeItem.getQuantity() : 0;
+
+        ArtistExchangeResponse.ExchangeRequested exchangeRequested = new ArtistExchangeResponse.ExchangeRequested(
+                "",  // 교환 방법은 상세 조회에서만 제공 예정
+                exchangeQuantity
+        );
+
+        // 상태 텍스트 변환
+        String statusText = convertExchangeStatusToKorean(exchange.getStatus());
+        String status = convertExchangeStatusToApi(exchange.getStatus());
+
+        // 권한 정보 (작가 본인이므로 모든 권한 true, 단 이미 처리된 건은 false)
+        boolean canApprove = exchange.getStatus() == com.back.domain.order.exchange.entity.Exchange.ExchangeStatus.REQUESTED;
+        boolean canReject = exchange.getStatus() == com.back.domain.order.exchange.entity.Exchange.ExchangeStatus.REQUESTED;
+
+        ArtistExchangeResponse.Permissions permissions = new ArtistExchangeResponse.Permissions(
+                canApprove,
+                canReject
+        );
+
+        return new ArtistExchangeResponse.ExchangeRequest(
+                exchange.getId(),
+                order.getId().toString(),
+                order.getOrderNumber(),
+                "EXCHANGE",
+                status,
+                statusText,
+                exchange.getCreateDate().atZone(java.time.ZoneId.systemDefault()).format(java.time.format.DateTimeFormatter.ISO_OFFSET_DATE_TIME),
+                exchange.getReason(),
+                exchange.getDetailReason() != null ? exchange.getDetailReason() : "",
+                customerDto,
+                orderItemDto,
+                exchangeRequested,
+                permissions
+        );
+    }
+
+    /**
+     * ExchangeStatus Enum을 한글로 변환
+     */
+    private String convertExchangeStatusToKorean(com.back.domain.order.exchange.entity.Exchange.ExchangeStatus status) {
+        return switch (status) {
+            case REQUESTED -> "처리대기";
+            case COMPLETED -> "승인됨";
+        };
+    }
+
+    /**
+     * ExchangeStatus Enum을 API 상태값으로 변환
+     */
+    private String convertExchangeStatusToApi(com.back.domain.order.exchange.entity.Exchange.ExchangeStatus status) {
+        return switch (status) {
+            case REQUESTED -> "PENDING";
+            case COMPLETED -> "APPROVED";
+        };
+    }
+
+    // TODO: 교환 요청 상세 조회 API 구현 시 활성화
+    /**
+     * ExchangeMethod Enum을 한글로 변환
+     */
+    // private String convertExchangeMethodToKorean(com.back.domain.order.exchange.entity.Exchange.ExchangeMethod method) {
+    //     return switch (method) {
+    //         case PICKUP -> "수거 후 교환";
+    //         case DIRECT -> "직접 교환";
+    //     };
+    // }
 
     @Override
     public ArtistSettingsResponse getSettings(Long artistId) {

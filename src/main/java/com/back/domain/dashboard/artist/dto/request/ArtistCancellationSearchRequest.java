@@ -56,7 +56,7 @@ public record ArtistCancellationSearchRequest(
      */
     public ArtistCancellationSearchRequest {
         if (page == null) page = 0;
-        if (size == null) size = 20;
+        if (size == null) size = 10;
         if (sort == null) sort = "requestDate";
         if (order == null) order = "DESC";
     }
