@@ -152,38 +152,67 @@ public class DashboardServiceImpl implements DashboardService {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new ServiceException("USER_NOT_FOUND", "사용자를 찾을 수 없습니다."));
 
-        // 2. Pageable 생성 (정렬 처리)
-        Pageable pageable = createOrderPageable(request);
+        // 2. 주문 목록 조회 (상품명 정렬 여부에 따라 다른 메서드 사용)
+        Page<com.back.domain.order.order.entity.Order> orderPage;
+        
+        if ("productName".equals(request.sort())) {
+            // 상품명 정렬: 별도 쿼리 사용 (Pageable의 정렬은 무시됨)
+            String direction = request.order() != null ? request.order() : "DESC";
+            Pageable pageable = PageRequest.of(request.page(), request.size());
+            orderPage = orderRepository.findOrdersForDashboardSortedByProductName(
+                    user, request.keyword(), direction, pageable);
+        } else {
+            // 기본 정렬: Pageable의 정렬 사용
+            Pageable pageable = createOrderPageable(request);
+            orderPage = orderRepository.findOrdersForDashboard(user, request.keyword(), pageable);
+        }
 
-        // 3. 주문 목록 조회 (검색 + 정렬 + 페이징)
-        Page<com.back.domain.order.order.entity.Order> orderPage =
-                orderRepository.findOrdersForDashboard(user, request.keyword(), pageable);
+        // 3. 빈 결과 처리
+        List<OrderResponse.Summary> content;
+        if (orderPage.isEmpty()) {
+            content = List.of();
+        } else {
+            // 4. 조회된 주문 ID 목록 추출
+            List<Long> orderIds = orderPage.getContent().stream()
+                    .map(com.back.domain.order.order.entity.Order::getId)
+                    .collect(Collectors.toList());
 
-        // 4. 엔티티 → DTO 변환
-        List<OrderResponse.Summary> content = orderPage.getContent().stream()
-                .map(this::convertToOrderSummary)
-                .collect(Collectors.toList());
+            // 5. 주문 상세 정보 조회 (OrderItem, Product, Images 포함)
+            List<com.back.domain.order.order.entity.Order> ordersWithDetails =
+                    orderRepository.findOrdersWithDetailsById(orderIds);
 
-        // 5. 통계 계산
+            // 6. 정렬 순서 유지를 위한 Map 생성
+            java.util.Map<Long, com.back.domain.order.order.entity.Order> orderMap = ordersWithDetails.stream()
+                    .collect(Collectors.toMap(
+                            com.back.domain.order.order.entity.Order::getId,
+                            order -> order
+                    ));
+
+            // 7. 원래 페이징 순서대로 엔티티 정렬 및 DTO 변환
+            content = orderPage.getContent().stream()
+                    .map(order -> orderMap.get(order.getId()))
+                    .filter(java.util.Objects::nonNull)
+                    .map(this::convertToOrderSummary)
+                    .collect(Collectors.toList());
+        }
+
+        // 8. 통계 계산
         OrderResponse.SummaryDto summary = new OrderResponse.SummaryDto(
                 (int) orderPage.getTotalElements()
         );
 
-        // 6. 응답 생성
+        // 9. 응답 생성
         return new OrderResponse.List(
-                summary,
-                content,
-                orderPage.getNumber(),
-                orderPage.getSize(),
-                orderPage.getTotalElements(),
-                orderPage.getTotalPages(),
-                orderPage.hasNext(),
-                orderPage.hasPrevious()
+                summary, content,
+                orderPage.getNumber(), orderPage.getSize(),
+                orderPage.getTotalElements(), orderPage.getTotalPages(),
+                orderPage.hasNext(), orderPage.hasPrevious()
         );
     }
 
     /**
      * 주문용 Pageable 생성 (정렬 포함)
+     * productName 정렬은 별도 쿼리에서 처리하므로 여기서는 제외
      */
     private Pageable createOrderPageable(OrderSearchRequest request) {
         String sort = request.sort() != null ? request.sort() : "orderDate";
@@ -198,8 +227,7 @@ public class DashboardServiceImpl implements DashboardService {
         String sortField = switch (sort) {
             case "totalAmount" -> "totalAmount";
             case "status" -> "status";
-            case "productName" -> "orderDate"; // 상품명 정렬은 복잡하므로 일단 날짜순으로 대체
-            default -> "orderDate";
+            default -> "orderDate"; // productName은 여기서 처리하지 않음
         };
 
         return PageRequest.of(request.page(), request.size(),
@@ -265,50 +293,50 @@ public class DashboardServiceImpl implements DashboardService {
     }
 
     /**
-     * OrderItem을 Product DTO로 변환 (삭제된 상품 처리 포함)
+     * OrderItem을 Product DTO로 변환
      */
     private OrderResponse.Product convertToProductDto(com.back.domain.order.orderItem.entity.OrderItem orderItem) {
         com.back.domain.product.product.entity.Product product = orderItem.getProduct();
 
-        // 삭제된 상품 체크
-        boolean isDeleted = product.isDeleted();
-        String productName = isDeleted ? "[삭제된 상품] " + product.getName() : product.getName();
-        String imageUrl = isDeleted ? null : getProductThumbnailUrl(product);
-
         return new OrderResponse.Product(
                 product.getId(),
-                productName,
+                product.getName(),
                 orderItem.getQuantity(),
                 orderItem.getPrice().intValue(),
-                imageUrl
+                getProductThumbnailUrl(product)
         );
     }
 
     /**
-     * OrderItem을 OrderItem DTO로 변환 (삭제된 상품 처리 포함)
+     * OrderItem을 OrderItem DTO로 변환
      */
     private OrderResponse.OrderItem convertToOrderItemDto(com.back.domain.order.orderItem.entity.OrderItem orderItem) {
         com.back.domain.product.product.entity.Product product = orderItem.getProduct();
 
-        // 삭제된 상품 체크
-        boolean isDeleted = product.isDeleted();
-        String productName = isDeleted ? "[삭제된 상품] " + product.getName() : product.getName();
-        String imageUrl = isDeleted ? null : getProductThumbnailUrl(product);
-
         return new OrderResponse.OrderItem(
                 orderItem.getId(),
                 product.getId(),
-                productName,
+                product.getName(),
                 orderItem.getQuantity(),
                 orderItem.getPrice().intValue(),
-                imageUrl
+                getProductThumbnailUrl(product)
         );
     }
 
     /**
      * 상품 썸네일 이미지 URL 조회
+     * 삭제된 상품이거나 이미지가 없으면 null 반환
      */
     private String getProductThumbnailUrl(com.back.domain.product.product.entity.Product product) {
+        // 삭제된 상품은 이미지 null
+        if (product.isDeleted()) {
+            return null;
+        }
+        
+        if (product.getImages() == null || product.getImages().isEmpty()) {
+            return null;
+        }
+        
         return product.getImages().stream()
                 .filter(image -> "THUMBNAIL".equals(image.getFileType().name()))
                 .findFirst()
