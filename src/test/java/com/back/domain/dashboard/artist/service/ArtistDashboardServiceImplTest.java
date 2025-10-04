@@ -53,6 +53,9 @@ class ArtistDashboardServiceImplTest {
     @Mock
     private FundingContributionRepository fundingContributionRepository;
 
+    @Mock
+    private com.back.domain.artist.repository.ArtistProfileRepository artistProfileRepository;
+
     private static final Long TEST_ARTIST_ID = 5L;
 
     @Test
@@ -280,6 +283,139 @@ class ArtistDashboardServiceImplTest {
         }
 
         return funding;
+    }
+
+    @Test
+    @DisplayName("작가 설정 정보 조회 - 실제 DB 연동 테스트")
+    void getSettings_Success() {
+        // Given
+        User mockUser = createMockUser(TEST_ARTIST_ID, "테스트작가");
+        com.back.domain.artist.entity.ArtistProfile mockProfile = createMockArtistProfile(mockUser);
+
+        when(artistProfileRepository.findByUserId(TEST_ARTIST_ID))
+                .thenReturn(java.util.Optional.of(mockProfile));
+
+        // When
+        com.back.domain.dashboard.artist.dto.response.ArtistSettingsResponse result = 
+                artistDashboardService.getSettings(TEST_ARTIST_ID);
+
+        // Then
+        assertAll(
+                () -> assertThat(result).isNotNull(),
+                // 프로필 정보 검증
+                () -> assertThat(result.profile()).isNotNull(),
+                () -> assertThat(result.profile().nickname()).isEqualTo("테스트작가"),
+                () -> assertThat(result.profile().bio()).isEqualTo("작가 소개글입니다"),
+                () -> assertThat(result.profile().sns()).hasSize(1),
+                () -> assertThat(result.profile().sns().get(0).platform()).isEqualTo("Instagram"),
+                () -> assertThat(result.profile().sns().get(0).handle()).isEqualTo("@test_artist"),
+                () -> assertThat(result.profile().profileImageUrl()).isEqualTo("https://example.com/profile.jpg"),
+                // 사업자 정보 검증
+                () -> assertThat(result.business()).isNotNull(),
+                () -> assertThat(result.business().address()).isEqualTo("서울특별시 강남구 테헤란로 123 상세주소"),
+                () -> assertThat(result.business().verified()).isTrue(),
+                // 계좌 정보 검증 (마스킹 확인)
+                () -> assertThat(result.payout()).isNotNull(),
+                () -> assertThat(result.payout().bankName()).isEqualTo("신한은행"),
+                () -> assertThat(result.payout().accountHolder()).isEqualTo("홍길동"),
+                () -> assertThat(result.payout().accountMasked()).isEqualTo("****-****-**1234"),
+                () -> assertThat(result.payout().status()).isEqualTo("VERIFIED"),
+                // 권한 정보 검증
+                () -> assertThat(result.permissions()).isNotNull(),
+                () -> assertThat(result.permissions().canEditProfile()).isTrue(),
+                () -> assertThat(result.permissions().canEditBusiness()).isTrue(),
+                () -> assertThat(result.permissions().canEditPayout()).isTrue()
+        );
+    }
+
+    @Test
+    @DisplayName("작가 설정 정보 조회 - 작가 프로필 없음")
+    void getSettings_ProfileNotFound() {
+        // Given
+        when(artistProfileRepository.findByUserId(TEST_ARTIST_ID))
+                .thenReturn(java.util.Optional.empty());
+
+        // When & Then
+        org.junit.jupiter.api.Assertions.assertThrows(
+                com.back.global.exception.ServiceException.class,
+                () -> artistDashboardService.getSettings(TEST_ARTIST_ID)
+        );
+    }
+
+    @Test
+    @DisplayName("계좌번호 마스킹 처리 테스트")
+    void accountNumberMasking_Success() {
+        // Given
+        User mockUser = createMockUser(TEST_ARTIST_ID, "작가");
+        
+        // 다양한 계좌번호 패턴 테스트
+        com.back.domain.artist.entity.ArtistProfile profile1 = createMockArtistProfileWithAccount(mockUser, "123-456-789012");
+        com.back.domain.artist.entity.ArtistProfile profile2 = createMockArtistProfileWithAccount(mockUser, "1234567890");
+        com.back.domain.artist.entity.ArtistProfile profile3 = createMockArtistProfileWithAccount(mockUser, "123");
+
+        when(artistProfileRepository.findByUserId(TEST_ARTIST_ID))
+                .thenReturn(java.util.Optional.of(profile1))
+                .thenReturn(java.util.Optional.of(profile2))
+                .thenReturn(java.util.Optional.of(profile3));
+
+        // When
+        com.back.domain.dashboard.artist.dto.response.ArtistSettingsResponse result1 = 
+                artistDashboardService.getSettings(TEST_ARTIST_ID);
+        com.back.domain.dashboard.artist.dto.response.ArtistSettingsResponse result2 = 
+                artistDashboardService.getSettings(TEST_ARTIST_ID);
+        com.back.domain.dashboard.artist.dto.response.ArtistSettingsResponse result3 = 
+                artistDashboardService.getSettings(TEST_ARTIST_ID);
+
+        // Then
+        assertAll(
+                () -> assertThat(result1.payout().accountMasked()).isEqualTo("****-****-**9012"),
+                () -> assertThat(result2.payout().accountMasked()).isEqualTo("****-****-**7890"),
+                () -> assertThat(result3.payout().accountMasked()).isEqualTo("****")
+        );
+    }
+
+    /**
+     * Mock ArtistProfile 생성 헬퍼 메서드
+     */
+    private com.back.domain.artist.entity.ArtistProfile createMockArtistProfile(User user) {
+        return com.back.domain.artist.entity.ArtistProfile.builder()
+                .user(user)
+                .artistApplication(null)
+                .artistName("테스트작가")
+                .mainProducts("주력상품")
+                .snsAccount("@test_artist")
+                .businessAddress("서울특별시 강남구 테헤란로 123")
+                .businessAddressDetail("상세주소")
+                .businessZipCode("06234")
+                .managerPhone("010-1234-5678")
+                .bankName("신한은행")
+                .bankAccount("123-456-789-1234")
+                .accountName("홍길동")
+                .description("작가 소개글입니다")
+                .profileImageUrl("https://example.com/profile.jpg")
+                .build();
+    }
+
+    /**
+     * 특정 계좌번호를 가진 Mock ArtistProfile 생성
+     */
+    private com.back.domain.artist.entity.ArtistProfile createMockArtistProfileWithAccount(User user, String accountNumber) {
+        return com.back.domain.artist.entity.ArtistProfile.builder()
+                .user(user)
+                .artistApplication(null)
+                .artistName("작가")
+                .mainProducts("상품")
+                .snsAccount("@artist")
+                .businessAddress("주소")
+                .businessAddressDetail(null)
+                .businessZipCode("12345")
+                .managerPhone("010-0000-0000")
+                .bankName("은행")
+                .bankAccount(accountNumber)
+                .accountName("예금주")
+                .description("소개")
+                .profileImageUrl("https://example.com/img.jpg")
+                .build();
     }
 
     // 나머지 Mock 데이터 기반 테스트들은 아직 실제 구현이 없으므로 주석 처리

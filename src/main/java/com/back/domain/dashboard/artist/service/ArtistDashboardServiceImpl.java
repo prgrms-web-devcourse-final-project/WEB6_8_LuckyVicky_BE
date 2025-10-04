@@ -56,6 +56,7 @@ public class ArtistDashboardServiceImpl implements ArtistDashboardService {
     private final FundingRepository fundingRepository;
     private final FundingContributionRepository fundingContributionRepository;
     private final BetaAnalyticsDataClient analyticsDataClient;
+    private final com.back.domain.artist.repository.ArtistProfileRepository artistProfileRepository;
 
     @Value("${google.analytics.property-id}")
     private String propertyId;
@@ -452,42 +453,95 @@ public class ArtistDashboardServiceImpl implements ArtistDashboardService {
 
     @Override
     public ArtistSettingsResponse getSettings(Long artistId) {
-        // TODO: 실제 데이터베이스에서 작가 설정 정보 조회
         log.info("작가 설정 정보 조회 - artistId: {}", artistId);
 
+        // 실제 DB에서 작가 프로필 조회
+        com.back.domain.artist.entity.ArtistProfile artistProfile = artistProfileRepository
+                .findByUserId(artistId)
+                .orElseThrow(() -> new com.back.global.exception.ServiceException("404", "작가 프로필을 찾을 수 없습니다."));
+
+        log.info("작가 프로필 조회 완료 - artistId: {}, artistName: {}", artistId, artistProfile.getArtistName());
+
+        // Entity → DTO 변환
+        return convertToSettingsResponse(artistProfile);
+    }
+
+    /**
+     * ArtistProfile 엔티티를 ArtistSettingsResponse DTO로 변환
+     */
+    private ArtistSettingsResponse convertToSettingsResponse(com.back.domain.artist.entity.ArtistProfile profile) {
         // 프로필 정보
-        ArtistSettingsResponse.Profile profile = new ArtistSettingsResponse.Profile(
-                "작가명입니다",
-                "자신을 소개하는 글을 입력해주세요.",
-                List.of(new ArtistSettingsResponse.Sns("Instagram", "@mori_official")),
-                "https://cdn.example.com/u/5/profile.jpg"
+        ArtistSettingsResponse.Profile profileDto = new ArtistSettingsResponse.Profile(
+                profile.getArtistName(),
+                profile.getDescription() != null ? profile.getDescription() : "",
+                profile.getSnsAccount() != null ? 
+                    List.of(new ArtistSettingsResponse.Sns("Instagram", profile.getSnsAccount())) : 
+                    List.of(),
+                profile.getProfileImageUrl()
         );
 
         // 사업자 정보
+        String fullAddress = buildFullAddress(
+                profile.getBusinessAddress(),
+                profile.getBusinessAddressDetail()
+        );
+        
         ArtistSettingsResponse.Business business = new ArtistSettingsResponse.Business(
-                "서울특별시 강남구 테헤란로 123 2층",
-                "123-45-67890",
-                "2025-서울강남-1234",
-                true
+                fullAddress,
+                null,  // 사업자등록번호 (ArtistProfile에 없음)
+                null,  // 통신판매업신고번호 (ArtistProfile에 없음)
+                profile.getBusinessAddress() != null  // 사업자 주소가 있으면 인증됨으로 간주
         );
 
-        // 정산 계좌 정보
+        // 정산 계좌 정보 (마스킹)
         ArtistSettingsResponse.Payout payout = new ArtistSettingsResponse.Payout(
-                "088",
-                "신한",
-                "홍길동",
-                "****-****-**3456",
-                "VERIFIED"
+                null,  // 은행 코드 (ArtistProfile에 없음)
+                profile.getBankName(),
+                profile.getAccountName(),
+                maskAccountNumber(profile.getBankAccount()),
+                profile.getBankAccount() != null ? "VERIFIED" : "PENDING"
         );
 
-        // 권한 정보
+        // 권한 정보 (작가 본인이므로 모든 권한 true)
         ArtistSettingsResponse.Permissions permissions = new ArtistSettingsResponse.Permissions(
-                true,
-                true,
-                true
+                true,  // canEditProfile
+                true,  // canEditBusiness
+                true   // canEditPayout
         );
 
-        return new ArtistSettingsResponse(profile, business, payout, permissions);
+        return new ArtistSettingsResponse(profileDto, business, payout, permissions);
+    }
+
+    /**
+     * 주소와 상세주소를 합쳐서 전체 주소 생성
+     */
+    private String buildFullAddress(String address, String detailAddress) {
+        if (address == null) {
+            return null;
+        }
+        if (detailAddress == null || detailAddress.isBlank()) {
+            return address;
+        }
+        return address + " " + detailAddress;
+    }
+
+    /**
+     * 계좌번호 마스킹 처리
+     * 예: "123-456-789012" → "****-****-**9012"
+     */
+    private String maskAccountNumber(String accountNumber) {
+        if (accountNumber == null || accountNumber.isBlank()) {
+            return null;
+        }
+        
+        // 계좌번호가 4자리 미만이면 전체 마스킹
+        if (accountNumber.length() < 4) {
+            return "****";
+        }
+        
+        // 마지막 4자리만 보이고 나머지는 마스킹
+        String lastFour = accountNumber.substring(accountNumber.length() - 4);
+        return "****-****-**" + lastFour;
     }
 
     @Override
