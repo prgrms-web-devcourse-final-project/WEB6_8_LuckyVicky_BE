@@ -39,4 +39,4 @@ custom:
 app:
   cookie:
     secure: true
-  frontend-url: ${FRONTEND_URL:https://www.mori-mori.store}
+  frontend-url: ${FRONTEND_URL:https://mori-mori.store}

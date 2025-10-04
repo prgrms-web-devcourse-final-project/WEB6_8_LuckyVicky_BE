@@ -20,6 +20,7 @@ spring:
 app:
   cookie:
     secure: false
+  frontend-url: http://localhost:3000
 
 # JWT 설정 (.env 파일 없어도 동작하도록 기본값 제공)
 jwt:
