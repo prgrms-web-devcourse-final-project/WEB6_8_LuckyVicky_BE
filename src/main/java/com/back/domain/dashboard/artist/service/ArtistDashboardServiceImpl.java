@@ -44,6 +44,7 @@ public class ArtistDashboardServiceImpl implements ArtistDashboardService {
     private final FundingContributionRepository fundingContributionRepository;
     private final RefundRepository refundRepository;
     private final com.back.domain.order.exchange.repository.ExchangeRepository exchangeRepository;
+    private final com.back.domain.order.order.repository.OrderRepository orderRepository;
     private final BetaAnalyticsDataClient analyticsDataClient;
     private final com.back.domain.artist.repository.ArtistProfileRepository artistProfileRepository;
 
@@ -185,10 +186,245 @@ public class ArtistDashboardServiceImpl implements ArtistDashboardService {
 
     @Override
     public ArtistOrderResponse.List getOrders(Long artistId, ArtistOrderSearchRequest request) {
-        // TODO: 실제 데이터베이스 연동 필요
-        log.info("작가 주문 내역 조회 - artistId: {}, page: {}, size: {}, status: {}",
-                artistId, request.page(), request.size(), request.status());
-        throw new UnsupportedOperationException("작가 주문 목록 조회는 아직 구현되지 않았습니다.");
+        log.info("작가 주문 내역 조회 시작 - artistId: {}, page: {}, size: {}, status: {}, keyword: {}, startDate: {}, endDate: {}",
+                artistId, request.page(), request.size(), request.status(), request.keyword(), request.startDate(), request.endDate());
+
+        // status 문자열을 OrderStatus enum으로 변환
+        com.back.domain.order.order.entity.OrderStatus orderStatus = null;
+        if (request.status() != null && !request.status().isBlank()) {
+            try {
+                orderStatus = com.back.domain.order.order.entity.OrderStatus.valueOf(request.status());
+            } catch (IllegalArgumentException e) {
+                log.warn("잘못된 주문 상태값: {}", request.status());
+            }
+        }
+
+        // 날짜 파싱
+        java.time.LocalDateTime startDateTime = null;
+        java.time.LocalDateTime endDateTime = null;
+        
+        if (request.startDate() != null && !request.startDate().isBlank()) {
+            try {
+                startDateTime = java.time.LocalDate.parse(request.startDate()).atStartOfDay();
+            } catch (java.time.format.DateTimeParseException e) {
+                log.warn("잘못된 시작 날짜 형식: {}", request.startDate());
+            }
+        }
+        
+        if (request.endDate() != null && !request.endDate().isBlank()) {
+            try {
+                endDateTime = java.time.LocalDate.parse(request.endDate()).atTime(23, 59, 59);
+            } catch (java.time.format.DateTimeParseException e) {
+                log.warn("잘못된 종료 날짜 형식: {}", request.endDate());
+            }
+        }
+
+        // 동적 정렬 처리
+        org.springframework.data.domain.Sort sort = createOrderSort(request.sort(), request.order());
+        PageRequest pageRequest = PageRequest.of(request.page(), request.size(), sort);
+
+        // Repository를 통한 실제 DB 조회
+        Page<com.back.domain.order.order.entity.Order> orderPage = orderRepository.findOrdersByArtist(
+                artistId,
+                orderStatus,
+                request.keyword(),
+                startDateTime,
+                endDateTime,
+                pageRequest
+        );
+
+        // ID 리스트 추출
+        List<Long> orderIds = orderPage.getContent().stream()
+                .map(com.back.domain.order.order.entity.Order::getId)
+                .toList();
+
+        // Fetch Join으로 상세 정보 조회 (N+1 방지)
+        List<com.back.domain.order.order.entity.Order> ordersWithDetails = orderIds.isEmpty() 
+                ? List.of() 
+                : orderRepository.findOrdersWithDetailsByArtist(orderIds, artistId);
+
+        // Entity → DTO 변환
+        List<ArtistOrderResponse.Order> content = ordersWithDetails.stream()
+                .map(order -> convertToOrderDto(order, artistId))
+                .toList();
+
+        // 상태별 요약 정보 계산
+        ArtistOrderResponse.Summary summary = calculateOrderSummary(artistId);
+
+        int totalPages = orderPage.getTotalPages();
+        long totalElements = orderPage.getTotalElements();
+        boolean hasNext = orderPage.hasNext();
+        boolean hasPrevious = orderPage.hasPrevious();
+
+        log.info("작가 주문 내역 조회 완료 - 조회된 주문 수: {}, 전체: {}", content.size(), totalElements);
+
+        return new ArtistOrderResponse.List(
+                summary,
+                content,
+                request.page(),
+                request.size(),
+                totalElements,
+                totalPages,
+                hasNext,
+                hasPrevious
+        );
+    }
+
+    /**
+     * 주문 정렬 생성
+     */
+    private org.springframework.data.domain.Sort createOrderSort(String sortField, String sortOrder) {
+        if (sortField == null || sortField.isBlank()) {
+            sortField = "orderDate";
+        }
+        if (sortOrder == null || sortOrder.isBlank()) {
+            sortOrder = "DESC";
+        }
+
+        org.springframework.data.domain.Sort.Direction direction = 
+                "ASC".equalsIgnoreCase(sortOrder) 
+                ? org.springframework.data.domain.Sort.Direction.ASC 
+                : org.springframework.data.domain.Sort.Direction.DESC;
+
+        return switch (sortField) {
+            case "status" -> org.springframework.data.domain.Sort.by(direction, "status");
+            case "totalAmount" -> org.springframework.data.domain.Sort.by(direction, "totalAmount");
+            case "customerName" -> org.springframework.data.domain.Sort.by(direction, "user.name");
+            case "productName" -> org.springframework.data.domain.Sort.by(direction, "orderDate"); // 상품명 정렬은 복잡하므로 일단 주문일자로 대체
+            default -> org.springframework.data.domain.Sort.by(direction, "orderDate");
+        };
+    }
+
+    /**
+     * Order 엔티티를 OrderResponse.Order DTO로 변환
+     */
+    private ArtistOrderResponse.Order convertToOrderDto(com.back.domain.order.order.entity.Order order, Long artistId) {
+        // 작가의 상품만 필터링
+        List<com.back.domain.order.orderItem.entity.OrderItem> artistOrderItems = order.getOrderItems().stream()
+                .filter(item -> item.getProduct().getUser().getId().equals(artistId))
+                .toList();
+
+        // 상품 요약 생성 (첫 번째 상품명 + 나머지 개수)
+        String productSummary = "";
+        int itemCount = artistOrderItems.size();
+        
+        if (!artistOrderItems.isEmpty()) {
+            String firstName = artistOrderItems.get(0).getProduct().getName();
+            if (itemCount > 1) {
+                productSummary = firstName + " 외 " + (itemCount - 1) + "건";
+            } else {
+                productSummary = firstName;
+            }
+        }
+
+        // 총 주문 금액 계산 (작가의 상품만)
+        int totalAmount = artistOrderItems.stream()
+                .mapToInt(item -> item.getPrice().intValue() * item.getQuantity())
+                .sum();
+
+        // 구매자 정보
+        com.back.domain.user.entity.User buyer = order.getUser();
+        ArtistOrderResponse.Buyer buyerDto = new ArtistOrderResponse.Buyer(
+                buyer.getId(),
+                buyer.getName(),  // nickname 대신 name 사용
+                buyer.getName()
+        );
+
+        // 배송 정보 (배송 엔티티가 없으므로 주문 상태 기반)
+        String shipmentStatus = convertOrderStatusToShipmentStatus(order.getStatus());
+        ArtistOrderResponse.Shipment shipmentDto = new ArtistOrderResponse.Shipment(
+                shipmentStatus,
+                null,  // 운송장 번호 (배송 엔티티에서 가져와야 함)
+                null   // 택배사 (배송 엔티티에서 가져와야 함)
+        );
+
+        // 상태 텍스트 변환
+        String statusText = convertOrderStatusToKorean(order.getStatus());
+
+        // 권한 정보
+        boolean canChangeStatus = order.getStatus() == com.back.domain.order.order.entity.OrderStatus.PAYMENT_COMPLETED ||
+                                  order.getStatus() == com.back.domain.order.order.entity.OrderStatus.PREPARING_SHIPMENT;
+        boolean canCancel = order.getStatus() == com.back.domain.order.order.entity.OrderStatus.PAYMENT_COMPLETED;
+
+        ArtistOrderResponse.Permissions permissions = new ArtistOrderResponse.Permissions(
+                canChangeStatus,
+                canCancel
+        );
+
+        return new ArtistOrderResponse.Order(
+                order.getId().toString(),
+                order.getOrderNumber(),
+                order.getOrderDate().format(DateTimeFormatter.ofPattern("yyyy. MM. dd HH:mm")),
+                order.getStatus().name(),
+                statusText,
+                totalAmount,
+                productSummary,
+                itemCount,
+                buyerDto,
+                shipmentDto,
+                permissions
+        );
+    }
+
+    /**
+     * OrderStatus를 배송 상태로 변환
+     */
+    private String convertOrderStatusToShipmentStatus(com.back.domain.order.order.entity.OrderStatus status) {
+        return switch (status) {
+            case PAYMENT_COMPLETED -> "발주 전";
+            case PREPARING_SHIPMENT -> "배송 준비중";
+            case SHIPPING -> "배송 중";
+            case DELIVERED -> "배송 완료";
+            default -> "기타";
+        };
+    }
+
+    /**
+     * OrderStatus Enum을 한글로 변환
+     */
+    private String convertOrderStatusToKorean(com.back.domain.order.order.entity.OrderStatus status) {
+        return switch (status) {
+            case PAYMENT_COMPLETED -> "결제완료";
+            case PREPARING_SHIPMENT -> "배송준비중";
+            case SHIPPING -> "배송중";
+            case DELIVERED -> "배송완료";
+            case CANCELLATION_REQUESTED -> "취소요청";
+            case CANCELLATION_COMPLETED -> "취소완료";
+            case REFUND_REQUESTED -> "환불요청";
+            case REFUND_COMPLETED -> "환불완료";
+            case EXCHANGE_REQUESTED -> "교환요청";
+            case EXCHANGE_COMPLETED -> "교환완료";
+        };
+    }
+
+    /**
+     * 작가의 주문 상태별 요약 정보 계산
+     */
+    private ArtistOrderResponse.Summary calculateOrderSummary(Long artistId) {
+        // 모든 주문 조회 (상태별 집계용)
+        Page<com.back.domain.order.order.entity.Order> allOrders = orderRepository.findOrdersByArtist(
+                artistId, null, null, null, null,
+                PageRequest.of(0, Integer.MAX_VALUE)
+        );
+
+        int total = (int) allOrders.getTotalElements();
+        int pending = 0;
+        int preparing = 0;
+        int shipped = 0;
+        int delivered = 0;
+        int canceled = 0;
+
+        for (com.back.domain.order.order.entity.Order order : allOrders.getContent()) {
+            switch (order.getStatus()) {
+                case PAYMENT_COMPLETED -> pending++;
+                case PREPARING_SHIPMENT -> preparing++;
+                case SHIPPING -> shipped++;
+                case DELIVERED -> delivered++;
+                case CANCELLATION_COMPLETED, REFUND_COMPLETED -> canceled++;
+            }
+        }
+
+        return new ArtistOrderResponse.Summary(total, pending, preparing, shipped, delivered, canceled);
     }
 
     @Override
