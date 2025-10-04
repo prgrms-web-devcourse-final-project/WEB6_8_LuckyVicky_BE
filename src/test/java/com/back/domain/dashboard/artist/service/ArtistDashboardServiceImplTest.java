@@ -1,6 +1,9 @@
 package com.back.domain.dashboard.artist.service;
 
-import com.back.domain.dashboard.artist.dto.request.*;
+import com.back.domain.dashboard.artist.dto.request.ArtistCancellationSearchRequest;
+import com.back.domain.dashboard.artist.dto.request.ArtistExchangeSearchRequest;
+import com.back.domain.dashboard.artist.dto.request.ArtistFundingSearchRequest;
+import com.back.domain.dashboard.artist.dto.request.ArtistProductSearchRequest;
 import com.back.domain.dashboard.artist.dto.response.*;
 import com.back.domain.funding.entity.Funding;
 import com.back.domain.funding.entity.FundingStatus;
@@ -21,7 +24,6 @@ import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
 
 import java.time.LocalDateTime;
-import java.util.ArrayList;
 import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -284,22 +286,19 @@ class ArtistDashboardServiceImplTest {
     private Funding createMockFunding(Long id, User user, String title, long targetAmount, FundingStatus status) {
         LocalDateTime now = LocalDateTime.now();
 
-        Funding funding = Funding.builder()
-                .user(user)
-                .title(title)
-                .description("테스트 설명")
-                .imageUrl("https://example.com/image.jpg")
-                .status(status)
-                .targetAmount(targetAmount)
-                .collectedAmount(0L)
-                .startDate(now.minusDays(10))
-                .endDate(now.plusDays(20))
-                .participantCount(10)
-                .options(new ArrayList<>())
-                .news(new ArrayList<>())
-                .communities(new ArrayList<>())
-                .images(new ArrayList<>())
-                .build();
+        Funding funding = Funding.create(
+                user,
+                title,
+                "테스트 펀딩 설명",
+                "https://example.com/image.jpg",
+                targetAmount,
+                now.plusDays(1),
+                now.plusDays(20),
+                status,
+                List.of()
+        );
+
+        funding.increaseParticipantCount(10);
 
         try {
             java.lang.reflect.Field idField = funding.getClass().getSuperclass().getDeclaredField("id");
