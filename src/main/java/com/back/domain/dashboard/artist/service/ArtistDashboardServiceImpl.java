@@ -1,17 +1,7 @@
 package com.back.domain.dashboard.artist.service;
 
 import com.back.domain.dashboard.artist.dto.request.*;
-import com.back.domain.dashboard.artist.dto.response.ArtistCashResponse;
-import com.back.domain.dashboard.artist.dto.response.ArtistMainResponse;
-import com.back.domain.dashboard.artist.dto.response.ArtistProductResponse;
-import com.back.domain.dashboard.artist.dto.response.ArtistCashHistoryResponse;
-import com.back.domain.dashboard.artist.dto.response.ArtistOrderResponse;
-import com.back.domain.dashboard.artist.dto.response.ArtistCancellationResponse;
-import com.back.domain.dashboard.artist.dto.response.ArtistExchangeResponse;
-import com.back.domain.dashboard.artist.dto.response.ArtistSettingsResponse;
-import com.back.domain.dashboard.artist.dto.response.ArtistFundingResponse;
-import com.back.domain.dashboard.artist.dto.response.ArtistSettlementResponse;
-import com.back.domain.dashboard.artist.dto.response.ArtistTrafficSourceResponse;
+import com.back.domain.dashboard.artist.dto.response.*;
 import com.back.domain.funding.entity.Funding;
 import com.back.domain.funding.entity.FundingStatus;
 import com.back.domain.funding.repository.FundingContributionRepository;
@@ -34,7 +24,6 @@ import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
 
 /**
@@ -65,98 +54,8 @@ public class ArtistDashboardServiceImpl implements ArtistDashboardService {
 
     @Override
     public ArtistMainResponse getMainStats(Long artistId, ArtistMainStatsRequest request) {
-        // TODO: 실제 데이터베이스에서 통계 데이터 조회
-
-        // 프로필 정보
-        ArtistMainResponse.Profile profile = new ArtistMainResponse.Profile(
-                5L,
-                "감성작가",
-                "artist@example.com",
-                "https://cdn.example.com/u/5/profile.jpg"
-        );
-
-        // 통계 정보
-        ArtistMainResponse.Stats stats = new ArtistMainResponse.Stats(
-                1250,
-                28,
-                125000,
-                8,
-                2450000,
-                156,
-                4.8,
-                3
-        );
-
-        // 트렌드 메타 정보
-        ArtistMainResponse.Meta meta = new ArtistMainResponse.Meta(
-                "6M",
-                "2025-03-01",
-                "2025-09-01",
-                "WEEK",
-                "Asia/Seoul",
-                400,
-                new ArtistMainResponse.Compare("2024-09-01", "2025-03-01")
-        );
-
-        // 시계열 데이터 포인트 (간략화)
-        List<ArtistMainResponse.DataPoint> salesPoints = Arrays.asList(
-                new ArtistMainResponse.DataPoint("2025-03-03", 95000),
-                new ArtistMainResponse.DataPoint("2025-03-10", 140000),
-                new ArtistMainResponse.DataPoint("2025-03-17", 125000)
-        );
-
-        List<ArtistMainResponse.DataPoint> orderPoints = Arrays.asList(
-                new ArtistMainResponse.DataPoint("2025-03-03", 5),
-                new ArtistMainResponse.DataPoint("2025-03-10", 8),
-                new ArtistMainResponse.DataPoint("2025-03-17", 6)
-        );
-
-        List<ArtistMainResponse.DataPoint> followerPoints = Arrays.asList(
-                new ArtistMainResponse.DataPoint("2025-03-03", 1180),
-                new ArtistMainResponse.DataPoint("2025-03-10", 1195),
-                new ArtistMainResponse.DataPoint("2025-03-17", 1250)
-        );
-
-        // 시계열 데이터
-        ArtistMainResponse.Series series = new ArtistMainResponse.Series(
-                new ArtistMainResponse.SeriesData("KRW", salesPoints, 2450000),
-                new ArtistMainResponse.SeriesData("COUNT", orderPoints, 156),
-                new ArtistMainResponse.SeriesData("COUNT", followerPoints, 1250)
-        );
-
-        // 변화량 정보
-        ArtistMainResponse.Changes changes = new ArtistMainResponse.Changes(
-                new ArtistMainResponse.ChangeData(-40000, -0.242),
-                new ArtistMainResponse.ChangeData(1, 0.143),
-                new ArtistMainResponse.ChangeData(70, 0.059)
-        );
-
-        // 트렌드 정보
-        ArtistMainResponse.Trends trends = new ArtistMainResponse.Trends(meta, series, changes);
-
-        // 알림 정보 (간략화)
-        List<ArtistMainResponse.Alert> orderAlerts = List.of(
-                new ArtistMainResponse.Alert("NEW_ORDER", "새로운 주문 3건", 3, LocalDateTime.now())
-        );
-
-        List<ArtistMainResponse.Alert> fundingAlerts = List.of(
-                new ArtistMainResponse.Alert("FUNDING_GOAL_ACHIEVED", "펀딩 목표 달성", 1, LocalDateTime.now())
-        );
-
-        ArtistMainResponse.Notifications notifications = new ArtistMainResponse.Notifications(orderAlerts, fundingAlerts);
-
-        // 유입 경로 정보 (GA4) - 7일 기준
-        ArtistMainResponse.TrafficSources trafficSources = getTrafficSourcesForMain(artistId, request.tz());
-
-        return new ArtistMainResponse(
-                profile,
-                stats,
-                trends,
-                notifications,
-                trafficSources,
-                LocalDateTime.now(),
-                "Asia/Seoul"
-        );
+        // TODO: 실제 데이터베이스 연동 필요
+        throw new UnsupportedOperationException("작가 메인 대시보드 통계는 아직 구현되지 않았습니다.");
     }
 
     /**
@@ -271,108 +170,25 @@ public class ArtistDashboardServiceImpl implements ArtistDashboardService {
 
     @Override
     public ArtistCashResponse.Balance getCashBalance(Long artistId) {
-        // TODO: 실제 데이터베이스에서 지갑 잔액 정보 조회
+        // TODO: 실제 데이터베이스 연동 필요
         log.info("작가 지갑 잔액 조회 - artistId: {}", artistId);
-
-        return new ArtistCashResponse.Balance(
-                72000,
-                15000,
-                0,
-                72000,
-                "KRW",
-                LocalDateTime.now()
-        );
+        throw new UnsupportedOperationException("작가 지갑 잔액 조회는 아직 구현되지 않았습니다.");
     }
 
     @Override
     public ArtistCashHistoryResponse.List getCashHistory(Long artistId, ArtistCashHistorySearchRequest request) {
-        // TODO: 실제 데이터베이스에서 캐시 거래 내역 조회
+        // TODO: 실제 데이터베이스 연동 필요
         log.info("작가 캐시 내역 조회 - artistId: {}, page: {}, size: {}, type: {}",
                 artistId, request.page(), request.size(), request.type());
-
-        ArtistCashHistoryResponse.Summary summary = new ArtistCashHistoryResponse.Summary(
-                74000,
-                64000,
-                10000
-        );
-
-        List<ArtistCashHistoryResponse.Transaction> content = Arrays.asList(
-                new ArtistCashHistoryResponse.Transaction(
-                        "TX-001",
-                        "2025-09-24T09:12:00+09:00",
-                        "DEPOSIT",
-                        "정산금 입금",
-                        10000,
-                        0,
-                        72000,
-                        "WALLET",
-                        "모리캐시",
-                        "COMPLETED",
-                        null
-                ),
-                new ArtistCashHistoryResponse.Transaction(
-                        "TX-002",
-                        "2025-09-23T16:20:00+09:00",
-                        "WITHDRAWAL",
-                        "환전",
-                        0,
-                        50000,
-                        62000,
-                        "BANK_TRANSFER",
-                        "계좌이체",
-                        "COMPLETED",
-                        "우리은행"
-                )
-        );
-
-        return new ArtistCashHistoryResponse.List(
-                summary,
-                content,
-                request.page(),
-                request.size(),
-                content.size(),
-                1,
-                false,
-                false
-        );
+        throw new UnsupportedOperationException("작가 캐시 거래 내역 조회는 아직 구현되지 않았습니다.");
     }
 
     @Override
     public ArtistOrderResponse.List getOrders(Long artistId, ArtistOrderSearchRequest request) {
-        // TODO: 실제 데이터베이스에서 주문 목록 조회
+        // TODO: 실제 데이터베이스 연동 필요
         log.info("작가 주문 내역 조회 - artistId: {}, page: {}, size: {}, status: {}",
                 artistId, request.page(), request.size(), request.status());
-
-        ArtistOrderResponse.Summary summary = new ArtistOrderResponse.Summary(
-                156, 8, 12, 100, 36, 5
-        );
-
-        List<ArtistOrderResponse.Order> content = List.of(
-                new ArtistOrderResponse.Order(
-                        "ORDER-001",
-                        "0123157",
-                        "2025-09-18",
-                        "PENDING",
-                        "발주 전",
-                        47500,
-                        "감성 포스터 외 1건",
-                        2,
-                        new ArtistOrderResponse.Buyer(201L, "아트러버", "김**"),
-                        new ArtistOrderResponse.Shipment("READY", null, null),
-                        new ArtistOrderResponse.Permissions(true, true)
-                )
-        );
-
-        return new ArtistOrderResponse.List(
-                summary,
-                content,
-                request.page(),
-                request.size(),
-                156,
-                8,
-                request.page() < 7,
-                request.page() > 0
-        );
+        throw new UnsupportedOperationException("작가 주문 목록 조회는 아직 구현되지 않았습니다.");
     }
 
     @Override
@@ -659,11 +475,6 @@ public class ArtistDashboardServiceImpl implements ArtistDashboardService {
                 customer.getName()
         );
 
-        // TODO: 교환 요청 상세 조회 API 구현 시 활성화
-        // 교환 요청 정보 (교환 방법 정보를 옵션으로 표시)
-        // String exchangeOption = exchange.getExchangeMethod() != null 
-        //         ? convertExchangeMethodToKorean(exchange.getExchangeMethod()) 
-        //         : "";
         int exchangeQuantity = firstExchangeItem != null ? firstExchangeItem.getQuantity() : 0;
 
         ArtistExchangeResponse.ExchangeRequested exchangeRequested = new ArtistExchangeResponse.ExchangeRequested(
@@ -721,16 +532,6 @@ public class ArtistDashboardServiceImpl implements ArtistDashboardService {
         };
     }
 
-    // TODO: 교환 요청 상세 조회 API 구현 시 활성화
-    /**
-     * ExchangeMethod Enum을 한글로 변환
-     */
-    // private String convertExchangeMethodToKorean(com.back.domain.order.exchange.entity.Exchange.ExchangeMethod method) {
-    //     return switch (method) {
-    //         case PICKUP -> "수거 후 교환";
-    //         case DIRECT -> "직접 교환";
-    //     };
-    // }
 
     @Override
     public ArtistSettingsResponse getSettings(Long artistId) {
@@ -951,105 +752,10 @@ public class ArtistDashboardServiceImpl implements ArtistDashboardService {
 
     @Override
     public ArtistSettlementResponse getSettlements(Long artistId, ArtistSettlementSearchRequest request) {
-        // TODO: 실제 데이터베이스에서 정산 내역 조회
-        // TODO: 연도가 null이면 서버 현재 연도 사용
-
-        // 조회 범위 - month 파라미터를 그대로 전달
-        ArtistSettlementResponse.Scope scope = new ArtistSettlementResponse.Scope(
-                request.year() != null ? request.year() : 2025, request.month()
-        );
-
-        // 요약 정보
-        ArtistSettlementResponse.Summary summary = new ArtistSettlementResponse.Summary(
-                new ArtistSettlementResponse.AmountInfo(128000, "총 매출"),
-                new ArtistSettlementResponse.AmountInfo(51264, "수수료"),
-                new ArtistSettlementResponse.AmountInfo(64000, "순수익")
-        );
-
-        // 차트 데이터 (월별)
-        List<ArtistSettlementResponse.ChartDataPoint> salesData = Arrays.asList(
-                new ArtistSettlementResponse.ChartDataPoint("2025-01-01", 500000),
-                new ArtistSettlementResponse.ChartDataPoint("2025-02-01", 750000),
-                new ArtistSettlementResponse.ChartDataPoint("2025-03-01", 650000),
-                new ArtistSettlementResponse.ChartDataPoint("2025-04-01", 650000),
-                new ArtistSettlementResponse.ChartDataPoint("2025-05-01", 550000),
-                new ArtistSettlementResponse.ChartDataPoint("2025-06-01", 800000),
-                new ArtistSettlementResponse.ChartDataPoint("2025-07-01", 850000),
-                new ArtistSettlementResponse.ChartDataPoint("2025-08-01", 450000),
-                new ArtistSettlementResponse.ChartDataPoint("2025-09-01", 800000),
-                new ArtistSettlementResponse.ChartDataPoint("2025-10-01", 950000),
-                new ArtistSettlementResponse.ChartDataPoint("2025-11-01", 1000000),
-                new ArtistSettlementResponse.ChartDataPoint("2025-12-01", 1100000)
-        );
-
-        ArtistSettlementResponse.Chart chart = new ArtistSettlementResponse.Chart(
-                new ArtistSettlementResponse.ChartSeries(salesData),
-                new ArtistSettlementResponse.YDomain(0, 1100000)
-        );
-
-        // 테이블 데이터
-        List<ArtistSettlementResponse.Settlement> settlements = Arrays.asList(
-                new ArtistSettlementResponse.Settlement(
-                        910004L,
-                        "2025-09-18",
-                        new ArtistSettlementResponse.Product(101L, "상품명입니다 상품명입니다"),
-                        18000,
-                        200,
-                        17800,
-                        "PENDING",
-                        "미지급"
-                ),
-                new ArtistSettlementResponse.Settlement(
-                        910003L,
-                        "2025-09-18",
-                        new ArtistSettlementResponse.Product(102L, "상품명입니다 상품명입니다"),
-                        50000,
-                        500,
-                        49500,
-                        "COMPLETED",
-                        "정산 완료"
-                ),
-                new ArtistSettlementResponse.Settlement(
-                        910002L,
-                        "2025-09-18",
-                        new ArtistSettlementResponse.Product(103L, "상품명입니다 상품명입니다"),
-                        30000,
-                        1000,
-                        29000,
-                        "COMPLETED",
-                        "정산 완료"
-                ),
-                new ArtistSettlementResponse.Settlement(
-                        910001L,
-                        "2025-09-18",
-                        new ArtistSettlementResponse.Product(104L, "상품명입니다 상품명입니다"),
-                        5000,
-                        100,
-                        4900,
-                        "PENDING",
-                        "미지급"
-                )
-        );
-
-        ArtistSettlementResponse.Table table = new ArtistSettlementResponse.Table(
-                settlements,
-                request.page(),
-                request.size(),
-                124,
-                7,
-                true,
-                false
-        );
-
-        return new ArtistSettlementResponse(
-                scope,
-                request.granularity(),
-                "Asia/Seoul",
-                summary,
-                chart,
-                table,
-                LocalDateTime.now()
-        );
+        // TODO: 실제 데이터베이스 연동 필요
+        log.info("작가 정산 내역 조회 - artistId: {}, year: {}, month: {}",
+                artistId, request.year(), request.month());
+        throw new UnsupportedOperationException("작가 정산 내역 조회는 아직 구현되지 않았습니다.");
     }
 
     @Override
