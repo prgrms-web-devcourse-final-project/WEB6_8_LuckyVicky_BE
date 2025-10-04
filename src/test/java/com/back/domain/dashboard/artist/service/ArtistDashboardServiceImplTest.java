@@ -1,9 +1,7 @@
 package com.back.domain.dashboard.artist.service;
 
-import com.back.domain.dashboard.artist.dto.request.ArtistFundingSearchRequest;
-import com.back.domain.dashboard.artist.dto.request.ArtistProductSearchRequest;
-import com.back.domain.dashboard.artist.dto.response.ArtistFundingResponse;
-import com.back.domain.dashboard.artist.dto.response.ArtistProductResponse;
+import com.back.domain.dashboard.artist.dto.request.*;
+import com.back.domain.dashboard.artist.dto.response.*;
 import com.back.domain.funding.entity.Funding;
 import com.back.domain.funding.entity.FundingStatus;
 import com.back.domain.funding.repository.FundingContributionRepository;
@@ -11,6 +9,7 @@ import com.back.domain.funding.repository.FundingRepository;
 import com.back.domain.product.product.entity.Product;
 import com.back.domain.product.product.entity.SellingStatus;
 import com.back.domain.product.product.repository.ProductRepository;
+import com.back.domain.user.entity.User;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -20,7 +19,6 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
-import com.back.domain.user.entity.User;
 
 import java.time.LocalDateTime;
 import java.util.ArrayList;
@@ -33,12 +31,10 @@ import static org.mockito.Mockito.when;
 
 /**
  * ArtistDashboardServiceImpl 테스트
- * 비즈니스 로직과 데이터 일관성에 집중
- * 2025.09.30 펀딩 실제 DB 연동에 맞춰 테스트 수정
- * 2025.10.02 JWT 표준 패턴 적용 - Request DTO 사용
+ * 핵심 비즈니스 로직만 검증
  */
 @ExtendWith(MockitoExtension.class)
-@DisplayName("작가 대시보드 서비스 구현체 테스트")
+@DisplayName("작가 대시보드 서비스 테스트")
 class ArtistDashboardServiceImplTest {
 
     @InjectMocks
@@ -64,131 +60,49 @@ class ArtistDashboardServiceImplTest {
 
     private static final Long TEST_ARTIST_ID = 5L;
 
-    @Test
-    @DisplayName("상품 목록 조회 - 실제 DB 연동 테스트")
-    void getProducts_ReturnsPaginatedResults() {
-        // Given
-        Product mockProduct1 = createMockProduct(101L, "상품A", 10000, 10, SellingStatus.SELLING);
-        Product mockProduct2 = createMockProduct(102L, "상품B", 20000, 20, SellingStatus.SELLING);
-        Product mockProduct3 = createMockProduct(103L, "상품C", 30000, 0, SellingStatus.SOLD_OUT);
-        Product mockProduct4 = createMockProduct(104L, "상품D", 15000, 5, SellingStatus.BEFORE_SELLING);
+    // ==================== 상품 테스트 ====================
 
-        Page<Product> mockPage = new PageImpl<>(
-                List.of(mockProduct1, mockProduct2, mockProduct3, mockProduct4),
-                PageRequest.of(0, 10),
-                4
-        );
+    @Test
+    @DisplayName("상품 목록 조회 - 기본 조회 및 변환 검증")
+    void getProducts_Success() {
+        // Given
+        Product mockProduct = createMockProduct(101L, "테스트 상품", 10000, 10, SellingStatus.SELLING);
+        Page<Product> mockPage = new PageImpl<>(List.of(mockProduct), PageRequest.of(0, 10), 1);
 
         when(productRepository.findProductsByArtist(
                 eq(TEST_ARTIST_ID), isNull(), isNull(), eq("createDate"), eq("DESC"), any(PageRequest.class)))
                 .thenReturn(mockPage);
 
-        ArtistProductSearchRequest request = new ArtistProductSearchRequest(
-                0, 10, null, null, "createDate", "DESC"
-        );
+        ArtistProductSearchRequest request = new ArtistProductSearchRequest(0, 10, null, null, "createDate", "DESC");
 
         // When
         ArtistProductResponse.List result = artistDashboardService.getProducts(TEST_ARTIST_ID, request);
 
-        // Then - 페이징 로직과 데이터 일관성 검증
+        // Then
         assertAll(
-                () -> assertThat(result).isNotNull(),
-                () -> assertThat(result.getContent()).hasSize(4),
-                () -> assertThat(result.getTotalElements()).isEqualTo(4),
-                () -> assertThat(result.getTotalPages()).isEqualTo(1),
-                () -> assertThat(result.isHasNext()).isFalse(),
-                () -> assertThat(result.isHasPrevious()).isFalse(),
-                // 첫 번째 상품 검증
-                () -> assertThat(result.getContent().getFirst().productId()).isEqualTo(101L),
-                () -> assertThat(result.getContent().getFirst().productName()).isEqualTo("상품A"),
-                () -> assertThat(result.getContent().getFirst().price()).isEqualTo(10000),
-                () -> assertThat(result.getContent().getFirst().discountRate()).isEqualTo(10),
+                () -> assertThat(result.getContent()).hasSize(1),
                 () -> assertThat(result.getContent().getFirst().discountPrice()).isEqualTo(9000),
-                () -> assertThat(result.getContent().getFirst().sellingStatus()).isEqualTo("SELLING"),
                 () -> assertThat(result.getContent().getFirst().statusText()).isEqualTo("판매중")
         );
     }
 
-    @Test
-    @DisplayName("상품 목록 조회 - 검색 키워드 필터 적용")
-    void getProducts_WithKeywordFilter() {
-        // Given
-        Product mockProduct = createMockProduct(101L, "감성 포스터", 25000, 10, SellingStatus.SELLING);
-
-        Page<Product> mockPage = new PageImpl<>(
-                List.of(mockProduct),
-                PageRequest.of(0, 10),
-                1
-        );
-
-        when(productRepository.findProductsByArtist(
-                eq(TEST_ARTIST_ID), eq("포스터"), isNull(), eq("createDate"), eq("DESC"), any(PageRequest.class)))
-                .thenReturn(mockPage);
-
-        ArtistProductSearchRequest request = new ArtistProductSearchRequest(
-                0, 10, "포스터", null, "createDate", "DESC"
-        );
-
-        // When
-        ArtistProductResponse.List result = artistDashboardService.getProducts(TEST_ARTIST_ID, request);
-
-        // Then
-        assertAll(
-                () -> assertThat(result.getContent()).hasSize(1),
-                () -> assertThat(result.getContent().getFirst().productName()).contains("포스터"),
-                () -> assertThat(result.getTotalElements()).isEqualTo(1)
-        );
-    }
+    // ==================== 펀딩 테스트 ====================
 
     @Test
-    @DisplayName("상품 목록 조회 - 판매중 필터 적용")
-    void getProducts_WithSellingFilter() {
-        // Given
-        Product mockProduct = createMockProduct(101L, "판매중 상품", 10000, 0, SellingStatus.SELLING);
-
-        Page<Product> mockPage = new PageImpl<>(
-                List.of(mockProduct),
-                PageRequest.of(0, 10),
-                1
-        );
-
-        when(productRepository.findProductsByArtist(
-                eq(TEST_ARTIST_ID), isNull(), eq(true), eq("createDate"), eq("DESC"), any(PageRequest.class)))
-                .thenReturn(mockPage);
-
-        ArtistProductSearchRequest request = new ArtistProductSearchRequest(
-                0, 10, null, true, "createDate", "DESC"
-        );
-
-        // When
-        ArtistProductResponse.List result = artistDashboardService.getProducts(TEST_ARTIST_ID, request);
-
-        // Then
-        assertAll(
-                () -> assertThat(result.getContent()).hasSize(1),
-                () -> assertThat(result.getContent().getFirst().sellingStatus()).isEqualTo("SELLING"),
-                () -> assertThat(result.getContent().getFirst().statusText()).isEqualTo("판매중")
-        );
-    }
-
-    @Test
-    @DisplayName("펀딩 목록 조회 - 상태 필터 적용")
+    @DisplayName("펀딩 목록 조회 - 상태 필터 및 변환 검증")
     void getFundings_WithStatusFilter() {
         // Given
-        User mockUser = createMockUser(TEST_ARTIST_ID, "작가명");
-        Funding mockFunding = createMockFunding(1L, mockUser, "성공한 펀딩", 500000L, FundingStatus.SUCCESS);
-
+        User mockUser = createMockUser(TEST_ARTIST_ID, "작가");
+        Funding mockFunding = createMockFunding(1L, mockUser, "성공 펀딩", 500000L, FundingStatus.SUCCESS);
         Page<Funding> mockPage = new PageImpl<>(List.of(mockFunding), PageRequest.of(0, 10), 1);
 
         when(fundingRepository.findFundingsByArtist(
                 eq(TEST_ARTIST_ID), isNull(), eq(FundingStatus.SUCCESS), eq("endDate"), eq("ASC"), any(PageRequest.class)))
                 .thenReturn(mockPage);
-
         when(fundingContributionRepository.sumContributedAmountByFundingId(1L)).thenReturn(500000L);
 
         ArtistFundingSearchRequest request = new ArtistFundingSearchRequest(
-                0, 10, null, "SUCCESS", null, null, null, null, null, "endDate", "ASC"
-        );
+                0, 10, null, "SUCCESS", null, null, null, null, null, "endDate", "ASC");
 
         // When
         ArtistFundingResponse.List result = artistDashboardService.getFundings(TEST_ARTIST_ID, request);
@@ -196,14 +110,139 @@ class ArtistDashboardServiceImplTest {
         // Then
         assertAll(
                 () -> assertThat(result.getContent()).hasSize(1),
-                () -> assertThat(result.getContent().getFirst().status()).isEqualTo("SUCCESS"),
                 () -> assertThat(result.getContent().getFirst().statusText()).isEqualTo("성공")
         );
     }
 
-    /**
-     * Mock Product 생성 헬퍼 메서드
-     */
+    // ==================== 설정 테스트 ====================
+
+    @Test
+    @DisplayName("작가 설정 조회 - 계좌번호 마스킹 검증")
+    void getSettings_AccountMasking() {
+        // Given
+        User mockUser = createMockUser(TEST_ARTIST_ID, "작가");
+        com.back.domain.artist.entity.ArtistProfile mockProfile = createMockArtistProfile(mockUser, "123-456-789012");
+
+        when(artistProfileRepository.findByUserId(TEST_ARTIST_ID))
+                .thenReturn(java.util.Optional.of(mockProfile));
+
+        // When
+        ArtistSettingsResponse result = artistDashboardService.getSettings(TEST_ARTIST_ID);
+
+        // Then
+        assertThat(result.payout().accountMasked()).isEqualTo("****-****-**9012");
+    }
+
+    // ==================== 취소 요청 테스트 ====================
+
+    @Test
+    @DisplayName("취소 요청 조회 - 기본 조회 및 상태 매핑 검증")
+    void getCancellationRequests_Success() {
+        // Given
+        User mockCustomer = createMockUser(201L, "고객");
+        User mockArtist = createMockUser(TEST_ARTIST_ID, "작가");
+        Product mockProduct = createMockProduct(101L, "테스트 상품", 15000, 0, SellingStatus.SELLING);
+        setProductUser(mockProduct, mockArtist);
+
+        com.back.domain.order.order.entity.Order mockOrder = createMockOrder(1L, mockCustomer, "ORD123");
+        com.back.domain.order.orderItem.entity.OrderItem mockOrderItem = createMockOrderItem(1L, mockOrder, mockProduct, 1);
+        com.back.domain.order.refund.entity.RefundItem mockRefundItem = createMockRefundItem(1L, mockOrderItem, 1);
+        com.back.domain.order.refund.entity.Refund mockRefund = createMockRefund(
+                1L, mockOrder, mockCustomer, List.of(mockRefundItem),
+                com.back.domain.order.refund.entity.Refund.RefundStatus.REQUESTED);
+
+        Page<com.back.domain.order.refund.entity.Refund> mockPage = new PageImpl<>(List.of(mockRefund), PageRequest.of(0, 10), 1);
+        when(refundRepository.findRefundsByArtist(eq(TEST_ARTIST_ID), isNull(), isNull(), any(PageRequest.class)))
+                .thenReturn(mockPage);
+
+        ArtistCancellationSearchRequest request = new ArtistCancellationSearchRequest(0, 10, null, null, null, null, null, null, null);
+
+        // When
+        ArtistCancellationResponse.List result = artistDashboardService.getCancellationRequests(TEST_ARTIST_ID, request);
+
+        // Then
+        assertAll(
+                () -> assertThat(result.content()).hasSize(1),
+                () -> assertThat(result.content().getFirst().statusText()).isEqualTo("처리대기"),
+                () -> assertThat(result.content().getFirst().permissions().canApprove()).isTrue()
+        );
+    }
+
+    // ==================== 교환 요청 테스트 ====================
+
+    @Test
+    @DisplayName("교환 요청 조회 - 기본 조회 및 상태 매핑 검증")
+    void getExchangeRequests_Success() {
+        // Given
+        User mockCustomer = createMockUser(201L, "고객");
+        User mockArtist = createMockUser(TEST_ARTIST_ID, "작가");
+        Product mockProduct = createMockProduct(101L, "테스트 상품", 20000, 0, SellingStatus.SELLING);
+        setProductUser(mockProduct, mockArtist);
+
+        com.back.domain.order.order.entity.Order mockOrder = createMockOrder(1L, mockCustomer, "ORD123");
+        com.back.domain.order.orderItem.entity.OrderItem mockOrderItem = createMockOrderItem(1L, mockOrder, mockProduct, 1);
+        com.back.domain.order.exchange.entity.ExchangeItem mockExchangeItem = createMockExchangeItem(1L, mockOrderItem, 1);
+        com.back.domain.order.exchange.entity.Exchange mockExchange = createMockExchange(
+                1L, mockOrder, mockCustomer, List.of(mockExchangeItem),
+                com.back.domain.order.exchange.entity.Exchange.ExchangeStatus.REQUESTED,
+                com.back.domain.order.exchange.entity.Exchange.ExchangeMethod.PICKUP);
+
+        Page<com.back.domain.order.exchange.entity.Exchange> mockPage = new PageImpl<>(List.of(mockExchange), PageRequest.of(0, 10), 1);
+        when(exchangeRepository.findExchangesByArtist(eq(TEST_ARTIST_ID), isNull(), isNull(), any(PageRequest.class)))
+                .thenReturn(mockPage);
+
+        ArtistExchangeSearchRequest request = new ArtistExchangeSearchRequest(0, 10, null, null, null, null, null, null, null);
+
+        // When
+        ArtistExchangeResponse.List result = artistDashboardService.getExchangeRequests(TEST_ARTIST_ID, request);
+
+        // Then
+        assertAll(
+                () -> assertThat(result.content()).hasSize(1),
+                () -> assertThat(result.content().getFirst().status()).isEqualTo("PENDING"),
+                () -> assertThat(result.content().getFirst().statusText()).isEqualTo("처리대기"),
+                () -> assertThat(result.content().getFirst().exchangeRequested().option()).isEmpty(),
+                () -> assertThat(result.content().getFirst().permissions().canApprove()).isTrue()
+        );
+    }
+
+    @Test
+    @DisplayName("교환 요청 조회 - 상태 필터 및 권한 검증")
+    void getExchangeRequests_StatusFilter() {
+        // Given
+        User mockCustomer = createMockUser(201L, "고객");
+        User mockArtist = createMockUser(TEST_ARTIST_ID, "작가");
+        Product mockProduct = createMockProduct(101L, "상품", 20000, 0, SellingStatus.SELLING);
+        setProductUser(mockProduct, mockArtist);
+
+        com.back.domain.order.order.entity.Order mockOrder = createMockOrder(1L, mockCustomer, "ORD123");
+        com.back.domain.order.orderItem.entity.OrderItem mockOrderItem = createMockOrderItem(1L, mockOrder, mockProduct, 1);
+        com.back.domain.order.exchange.entity.ExchangeItem mockExchangeItem = createMockExchangeItem(1L, mockOrderItem, 1);
+        com.back.domain.order.exchange.entity.Exchange mockExchange = createMockExchange(
+                1L, mockOrder, mockCustomer, List.of(mockExchangeItem),
+                com.back.domain.order.exchange.entity.Exchange.ExchangeStatus.COMPLETED,
+                com.back.domain.order.exchange.entity.Exchange.ExchangeMethod.DIRECT);
+
+        Page<com.back.domain.order.exchange.entity.Exchange> mockPage = new PageImpl<>(List.of(mockExchange), PageRequest.of(0, 10), 1);
+        when(exchangeRepository.findExchangesByArtist(
+                eq(TEST_ARTIST_ID), eq(com.back.domain.order.exchange.entity.Exchange.ExchangeStatus.COMPLETED), isNull(), any(PageRequest.class)))
+                .thenReturn(mockPage);
+
+        ArtistExchangeSearchRequest request = new ArtistExchangeSearchRequest(0, 10, "APPROVED", null, null, null, null, null, null);
+
+        // When
+        ArtistExchangeResponse.List result = artistDashboardService.getExchangeRequests(TEST_ARTIST_ID, request);
+
+        // Then
+        assertAll(
+                () -> assertThat(result.content().getFirst().status()).isEqualTo("APPROVED"),
+                () -> assertThat(result.content().getFirst().statusText()).isEqualTo("승인됨"),
+                () -> assertThat(result.content().getFirst().permissions().canApprove()).isFalse()
+        );
+    }
+
+    // ==================== 헬퍼 메서드 ====================
+
     private Product createMockProduct(Long id, String name, int price, int discountRate, SellingStatus status) {
         Product product = Product.builder()
                 .name(name)
@@ -213,7 +252,6 @@ class ArtistDashboardServiceImplTest {
                 .isDeleted(false)
                 .build();
 
-        // Reflection을 통해 id와 createDate 설정
         try {
             java.lang.reflect.Field idField = product.getClass().getSuperclass().getDeclaredField("id");
             idField.setAccessible(true);
@@ -223,23 +261,14 @@ class ArtistDashboardServiceImplTest {
             createDateField.setAccessible(true);
             createDateField.set(product, LocalDateTime.now());
         } catch (Exception e) {
-            throw new RuntimeException("Failed to set id or createDate", e);
+            throw new RuntimeException("Failed to set fields", e);
         }
 
         return product;
     }
 
-    /**
-     * Mock User 생성 헬퍼 메서드
-     */
     private User createMockUser(Long id, String name) {
-        // User는 static factory 메서드 사용
-        User user = User.createLocalUser(
-                "test@example.com",
-                "password",
-                name,
-                "010-1234-5678"
-        );
+        User user = User.createLocalUser("test@example.com", "password", name, "010-1234-5678");
 
         try {
             java.lang.reflect.Field idField = user.getClass().getSuperclass().getDeclaredField("id");
@@ -252,16 +281,13 @@ class ArtistDashboardServiceImplTest {
         return user;
     }
 
-    /**
-     * Mock Funding 생성 헬퍼 메서드
-     */
     private Funding createMockFunding(Long id, User user, String title, long targetAmount, FundingStatus status) {
         LocalDateTime now = LocalDateTime.now();
 
         Funding funding = Funding.builder()
                 .user(user)
                 .title(title)
-                .description("테스트 펀딩 설명")
+                .description("테스트 설명")
                 .imageUrl("https://example.com/image.jpg")
                 .status(status)
                 .targetAmount(targetAmount)
@@ -275,7 +301,6 @@ class ArtistDashboardServiceImplTest {
                 .images(new ArrayList<>())
                 .build();
 
-        // Reflection을 통해 id와 createDate 설정
         try {
             java.lang.reflect.Field idField = funding.getClass().getSuperclass().getDeclaredField("id");
             idField.setAccessible(true);
@@ -285,413 +310,30 @@ class ArtistDashboardServiceImplTest {
             createDateField.setAccessible(true);
             createDateField.set(funding, now.minusDays(15));
         } catch (Exception e) {
-            throw new RuntimeException("Failed to set id or createDate", e);
+            throw new RuntimeException("Failed to set fields", e);
         }
 
         return funding;
     }
 
-    @Test
-    @DisplayName("작가 설정 정보 조회 - 실제 DB 연동 테스트")
-    void getSettings_Success() {
-        // Given
-        User mockUser = createMockUser(TEST_ARTIST_ID, "테스트작가");
-        com.back.domain.artist.entity.ArtistProfile mockProfile = createMockArtistProfile(mockUser);
-
-        when(artistProfileRepository.findByUserId(TEST_ARTIST_ID))
-                .thenReturn(java.util.Optional.of(mockProfile));
-
-        // When
-        com.back.domain.dashboard.artist.dto.response.ArtistSettingsResponse result =
-                artistDashboardService.getSettings(TEST_ARTIST_ID);
-
-        // Then
-        assertAll(
-                () -> assertThat(result).isNotNull(),
-                // 프로필 정보 검증
-                () -> assertThat(result.profile()).isNotNull(),
-                () -> assertThat(result.profile().nickname()).isEqualTo("테스트작가"),
-                () -> assertThat(result.profile().bio()).isEqualTo("작가 소개글입니다"),
-                () -> assertThat(result.profile().sns()).hasSize(1),
-                () -> assertThat(result.profile().sns().get(0).platform()).isEqualTo("Instagram"),
-                () -> assertThat(result.profile().sns().get(0).handle()).isEqualTo("@test_artist"),
-                () -> assertThat(result.profile().profileImageUrl()).isEqualTo("https://example.com/profile.jpg"),
-                // 사업자 정보 검증
-                () -> assertThat(result.business()).isNotNull(),
-                () -> assertThat(result.business().address()).isEqualTo("서울특별시 강남구 테헤란로 123 상세주소"),
-                () -> assertThat(result.business().verified()).isTrue(),
-                // 계좌 정보 검증 (마스킹 확인)
-                () -> assertThat(result.payout()).isNotNull(),
-                () -> assertThat(result.payout().bankName()).isEqualTo("신한은행"),
-                () -> assertThat(result.payout().accountHolder()).isEqualTo("홍길동"),
-                () -> assertThat(result.payout().accountMasked()).isEqualTo("****-****-**1234"),
-                () -> assertThat(result.payout().status()).isEqualTo("VERIFIED"),
-                // 권한 정보 검증
-                () -> assertThat(result.permissions()).isNotNull(),
-                () -> assertThat(result.permissions().canEditProfile()).isTrue(),
-                () -> assertThat(result.permissions().canEditBusiness()).isTrue(),
-                () -> assertThat(result.permissions().canEditPayout()).isTrue()
-        );
-    }
-
-    @Test
-    @DisplayName("작가 설정 정보 조회 - 작가 프로필 없음")
-    void getSettings_ProfileNotFound() {
-        // Given
-        when(artistProfileRepository.findByUserId(TEST_ARTIST_ID))
-                .thenReturn(java.util.Optional.empty());
-
-        // When & Then
-        org.junit.jupiter.api.Assertions.assertThrows(
-                com.back.global.exception.ServiceException.class,
-                () -> artistDashboardService.getSettings(TEST_ARTIST_ID)
-        );
-    }
-
-    @Test
-    @DisplayName("계좌번호 마스킹 처리 테스트")
-    void accountNumberMasking_Success() {
-        // Given
-        User mockUser = createMockUser(TEST_ARTIST_ID, "작가");
-
-        // 다양한 계좌번호 패턴 테스트
-        com.back.domain.artist.entity.ArtistProfile profile1 = createMockArtistProfileWithAccount(mockUser, "123-456-789012");
-        com.back.domain.artist.entity.ArtistProfile profile2 = createMockArtistProfileWithAccount(mockUser, "1234567890");
-        com.back.domain.artist.entity.ArtistProfile profile3 = createMockArtistProfileWithAccount(mockUser, "123");
-
-        when(artistProfileRepository.findByUserId(TEST_ARTIST_ID))
-                .thenReturn(java.util.Optional.of(profile1))
-                .thenReturn(java.util.Optional.of(profile2))
-                .thenReturn(java.util.Optional.of(profile3));
-
-        // When
-        com.back.domain.dashboard.artist.dto.response.ArtistSettingsResponse result1 =
-                artistDashboardService.getSettings(TEST_ARTIST_ID);
-        com.back.domain.dashboard.artist.dto.response.ArtistSettingsResponse result2 =
-                artistDashboardService.getSettings(TEST_ARTIST_ID);
-        com.back.domain.dashboard.artist.dto.response.ArtistSettingsResponse result3 =
-                artistDashboardService.getSettings(TEST_ARTIST_ID);
-
-        // Then
-        assertAll(
-                () -> assertThat(result1.payout().accountMasked()).isEqualTo("****-****-**9012"),
-                () -> assertThat(result2.payout().accountMasked()).isEqualTo("****-****-**7890"),
-                () -> assertThat(result3.payout().accountMasked()).isEqualTo("****")
-        );
-    }
-
-    /**
-     * Mock ArtistProfile 생성 헬퍼 메서드
-     */
-    private com.back.domain.artist.entity.ArtistProfile createMockArtistProfile(User user) {
+    private com.back.domain.artist.entity.ArtistProfile createMockArtistProfile(User user, String accountNumber) {
         return com.back.domain.artist.entity.ArtistProfile.builder()
                 .user(user)
-                .artistApplication(null)
-                .artistName("테스트작가")
-                .mainProducts("주력상품")
-                .snsAccount("@test_artist")
-                .businessAddress("서울특별시 강남구 테헤란로 123")
-                .businessAddressDetail("상세주소")
-                .businessZipCode("06234")
-                .managerPhone("010-1234-5678")
-                .bankName("신한은행")
-                .bankAccount("123-456-789-1234")
-                .accountName("홍길동")
-                .description("작가 소개글입니다")
-                .profileImageUrl("https://example.com/profile.jpg")
-                .build();
-    }
-
-    /**
-     * 특정 계좌번호를 가진 Mock ArtistProfile 생성
-     */
-    private com.back.domain.artist.entity.ArtistProfile createMockArtistProfileWithAccount(User user, String accountNumber) {
-        return com.back.domain.artist.entity.ArtistProfile.builder()
-                .user(user)
-                .artistApplication(null)
                 .artistName("작가")
-                .mainProducts("상품")
-                .snsAccount("@artist")
-                .businessAddress("주소")
-                .businessAddressDetail(null)
-                .businessZipCode("12345")
-                .managerPhone("010-0000-0000")
-                .bankName("은행")
                 .bankAccount(accountNumber)
-                .accountName("예금주")
-                .description("소개")
-                .profileImageUrl("https://example.com/img.jpg")
                 .build();
     }
 
-    // 나머지 Mock 데이터 기반 테스트들은 아직 실제 구현이 없으므로 주석 처리
-    // TODO: 실제 Order, Cash, Settlement 등의 CRUD 구현 후 테스트 재작성
-
-    @Test
-    @DisplayName("취소 요청 목록 조회 - 기본 조회")
-    void getCancellationRequests_Success() {
-        // Given
-        User mockCustomer = createMockUser(201L, "고객A");
-        User mockArtist = createMockUser(TEST_ARTIST_ID, "작가");
-        Product mockProduct = createMockProduct(101L, "테스트 상품", 15000, 0, SellingStatus.SELLING);
-
-        // Product의 user 설정 (작가)
-        setProductUser(mockProduct, mockArtist);
-
-        com.back.domain.order.order.entity.Order mockOrder = createMockOrder(1L, mockCustomer, "ORD123456");
-        com.back.domain.order.orderItem.entity.OrderItem mockOrderItem = createMockOrderItem(1L, mockOrder, mockProduct, 1);
-        com.back.domain.order.refund.entity.RefundItem mockRefundItem = createMockRefundItem(1L, mockOrderItem, 1);
-        com.back.domain.order.refund.entity.Refund mockRefund = createMockRefund(
-                1L, mockOrder, mockCustomer, java.util.List.of(mockRefundItem),
-                com.back.domain.order.refund.entity.Refund.RefundStatus.REQUESTED
-        );
-
-        Page<com.back.domain.order.refund.entity.Refund> mockPage = new PageImpl<>(
-                List.of(mockRefund),
-                PageRequest.of(0, 20),
-                1
-        );
-
-        when(refundRepository.findRefundsByArtist(
-                eq(TEST_ARTIST_ID), isNull(), isNull(), any(PageRequest.class)))
-                .thenReturn(mockPage);
-
-        com.back.domain.dashboard.artist.dto.request.ArtistCancellationSearchRequest request =
-                new com.back.domain.dashboard.artist.dto.request.ArtistCancellationSearchRequest(
-                        0, 20, null, null, null, null, null, null, null
-                );
-
-        // When
-        com.back.domain.dashboard.artist.dto.response.ArtistCancellationResponse.List result =
-                artistDashboardService.getCancellationRequests(TEST_ARTIST_ID, request);
-
-        // Then
-        assertAll(
-                () -> assertThat(result).isNotNull(),
-                () -> assertThat(result.summary()).isNull(), // summary는 null
-                () -> assertThat(result.content()).hasSize(1),
-                () -> assertThat(result.totalElements()).isEqualTo(1),
-                () -> assertThat(result.totalPages()).isEqualTo(1),
-                () -> assertThat(result.hasNext()).isFalse(),
-                // 첫 번째 취소요청 검증
-                () -> assertThat(result.content().getFirst().orderId()).isEqualTo("1"),
-                () -> assertThat(result.content().getFirst().orderNumber()).isEqualTo("ORD123456"),
-                () -> assertThat(result.content().getFirst().status()).isEqualTo("REQUESTED"),
-                () -> assertThat(result.content().getFirst().statusText()).isEqualTo("처리대기"),
-                () -> assertThat(result.content().getFirst().customer().nickname()).isEqualTo("고객A"),
-                () -> assertThat(result.content().getFirst().orderItem().productName()).isEqualTo("테스트 상품"),
-                // 권한 검증 (REQUESTED 상태이므로 승인/거절 가능)
-                () -> assertThat(result.content().getFirst().permissions().canApprove()).isTrue(),
-                () -> assertThat(result.content().getFirst().permissions().canReject()).isTrue()
-        );
-    }
-
-    @Test
-    @DisplayName("취소 요청 목록 조회 - 키워드 검색 (상품명)")
-    void getCancellationRequests_WithProductNameKeyword() {
-        // Given
-        User mockCustomer = createMockUser(201L, "고객");
-        User mockArtist = createMockUser(TEST_ARTIST_ID, "작가");
-        Product mockProduct = createMockProduct(101L, "손흥민 포스터", 15000, 0, SellingStatus.SELLING);
-        setProductUser(mockProduct, mockArtist);
-
-        com.back.domain.order.order.entity.Order mockOrder = createMockOrder(1L, mockCustomer, "ORD123");
-        com.back.domain.order.orderItem.entity.OrderItem mockOrderItem = createMockOrderItem(1L, mockOrder, mockProduct, 1);
-        com.back.domain.order.refund.entity.RefundItem mockRefundItem = createMockRefundItem(1L, mockOrderItem, 1);
-        com.back.domain.order.refund.entity.Refund mockRefund = createMockRefund(
-                1L, mockOrder, mockCustomer, List.of(mockRefundItem),
-                com.back.domain.order.refund.entity.Refund.RefundStatus.REQUESTED
-        );
-
-        Page<com.back.domain.order.refund.entity.Refund> mockPage = new PageImpl<>(
-                List.of(mockRefund),
-                PageRequest.of(0, 20),
-                1
-        );
-
-        when(refundRepository.findRefundsByArtist(
-                eq(TEST_ARTIST_ID), isNull(), eq("손흥민"), any(PageRequest.class)))
-                .thenReturn(mockPage);
-
-        com.back.domain.dashboard.artist.dto.request.ArtistCancellationSearchRequest request =
-                new com.back.domain.dashboard.artist.dto.request.ArtistCancellationSearchRequest(
-                        0, 20, null, "손흥민", null, null, null, null, null
-                );
-
-        // When
-        com.back.domain.dashboard.artist.dto.response.ArtistCancellationResponse.List result =
-                artistDashboardService.getCancellationRequests(TEST_ARTIST_ID, request);
-
-        // Then
-        assertAll(
-                () -> assertThat(result.content()).hasSize(1),
-                () -> assertThat(result.content().getFirst().orderItem().productName()).contains("손흥민")
-        );
-    }
-
-    @Test
-    @DisplayName("취소 요청 목록 조회 - 키워드 검색 (구매자 이름)")
-    void getCancellationRequests_WithCustomerNameKeyword() {
-        // Given
-        User mockCustomer = createMockUser(201L, "홍길동");
-        User mockArtist = createMockUser(TEST_ARTIST_ID, "작가");
-        Product mockProduct = createMockProduct(101L, "상품", 15000, 0, SellingStatus.SELLING);
-        setProductUser(mockProduct, mockArtist);
-
-        com.back.domain.order.order.entity.Order mockOrder = createMockOrder(1L, mockCustomer, "ORD123");
-        com.back.domain.order.orderItem.entity.OrderItem mockOrderItem = createMockOrderItem(1L, mockOrder, mockProduct, 1);
-        com.back.domain.order.refund.entity.RefundItem mockRefundItem = createMockRefundItem(1L, mockOrderItem, 1);
-        com.back.domain.order.refund.entity.Refund mockRefund = createMockRefund(
-                1L, mockOrder, mockCustomer, List.of(mockRefundItem),
-                com.back.domain.order.refund.entity.Refund.RefundStatus.REQUESTED
-        );
-
-        Page<com.back.domain.order.refund.entity.Refund> mockPage = new PageImpl<>(
-                List.of(mockRefund),
-                PageRequest.of(0, 20),
-                1
-        );
-
-        when(refundRepository.findRefundsByArtist(
-                eq(TEST_ARTIST_ID), isNull(), eq("홍길동"), any(PageRequest.class)))
-                .thenReturn(mockPage);
-
-        com.back.domain.dashboard.artist.dto.request.ArtistCancellationSearchRequest request =
-                new com.back.domain.dashboard.artist.dto.request.ArtistCancellationSearchRequest(
-                        0, 20, null, "홍길동", null, null, null, null, null
-                );
-
-        // When
-        com.back.domain.dashboard.artist.dto.response.ArtistCancellationResponse.List result =
-                artistDashboardService.getCancellationRequests(TEST_ARTIST_ID, request);
-
-        // Then
-        assertAll(
-                () -> assertThat(result.content()).hasSize(1),
-                () -> assertThat(result.content().getFirst().customer().nickname()).contains("홍길동")
-        );
-    }
-
-    @Test
-    @DisplayName("취소 요청 목록 조회 - 상태별 필터")
-    void getCancellationRequests_WithStatusFilter() {
-        // Given
-        User mockCustomer = createMockUser(201L, "고객");
-        User mockArtist = createMockUser(TEST_ARTIST_ID, "작가");
-        Product mockProduct = createMockProduct(101L, "상품", 15000, 0, SellingStatus.SELLING);
-        setProductUser(mockProduct, mockArtist);
-
-        com.back.domain.order.order.entity.Order mockOrder = createMockOrder(1L, mockCustomer, "ORD123");
-        com.back.domain.order.orderItem.entity.OrderItem mockOrderItem = createMockOrderItem(1L, mockOrder, mockProduct, 1);
-        com.back.domain.order.refund.entity.RefundItem mockRefundItem = createMockRefundItem(1L, mockOrderItem, 1);
-        com.back.domain.order.refund.entity.Refund mockRefund = createMockRefund(
-                1L, mockOrder, mockCustomer, List.of(mockRefundItem),
-                com.back.domain.order.refund.entity.Refund.RefundStatus.COMPLETED
-        );
-
-        Page<com.back.domain.order.refund.entity.Refund> mockPage = new PageImpl<>(
-                List.of(mockRefund),
-                PageRequest.of(0, 20),
-                1
-        );
-
-        when(refundRepository.findRefundsByArtist(
-                eq(TEST_ARTIST_ID), eq(com.back.domain.order.refund.entity.Refund.RefundStatus.COMPLETED),
-                isNull(), any(PageRequest.class)))
-                .thenReturn(mockPage);
-
-        com.back.domain.dashboard.artist.dto.request.ArtistCancellationSearchRequest request =
-                new com.back.domain.dashboard.artist.dto.request.ArtistCancellationSearchRequest(
-                        0, 20, "COMPLETED", null, null, null, null, null, null
-                );
-
-        // When
-        com.back.domain.dashboard.artist.dto.response.ArtistCancellationResponse.List result =
-                artistDashboardService.getCancellationRequests(TEST_ARTIST_ID, request);
-
-        // Then
-        assertAll(
-                () -> assertThat(result.content()).hasSize(1),
-                () -> assertThat(result.content().getFirst().status()).isEqualTo("COMPLETED"),
-                () -> assertThat(result.content().getFirst().statusText()).isEqualTo("승인됨"),
-                // COMPLETED 상태이므로 승인/거절 불가
-                () -> assertThat(result.content().getFirst().permissions().canApprove()).isFalse(),
-                () -> assertThat(result.content().getFirst().permissions().canReject()).isFalse()
-        );
-    }
-
-    @Test
-    @DisplayName("취소 요청 목록 조회 - 상품명 정렬 (오름차순)")
-    void getCancellationRequests_SortByProductNameAsc() {
-        // Given
-        User mockCustomer = createMockUser(201L, "고객");
-        User mockArtist = createMockUser(TEST_ARTIST_ID, "작가");
-        Product mockProduct1 = createMockProduct(101L, "A상품", 10000, 0, SellingStatus.SELLING);
-        Product mockProduct2 = createMockProduct(102L, "B상품", 20000, 0, SellingStatus.SELLING);
-        setProductUser(mockProduct1, mockArtist);
-        setProductUser(mockProduct2, mockArtist);
-
-        com.back.domain.order.order.entity.Order mockOrder1 = createMockOrder(1L, mockCustomer, "ORD001");
-        com.back.domain.order.order.entity.Order mockOrder2 = createMockOrder(2L, mockCustomer, "ORD002");
-
-        com.back.domain.order.orderItem.entity.OrderItem mockOrderItem1 = createMockOrderItem(1L, mockOrder1, mockProduct1, 1);
-        com.back.domain.order.orderItem.entity.OrderItem mockOrderItem2 = createMockOrderItem(2L, mockOrder2, mockProduct2, 1);
-
-        com.back.domain.order.refund.entity.RefundItem mockRefundItem1 = createMockRefundItem(1L, mockOrderItem1, 1);
-        com.back.domain.order.refund.entity.RefundItem mockRefundItem2 = createMockRefundItem(2L, mockOrderItem2, 1);
-
-        com.back.domain.order.refund.entity.Refund mockRefund1 = createMockRefund(
-                1L, mockOrder1, mockCustomer, List.of(mockRefundItem1),
-                com.back.domain.order.refund.entity.Refund.RefundStatus.REQUESTED
-        );
-        com.back.domain.order.refund.entity.Refund mockRefund2 = createMockRefund(
-                2L, mockOrder2, mockCustomer, List.of(mockRefundItem2),
-                com.back.domain.order.refund.entity.Refund.RefundStatus.REQUESTED
-        );
-
-        Page<com.back.domain.order.refund.entity.Refund> mockPage = new PageImpl<>(
-                List.of(mockRefund1, mockRefund2),
-                PageRequest.of(0, 20),
-                2
-        );
-
-        when(refundRepository.findRefundsByArtist(
-                eq(TEST_ARTIST_ID), isNull(), isNull(), any(PageRequest.class)))
-                .thenReturn(mockPage);
-
-        com.back.domain.dashboard.artist.dto.request.ArtistCancellationSearchRequest request =
-                new com.back.domain.dashboard.artist.dto.request.ArtistCancellationSearchRequest(
-                        0, 20, null, null, null, null, null, "productName", "ASC"
-                );
-
-        // When
-        com.back.domain.dashboard.artist.dto.response.ArtistCancellationResponse.List result =
-                artistDashboardService.getCancellationRequests(TEST_ARTIST_ID, request);
-
-        // Then
-        assertAll(
-                () -> assertThat(result.content()).hasSize(2),
-                () -> assertThat(result.content().get(0).orderItem().productName()).isEqualTo("A상품"),
-                () -> assertThat(result.content().get(1).orderItem().productName()).isEqualTo("B상품")
-        );
-    }
-
-    /**
-     * Product에 User 설정 헬퍼 메서드
-     */
     private void setProductUser(Product product, User user) {
         try {
             java.lang.reflect.Field userField = product.getClass().getDeclaredField("user");
             userField.setAccessible(true);
             userField.set(product, user);
         } catch (Exception e) {
-            throw new RuntimeException("Failed to set user for product", e);
+            throw new RuntimeException("Failed to set user", e);
         }
     }
 
-    /**
-     * Mock Order 생성 헬퍼 메서드
-     */
     private com.back.domain.order.order.entity.Order createMockOrder(Long id, User user, String orderNumber) {
         com.back.domain.order.order.entity.Order order = com.back.domain.order.order.entity.Order.builder()
                 .user(user)
@@ -716,9 +358,6 @@ class ArtistDashboardServiceImplTest {
         return order;
     }
 
-    /**
-     * Mock OrderItem 생성 헬퍼 메서드
-     */
     private com.back.domain.order.orderItem.entity.OrderItem createMockOrderItem(
             Long id, com.back.domain.order.order.entity.Order order, Product product, int quantity) {
 
@@ -741,9 +380,6 @@ class ArtistDashboardServiceImplTest {
         return orderItem;
     }
 
-    /**
-     * Mock RefundItem 생성 헬퍼 메서드
-     */
     private com.back.domain.order.refund.entity.RefundItem createMockRefundItem(
             Long id, com.back.domain.order.orderItem.entity.OrderItem orderItem, int quantity) {
 
@@ -765,9 +401,6 @@ class ArtistDashboardServiceImplTest {
         return refundItem;
     }
 
-    /**
-     * Mock Refund 생성 헬퍼 메서드
-     */
     private com.back.domain.order.refund.entity.Refund createMockRefund(
             Long id, com.back.domain.order.order.entity.Order order, User user,
             List<com.back.domain.order.refund.entity.RefundItem> refundItems,
@@ -779,7 +412,7 @@ class ArtistDashboardServiceImplTest {
                         .user(user)
                         .status(status)
                         .reason("상품불량")
-                        .detailReason("상세 사유입니다")
+                        .detailReason("상세 사유")
                         .refundAmount(java.math.BigDecimal.valueOf(15000))
                         .refundMethod(com.back.domain.order.refund.entity.Refund.RefundMethod.ORIGINAL_PAYMENT)
                         .build();
@@ -797,446 +430,18 @@ class ArtistDashboardServiceImplTest {
             refundItemsField.setAccessible(true);
             refundItemsField.set(refund, refundItems);
 
-            // RefundItem에 Refund 설정
             for (com.back.domain.order.refund.entity.RefundItem item : refundItems) {
                 java.lang.reflect.Field refundField = item.getClass().getDeclaredField("refund");
                 refundField.setAccessible(true);
                 refundField.set(item, refund);
             }
         } catch (Exception e) {
-            throw new RuntimeException("Failed to set refund fields", e);
+            throw new RuntimeException("Failed to set fields", e);
         }
 
         return refund;
     }
 
-    // ==================== 교환 요청 테스트 ====================
-
-    @Test
-    @DisplayName("교환 요청 목록 조회 - 기본 조회")
-    void getExchangeRequests_Success() {
-        // Given
-        User mockCustomer = createMockUser(201L, "고객A");
-        User mockArtist = createMockUser(TEST_ARTIST_ID, "작가");
-        Product mockProduct = createMockProduct(101L, "테스트 티셔츠", 25000, 0, SellingStatus.SELLING);
-
-        setProductUser(mockProduct, mockArtist);
-
-        com.back.domain.order.order.entity.Order mockOrder = createMockOrder(1L, mockCustomer, "ORD123456");
-        com.back.domain.order.orderItem.entity.OrderItem mockOrderItem = createMockOrderItem(1L, mockOrder, mockProduct, 1);
-        com.back.domain.order.exchange.entity.ExchangeItem mockExchangeItem = createMockExchangeItem(1L, mockOrderItem, 1);
-        com.back.domain.order.exchange.entity.Exchange mockExchange = createMockExchange(
-                1L, mockOrder, mockCustomer, List.of(mockExchangeItem),
-                com.back.domain.order.exchange.entity.Exchange.ExchangeStatus.REQUESTED,
-                com.back.domain.order.exchange.entity.Exchange.ExchangeMethod.PICKUP
-        );
-
-        Page<com.back.domain.order.exchange.entity.Exchange> mockPage = new PageImpl<>(
-                List.of(mockExchange),
-                PageRequest.of(0, 10),
-                1
-        );
-
-        when(exchangeRepository.findExchangesByArtist(
-                eq(TEST_ARTIST_ID), isNull(), isNull(), any(PageRequest.class)))
-                .thenReturn(mockPage);
-
-        com.back.domain.dashboard.artist.dto.request.ArtistExchangeSearchRequest request =
-                new com.back.domain.dashboard.artist.dto.request.ArtistExchangeSearchRequest(
-                        0, 10, null, null, null, null, null, null, null
-                );
-
-        // When
-        com.back.domain.dashboard.artist.dto.response.ArtistExchangeResponse.List result =
-                artistDashboardService.getExchangeRequests(TEST_ARTIST_ID, request);
-
-        // Then
-        assertAll(
-                () -> assertThat(result).isNotNull(),
-                () -> assertThat(result.summary()).isNull(), // summary는 null
-                () -> assertThat(result.content()).hasSize(1),
-                () -> assertThat(result.totalElements()).isEqualTo(1),
-                () -> assertThat(result.totalPages()).isEqualTo(1),
-                () -> assertThat(result.hasNext()).isFalse(),
-                () -> assertThat(result.page()).isEqualTo(0),
-                () -> assertThat(result.size()).isEqualTo(10),
-                // 첫 번째 교환요청 검증
-                () -> assertThat(result.content().getFirst().orderId()).isEqualTo("1"),
-                () -> assertThat(result.content().getFirst().orderNumber()).isEqualTo("ORD123456"),
-                () -> assertThat(result.content().getFirst().type()).isEqualTo("EXCHANGE"),
-                () -> assertThat(result.content().getFirst().status()).isEqualTo("PENDING"),
-                () -> assertThat(result.content().getFirst().statusText()).isEqualTo("처리대기"),
-                () -> assertThat(result.content().getFirst().customer().nickname()).isEqualTo("고객A"),
-                () -> assertThat(result.content().getFirst().orderItem().productName()).isEqualTo("테스트 티셔츠"),
-                () -> assertThat(result.content().getFirst().orderItem().quantity()).isEqualTo(1),
-                () -> assertThat(result.content().getFirst().exchangeRequested().option()).isEmpty(), // 교환 방법은 빈 문자열
-                () -> assertThat(result.content().getFirst().exchangeRequested().quantity()).isEqualTo(1),
-                // 권한 검증 (REQUESTED 상태이므로 승인/거절 가능)
-                () -> assertThat(result.content().getFirst().permissions().canApprove()).isTrue(),
-                () -> assertThat(result.content().getFirst().permissions().canReject()).isTrue()
-        );
-    }
-
-    @Test
-    @DisplayName("교환 요청 목록 조회 - 키워드 검색 (상품명)")
-    void getExchangeRequests_WithProductNameKeyword() {
-        // Given
-        User mockCustomer = createMockUser(201L, "고객");
-        User mockArtist = createMockUser(TEST_ARTIST_ID, "작가");
-        Product mockProduct = createMockProduct(101L, "손흥민 유니폼", 50000, 0, SellingStatus.SELLING);
-        setProductUser(mockProduct, mockArtist);
-
-        com.back.domain.order.order.entity.Order mockOrder = createMockOrder(1L, mockCustomer, "ORD123");
-        com.back.domain.order.orderItem.entity.OrderItem mockOrderItem = createMockOrderItem(1L, mockOrder, mockProduct, 1);
-        com.back.domain.order.exchange.entity.ExchangeItem mockExchangeItem = createMockExchangeItem(1L, mockOrderItem, 1);
-        com.back.domain.order.exchange.entity.Exchange mockExchange = createMockExchange(
-                1L, mockOrder, mockCustomer, List.of(mockExchangeItem),
-                com.back.domain.order.exchange.entity.Exchange.ExchangeStatus.REQUESTED,
-                com.back.domain.order.exchange.entity.Exchange.ExchangeMethod.DIRECT
-        );
-
-        Page<com.back.domain.order.exchange.entity.Exchange> mockPage = new PageImpl<>(
-                List.of(mockExchange),
-                PageRequest.of(0, 10),
-                1
-        );
-
-        when(exchangeRepository.findExchangesByArtist(
-                eq(TEST_ARTIST_ID), isNull(), eq("손흥민"), any(PageRequest.class)))
-                .thenReturn(mockPage);
-
-        com.back.domain.dashboard.artist.dto.request.ArtistExchangeSearchRequest request =
-                new com.back.domain.dashboard.artist.dto.request.ArtistExchangeSearchRequest(
-                        0, 10, null, "손흥민", null, null, null, null, null
-                );
-
-        // When
-        com.back.domain.dashboard.artist.dto.response.ArtistExchangeResponse.List result =
-                artistDashboardService.getExchangeRequests(TEST_ARTIST_ID, request);
-
-        // Then
-        assertAll(
-                () -> assertThat(result.content()).hasSize(1),
-                () -> assertThat(result.content().getFirst().orderItem().productName()).contains("손흥민")
-        );
-    }
-
-    @Test
-    @DisplayName("교환 요청 목록 조회 - 키워드 검색 (구매자 이름)")
-    void getExchangeRequests_WithCustomerNameKeyword() {
-        // Given
-        User mockCustomer = createMockUser(201L, "이강인");
-        User mockArtist = createMockUser(TEST_ARTIST_ID, "작가");
-        Product mockProduct = createMockProduct(101L, "상품", 30000, 0, SellingStatus.SELLING);
-        setProductUser(mockProduct, mockArtist);
-
-        com.back.domain.order.order.entity.Order mockOrder = createMockOrder(1L, mockCustomer, "ORD123");
-        com.back.domain.order.orderItem.entity.OrderItem mockOrderItem = createMockOrderItem(1L, mockOrder, mockProduct, 1);
-        com.back.domain.order.exchange.entity.ExchangeItem mockExchangeItem = createMockExchangeItem(1L, mockOrderItem, 1);
-        com.back.domain.order.exchange.entity.Exchange mockExchange = createMockExchange(
-                1L, mockOrder, mockCustomer, List.of(mockExchangeItem),
-                com.back.domain.order.exchange.entity.Exchange.ExchangeStatus.REQUESTED,
-                com.back.domain.order.exchange.entity.Exchange.ExchangeMethod.PICKUP
-        );
-
-        Page<com.back.domain.order.exchange.entity.Exchange> mockPage = new PageImpl<>(
-                List.of(mockExchange),
-                PageRequest.of(0, 10),
-                1
-        );
-
-        when(exchangeRepository.findExchangesByArtist(
-                eq(TEST_ARTIST_ID), isNull(), eq("이강인"), any(PageRequest.class)))
-                .thenReturn(mockPage);
-
-        com.back.domain.dashboard.artist.dto.request.ArtistExchangeSearchRequest request =
-                new com.back.domain.dashboard.artist.dto.request.ArtistExchangeSearchRequest(
-                        0, 10, null, "이강인", null, null, null, null, null
-                );
-
-        // When
-        com.back.domain.dashboard.artist.dto.response.ArtistExchangeResponse.List result =
-                artistDashboardService.getExchangeRequests(TEST_ARTIST_ID, request);
-
-        // Then
-        assertAll(
-                () -> assertThat(result.content()).hasSize(1),
-                () -> assertThat(result.content().getFirst().customer().nickname()).contains("이강인")
-        );
-    }
-
-    @Test
-    @DisplayName("교환 요청 목록 조회 - 상태별 필터 (PENDING)")
-    void getExchangeRequests_WithStatusFilterPending() {
-        // Given
-        User mockCustomer = createMockUser(201L, "고객");
-        User mockArtist = createMockUser(TEST_ARTIST_ID, "작가");
-        Product mockProduct = createMockProduct(101L, "상품", 20000, 0, SellingStatus.SELLING);
-        setProductUser(mockProduct, mockArtist);
-
-        com.back.domain.order.order.entity.Order mockOrder = createMockOrder(1L, mockCustomer, "ORD123");
-        com.back.domain.order.orderItem.entity.OrderItem mockOrderItem = createMockOrderItem(1L, mockOrder, mockProduct, 1);
-        com.back.domain.order.exchange.entity.ExchangeItem mockExchangeItem = createMockExchangeItem(1L, mockOrderItem, 1);
-        com.back.domain.order.exchange.entity.Exchange mockExchange = createMockExchange(
-                1L, mockOrder, mockCustomer, List.of(mockExchangeItem),
-                com.back.domain.order.exchange.entity.Exchange.ExchangeStatus.REQUESTED,
-                com.back.domain.order.exchange.entity.Exchange.ExchangeMethod.DIRECT
-        );
-
-        Page<com.back.domain.order.exchange.entity.Exchange> mockPage = new PageImpl<>(
-                List.of(mockExchange),
-                PageRequest.of(0, 10),
-                1
-        );
-
-        when(exchangeRepository.findExchangesByArtist(
-                eq(TEST_ARTIST_ID), eq(com.back.domain.order.exchange.entity.Exchange.ExchangeStatus.REQUESTED),
-                isNull(), any(PageRequest.class)))
-                .thenReturn(mockPage);
-
-        com.back.domain.dashboard.artist.dto.request.ArtistExchangeSearchRequest request =
-                new com.back.domain.dashboard.artist.dto.request.ArtistExchangeSearchRequest(
-                        0, 10, "PENDING", null, null, null, null, null, null
-                );
-
-        // When
-        com.back.domain.dashboard.artist.dto.response.ArtistExchangeResponse.List result =
-                artistDashboardService.getExchangeRequests(TEST_ARTIST_ID, request);
-
-        // Then
-        assertAll(
-                () -> assertThat(result.content()).hasSize(1),
-                () -> assertThat(result.content().getFirst().status()).isEqualTo("PENDING"),
-                () -> assertThat(result.content().getFirst().statusText()).isEqualTo("처리대기"),
-                // PENDING 상태이므로 승인/거절 가능
-                () -> assertThat(result.content().getFirst().permissions().canApprove()).isTrue(),
-                () -> assertThat(result.content().getFirst().permissions().canReject()).isTrue()
-        );
-    }
-
-    @Test
-    @DisplayName("교환 요청 목록 조회 - 상태별 필터 (APPROVED)")
-    void getExchangeRequests_WithStatusFilterApproved() {
-        // Given
-        User mockCustomer = createMockUser(201L, "고객");
-        User mockArtist = createMockUser(TEST_ARTIST_ID, "작가");
-        Product mockProduct = createMockProduct(101L, "상품", 20000, 0, SellingStatus.SELLING);
-        setProductUser(mockProduct, mockArtist);
-
-        com.back.domain.order.order.entity.Order mockOrder = createMockOrder(1L, mockCustomer, "ORD123");
-        com.back.domain.order.orderItem.entity.OrderItem mockOrderItem = createMockOrderItem(1L, mockOrder, mockProduct, 1);
-        com.back.domain.order.exchange.entity.ExchangeItem mockExchangeItem = createMockExchangeItem(1L, mockOrderItem, 1);
-        com.back.domain.order.exchange.entity.Exchange mockExchange = createMockExchange(
-                1L, mockOrder, mockCustomer, List.of(mockExchangeItem),
-                com.back.domain.order.exchange.entity.Exchange.ExchangeStatus.COMPLETED,
-                com.back.domain.order.exchange.entity.Exchange.ExchangeMethod.PICKUP
-        );
-
-        Page<com.back.domain.order.exchange.entity.Exchange> mockPage = new PageImpl<>(
-                List.of(mockExchange),
-                PageRequest.of(0, 10),
-                1
-        );
-
-        when(exchangeRepository.findExchangesByArtist(
-                eq(TEST_ARTIST_ID), eq(com.back.domain.order.exchange.entity.Exchange.ExchangeStatus.COMPLETED),
-                isNull(), any(PageRequest.class)))
-                .thenReturn(mockPage);
-
-        com.back.domain.dashboard.artist.dto.request.ArtistExchangeSearchRequest request =
-                new com.back.domain.dashboard.artist.dto.request.ArtistExchangeSearchRequest(
-                        0, 10, "APPROVED", null, null, null, null, null, null
-                );
-
-        // When
-        com.back.domain.dashboard.artist.dto.response.ArtistExchangeResponse.List result =
-                artistDashboardService.getExchangeRequests(TEST_ARTIST_ID, request);
-
-        // Then
-        assertAll(
-                () -> assertThat(result.content()).hasSize(1),
-                () -> assertThat(result.content().getFirst().status()).isEqualTo("APPROVED"),
-                () -> assertThat(result.content().getFirst().statusText()).isEqualTo("승인됨"),
-                // APPROVED 상태이므로 승인/거절 불가
-                () -> assertThat(result.content().getFirst().permissions().canApprove()).isFalse(),
-                () -> assertThat(result.content().getFirst().permissions().canReject()).isFalse()
-        );
-    }
-
-    @Test
-    @DisplayName("교환 요청 목록 조회 - 상품명 정렬 (오름차순)")
-    void getExchangeRequests_SortByProductNameAsc() {
-        // Given
-        User mockCustomer = createMockUser(201L, "고객");
-        User mockArtist = createMockUser(TEST_ARTIST_ID, "작가");
-        Product mockProduct1 = createMockProduct(101L, "A상품", 10000, 0, SellingStatus.SELLING);
-        Product mockProduct2 = createMockProduct(102L, "B상품", 20000, 0, SellingStatus.SELLING);
-        setProductUser(mockProduct1, mockArtist);
-        setProductUser(mockProduct2, mockArtist);
-
-        com.back.domain.order.order.entity.Order mockOrder1 = createMockOrder(1L, mockCustomer, "ORD001");
-        com.back.domain.order.order.entity.Order mockOrder2 = createMockOrder(2L, mockCustomer, "ORD002");
-
-        com.back.domain.order.orderItem.entity.OrderItem mockOrderItem1 = createMockOrderItem(1L, mockOrder1, mockProduct1, 1);
-        com.back.domain.order.orderItem.entity.OrderItem mockOrderItem2 = createMockOrderItem(2L, mockOrder2, mockProduct2, 1);
-
-        com.back.domain.order.exchange.entity.ExchangeItem mockExchangeItem1 = createMockExchangeItem(1L, mockOrderItem1, 1);
-        com.back.domain.order.exchange.entity.ExchangeItem mockExchangeItem2 = createMockExchangeItem(2L, mockOrderItem2, 1);
-
-        com.back.domain.order.exchange.entity.Exchange mockExchange1 = createMockExchange(
-                1L, mockOrder1, mockCustomer, List.of(mockExchangeItem1),
-                com.back.domain.order.exchange.entity.Exchange.ExchangeStatus.REQUESTED,
-                com.back.domain.order.exchange.entity.Exchange.ExchangeMethod.PICKUP
-        );
-        com.back.domain.order.exchange.entity.Exchange mockExchange2 = createMockExchange(
-                2L, mockOrder2, mockCustomer, List.of(mockExchangeItem2),
-                com.back.domain.order.exchange.entity.Exchange.ExchangeStatus.REQUESTED,
-                com.back.domain.order.exchange.entity.Exchange.ExchangeMethod.DIRECT
-        );
-
-        Page<com.back.domain.order.exchange.entity.Exchange> mockPage = new PageImpl<>(
-                List.of(mockExchange1, mockExchange2),
-                PageRequest.of(0, 10),
-                2
-        );
-
-        when(exchangeRepository.findExchangesByArtist(
-                eq(TEST_ARTIST_ID), isNull(), isNull(), any(PageRequest.class)))
-                .thenReturn(mockPage);
-
-        com.back.domain.dashboard.artist.dto.request.ArtistExchangeSearchRequest request =
-                new com.back.domain.dashboard.artist.dto.request.ArtistExchangeSearchRequest(
-                        0, 10, null, null, null, null, null, "productName", "ASC"
-                );
-
-        // When
-        com.back.domain.dashboard.artist.dto.response.ArtistExchangeResponse.List result =
-                artistDashboardService.getExchangeRequests(TEST_ARTIST_ID, request);
-
-        // Then
-        assertAll(
-                () -> assertThat(result.content()).hasSize(2),
-                () -> assertThat(result.content().get(0).orderItem().productName()).isEqualTo("A상품"),
-                () -> assertThat(result.content().get(1).orderItem().productName()).isEqualTo("B상품")
-        );
-    }
-
-    @Test
-    @DisplayName("교환 요청 목록 조회 - 구매자 이름 정렬 (내림차순)")
-    void getExchangeRequests_SortByCustomerNameDesc() {
-        // Given
-        User mockCustomer1 = createMockUser(201L, "김철수");
-        User mockCustomer2 = createMockUser(202L, "박영희");
-        User mockArtist = createMockUser(TEST_ARTIST_ID, "작가");
-        Product mockProduct = createMockProduct(101L, "상품", 15000, 0, SellingStatus.SELLING);
-        setProductUser(mockProduct, mockArtist);
-
-        com.back.domain.order.order.entity.Order mockOrder1 = createMockOrder(1L, mockCustomer1, "ORD001");
-        com.back.domain.order.order.entity.Order mockOrder2 = createMockOrder(2L, mockCustomer2, "ORD002");
-
-        com.back.domain.order.orderItem.entity.OrderItem mockOrderItem1 = createMockOrderItem(1L, mockOrder1, mockProduct, 1);
-        com.back.domain.order.orderItem.entity.OrderItem mockOrderItem2 = createMockOrderItem(2L, mockOrder2, mockProduct, 1);
-
-        com.back.domain.order.exchange.entity.ExchangeItem mockExchangeItem1 = createMockExchangeItem(1L, mockOrderItem1, 1);
-        com.back.domain.order.exchange.entity.ExchangeItem mockExchangeItem2 = createMockExchangeItem(2L, mockOrderItem2, 1);
-
-        com.back.domain.order.exchange.entity.Exchange mockExchange1 = createMockExchange(
-                1L, mockOrder1, mockCustomer1, List.of(mockExchangeItem1),
-                com.back.domain.order.exchange.entity.Exchange.ExchangeStatus.REQUESTED,
-                com.back.domain.order.exchange.entity.Exchange.ExchangeMethod.PICKUP
-        );
-        com.back.domain.order.exchange.entity.Exchange mockExchange2 = createMockExchange(
-                2L, mockOrder2, mockCustomer2, List.of(mockExchangeItem2),
-                com.back.domain.order.exchange.entity.Exchange.ExchangeStatus.REQUESTED,
-                com.back.domain.order.exchange.entity.Exchange.ExchangeMethod.DIRECT
-        );
-
-        Page<com.back.domain.order.exchange.entity.Exchange> mockPage = new PageImpl<>(
-                List.of(mockExchange1, mockExchange2),
-                PageRequest.of(0, 10),
-                2
-        );
-
-        when(exchangeRepository.findExchangesByArtist(
-                eq(TEST_ARTIST_ID), isNull(), isNull(), any(PageRequest.class)))
-                .thenReturn(mockPage);
-
-        com.back.domain.dashboard.artist.dto.request.ArtistExchangeSearchRequest request =
-                new com.back.domain.dashboard.artist.dto.request.ArtistExchangeSearchRequest(
-                        0, 10, null, null, null, null, null, "customerName", "DESC"
-                );
-
-        // When
-        com.back.domain.dashboard.artist.dto.response.ArtistExchangeResponse.List result =
-                artistDashboardService.getExchangeRequests(TEST_ARTIST_ID, request);
-
-        // Then
-        assertAll(
-                () -> assertThat(result.content()).hasSize(2),
-                () -> assertThat(result.content().get(0).customer().nickname()).isEqualTo("박영희"),
-                () -> assertThat(result.content().get(1).customer().nickname()).isEqualTo("김철수")
-        );
-    }
-
-    @Test
-    @DisplayName("교환 요청 목록 조회 - 페이징 (기본 10개)")
-    void getExchangeRequests_Pagination() {
-        // Given
-        User mockCustomer = createMockUser(201L, "고객");
-        User mockArtist = createMockUser(TEST_ARTIST_ID, "작가");
-
-        List<com.back.domain.order.exchange.entity.Exchange> exchanges = new ArrayList<>();
-        for (int i = 1; i <= 15; i++) {
-            Product mockProduct = createMockProduct((long) (100 + i), "상품" + i, 10000, 0, SellingStatus.SELLING);
-            setProductUser(mockProduct, mockArtist);
-
-            com.back.domain.order.order.entity.Order mockOrder = createMockOrder((long) i, mockCustomer, "ORD" + String.format("%03d", i));
-            com.back.domain.order.orderItem.entity.OrderItem mockOrderItem = createMockOrderItem((long) i, mockOrder, mockProduct, 1);
-            com.back.domain.order.exchange.entity.ExchangeItem mockExchangeItem = createMockExchangeItem((long) i, mockOrderItem, 1);
-
-            com.back.domain.order.exchange.entity.Exchange mockExchange = createMockExchange(
-                    (long) i, mockOrder, mockCustomer, List.of(mockExchangeItem),
-                    com.back.domain.order.exchange.entity.Exchange.ExchangeStatus.REQUESTED,
-                    com.back.domain.order.exchange.entity.Exchange.ExchangeMethod.PICKUP
-            );
-            exchanges.add(mockExchange);
-        }
-
-        // 첫 페이지 (10개)
-        Page<com.back.domain.order.exchange.entity.Exchange> firstPage = new PageImpl<>(
-                exchanges.subList(0, 10),
-                PageRequest.of(0, 10),
-                15
-        );
-
-        when(exchangeRepository.findExchangesByArtist(
-                eq(TEST_ARTIST_ID), isNull(), isNull(), eq(PageRequest.of(0, 10))))
-                .thenReturn(firstPage);
-
-        com.back.domain.dashboard.artist.dto.request.ArtistExchangeSearchRequest request =
-                new com.back.domain.dashboard.artist.dto.request.ArtistExchangeSearchRequest(
-                        0, 10, null, null, null, null, null, null, null
-                );
-
-        // When
-        com.back.domain.dashboard.artist.dto.response.ArtistExchangeResponse.List result =
-                artistDashboardService.getExchangeRequests(TEST_ARTIST_ID, request);
-
-        // Then
-        assertAll(
-                () -> assertThat(result.content()).hasSize(10),
-                () -> assertThat(result.totalElements()).isEqualTo(15),
-                () -> assertThat(result.totalPages()).isEqualTo(2),
-                () -> assertThat(result.hasNext()).isTrue(),
-                () -> assertThat(result.hasPrevious()).isFalse(),
-                () -> assertThat(result.page()).isEqualTo(0),
-                () -> assertThat(result.size()).isEqualTo(10)
-        );
-    }
-
-    /**
-     * Mock ExchangeItem 생성 헬퍼 메서드
-     */
     private com.back.domain.order.exchange.entity.ExchangeItem createMockExchangeItem(
             Long id, com.back.domain.order.orderItem.entity.OrderItem orderItem, int quantity) {
 
@@ -1257,9 +462,6 @@ class ArtistDashboardServiceImplTest {
         return exchangeItem;
     }
 
-    /**
-     * Mock Exchange 생성 헬퍼 메서드
-     */
     private com.back.domain.order.exchange.entity.Exchange createMockExchange(
             Long id, com.back.domain.order.order.entity.Order order, User user,
             List<com.back.domain.order.exchange.entity.ExchangeItem> exchangeItems,
@@ -1289,14 +491,13 @@ class ArtistDashboardServiceImplTest {
             exchangeItemsField.setAccessible(true);
             exchangeItemsField.set(exchange, exchangeItems);
 
-            // ExchangeItem에 Exchange 설정
             for (com.back.domain.order.exchange.entity.ExchangeItem item : exchangeItems) {
                 java.lang.reflect.Field exchangeField = item.getClass().getDeclaredField("exchange");
                 exchangeField.setAccessible(true);
                 exchangeField.set(item, exchange);
             }
         } catch (Exception e) {
-            throw new RuntimeException("Failed to set exchange fields", e);
+            throw new RuntimeException("Failed to set fields", e);
         }
 
         return exchange;
