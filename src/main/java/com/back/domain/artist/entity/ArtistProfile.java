@@ -34,12 +34,6 @@ public class ArtistProfile extends BaseEntity {
     @Column(nullable = false, length = 20)
     private String artistName; // 작가명
 
-    @Column(nullable = false, length = 100)
-    private String email;
-
-    @Column(nullable = false, length = 20)
-    private String phone;
-
     @Column(length = 500)
     private String mainProducts; // 주력 상품
 
@@ -92,8 +86,7 @@ public class ArtistProfile extends BaseEntity {
 
     @Builder
     public ArtistProfile(User user, ArtistApplication artistApplication,
-                         String artistName, String email, String phone,
-                         String mainProducts, String snsAccount,
+                         String artistName, String mainProducts, String snsAccount,
                          String businessAddress, String businessAddressDetail, String businessZipCode,
                          String managerPhone,
                          String bankName, String bankAccount, String accountName,
@@ -101,8 +94,6 @@ public class ArtistProfile extends BaseEntity {
         this.user = user;
         this.artistApplication = artistApplication;
         this.artistName = artistName;
-        this.email = email;
-        this.phone = phone;
         this.mainProducts = mainProducts;
         this.snsAccount = snsAccount;
         this.businessAddress = businessAddress;
@@ -133,8 +124,6 @@ public class ArtistProfile extends BaseEntity {
                 .user(user)
                 .artistApplication(application)
                 .artistName(application.getArtistName())
-                .email(application.getEmail())
-                .phone(application.getPhone())
                 .mainProducts(application.getMainProducts())
                 .snsAccount(application.getSnsAccount())
                 .businessAddress(application.getBusinessAddress())
@@ -177,7 +166,6 @@ public class ArtistProfile extends BaseEntity {
         if (businessAddress != null && !businessAddress.isBlank()) {
             this.businessAddress = businessAddress;
         }
-
         if (businessAddressDetail != null && !businessAddressDetail.isBlank()) {
             this.businessAddressDetail = businessAddressDetail;
         }
@@ -200,7 +188,7 @@ public class ArtistProfile extends BaseEntity {
             this.bankAccount = bankAccount;
         }
 
-        // 연락처
+        // 담당자 연락처
         if (managerPhone != null && !managerPhone.isBlank()) {
             this.managerPhone = managerPhone;
         }
@@ -248,6 +236,24 @@ public class ArtistProfile extends BaseEntity {
         if (this.productCount > 0) {
             this.productCount--;
         }
+    }
+
+    // ==== Getter 메서드 (User 참조) ==== //
+
+    /**
+     * User의 이메일 반환
+     * - User 엔티티에서 직접 가져옴 (자동 동기화)
+     */
+    public String getEmail() {
+        return this.user.getEmail();
+    }
+
+    /**
+     * User의 전화번호 반환
+     * - User 엔티티에서 직접 가져옴 (자동 동기화)
+     */
+    public String getPhone() {
+        return this.user.getPhone();
     }
 
     // ==== 검증 메서드 ==== //

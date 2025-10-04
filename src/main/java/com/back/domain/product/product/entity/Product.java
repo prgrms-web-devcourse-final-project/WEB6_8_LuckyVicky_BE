@@ -110,6 +110,7 @@ public class Product extends BaseEntity {
     private List<AdditionalProduct> additionalProducts = new ArrayList<>(); // 해당 상품의 추가상품들
 
     @OneToMany(mappedBy = "product", cascade = CascadeType.ALL, orphanRemoval = true)// 상품이 저장/삭제되면 모든 상품이미지도 저장/삭제됨, 상품에서 이미지를 제거하면 DB에서 해당 이미지도 삭제됨.
+    @org.hibernate.annotations.BatchSize(size = 100)  // N+1 방지: 100개씩 배치로 조회
     private List<ProductImage> images = new ArrayList<>(); // 해당 상품의 이미지들(대표/추가/썸네일 이미지)
 
     @OneToMany(mappedBy = "product", cascade = CascadeType.ALL, orphanRemoval = true)// 상품이 저장/삭제되면 매핑 중간테이블의 해당 데이터도 저장/삭제됨, 상품에서 특정 태그를 제거하면 DB에서 해당 매핑 데이터도 삭제됨.

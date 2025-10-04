@@ -106,8 +106,9 @@ public class DashboardController {
             @AuthenticationPrincipal CustomUserDetails userDetails,
             @Valid @ModelAttribute OrderSearchRequest request) {
 
-        log.info("주문 목록 조회 - userId: {}, page: {}, size: {}, status: {}",
-                userDetails.getUserId(), request.page(), request.size(), request.status());
+        log.info("주문 목록 조회 - userId: {}, page: {}, size: {}, keyword: {}, sort: {}, order: {}",
+                userDetails.getUserId(), request.page(), request.size(), 
+                request.keyword(), request.sort(), request.order());
 
         OrderResponse.List response = dashboardService.getOrders(
                 userDetails.getUserId(), request);
