@@ -10,4 +10,5 @@ import java.util.UUID;
 
 public interface ProductRepository extends JpaRepository<Product, Long>, ProductCustomRepository, JpaSpecificationExecutor<Product> {
     Optional<Product> findByProductUuid(UUID productUuid);
+    boolean existsByCategoryId(Long categoryId); // category_id 필드값이 해당 categoryId인 상품이 하나라도 존재하는지 체크
 }
