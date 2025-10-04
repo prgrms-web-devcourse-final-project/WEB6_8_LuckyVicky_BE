@@ -128,7 +128,6 @@ public class ArtistFundingResponseTest {
     @DisplayName("펀딩 목록 페이징 구조 검증")
     void validatePagination_Success() {
         // Given
-        ArtistFundingResponse.Summary summary = createSampleSummary();
         List<ArtistFundingResponse.Funding> fundings = Arrays.asList(
                 createSampleFunding(),
                 createSampleFunding(),
@@ -137,12 +136,11 @@ public class ArtistFundingResponseTest {
 
         // When
         ArtistFundingResponse.List response = new ArtistFundingResponse.List(
-                summary, fundings, 0, 20, 15L, 1, false, false
+                fundings, 0, 20, 15L, 1, false, false
         );
 
         // Then - 페이징 로직 검증
         assertAll(
-                () -> assertThat(response.getSummary()).isNotNull(),
                 () -> assertThat(response.getContent()).hasSize(3),
                 () -> assertThat(response.getPage()).isNotNegative(),
                 () -> assertThat(response.getSize()).isPositive(),
@@ -150,23 +148,6 @@ public class ArtistFundingResponseTest {
                 () -> assertThat(response.getTotalPages()).isPositive(),
                 () -> assertThat(response.isHasNext()).isFalse(),
                 () -> assertThat(response.isHasPrevious()).isFalse()
-        );
-    }
-
-    @Test
-    @DisplayName("요약 정보와 목록 일관성 검증")
-    void validateSummaryConsistency_Success() {
-        // Given
-        ArtistFundingResponse.Summary summary = new ArtistFundingResponse.Summary(15, 8, 6, 1);
-
-        // Then - 요약 정보 일관성 검증
-        assertAll(
-                () -> assertThat(summary.openFundings() + summary.successFundings() + summary.failedFundings())
-                        .isLessThanOrEqualTo(summary.totalFundings()),
-                () -> assertThat(summary.totalFundings()).isEqualTo(15),
-                () -> assertThat(summary.openFundings()).isNotNegative(),
-                () -> assertThat(summary.successFundings()).isNotNegative(),
-                () -> assertThat(summary.failedFundings()).isNotNegative()
         );
     }
 
@@ -286,9 +267,5 @@ public class ArtistFundingResponseTest {
 
     private ArtistFundingResponse.Flags createEndedFlags() {
         return new ArtistFundingResponse.Flags(true, false, true);
-    }
-
-    private ArtistFundingResponse.Summary createSampleSummary() {
-        return new ArtistFundingResponse.Summary(15, 8, 6, 1);
     }
 }

@@ -1,21 +1,12 @@
 package com.back.domain.dashboard.artist.service;
 
 import com.back.domain.dashboard.artist.dto.request.*;
-import com.back.domain.dashboard.artist.dto.response.ArtistCashResponse;
-import com.back.domain.dashboard.artist.dto.response.ArtistMainResponse;
-import com.back.domain.dashboard.artist.dto.response.ArtistProductResponse;
-import com.back.domain.dashboard.artist.dto.response.ArtistCashHistoryResponse;
-import com.back.domain.dashboard.artist.dto.response.ArtistOrderResponse;
-import com.back.domain.dashboard.artist.dto.response.ArtistCancellationResponse;
-import com.back.domain.dashboard.artist.dto.response.ArtistExchangeResponse;
-import com.back.domain.dashboard.artist.dto.response.ArtistSettingsResponse;
-import com.back.domain.dashboard.artist.dto.response.ArtistFundingResponse;
-import com.back.domain.dashboard.artist.dto.response.ArtistSettlementResponse;
-import com.back.domain.dashboard.artist.dto.response.ArtistTrafficSourceResponse;
+import com.back.domain.dashboard.artist.dto.response.*;
 import com.back.domain.funding.entity.Funding;
 import com.back.domain.funding.entity.FundingStatus;
 import com.back.domain.funding.repository.FundingContributionRepository;
 import com.back.domain.funding.repository.FundingRepository;
+import com.back.domain.order.refund.repository.RefundRepository;
 import com.back.domain.product.product.entity.Product;
 import com.back.domain.product.product.entity.SellingStatus;
 import com.back.domain.product.product.repository.ProductRepository;
@@ -33,7 +24,6 @@ import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
 
 /**
@@ -41,10 +31,7 @@ import java.util.List;
  * 2025.09.29 수정 - getProducts() 실제 DB 연동
  * 2025.09.30 수정 - getFundings() 실제 DB 연동
  * 2025.10.01 추가 - getTrafficSources() GA4 유입 경로 분석
-<<<<<<< HEAD
- * 2025.10.02 JWT 표준 패턴 적용 - JWT 파싱 제거, Request DTO 사용
-=======
->>>>>>> 2f4795372b442dd5b55cfd8b8cfe7ba547b36a98
+ * 2025.10.02 JWT 표준 패턴 적용
  */
 @Service
 @RequiredArgsConstructor
@@ -55,7 +42,11 @@ public class ArtistDashboardServiceImpl implements ArtistDashboardService {
     private final ProductRepository productRepository;
     private final FundingRepository fundingRepository;
     private final FundingContributionRepository fundingContributionRepository;
+    private final RefundRepository refundRepository;
+    private final com.back.domain.order.exchange.repository.ExchangeRepository exchangeRepository;
+    private final com.back.domain.order.order.repository.OrderRepository orderRepository;
     private final BetaAnalyticsDataClient analyticsDataClient;
+    private final com.back.domain.artist.repository.ArtistProfileRepository artistProfileRepository;
 
     @Value("${google.analytics.property-id}")
     private String propertyId;
@@ -64,98 +55,8 @@ public class ArtistDashboardServiceImpl implements ArtistDashboardService {
 
     @Override
     public ArtistMainResponse getMainStats(Long artistId, ArtistMainStatsRequest request) {
-        // TODO: 실제 데이터베이스에서 통계 데이터 조회
-
-        // 프로필 정보
-        ArtistMainResponse.Profile profile = new ArtistMainResponse.Profile(
-                5L,
-                "감성작가",
-                "artist@example.com",
-                "https://cdn.example.com/u/5/profile.jpg"
-        );
-
-        // 통계 정보
-        ArtistMainResponse.Stats stats = new ArtistMainResponse.Stats(
-                1250,
-                28,
-                125000,
-                8,
-                2450000,
-                156,
-                4.8,
-                3
-        );
-
-        // 트렌드 메타 정보
-        ArtistMainResponse.Meta meta = new ArtistMainResponse.Meta(
-                "6M",
-                "2025-03-01",
-                "2025-09-01",
-                "WEEK",
-                "Asia/Seoul",
-                400,
-                new ArtistMainResponse.Compare("2024-09-01", "2025-03-01")
-        );
-
-        // 시계열 데이터 포인트 (간략화)
-        List<ArtistMainResponse.DataPoint> salesPoints = Arrays.asList(
-                new ArtistMainResponse.DataPoint("2025-03-03", 95000),
-                new ArtistMainResponse.DataPoint("2025-03-10", 140000),
-                new ArtistMainResponse.DataPoint("2025-03-17", 125000)
-        );
-
-        List<ArtistMainResponse.DataPoint> orderPoints = Arrays.asList(
-                new ArtistMainResponse.DataPoint("2025-03-03", 5),
-                new ArtistMainResponse.DataPoint("2025-03-10", 8),
-                new ArtistMainResponse.DataPoint("2025-03-17", 6)
-        );
-
-        List<ArtistMainResponse.DataPoint> followerPoints = Arrays.asList(
-                new ArtistMainResponse.DataPoint("2025-03-03", 1180),
-                new ArtistMainResponse.DataPoint("2025-03-10", 1195),
-                new ArtistMainResponse.DataPoint("2025-03-17", 1250)
-        );
-
-        // 시계열 데이터
-        ArtistMainResponse.Series series = new ArtistMainResponse.Series(
-                new ArtistMainResponse.SeriesData("KRW", salesPoints, 2450000),
-                new ArtistMainResponse.SeriesData("COUNT", orderPoints, 156),
-                new ArtistMainResponse.SeriesData("COUNT", followerPoints, 1250)
-        );
-
-        // 변화량 정보
-        ArtistMainResponse.Changes changes = new ArtistMainResponse.Changes(
-                new ArtistMainResponse.ChangeData(-40000, -0.242),
-                new ArtistMainResponse.ChangeData(1, 0.143),
-                new ArtistMainResponse.ChangeData(70, 0.059)
-        );
-
-        // 트렌드 정보
-        ArtistMainResponse.Trends trends = new ArtistMainResponse.Trends(meta, series, changes);
-
-        // 알림 정보 (간략화)
-        List<ArtistMainResponse.Alert> orderAlerts = List.of(
-                new ArtistMainResponse.Alert("NEW_ORDER", "새로운 주문 3건", 3, LocalDateTime.now())
-        );
-
-        List<ArtistMainResponse.Alert> fundingAlerts = List.of(
-                new ArtistMainResponse.Alert("FUNDING_GOAL_ACHIEVED", "펀딩 목표 달성", 1, LocalDateTime.now())
-        );
-
-        ArtistMainResponse.Notifications notifications = new ArtistMainResponse.Notifications(orderAlerts, fundingAlerts);
-
-        // 유입 경로 정보 (GA4) - 7일 기준
-        ArtistMainResponse.TrafficSources trafficSources = getTrafficSourcesForMain(artistId, request.tz());
-
-        return new ArtistMainResponse(
-                profile,
-                stats,
-                trends,
-                notifications,
-                trafficSources,
-                LocalDateTime.now(),
-                "Asia/Seoul"
-        );
+        // TODO: 실제 데이터베이스 연동 필요
+        throw new UnsupportedOperationException("작가 메인 대시보드 통계는 아직 구현되지 않았습니다.");
     }
 
     /**
@@ -204,7 +105,7 @@ public class ArtistDashboardServiceImpl implements ArtistDashboardService {
 
         } catch (Exception e) {
             log.error("메인 대시보드 유입 경로 조회 중 오류 발생", e);
-            
+
             // 오류 발생 시 빈 데이터 반환
             return new ArtistMainResponse.TrafficSources(
                     new ArtistMainResponse.Summary(0, 0, 0, 0.0, "없음"),
@@ -221,7 +122,7 @@ public class ArtistDashboardServiceImpl implements ArtistDashboardService {
 
         // Repository를 통한 실제 DB 조회
         Page<Product> productPage = productRepository.findProductsByArtist(
-                artistId, request.keyword(), request.selling(), request.sort(), request.order(), 
+                artistId, request.keyword(), request.selling(), request.sort(), request.order(),
                 PageRequest.of(request.page(), request.size())
         );
 
@@ -270,224 +171,695 @@ public class ArtistDashboardServiceImpl implements ArtistDashboardService {
 
     @Override
     public ArtistCashResponse.Balance getCashBalance(Long artistId) {
-        // TODO: 실제 데이터베이스에서 지갑 잔액 정보 조회
+        // TODO: 실제 데이터베이스 연동 필요
         log.info("작가 지갑 잔액 조회 - artistId: {}", artistId);
-
-        return new ArtistCashResponse.Balance(
-                72000,
-                15000,
-                0,
-                72000,
-                "KRW",
-                LocalDateTime.now()
-        );
+        throw new UnsupportedOperationException("작가 지갑 잔액 조회는 아직 구현되지 않았습니다.");
     }
 
     @Override
     public ArtistCashHistoryResponse.List getCashHistory(Long artistId, ArtistCashHistorySearchRequest request) {
-        // TODO: 실제 데이터베이스에서 캐시 거래 내역 조회
+        // TODO: 실제 데이터베이스 연동 필요
         log.info("작가 캐시 내역 조회 - artistId: {}, page: {}, size: {}, type: {}",
                 artistId, request.page(), request.size(), request.type());
-
-        ArtistCashHistoryResponse.Summary summary = new ArtistCashHistoryResponse.Summary(
-                74000,
-                64000,
-                10000
-        );
-
-        List<ArtistCashHistoryResponse.Transaction> content = Arrays.asList(
-                new ArtistCashHistoryResponse.Transaction(
-                        "TX-001",
-                        "2025-09-24T09:12:00+09:00",
-                        "DEPOSIT",
-                        "정산금 입금",
-                        10000,
-                        0,
-                        72000,
-                        "WALLET",
-                        "모리캐시",
-                        "COMPLETED",
-                        null
-                ),
-                new ArtistCashHistoryResponse.Transaction(
-                        "TX-002",
-                        "2025-09-23T16:20:00+09:00",
-                        "WITHDRAWAL",
-                        "환전",
-                        0,
-                        50000,
-                        62000,
-                        "BANK_TRANSFER",
-                        "계좌이체",
-                        "COMPLETED",
-                        "우리은행"
-                )
-        );
-
-        return new ArtistCashHistoryResponse.List(
-                summary,
-                content,
-                request.page(),
-                request.size(),
-                content.size(),
-                1,
-                false,
-                false
-        );
+        throw new UnsupportedOperationException("작가 캐시 거래 내역 조회는 아직 구현되지 않았습니다.");
     }
 
     @Override
     public ArtistOrderResponse.List getOrders(Long artistId, ArtistOrderSearchRequest request) {
-        // TODO: 실제 데이터베이스에서 주문 목록 조회
-        log.info("작가 주문 내역 조회 - artistId: {}, page: {}, size: {}, status: {}",
-                artistId, request.page(), request.size(), request.status());
+        log.info("작가 주문 내역 조회 시작 - artistId: {}, page: {}, size: {}, status: {}, keyword: {}, startDate: {}, endDate: {}",
+                artistId, request.page(), request.size(), request.status(), request.keyword(), request.startDate(), request.endDate());
 
-        ArtistOrderResponse.Summary summary = new ArtistOrderResponse.Summary(
-                156, 8, 12, 100, 36, 5
+        // status 문자열을 OrderStatus enum으로 변환
+        com.back.domain.order.order.entity.OrderStatus orderStatus = null;
+        if (request.status() != null && !request.status().isBlank()) {
+            try {
+                orderStatus = com.back.domain.order.order.entity.OrderStatus.valueOf(request.status());
+            } catch (IllegalArgumentException e) {
+                log.warn("잘못된 주문 상태값: {}", request.status());
+            }
+        }
+
+        // 날짜 파싱
+        java.time.LocalDateTime startDateTime = null;
+        java.time.LocalDateTime endDateTime = null;
+        
+        if (request.startDate() != null && !request.startDate().isBlank()) {
+            try {
+                startDateTime = java.time.LocalDate.parse(request.startDate()).atStartOfDay();
+            } catch (java.time.format.DateTimeParseException e) {
+                log.warn("잘못된 시작 날짜 형식: {}", request.startDate());
+            }
+        }
+        
+        if (request.endDate() != null && !request.endDate().isBlank()) {
+            try {
+                endDateTime = java.time.LocalDate.parse(request.endDate()).atTime(23, 59, 59);
+            } catch (java.time.format.DateTimeParseException e) {
+                log.warn("잘못된 종료 날짜 형식: {}", request.endDate());
+            }
+        }
+
+        // 동적 정렬 처리
+        org.springframework.data.domain.Sort sort = createOrderSort(request.sort(), request.order());
+        PageRequest pageRequest = PageRequest.of(request.page(), request.size(), sort);
+
+        // Repository를 통한 실제 DB 조회
+        Page<com.back.domain.order.order.entity.Order> orderPage = orderRepository.findOrdersByArtist(
+                artistId,
+                orderStatus,
+                request.keyword(),
+                startDateTime,
+                endDateTime,
+                pageRequest
         );
 
-        List<ArtistOrderResponse.Order> content = List.of(
-                new ArtistOrderResponse.Order(
-                        "ORDER-001",
-                        "0123157",
-                        "2025-09-18",
-                        "PENDING",
-                        "발주 전",
-                        47500,
-                        "감성 포스터 외 1건",
-                        2,
-                        new ArtistOrderResponse.Buyer(201L, "아트러버", "김**"),
-                        new ArtistOrderResponse.Shipment("READY", null, null),
-                        new ArtistOrderResponse.Permissions(true, true)
-                )
-        );
+        // ID 리스트 추출
+        List<Long> orderIds = orderPage.getContent().stream()
+                .map(com.back.domain.order.order.entity.Order::getId)
+                .toList();
+
+        // Fetch Join으로 상세 정보 조회 (N+1 방지)
+        List<com.back.domain.order.order.entity.Order> ordersWithDetails = orderIds.isEmpty() 
+                ? List.of() 
+                : orderRepository.findOrdersWithDetailsByArtist(orderIds, artistId);
+
+        // Entity → DTO 변환
+        List<ArtistOrderResponse.Order> content = ordersWithDetails.stream()
+                .map(order -> convertToOrderDto(order, artistId))
+                .toList();
+
+        // 상태별 요약 정보 계산
+        ArtistOrderResponse.Summary summary = calculateOrderSummary(artistId);
+
+        int totalPages = orderPage.getTotalPages();
+        long totalElements = orderPage.getTotalElements();
+        boolean hasNext = orderPage.hasNext();
+        boolean hasPrevious = orderPage.hasPrevious();
+
+        log.info("작가 주문 내역 조회 완료 - 조회된 주문 수: {}, 전체: {}", content.size(), totalElements);
 
         return new ArtistOrderResponse.List(
                 summary,
                 content,
                 request.page(),
                 request.size(),
-                156,
-                8,
-                request.page() < 7,
-                request.page() > 0
+                totalElements,
+                totalPages,
+                hasNext,
+                hasPrevious
         );
+    }
+
+    /**
+     * 주문 정렬 생성
+     */
+    private org.springframework.data.domain.Sort createOrderSort(String sortField, String sortOrder) {
+        if (sortField == null || sortField.isBlank()) {
+            sortField = "orderDate";
+        }
+        if (sortOrder == null || sortOrder.isBlank()) {
+            sortOrder = "DESC";
+        }
+
+        org.springframework.data.domain.Sort.Direction direction = 
+                "ASC".equalsIgnoreCase(sortOrder) 
+                ? org.springframework.data.domain.Sort.Direction.ASC 
+                : org.springframework.data.domain.Sort.Direction.DESC;
+
+        return switch (sortField) {
+            case "status" -> org.springframework.data.domain.Sort.by(direction, "status");
+            case "totalAmount" -> org.springframework.data.domain.Sort.by(direction, "totalAmount");
+            case "customerName" -> org.springframework.data.domain.Sort.by(direction, "user.name");
+            case "productName" -> org.springframework.data.domain.Sort.by(direction, "orderDate"); // 상품명 정렬은 복잡하므로 일단 주문일자로 대체
+            default -> org.springframework.data.domain.Sort.by(direction, "orderDate");
+        };
+    }
+
+    /**
+     * Order 엔티티를 OrderResponse.Order DTO로 변환
+     */
+    private ArtistOrderResponse.Order convertToOrderDto(com.back.domain.order.order.entity.Order order, Long artistId) {
+        // 작가의 상품만 필터링
+        List<com.back.domain.order.orderItem.entity.OrderItem> artistOrderItems = order.getOrderItems().stream()
+                .filter(item -> item.getProduct().getUser().getId().equals(artistId))
+                .toList();
+
+        // 상품 요약 생성 (첫 번째 상품명 + 나머지 개수)
+        String productSummary = "";
+        int itemCount = artistOrderItems.size();
+        
+        if (!artistOrderItems.isEmpty()) {
+            String firstName = artistOrderItems.get(0).getProduct().getName();
+            if (itemCount > 1) {
+                productSummary = firstName + " 외 " + (itemCount - 1) + "건";
+            } else {
+                productSummary = firstName;
+            }
+        }
+
+        // 총 주문 금액 계산 (작가의 상품만)
+        int totalAmount = artistOrderItems.stream()
+                .mapToInt(item -> item.getPrice().intValue() * item.getQuantity())
+                .sum();
+
+        // 구매자 정보
+        com.back.domain.user.entity.User buyer = order.getUser();
+        ArtistOrderResponse.Buyer buyerDto = new ArtistOrderResponse.Buyer(
+                buyer.getId(),
+                buyer.getName(),  // nickname 대신 name 사용
+                buyer.getName()
+        );
+
+        // 배송 정보 (배송 엔티티가 없으므로 주문 상태 기반)
+        String shipmentStatus = convertOrderStatusToShipmentStatus(order.getStatus());
+        ArtistOrderResponse.Shipment shipmentDto = new ArtistOrderResponse.Shipment(
+                shipmentStatus,
+                null,  // 운송장 번호 (배송 엔티티에서 가져와야 함)
+                null   // 택배사 (배송 엔티티에서 가져와야 함)
+        );
+
+        // 상태 텍스트 변환
+        String statusText = convertOrderStatusToKorean(order.getStatus());
+
+        // 권한 정보
+        boolean canChangeStatus = order.getStatus() == com.back.domain.order.order.entity.OrderStatus.PAYMENT_COMPLETED ||
+                                  order.getStatus() == com.back.domain.order.order.entity.OrderStatus.PREPARING_SHIPMENT;
+        boolean canCancel = order.getStatus() == com.back.domain.order.order.entity.OrderStatus.PAYMENT_COMPLETED;
+
+        ArtistOrderResponse.Permissions permissions = new ArtistOrderResponse.Permissions(
+                canChangeStatus,
+                canCancel
+        );
+
+        return new ArtistOrderResponse.Order(
+                order.getId().toString(),
+                order.getOrderNumber(),
+                order.getOrderDate().format(DateTimeFormatter.ofPattern("yyyy. MM. dd HH:mm")),
+                order.getStatus().name(),
+                statusText,
+                totalAmount,
+                productSummary,
+                itemCount,
+                buyerDto,
+                shipmentDto,
+                permissions
+        );
+    }
+
+    /**
+     * OrderStatus를 배송 상태로 변환
+     */
+    private String convertOrderStatusToShipmentStatus(com.back.domain.order.order.entity.OrderStatus status) {
+        return switch (status) {
+            case PAYMENT_COMPLETED -> "발주 전";
+            case PREPARING_SHIPMENT -> "배송 준비중";
+            case SHIPPING -> "배송 중";
+            case DELIVERED -> "배송 완료";
+            default -> "기타";
+        };
+    }
+
+    /**
+     * OrderStatus Enum을 한글로 변환
+     */
+    private String convertOrderStatusToKorean(com.back.domain.order.order.entity.OrderStatus status) {
+        return switch (status) {
+            case PAYMENT_COMPLETED -> "결제완료";
+            case PREPARING_SHIPMENT -> "배송준비중";
+            case SHIPPING -> "배송중";
+            case DELIVERED -> "배송완료";
+            case CANCELLATION_REQUESTED -> "취소요청";
+            case CANCELLATION_COMPLETED -> "취소완료";
+            case REFUND_REQUESTED -> "환불요청";
+            case REFUND_COMPLETED -> "환불완료";
+            case EXCHANGE_REQUESTED -> "교환요청";
+            case EXCHANGE_COMPLETED -> "교환완료";
+        };
+    }
+
+    /**
+     * 작가의 주문 상태별 요약 정보 계산
+     */
+    private ArtistOrderResponse.Summary calculateOrderSummary(Long artistId) {
+        // 모든 주문 조회 (상태별 집계용)
+        Page<com.back.domain.order.order.entity.Order> allOrders = orderRepository.findOrdersByArtist(
+                artistId, null, null, null, null,
+                PageRequest.of(0, Integer.MAX_VALUE)
+        );
+
+        int total = (int) allOrders.getTotalElements();
+        int pending = 0;
+        int preparing = 0;
+        int shipped = 0;
+        int delivered = 0;
+        int canceled = 0;
+
+        for (com.back.domain.order.order.entity.Order order : allOrders.getContent()) {
+            switch (order.getStatus()) {
+                case PAYMENT_COMPLETED -> pending++;
+                case PREPARING_SHIPMENT -> preparing++;
+                case SHIPPING -> shipped++;
+                case DELIVERED -> delivered++;
+                case CANCELLATION_COMPLETED, REFUND_COMPLETED -> canceled++;
+            }
+        }
+
+        return new ArtistOrderResponse.Summary(total, pending, preparing, shipped, delivered, canceled);
     }
 
     @Override
     public ArtistCancellationResponse.List getCancellationRequests(Long artistId, ArtistCancellationSearchRequest request) {
-        // TODO: 실제 데이터베이스에서 취소 요청 목록 조회
-        log.info("작가 취소 요청 목록 조회 - artistId: {}, page: {}, size: {}, status: {}",
-                artistId, request.page(), request.size(), request.status());
+        log.info("작가 취소 요청 목록 조회 시작 - artistId: {}, page: {}, size: {}, status: {}, keyword: {}",
+                artistId, request.page(), request.size(), request.status(), request.keyword());
 
-        ArtistCancellationResponse.Summary summary = new ArtistCancellationResponse.Summary(8, 5, 2, 1);
+        // status 문자열을 RefundStatus enum으로 변환
+        com.back.domain.order.refund.entity.Refund.RefundStatus refundStatus = null;
+        if (request.status() != null && !request.status().isBlank()) {
+            try {
+                refundStatus = com.back.domain.order.refund.entity.Refund.RefundStatus.valueOf(request.status());
+            } catch (IllegalArgumentException e) {
+                log.warn("잘못된 취소 요청 상태값: {}", request.status());
+            }
+        }
 
-        List<ArtistCancellationResponse.CancellationRequest> content = List.of(
-                new ArtistCancellationResponse.CancellationRequest(
-                        1L,
-                        "ORDER-001",
-                        "0123157",
-                        "CANCEL",
-                        "PENDING",
-                        "처리대기",
-                        "2024-12-26T09:00:00+09:00",
-                        "단순 변심",
-                        "취소 요청합니다.",
-                        new ArtistCancellationResponse.Customer(201L, "고객A"),
-                        new ArtistCancellationResponse.OrderItem(101L, "귀여운 스티커", 1, 15000),
-                        15000,
-                        new ArtistCancellationResponse.Permissions(true, true)
-                )
+        // Repository를 통한 실제 DB 조회 (최신순 정렬)
+        Page<com.back.domain.order.refund.entity.Refund> refundPage = refundRepository.findRefundsByArtist(
+                artistId,
+                refundStatus,
+                request.keyword(),
+                PageRequest.of(request.page(), request.size())
         );
 
+        // Entity → DTO 변환
+        List<ArtistCancellationResponse.CancellationRequest> content = refundPage.getContent().stream()
+                .map(this::convertToCancellationDto)
+                .toList();
+
+        // 메모리에서 정렬 (간단한 정렬만 지원)
+        if (request.sort() != null && !request.sort().equals("requestDate")) {
+            content = sortInMemory(content, request.sort(), request.order());
+        }
+
+        int totalPages = refundPage.getTotalPages();
+        long totalElements = refundPage.getTotalElements();
+        boolean hasNext = refundPage.hasNext();
+        boolean hasPrevious = refundPage.hasPrevious();
+
+        log.info("작가 취소 요청 목록 조회 완료 - 조회된 요청 수: {}, 전체: {}", content.size(), totalElements);
+
         return new ArtistCancellationResponse.List(
-                summary,
+                null,  // summary는 필요 없음
                 content,
                 request.page(),
                 request.size(),
-                8,
-                1,
-                false,
-                false
+                totalElements,
+                totalPages,
+                hasNext,
+                hasPrevious
         );
+    }
+
+    /**
+     * 메모리에서 정렬 처리
+     */
+    private List<ArtistCancellationResponse.CancellationRequest> sortInMemory(
+            List<ArtistCancellationResponse.CancellationRequest> list, String sort, String order) {
+
+        boolean asc = "ASC".equalsIgnoreCase(order);
+
+        return list.stream()
+                .sorted((a, b) -> {
+                    int cmp = 0;
+                    switch (sort) {
+                        case "productName":
+                            String nameA = a.orderItem() != null ? a.orderItem().productName() : "";
+                            String nameB = b.orderItem() != null ? b.orderItem().productName() : "";
+                            cmp = nameA.compareTo(nameB);
+                            break;
+                        case "customerName":
+                            String customerA = a.customer() != null ? a.customer().nickname() : "";
+                            String customerB = b.customer() != null ? b.customer().nickname() : "";
+                            cmp = customerA.compareTo(customerB);
+                            break;
+                        case "status":
+                            cmp = a.status().compareTo(b.status());
+                            break;
+                        default:
+                            cmp = a.requestDate().compareTo(b.requestDate());
+                    }
+                    return asc ? cmp : -cmp;
+                })
+                .toList();
+    }
+
+    /**
+     * Refund 엔티티를 CancellationRequest DTO로 변환
+     */
+    private ArtistCancellationResponse.CancellationRequest convertToCancellationDto(
+            com.back.domain.order.refund.entity.Refund refund) {
+
+        // 주문 정보
+        com.back.domain.order.order.entity.Order order = refund.getOrder();
+
+        // 첫 번째 환불 아이템 가져오기 (주문 상품 정보용)
+        com.back.domain.order.refund.entity.RefundItem firstRefundItem = refund.getRefundItems().isEmpty()
+                ? null
+                : refund.getRefundItems().get(0);
+
+        // 주문 상품 정보
+        ArtistCancellationResponse.OrderItem orderItemDto = null;
+        if (firstRefundItem != null) {
+            com.back.domain.order.orderItem.entity.OrderItem orderItem = firstRefundItem.getOrderItem();
+            com.back.domain.product.product.entity.Product product = orderItem.getProduct();
+
+            orderItemDto = new ArtistCancellationResponse.OrderItem(
+                    product.getId(),
+                    product.getName(),
+                    firstRefundItem.getQuantity(),
+                    firstRefundItem.getRefundPrice().intValue()
+            );
+        }
+
+        // 고객 정보
+        com.back.domain.user.entity.User customer = refund.getUser();
+        ArtistCancellationResponse.Customer customerDto = new ArtistCancellationResponse.Customer(
+                customer.getId(),
+                customer.getName()
+        );
+
+        // 상태 텍스트 변환
+        String statusText = convertRefundStatusToKorean(refund.getStatus());
+
+        // 권한 정보 (작가 본인이므로 모든 권한 true, 단 이미 처리된 건은 false)
+        boolean canApprove = refund.getStatus() == com.back.domain.order.refund.entity.Refund.RefundStatus.REQUESTED;
+        boolean canReject = refund.getStatus() == com.back.domain.order.refund.entity.Refund.RefundStatus.REQUESTED;
+
+        ArtistCancellationResponse.Permissions permissions = new ArtistCancellationResponse.Permissions(
+                canApprove,
+                canReject
+        );
+
+        return new ArtistCancellationResponse.CancellationRequest(
+                refund.getId(),
+                order.getId().toString(),
+                order.getOrderNumber(),
+                "CANCEL", // 또는 refund 타입에 따라 "REFUND"
+                refund.getStatus().name(),
+                statusText,
+                refund.getCreateDate().atZone(java.time.ZoneId.systemDefault()).format(java.time.format.DateTimeFormatter.ISO_OFFSET_DATE_TIME),
+                refund.getReason(),
+                refund.getDetailReason() != null ? refund.getDetailReason() : "",
+                customerDto,
+                orderItemDto,
+                refund.getRefundAmount().intValue(),
+                permissions
+        );
+    }
+
+    /**
+     * RefundStatus Enum을 한글로 변환
+     */
+    private String convertRefundStatusToKorean(com.back.domain.order.refund.entity.Refund.RefundStatus status) {
+        return switch (status) {
+            case REQUESTED -> "처리대기";
+            case COMPLETED -> "승인됨";
+        };
     }
 
     @Override
     public ArtistExchangeResponse.List getExchangeRequests(Long artistId, ArtistExchangeSearchRequest request) {
-        // TODO: 실제 데이터베이스에서 교환 요청 목록 조회
-        log.info("작가 교환 요청 목록 조회 - artistId: {}, page: {}, size: {}, status: {}",
-                artistId, request.page(), request.size(), request.status());
+        log.info("작가 교환 요청 목록 조회 시작 - artistId: {}, page: {}, size: {}, status: {}, keyword: {}",
+                artistId, request.page(), request.size(), request.status(), request.keyword());
 
-        ArtistExchangeResponse.Summary summary = new ArtistExchangeResponse.Summary(5, 3, 1, 1);
+        // status 문자열을 ExchangeStatus enum으로 변환
+        com.back.domain.order.exchange.entity.Exchange.ExchangeStatus exchangeStatus = null;
+        if (request.status() != null && !request.status().isBlank()) {
+            try {
+                // PENDING, APPROVED 등을 REQUESTED, COMPLETED로 매핑
+                exchangeStatus = switch (request.status()) {
+                    case "PENDING" -> com.back.domain.order.exchange.entity.Exchange.ExchangeStatus.REQUESTED;
+                    case "APPROVED" -> com.back.domain.order.exchange.entity.Exchange.ExchangeStatus.COMPLETED;
+                    default -> com.back.domain.order.exchange.entity.Exchange.ExchangeStatus.valueOf(request.status());
+                };
+            } catch (IllegalArgumentException e) {
+                log.warn("잘못된 교환 요청 상태값: {}", request.status());
+            }
+        }
 
-        List<ArtistExchangeResponse.ExchangeRequest> content = List.of(
-                new ArtistExchangeResponse.ExchangeRequest(
-                        21L,
-                        "ORDER-002",
-                        "0123156",
-                        "EXCHANGE",
-                        "PENDING",
-                        "처리대기",
-                        "2024-12-26T11:10:00+09:00",
-                        "사이즈 변경",
-                        "L사이즈로 교환 요청",
-                        new ArtistExchangeResponse.Customer(204L, "고객B"),
-                        new ArtistExchangeResponse.OrderItem(103L, "아티스트 티셔츠", 1, 28500),
-                        new ArtistExchangeResponse.ExchangeRequested("사이즈=L", 1),
-                        new ArtistExchangeResponse.Permissions(true, true)
-                )
+        // Repository를 통한 실제 DB 조회 (최신순 정렬)
+        Page<com.back.domain.order.exchange.entity.Exchange> exchangePage = exchangeRepository.findExchangesByArtist(
+                artistId,
+                exchangeStatus,
+                request.keyword(),
+                PageRequest.of(request.page(), request.size())
         );
 
+        // Entity → DTO 변환
+        List<ArtistExchangeResponse.ExchangeRequest> content = exchangePage.getContent().stream()
+                .map(this::convertToExchangeDto)
+                .toList();
+
+        // 메모리에서 정렬 (간단한 정렬만 지원)
+        if (request.sort() != null && !request.sort().equals("requestDate")) {
+            content = sortExchangesInMemory(content, request.sort(), request.order());
+        }
+
+        int totalPages = exchangePage.getTotalPages();
+        long totalElements = exchangePage.getTotalElements();
+        boolean hasNext = exchangePage.hasNext();
+        boolean hasPrevious = exchangePage.hasPrevious();
+
+        log.info("작가 교환 요청 목록 조회 완료 - 조회된 요청 수: {}, 전체: {}", content.size(), totalElements);
+
         return new ArtistExchangeResponse.List(
-                summary,
+                null,  // summary는 필요 없음
                 content,
                 request.page(),
                 request.size(),
-                5,
-                1,
-                false,
-                false
+                totalElements,
+                totalPages,
+                hasNext,
+                hasPrevious
         );
     }
 
+    /**
+     * 메모리에서 교환 요청 정렬 처리
+     */
+    private List<ArtistExchangeResponse.ExchangeRequest> sortExchangesInMemory(
+            List<ArtistExchangeResponse.ExchangeRequest> list, String sort, String order) {
+
+        boolean asc = "ASC".equalsIgnoreCase(order);
+
+        return list.stream()
+                .sorted((a, b) -> {
+                    int cmp = 0;
+                    switch (sort) {
+                        case "productName":
+                            String nameA = a.orderItem() != null ? a.orderItem().productName() : "";
+                            String nameB = b.orderItem() != null ? b.orderItem().productName() : "";
+                            cmp = nameA.compareTo(nameB);
+                            break;
+                        case "customerName":
+                            String customerA = a.customer() != null ? a.customer().nickname() : "";
+                            String customerB = b.customer() != null ? b.customer().nickname() : "";
+                            cmp = customerA.compareTo(customerB);
+                            break;
+                        case "status":
+                            cmp = a.status().compareTo(b.status());
+                            break;
+                        default:
+                            cmp = a.requestDate().compareTo(b.requestDate());
+                    }
+                    return asc ? cmp : -cmp;
+                })
+                .toList();
+    }
+
+    /**
+     * Exchange 엔티티를 ExchangeRequest DTO로 변환
+     */
+    private ArtistExchangeResponse.ExchangeRequest convertToExchangeDto(
+            com.back.domain.order.exchange.entity.Exchange exchange) {
+
+        // 주문 정보
+        com.back.domain.order.order.entity.Order order = exchange.getOrder();
+
+        // 첫 번째 교환 아이템 가져오기 (주문 상품 정보용)
+        com.back.domain.order.exchange.entity.ExchangeItem firstExchangeItem = exchange.getExchangeItems().isEmpty()
+                ? null
+                : exchange.getExchangeItems().get(0);
+
+        // 주문 상품 정보
+        ArtistExchangeResponse.OrderItem orderItemDto = null;
+        if (firstExchangeItem != null) {
+            com.back.domain.order.orderItem.entity.OrderItem orderItem = firstExchangeItem.getOrderItem();
+            com.back.domain.product.product.entity.Product product = orderItem.getProduct();
+
+            orderItemDto = new ArtistExchangeResponse.OrderItem(
+                    product.getId(),
+                    product.getName(),
+                    firstExchangeItem.getQuantity(),
+                    orderItem.getPrice().intValue()
+            );
+        }
+
+        // 고객 정보
+        com.back.domain.user.entity.User customer = exchange.getUser();
+        ArtistExchangeResponse.Customer customerDto = new ArtistExchangeResponse.Customer(
+                customer.getId(),
+                customer.getName()
+        );
+
+        int exchangeQuantity = firstExchangeItem != null ? firstExchangeItem.getQuantity() : 0;
+
+        ArtistExchangeResponse.ExchangeRequested exchangeRequested = new ArtistExchangeResponse.ExchangeRequested(
+                "",  // 교환 방법은 상세 조회에서만 제공 예정
+                exchangeQuantity
+        );
+
+        // 상태 텍스트 변환
+        String statusText = convertExchangeStatusToKorean(exchange.getStatus());
+        String status = convertExchangeStatusToApi(exchange.getStatus());
+
+        // 권한 정보 (작가 본인이므로 모든 권한 true, 단 이미 처리된 건은 false)
+        boolean canApprove = exchange.getStatus() == com.back.domain.order.exchange.entity.Exchange.ExchangeStatus.REQUESTED;
+        boolean canReject = exchange.getStatus() == com.back.domain.order.exchange.entity.Exchange.ExchangeStatus.REQUESTED;
+
+        ArtistExchangeResponse.Permissions permissions = new ArtistExchangeResponse.Permissions(
+                canApprove,
+                canReject
+        );
+
+        return new ArtistExchangeResponse.ExchangeRequest(
+                exchange.getId(),
+                order.getId().toString(),
+                order.getOrderNumber(),
+                "EXCHANGE",
+                status,
+                statusText,
+                exchange.getCreateDate().atZone(java.time.ZoneId.systemDefault()).format(java.time.format.DateTimeFormatter.ISO_OFFSET_DATE_TIME),
+                exchange.getReason(),
+                exchange.getDetailReason() != null ? exchange.getDetailReason() : "",
+                customerDto,
+                orderItemDto,
+                exchangeRequested,
+                permissions
+        );
+    }
+
+    /**
+     * ExchangeStatus Enum을 한글로 변환
+     */
+    private String convertExchangeStatusToKorean(com.back.domain.order.exchange.entity.Exchange.ExchangeStatus status) {
+        return switch (status) {
+            case REQUESTED -> "처리대기";
+            case COMPLETED -> "승인됨";
+        };
+    }
+
+    /**
+     * ExchangeStatus Enum을 API 상태값으로 변환
+     */
+    private String convertExchangeStatusToApi(com.back.domain.order.exchange.entity.Exchange.ExchangeStatus status) {
+        return switch (status) {
+            case REQUESTED -> "PENDING";
+            case COMPLETED -> "APPROVED";
+        };
+    }
+
+
     @Override
     public ArtistSettingsResponse getSettings(Long artistId) {
-        // TODO: 실제 데이터베이스에서 작가 설정 정보 조회
         log.info("작가 설정 정보 조회 - artistId: {}", artistId);
 
+        // 실제 DB에서 작가 프로필 조회
+        com.back.domain.artist.entity.ArtistProfile artistProfile = artistProfileRepository
+                .findByUserId(artistId)
+                .orElseThrow(() -> new com.back.global.exception.ServiceException("404", "작가 프로필을 찾을 수 없습니다."));
+
+        log.info("작가 프로필 조회 완료 - artistId: {}, artistName: {}", artistId, artistProfile.getArtistName());
+
+        // Entity → DTO 변환
+        return convertToSettingsResponse(artistProfile);
+    }
+
+    /**
+     * ArtistProfile 엔티티를 ArtistSettingsResponse DTO로 변환
+     */
+    private ArtistSettingsResponse convertToSettingsResponse(com.back.domain.artist.entity.ArtistProfile profile) {
         // 프로필 정보
-        ArtistSettingsResponse.Profile profile = new ArtistSettingsResponse.Profile(
-                "작가명입니다",
-                "자신을 소개하는 글을 입력해주세요.",
-                List.of(new ArtistSettingsResponse.Sns("Instagram", "@mori_official")),
-                "https://cdn.example.com/u/5/profile.jpg"
+        ArtistSettingsResponse.Profile profileDto = new ArtistSettingsResponse.Profile(
+                profile.getArtistName(),
+                profile.getDescription() != null ? profile.getDescription() : "",
+                profile.getSnsAccount() != null ?
+                        List.of(new ArtistSettingsResponse.Sns("Instagram", profile.getSnsAccount())) :
+                        List.of(),
+                profile.getProfileImageUrl()
         );
 
         // 사업자 정보
+        String fullAddress = buildFullAddress(
+                profile.getBusinessAddress(),
+                profile.getBusinessAddressDetail()
+        );
+
         ArtistSettingsResponse.Business business = new ArtistSettingsResponse.Business(
-                "서울특별시 강남구 테헤란로 123 2층",
-                "123-45-67890",
-                "2025-서울강남-1234",
-                true
+                fullAddress,
+                null,  // 사업자등록번호 (ArtistProfile에 없음)
+                null,  // 통신판매업신고번호 (ArtistProfile에 없음)
+                profile.getBusinessAddress() != null  // 사업자 주소가 있으면 인증됨으로 간주
         );
 
-        // 정산 계좌 정보
+        // 정산 계좌 정보 (마스킹)
         ArtistSettingsResponse.Payout payout = new ArtistSettingsResponse.Payout(
-                "088",
-                "신한",
-                "홍길동",
-                "****-****-**3456",
-                "VERIFIED"
+                null,  // 은행 코드 (ArtistProfile에 없음)
+                profile.getBankName(),
+                profile.getAccountName(),
+                maskAccountNumber(profile.getBankAccount()),
+                profile.getBankAccount() != null ? "VERIFIED" : "PENDING"
         );
 
-        // 권한 정보
+        // 권한 정보 (작가 본인이므로 모든 권한 true)
         ArtistSettingsResponse.Permissions permissions = new ArtistSettingsResponse.Permissions(
-                true,
-                true,
-                true
+                true,  // canEditProfile
+                true,  // canEditBusiness
+                true   // canEditPayout
         );
 
-        return new ArtistSettingsResponse(profile, business, payout, permissions);
+        return new ArtistSettingsResponse(profileDto, business, payout, permissions);
+    }
+
+    /**
+     * 주소와 상세주소를 합쳐서 전체 주소 생성
+     */
+    private String buildFullAddress(String address, String detailAddress) {
+        if (address == null) {
+            return null;
+        }
+        if (detailAddress == null || detailAddress.isBlank()) {
+            return address;
+        }
+        return address + " " + detailAddress;
+    }
+
+    /**
+     * 계좌번호 마스킹 처리
+     * 예: "123-456-789012" → "****-****-**9012"
+     */
+    private String maskAccountNumber(String accountNumber) {
+        if (accountNumber == null || accountNumber.isBlank()) {
+            return null;
+        }
+
+        // 계좌번호가 4자리 미만이면 전체 마스킹
+        if (accountNumber.length() < 4) {
+            return "****";
+        }
+
+        // 마지막 4자리만 보이고 나머지는 마스킹
+        String lastFour = accountNumber.substring(accountNumber.length() - 4);
+        return "****-****-**" + lastFour;
     }
 
     @Override
@@ -507,17 +879,9 @@ public class ArtistDashboardServiceImpl implements ArtistDashboardService {
 
         // Repository를 통한 실제 DB 조회
         Page<Funding> fundingPage = fundingRepository.findFundingsByArtist(
-                artistId, request.keyword(), fundingStatus, request.sort(), request.order(), 
+                artistId, request.keyword(), fundingStatus, request.sort(), request.order(),
                 PageRequest.of(request.page(), request.size())
         );
-
-        // 전체 펀딩 통계 조회 (요약 정보용)
-        Page<Funding> allFundings = fundingRepository.findFundingsByArtist(
-                artistId, null, null, "createDate", "DESC", PageRequest.of(0, Integer.MAX_VALUE)
-        );
-
-        // 요약 정보 계산
-        ArtistFundingResponse.Summary summary = calculateFundingSummary(allFundings.getContent());
 
         // Entity → DTO 변환
         List<ArtistFundingResponse.Funding> content = fundingPage.getContent().stream()
@@ -532,23 +896,9 @@ public class ArtistDashboardServiceImpl implements ArtistDashboardService {
         log.info("작가 펀딩 목록 조회 완료 - 조회된 펀딩 수: {}, 전체: {}", content.size(), totalElements);
 
         return new ArtistFundingResponse.List(
-                summary, content,
+                content,
                 request.page(), request.size(), totalElements, totalPages, hasNext, hasPrevious
         );
-    }
-
-    /**
-     * 펀딩 요약 정보 계산
-     */
-    private ArtistFundingResponse.Summary calculateFundingSummary(List<Funding> fundings) {
-        int total = fundings.size();
-        int open = (int) fundings.stream().filter(f -> f.getStatus() == FundingStatus.OPEN).count();
-        int success = (int) fundings.stream().filter(f -> f.getStatus() == FundingStatus.SUCCESS).count();
-        int failed = (int) fundings.stream().filter(f -> 
-            f.getStatus() == FundingStatus.FAILED || f.getStatus() == FundingStatus.CLOSED
-        ).count();
-
-        return new ArtistFundingResponse.Summary(total, open, success, failed);
     }
 
     /**
@@ -557,13 +907,13 @@ public class ArtistDashboardServiceImpl implements ArtistDashboardService {
     private ArtistFundingResponse.Funding convertToFundingDto(Funding funding) {
         // 누적 모금액 조회
         long currentAmount = nz(fundingContributionRepository.sumContributedAmountByFundingId(funding.getId()));
-        
+
         // 참여자 수 조회 (Funding 엔티티에 저장된 값 사용)
         int participantCount = funding.getParticipantCount();
 
         // 달성률 계산
-        double achievementRate = funding.getTargetAmount() == 0 
-                ? 0.0 
+        double achievementRate = funding.getTargetAmount() == 0
+                ? 0.0
                 : Math.min(100.0, (currentAmount * 100.0) / funding.getTargetAmount());
 
         // 남은 일수 계산
@@ -638,105 +988,10 @@ public class ArtistDashboardServiceImpl implements ArtistDashboardService {
 
     @Override
     public ArtistSettlementResponse getSettlements(Long artistId, ArtistSettlementSearchRequest request) {
-        // TODO: 실제 데이터베이스에서 정산 내역 조회
-        // TODO: 연도가 null이면 서버 현재 연도 사용
-
-        // 조회 범위 - month 파라미터를 그대로 전달
-        ArtistSettlementResponse.Scope scope = new ArtistSettlementResponse.Scope(
-                request.year() != null ? request.year() : 2025, request.month()
-        );
-
-        // 요약 정보
-        ArtistSettlementResponse.Summary summary = new ArtistSettlementResponse.Summary(
-                new ArtistSettlementResponse.AmountInfo(128000, "총 매출"),
-                new ArtistSettlementResponse.AmountInfo(51264, "수수료"),
-                new ArtistSettlementResponse.AmountInfo(64000, "순수익")
-        );
-
-        // 차트 데이터 (월별)
-        List<ArtistSettlementResponse.ChartDataPoint> salesData = Arrays.asList(
-                new ArtistSettlementResponse.ChartDataPoint("2025-01-01", 500000),
-                new ArtistSettlementResponse.ChartDataPoint("2025-02-01", 750000),
-                new ArtistSettlementResponse.ChartDataPoint("2025-03-01", 650000),
-                new ArtistSettlementResponse.ChartDataPoint("2025-04-01", 650000),
-                new ArtistSettlementResponse.ChartDataPoint("2025-05-01", 550000),
-                new ArtistSettlementResponse.ChartDataPoint("2025-06-01", 800000),
-                new ArtistSettlementResponse.ChartDataPoint("2025-07-01", 850000),
-                new ArtistSettlementResponse.ChartDataPoint("2025-08-01", 450000),
-                new ArtistSettlementResponse.ChartDataPoint("2025-09-01", 800000),
-                new ArtistSettlementResponse.ChartDataPoint("2025-10-01", 950000),
-                new ArtistSettlementResponse.ChartDataPoint("2025-11-01", 1000000),
-                new ArtistSettlementResponse.ChartDataPoint("2025-12-01", 1100000)
-        );
-
-        ArtistSettlementResponse.Chart chart = new ArtistSettlementResponse.Chart(
-                new ArtistSettlementResponse.ChartSeries(salesData),
-                new ArtistSettlementResponse.YDomain(0, 1100000)
-        );
-
-        // 테이블 데이터
-        List<ArtistSettlementResponse.Settlement> settlements = Arrays.asList(
-                new ArtistSettlementResponse.Settlement(
-                        910004L,
-                        "2025-09-18",
-                        new ArtistSettlementResponse.Product(101L, "상품명입니다 상품명입니다"),
-                        18000,
-                        200,
-                        17800,
-                        "PENDING",
-                        "미지급"
-                ),
-                new ArtistSettlementResponse.Settlement(
-                        910003L,
-                        "2025-09-18",
-                        new ArtistSettlementResponse.Product(102L, "상품명입니다 상품명입니다"),
-                        50000,
-                        500,
-                        49500,
-                        "COMPLETED",
-                        "정산 완료"
-                ),
-                new ArtistSettlementResponse.Settlement(
-                        910002L,
-                        "2025-09-18",
-                        new ArtistSettlementResponse.Product(103L, "상품명입니다 상품명입니다"),
-                        30000,
-                        1000,
-                        29000,
-                        "COMPLETED",
-                        "정산 완료"
-                ),
-                new ArtistSettlementResponse.Settlement(
-                        910001L,
-                        "2025-09-18",
-                        new ArtistSettlementResponse.Product(104L, "상품명입니다 상품명입니다"),
-                        5000,
-                        100,
-                        4900,
-                        "PENDING",
-                        "미지급"
-                )
-        );
-
-        ArtistSettlementResponse.Table table = new ArtistSettlementResponse.Table(
-                settlements,
-                request.page(),
-                request.size(),
-                124,
-                7,
-                true,
-                false
-        );
-
-        return new ArtistSettlementResponse(
-                scope,
-                request.granularity(),
-                "Asia/Seoul",
-                summary,
-                chart,
-                table,
-                LocalDateTime.now()
-        );
+        // TODO: 실제 데이터베이스 연동 필요
+        log.info("작가 정산 내역 조회 - artistId: {}, year: {}, month: {}",
+                artistId, request.year(), request.month());
+        throw new UnsupportedOperationException("작가 정산 내역 조회는 아직 구현되지 않았습니다.");
     }
 
     @Override
@@ -746,7 +1001,7 @@ public class ArtistDashboardServiceImpl implements ArtistDashboardService {
         try {
             // GA4 API 요청 생성 (특정 작가 필터링)
             String campaignFilter = "artist_" + artistId;
-            
+
             RunReportRequest request = RunReportRequest.newBuilder()
                     .setProperty(propertyId)
                     // 측정 기준: 세션 소스 (Instagram, YouTube 등)
@@ -762,14 +1017,14 @@ public class ArtistDashboardServiceImpl implements ArtistDashboardService {
                             .setEndDate("today"))
                     // 특정 작가의 캠페인만 필터링
                     .setDimensionFilter(
-                        FilterExpression.newBuilder()
-                            .setFilter(Filter.newBuilder()
-                                .setFieldName("sessionCampaignName")
-                                .setStringFilter(Filter.StringFilter.newBuilder()
-                                    .setMatchType(Filter.StringFilter.MatchType.CONTAINS)
-                                    .setValue(campaignFilter)
-                                )
-                            )
+                            FilterExpression.newBuilder()
+                                    .setFilter(Filter.newBuilder()
+                                            .setFieldName("sessionCampaignName")
+                                            .setStringFilter(Filter.StringFilter.newBuilder()
+                                                    .setMatchType(Filter.StringFilter.MatchType.CONTAINS)
+                                                    .setValue(campaignFilter)
+                                            )
+                                    )
                     )
                     // 세션 수 기준 내림차순 정렬
                     .addOrderBys(OrderBy.newBuilder()
@@ -864,8 +1119,8 @@ public class ArtistDashboardServiceImpl implements ArtistDashboardService {
             String topSource = sources.isEmpty() ? "없음" : sources.get(0).name();
 
             // 전환율 계산
-            double conversionRate = totalSessions > 0 
-                    ? (double) totalConversions / totalSessions * 100 
+            double conversionRate = totalSessions > 0
+                    ? (double) totalConversions / totalSessions * 100
                     : 0.0;
 
             // 요약 정보
@@ -892,8 +1147,8 @@ public class ArtistDashboardServiceImpl implements ArtistDashboardService {
                     days
             );
 
-            log.info("작가 유입 경로 조회 완료 - artistId: {}, 총 {}개 소스, 총 세션 {}", 
-                     artistId, sources.size(), totalSessions);
+            log.info("작가 유입 경로 조회 완료 - artistId: {}, 총 {}개 소스, 총 세션 {}",
+                    artistId, sources.size(), totalSessions);
 
             return new ArtistTrafficSourceResponse(
                     summary,
@@ -906,7 +1161,7 @@ public class ArtistDashboardServiceImpl implements ArtistDashboardService {
 
         } catch (Exception e) {
             log.error("작가 유입 경로 조회 중 오류 발생 - artistId: {}", artistId, e);
-            
+
             // 오류 발생 시 빈 데이터 반환
             return new ArtistTrafficSourceResponse(
                     new ArtistTrafficSourceResponse.Summary(0, 0, 0, 0.0, "없음"),
