@@ -31,8 +31,8 @@ spring:
         format_sql: true
         highlight_sql: true
         use_sql_comments: true
-       # osiv 끄기
-      open-in-view: false
+    # osiv 끄기
+    open-in-view: false
   task:
     scheduling:
       pool:

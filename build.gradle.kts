@@ -43,7 +43,7 @@ dependencies {
     annotationProcessor("io.github.openfeign.querydsl:querydsl-apt:7.0:jpa")
     annotationProcessor("jakarta.persistence:jakarta.persistence-api:3.1.0")
     annotationProcessor("jakarta.annotation:jakarta.annotation-api:2.1.1")
-    
+
     // JWT 의존성 추가
     implementation("io.jsonwebtoken:jjwt-api:0.12.3")
     implementation("io.jsonwebtoken:jjwt-impl:0.12.3")
