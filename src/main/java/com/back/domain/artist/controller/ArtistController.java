@@ -85,6 +85,7 @@ public class ArtistController {
      * 작가 신청 취소/삭제
      */
     @DeleteMapping("/application/{applicationId}/cancel")
+    @Operation(summary = "작가 신청 취소", description = "작가 신청을 취소하거나 삭제합니다. 승인된 신청서는 취소할 수 없습니다.")
     public ResponseEntity<RsData<Void>> cancelArtistApplication(
             @AuthenticationPrincipal CustomUserDetails userDetails,
             @PathVariable Long applicationId) {

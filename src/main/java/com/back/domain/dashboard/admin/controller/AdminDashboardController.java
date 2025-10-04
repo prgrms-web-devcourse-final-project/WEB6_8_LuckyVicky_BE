@@ -1,18 +1,9 @@
 package com.back.domain.dashboard.admin.controller;
 
-import com.back.domain.dashboard.admin.dto.request.AdminArtistApplicationSearchRequest;
-import com.back.domain.dashboard.admin.dto.request.AdminFundingSearchRequest;
-import com.back.domain.dashboard.admin.dto.request.AdminOverviewRequest;
-import com.back.domain.dashboard.admin.dto.request.AdminProductSearchRequest;
-import com.back.domain.dashboard.admin.dto.request.AdminSettlementRequest;
-import com.back.domain.dashboard.admin.dto.request.AdminUserSearchRequest;
-import com.back.domain.dashboard.admin.dto.response.AdminArtistApplicationDetailResponse;
-import com.back.domain.dashboard.admin.dto.response.AdminArtistApplicationResponse;
-import com.back.domain.dashboard.admin.dto.response.AdminFundingResponse;
-import com.back.domain.dashboard.admin.dto.response.AdminOverviewResponse;
-import com.back.domain.dashboard.admin.dto.response.AdminProductResponse;
-import com.back.domain.dashboard.admin.dto.response.AdminSettlementResponse;
-import com.back.domain.dashboard.admin.dto.response.AdminUserResponse;
+import com.back.domain.artist.dto.request.RejectArtistApplicationRequest;
+import com.back.domain.artist.service.ArtistApplicationAdminService;
+import com.back.domain.dashboard.admin.dto.request.*;
+import com.back.domain.dashboard.admin.dto.response.*;
 import com.back.domain.dashboard.admin.service.AdminDashboardService;
 import com.back.global.rsData.RsData;
 import com.back.global.security.auth.CustomUserDetails;
@@ -64,6 +55,7 @@ import org.springframework.web.bind.annotation.*;
 public class AdminDashboardController {
 
     private final AdminDashboardService adminDashboardService;
+    private final ArtistApplicationAdminService artistApplicationAdminService;
 
     /**
      * 관리자 대시보드 전체 현황 조회
@@ -197,5 +189,43 @@ public class AdminDashboardController {
         AdminArtistApplicationDetailResponse response = adminDashboardService.getArtistApplicationDetail(applicationId);
 
         return ResponseEntity.ok(RsData.ok("입점 신청 상세 조회 성공", response));
+    }
+
+    /**
+     * 관리자 작가 입점 신청 승인
+     */
+    @PostMapping("/artist-applications/{applicationId}/approve")
+    @Operation(summary = "관리자 작가 입점 신청 승인", description = "특정 입점 신청을 승인하여 사용자를 작가로 전환합니다")
+    public ResponseEntity<RsData<Void>> approveArtistApplication(
+            @AuthenticationPrincipal CustomUserDetails adminUser,
+            @PathVariable Long applicationId) {
+
+        artistApplicationAdminService.approveApplication(
+                applicationId,
+                adminUser.getUserId(),
+                adminUser.getUsername()
+        );
+
+        return ResponseEntity.ok(RsData.ok("작가 신청이 승인되었습니다."));
+    }
+
+    /**
+     * 관리자 작가 입점 신청 거절
+     */
+    @PostMapping("/artist-applications/{applicationId}/reject")
+    @Operation(summary = "관리자 작가 입점 신청 거절", description = "특정 입점 신청을 거절합니다. 거절 사유를 반드시 포함해야 합니다.")
+    public ResponseEntity<RsData<Void>> rejectArtistApplication(
+            @AuthenticationPrincipal CustomUserDetails adminUser,
+            @PathVariable Long applicationId,
+            @Valid @RequestBody RejectArtistApplicationRequest request) {
+
+        artistApplicationAdminService.rejectApplication(
+                applicationId,
+                adminUser.getUserId(),
+                adminUser.getUsername(),
+                request.rejectionReason()
+        );
+
+        return ResponseEntity.ok(RsData.ok("작가 신청이 거절되었습니다."));
     }
 }
