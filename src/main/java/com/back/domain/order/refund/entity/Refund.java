@@ -10,6 +10,8 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 
 import java.math.BigDecimal;
+import java.util.ArrayList;
+import java.util.List;
 
 @Entity
 @Getter
@@ -45,6 +47,9 @@ public class Refund extends BaseEntity {
     @Column(columnDefinition = "TEXT")
     private String attachmentFiles; // 파일명들을 쉼표로 구분하여 저장
 
+    @OneToMany(mappedBy = "refund", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
+    private List<RefundItem> refundItems = new ArrayList<>();
+
     @Builder
     public Refund(Order order, User user, RefundStatus status, String reason, 
                   String detailReason, BigDecimal refundAmount, RefundMethod refundMethod, 
@@ -59,15 +64,36 @@ public class Refund extends BaseEntity {
         this.attachmentFiles = attachmentFiles;
     }
 
-    // 환불 승인
+
+    // ==================== Factory Methods ====================
+
+    /**
+     * 환불 엔티티 생성 팩토리 메서드
+     */
+    public static Refund createRefund(Order order, User user, String reason, String detailReason,
+                                    BigDecimal refundAmount, RefundMethod refundMethod, String attachmentFiles) {
+        return Refund.builder()
+                .order(order)
+                .user(user)
+                .status(RefundStatus.REQUESTED)
+                .reason(reason)
+                .detailReason(detailReason)
+                .refundAmount(refundAmount)
+                .refundMethod(refundMethod)
+                .attachmentFiles(attachmentFiles)
+                .build();
+    }
+
+    // ==================== Business Methods ====================
+
+    /**
+     * 환불 승인 처리
+     */
     public void approve() {
         this.status = RefundStatus.COMPLETED;
     }
 
-    // 환불 거부 (거부 시에도 COMPLETED로 처리)
-    public void reject() {
-        this.status = RefundStatus.COMPLETED;
-    }
+    // ==================== Enums ====================
 
     // 환불 상태 enum
     public enum RefundStatus {

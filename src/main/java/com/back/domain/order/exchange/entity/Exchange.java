@@ -9,6 +9,9 @@ import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
+import java.util.ArrayList;
+import java.util.List;
+
 @Entity
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
@@ -56,6 +59,9 @@ public class Exchange extends BaseEntity {
     @Column(length = 20)
     private String newRecipientPhone;
 
+    @OneToMany(mappedBy = "exchange", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
+    private List<ExchangeItem> exchangeItems = new ArrayList<>();
+
     @Builder
     public Exchange(Order order, User user, ExchangeStatus status, String reason, 
                    String detailReason, ExchangeMethod exchangeMethod, String attachmentFiles,
@@ -75,15 +81,42 @@ public class Exchange extends BaseEntity {
         this.newRecipientPhone = newRecipientPhone;
     }
 
-    // 교환 승인
+
+    // ==================== Factory Methods ====================
+
+    /**
+     * 교환 엔티티 생성 팩토리 메서드
+     */
+    public static Exchange createExchange(Order order, User user, String reason, String detailReason,
+                                        ExchangeMethod exchangeMethod, String attachmentFiles,
+                                        String newShippingAddress1, String newShippingAddress2,
+                                        String newShippingZip, String newRecipientName, String newRecipientPhone) {
+        return Exchange.builder()
+                .order(order)
+                .user(user)
+                .status(ExchangeStatus.REQUESTED)
+                .reason(reason)
+                .detailReason(detailReason)
+                .exchangeMethod(exchangeMethod)
+                .attachmentFiles(attachmentFiles)
+                .newShippingAddress1(newShippingAddress1)
+                .newShippingAddress2(newShippingAddress2)
+                .newShippingZip(newShippingZip)
+                .newRecipientName(newRecipientName)
+                .newRecipientPhone(newRecipientPhone)
+                .build();
+    }
+
+    // ==================== Business Methods ====================
+
+    /**
+     * 교환 승인 처리
+     */
     public void approve() {
         this.status = ExchangeStatus.COMPLETED;
     }
 
-    // 교환 거부 (거부 시에도 COMPLETED로 처리)
-    public void reject() {
-        this.status = ExchangeStatus.COMPLETED;
-    }
+    // ==================== Enums ====================
 
     // 교환 상태 enum
     public enum ExchangeStatus {
