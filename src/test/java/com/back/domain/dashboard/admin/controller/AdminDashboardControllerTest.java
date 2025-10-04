@@ -27,6 +27,7 @@ import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.http.MediaType;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user;
@@ -34,6 +35,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultHandlers.print;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 
 /**
  * AdminDashboardController 통합 테스트
@@ -367,6 +369,109 @@ class AdminDashboardControllerTest {
                 .andExpect(jsonPath("$.data.artist").exists())
                 .andExpect(jsonPath("$.data.contact").exists())
                 .andExpect(jsonPath("$.data.business").exists());
+    }
+
+    @Test
+    @DisplayName("관리자 입점 신청 승인 성공")
+    void approveArtistApplication_Success() throws Exception {
+        // Given - PENDING 상태의 입점 신청 생성
+        ArtistApplication application = createTestApplication(
+                customerUser,
+                "승인 테스트 작가",
+                ApplicationStatus.PENDING
+        );
+        ArtistApplication saved = artistApplicationRepository.save(application);
+
+        // When & Then
+        mockMvc.perform(post("/api/dashboard/admin/artist-applications/{applicationId}/approve", saved.getId())
+                        .with(user(adminUserDetails))
+                        .contentType(MediaType.APPLICATION_JSON))
+                .andDo(print())
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.resultCode").value("200"))
+                .andExpect(jsonPath("$.msg").value("작가 신청이 승인되었습니다."))
+                .andExpect(jsonPath("$.data").doesNotExist()); // data는 null
+
+        // 추가 검증: 신청 상태가 APPROVED로 변경되었는지 확인
+        ArtistApplication updated = artistApplicationRepository.findById(saved.getId()).orElseThrow();
+        assertThat(updated.getStatus()).isEqualTo(ApplicationStatus.APPROVED);
+    }
+
+    @Test
+    @DisplayName("관리자 입점 신청 승인 실패 - 존재하지 않는 신청서")
+    void approveArtistApplication_Fail_NotFound() throws Exception {
+        // Given - 존재하지 않는 applicationId
+        Long nonExistentId = 99999L;
+
+        // When & Then
+        mockMvc.perform(post("/api/dashboard/admin/artist-applications/{applicationId}/approve", nonExistentId)
+                        .with(user(adminUserDetails))
+                        .contentType(MediaType.APPLICATION_JSON))
+                .andDo(print())
+                .andExpect(status().isNotFound()) // 또는 isBadRequest() - 프로젝트 예외 처리 방식에 따라
+                .andExpect(jsonPath("$.msg").exists());
+    }
+
+    @Test
+    @DisplayName("관리자 입점 신청 거절 성공")
+    void rejectArtistApplication_Success() throws Exception {
+        // Given - PENDING 상태의 입점 신청 생성
+        ArtistApplication application = createTestApplication(
+                customerUser,
+                "거절 테스트 작가",
+                ApplicationStatus.PENDING
+        );
+        ArtistApplication saved = artistApplicationRepository.save(application);
+
+        String rejectionReason = "제출 서류가 불충분합니다.";
+        String requestBody = String.format("""
+            {
+                "rejectionReason": "%s"
+            }
+            """, rejectionReason);
+
+        // When & Then
+        mockMvc.perform(post("/api/dashboard/admin/artist-applications/{applicationId}/reject", saved.getId())
+                        .with(user(adminUserDetails))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(requestBody))
+                .andDo(print())
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.resultCode").value("200"))
+                .andExpect(jsonPath("$.msg").value("작가 신청이 거절되었습니다."))
+                .andExpect(jsonPath("$.data").doesNotExist()); // data는 null
+
+        // 추가 검증: 신청 상태가 REJECTED로 변경되고 거절 사유가 저장되었는지 확인
+        ArtistApplication updated = artistApplicationRepository.findById(saved.getId()).orElseThrow();
+        assertThat(updated.getStatus()).isEqualTo(ApplicationStatus.REJECTED);
+        assertThat(updated.getRejectionReason()).isEqualTo(rejectionReason);
+    }
+
+    @Test
+    @DisplayName("관리자 입점 신청 거절 실패 - 거절 사유 누락")
+    void rejectArtistApplication_Fail_NoReason() throws Exception {
+        // Given - PENDING 상태의 입점 신청 생성
+        ArtistApplication application = createTestApplication(
+                customerUser,
+                "거절사유누락 테스트",
+                ApplicationStatus.PENDING
+        );
+        ArtistApplication saved = artistApplicationRepository.save(application);
+
+        String requestBody = """
+            {
+                "rejectionReason": ""
+            }
+            """;
+
+        // When & Then
+        mockMvc.perform(post("/api/dashboard/admin/artist-applications/{applicationId}/reject", saved.getId())
+                        .with(user(adminUserDetails))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(requestBody))
+                .andDo(print())
+                .andExpect(status().isBadRequest()) // Validation 실패
+                .andExpect(jsonPath("$.msg").exists());
     }
 
     // ===== 헬퍼 메서드 =====

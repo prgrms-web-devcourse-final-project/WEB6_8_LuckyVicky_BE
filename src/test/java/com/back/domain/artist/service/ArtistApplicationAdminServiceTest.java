@@ -4,7 +4,9 @@ import com.back.domain.artist.dto.response.ArtistApplicationResponse;
 import com.back.domain.artist.dto.response.ArtistApplicationSimpleResponse;
 import com.back.domain.artist.entity.ApplicationStatus;
 import com.back.domain.artist.entity.ArtistApplication;
+import com.back.domain.artist.entity.ArtistProfile;
 import com.back.domain.artist.repository.ArtistApplicationRepository;
+import com.back.domain.artist.repository.ArtistProfileRepository;
 import com.back.domain.user.entity.Role;
 import com.back.domain.user.entity.User;
 import com.back.domain.user.repository.UserRepository;
@@ -28,8 +30,10 @@ import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.BDDMockito.verify;
+import static org.mockito.Mockito.never;
 
 @ExtendWith(MockitoExtension.class)
 @DisplayName("ArtistApplicationAdminService 단위 테스트")
@@ -37,6 +41,10 @@ class ArtistApplicationAdminServiceTest {
 
     @Mock
     private ArtistApplicationRepository artistApplicationRepository;
+
+    @Mock
+    private ArtistProfileRepository artistProfileRepository;
+
     @Mock
     private UserRepository userRepository;
     @InjectMocks
@@ -182,6 +190,12 @@ class ArtistApplicationAdminServiceTest {
             given(artistApplicationRepository.findById(1L))
                     .willReturn(Optional.of(testApplication));
 
+            given(artistProfileRepository.existsByUserId(testUser.getId()))
+                    .willReturn(false);
+
+            given(artistProfileRepository.save(any(ArtistProfile.class)))
+                    .willAnswer(invocation -> invocation.getArgument(0));
+
             // when
             adminService.approveApplication(1L, 100L, "관리자");
 
@@ -198,6 +212,8 @@ class ArtistApplicationAdminServiceTest {
             assertThat(testUser.getArtistVerifiedAt()).isNotNull();
 
             verify(artistApplicationRepository).findById(1L);
+            verify(artistProfileRepository).existsByUserId(testUser.getId());
+            verify(artistProfileRepository).save(any(ArtistProfile.class));
         }
 
         @Test
@@ -261,6 +277,32 @@ class ArtistApplicationAdminServiceTest {
                     });
 
             verify(artistApplicationRepository).findById(1L);
+        }
+
+        @Test
+        @DisplayName("이미 작가 프로필이 있는 경우 승인 실패")
+        void approveApplication_AlreadyHasProfile() {
+            // given
+            given(artistApplicationRepository.findById(1L))
+                    .willReturn(Optional.of(testApplication));
+
+            // ⭐ 이미 작가 프로필 존재
+            given(artistProfileRepository.existsByUserId(testUser.getId()))
+                    .willReturn(true);
+
+            // when & then
+            assertThatThrownBy(() -> adminService.approveApplication(1L, 100L, "관리자"))
+                    .isInstanceOf(ServiceException.class)
+                    .satisfies(ex -> {
+                        ServiceException serviceEx = (ServiceException) ex;
+                        assertThat(serviceEx.getResultCode()).isEqualTo("400");
+                        assertThat(serviceEx.getMsg()).isEqualTo("이미 작가 프로필이 존재합니다.");
+                    });
+
+            // ⭐ 검증: findById는 호출되지만 save는 호출되지 않음
+            verify(artistApplicationRepository).findById(1L);
+            verify(artistProfileRepository).existsByUserId(testUser.getId());
+            verify(artistProfileRepository, never()).save(any());
         }
     }
 }

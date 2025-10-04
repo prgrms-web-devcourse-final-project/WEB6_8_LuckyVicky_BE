@@ -71,6 +71,9 @@ public class SecurityConfig {
                         .requestMatchers("/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html").permitAll()
                         .requestMatchers("/swagger-resources/**", "/webjars/**").permitAll()
 
+                        // 헬스 체크 허용
+                        .requestMatchers("/actuator/health").permitAll()
+
                         // 정적 리소스
                         .requestMatchers("/favicon.ico", "/*.html").permitAll()
                         .requestMatchers("/css/**", "/js/**", "/images/**").permitAll()
