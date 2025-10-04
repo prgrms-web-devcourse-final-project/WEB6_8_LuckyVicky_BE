@@ -170,15 +170,10 @@ class ArtistDashboardServiceImplTest {
         Funding mockFunding = createMockFunding(1L, mockUser, "성공한 펀딩", 500000L, FundingStatus.SUCCESS);
 
         Page<Funding> mockPage = new PageImpl<>(List.of(mockFunding), PageRequest.of(0, 10), 1);
-        Page<Funding> allFundings = new PageImpl<>(List.of(mockFunding), PageRequest.of(0, Integer.MAX_VALUE), 1);
 
         when(fundingRepository.findFundingsByArtist(
                 eq(TEST_ARTIST_ID), isNull(), eq(FundingStatus.SUCCESS), eq("endDate"), eq("ASC"), any(PageRequest.class)))
                 .thenReturn(mockPage);
-
-        when(fundingRepository.findFundingsByArtist(
-                eq(TEST_ARTIST_ID), isNull(), isNull(), eq("createDate"), eq("DESC"), any(PageRequest.class)))
-                .thenReturn(allFundings);
 
         when(fundingContributionRepository.sumContributedAmountByFundingId(1L)).thenReturn(500000L);
 
@@ -193,8 +188,7 @@ class ArtistDashboardServiceImplTest {
         assertAll(
                 () -> assertThat(result.getContent()).hasSize(1),
                 () -> assertThat(result.getContent().getFirst().status()).isEqualTo("SUCCESS"),
-                () -> assertThat(result.getContent().getFirst().statusText()).isEqualTo("성공"),
-                () -> assertThat(result.getSummary().successFundings()).isEqualTo(1)
+                () -> assertThat(result.getContent().getFirst().statusText()).isEqualTo("성공")
         );
     }
 

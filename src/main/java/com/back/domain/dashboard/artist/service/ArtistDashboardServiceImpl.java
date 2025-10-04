@@ -511,14 +511,6 @@ public class ArtistDashboardServiceImpl implements ArtistDashboardService {
                 PageRequest.of(request.page(), request.size())
         );
 
-        // 전체 펀딩 통계 조회 (요약 정보용)
-        Page<Funding> allFundings = fundingRepository.findFundingsByArtist(
-                artistId, null, null, "createDate", "DESC", PageRequest.of(0, Integer.MAX_VALUE)
-        );
-
-        // 요약 정보 계산
-        ArtistFundingResponse.Summary summary = calculateFundingSummary(allFundings.getContent());
-
         // Entity → DTO 변환
         List<ArtistFundingResponse.Funding> content = fundingPage.getContent().stream()
                 .map(this::convertToFundingDto)
@@ -532,23 +524,9 @@ public class ArtistDashboardServiceImpl implements ArtistDashboardService {
         log.info("작가 펀딩 목록 조회 완료 - 조회된 펀딩 수: {}, 전체: {}", content.size(), totalElements);
 
         return new ArtistFundingResponse.List(
-                summary, content,
+                content,
                 request.page(), request.size(), totalElements, totalPages, hasNext, hasPrevious
         );
-    }
-
-    /**
-     * 펀딩 요약 정보 계산
-     */
-    private ArtistFundingResponse.Summary calculateFundingSummary(List<Funding> fundings) {
-        int total = fundings.size();
-        int open = (int) fundings.stream().filter(f -> f.getStatus() == FundingStatus.OPEN).count();
-        int success = (int) fundings.stream().filter(f -> f.getStatus() == FundingStatus.SUCCESS).count();
-        int failed = (int) fundings.stream().filter(f -> 
-            f.getStatus() == FundingStatus.FAILED || f.getStatus() == FundingStatus.CLOSED
-        ).count();
-
-        return new ArtistFundingResponse.Summary(total, open, success, failed);
     }
 
     /**
