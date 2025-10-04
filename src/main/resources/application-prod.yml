@@ -34,3 +34,9 @@ custom:
     frontUrl: "${custom.prod.frontUrl}"
     backUrl: "${custom.prod.backUrl}"
     name: mori-mori
+
+# https 설정
+app:
+  cookie:
+    secure: true
+  frontend-url: ${FRONTEND_URL:https://www.mori-mori.store}

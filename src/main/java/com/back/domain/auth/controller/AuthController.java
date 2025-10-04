@@ -26,6 +26,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.beans.factory.annotation.Value;
 
 @Slf4j
 @RestController
@@ -35,6 +36,9 @@ import org.springframework.web.bind.annotation.RestController;
 public class AuthController {
 
     private final AuthService authService;
+
+    @Value("${app.cookie.secure}")
+    private boolean cookieSecure;
 
     /**
      * 회원가입
@@ -171,7 +175,7 @@ public class AuthController {
     private ResponseCookie createTokenCookie(String name, String value, long maxAgeSeconds) {
         return ResponseCookie.from(name, value)
                 .httpOnly(true)
-                .secure(false) // 운영시 true
+                .secure(cookieSecure) // 환경변수로 제어, 개발: false, 운영: true
                 .path("/")
                 .maxAge(maxAgeSeconds)
                 .sameSite("Strict")
@@ -184,7 +188,7 @@ public class AuthController {
     private ResponseCookie deleteCookie(String name) {
         return ResponseCookie.from(name, "")
                 .httpOnly(true)
-                .secure(false)
+                .secure(cookieSecure) // 환경변수로 제어, 개발: false, 운영: true
                 .path("/")
                 .maxAge(0) // 즉시 만료
                 .sameSite("Strict")

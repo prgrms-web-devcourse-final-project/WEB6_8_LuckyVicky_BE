@@ -41,6 +41,9 @@ public class OAuth2SuccessHandler extends SimpleUrlAuthenticationSuccessHandler 
     @Value("${app.frontend-url}")
     private String frontendUrl;
 
+    @Value("${app.cookie.secure}")
+    private boolean cookieSecure;
+
     /**
      * OAuth2 로그인 성공 시 호출
      * JWT 토큰 생성 후 프론트엔드로 리다이렉트
@@ -116,7 +119,7 @@ public class OAuth2SuccessHandler extends SimpleUrlAuthenticationSuccessHandler 
     private ResponseCookie createTokenCookie(String name, String value, long maxAgeSeconds) {
         return ResponseCookie.from(name, value)
                 .httpOnly(true)
-                .secure(false)  // 개발: false, 운영: true
+                .secure(cookieSecure)  // 환경변수로 제어, 개발: false, 운영: true
                 .path("/")
                 .maxAge(maxAgeSeconds)
                 .sameSite("Strict")
