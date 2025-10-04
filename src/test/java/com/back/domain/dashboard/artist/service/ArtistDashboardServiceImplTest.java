@@ -59,6 +59,9 @@ class ArtistDashboardServiceImplTest {
     @Mock
     private com.back.domain.order.refund.repository.RefundRepository refundRepository;
 
+    @Mock
+    private com.back.domain.order.exchange.repository.ExchangeRepository exchangeRepository;
+
     private static final Long TEST_ARTIST_ID = 5L;
 
     @Test
@@ -805,5 +808,497 @@ class ArtistDashboardServiceImplTest {
         }
 
         return refund;
+    }
+
+    // ==================== 교환 요청 테스트 ====================
+
+    @Test
+    @DisplayName("교환 요청 목록 조회 - 기본 조회")
+    void getExchangeRequests_Success() {
+        // Given
+        User mockCustomer = createMockUser(201L, "고객A");
+        User mockArtist = createMockUser(TEST_ARTIST_ID, "작가");
+        Product mockProduct = createMockProduct(101L, "테스트 티셔츠", 25000, 0, SellingStatus.SELLING);
+
+        setProductUser(mockProduct, mockArtist);
+
+        com.back.domain.order.order.entity.Order mockOrder = createMockOrder(1L, mockCustomer, "ORD123456");
+        com.back.domain.order.orderItem.entity.OrderItem mockOrderItem = createMockOrderItem(1L, mockOrder, mockProduct, 1);
+        com.back.domain.order.exchange.entity.ExchangeItem mockExchangeItem = createMockExchangeItem(1L, mockOrderItem, 1);
+        com.back.domain.order.exchange.entity.Exchange mockExchange = createMockExchange(
+                1L, mockOrder, mockCustomer, List.of(mockExchangeItem),
+                com.back.domain.order.exchange.entity.Exchange.ExchangeStatus.REQUESTED,
+                com.back.domain.order.exchange.entity.Exchange.ExchangeMethod.PICKUP
+        );
+
+        Page<com.back.domain.order.exchange.entity.Exchange> mockPage = new PageImpl<>(
+                List.of(mockExchange),
+                PageRequest.of(0, 10),
+                1
+        );
+
+        when(exchangeRepository.findExchangesByArtist(
+                eq(TEST_ARTIST_ID), isNull(), isNull(), any(PageRequest.class)))
+                .thenReturn(mockPage);
+
+        com.back.domain.dashboard.artist.dto.request.ArtistExchangeSearchRequest request =
+                new com.back.domain.dashboard.artist.dto.request.ArtistExchangeSearchRequest(
+                        0, 10, null, null, null, null, null, null, null
+                );
+
+        // When
+        com.back.domain.dashboard.artist.dto.response.ArtistExchangeResponse.List result =
+                artistDashboardService.getExchangeRequests(TEST_ARTIST_ID, request);
+
+        // Then
+        assertAll(
+                () -> assertThat(result).isNotNull(),
+                () -> assertThat(result.summary()).isNull(), // summary는 null
+                () -> assertThat(result.content()).hasSize(1),
+                () -> assertThat(result.totalElements()).isEqualTo(1),
+                () -> assertThat(result.totalPages()).isEqualTo(1),
+                () -> assertThat(result.hasNext()).isFalse(),
+                () -> assertThat(result.page()).isEqualTo(0),
+                () -> assertThat(result.size()).isEqualTo(10),
+                // 첫 번째 교환요청 검증
+                () -> assertThat(result.content().getFirst().orderId()).isEqualTo("1"),
+                () -> assertThat(result.content().getFirst().orderNumber()).isEqualTo("ORD123456"),
+                () -> assertThat(result.content().getFirst().type()).isEqualTo("EXCHANGE"),
+                () -> assertThat(result.content().getFirst().status()).isEqualTo("PENDING"),
+                () -> assertThat(result.content().getFirst().statusText()).isEqualTo("처리대기"),
+                () -> assertThat(result.content().getFirst().customer().nickname()).isEqualTo("고객A"),
+                () -> assertThat(result.content().getFirst().orderItem().productName()).isEqualTo("테스트 티셔츠"),
+                () -> assertThat(result.content().getFirst().orderItem().quantity()).isEqualTo(1),
+                () -> assertThat(result.content().getFirst().exchangeRequested().option()).isEmpty(), // 교환 방법은 빈 문자열
+                () -> assertThat(result.content().getFirst().exchangeRequested().quantity()).isEqualTo(1),
+                // 권한 검증 (REQUESTED 상태이므로 승인/거절 가능)
+                () -> assertThat(result.content().getFirst().permissions().canApprove()).isTrue(),
+                () -> assertThat(result.content().getFirst().permissions().canReject()).isTrue()
+        );
+    }
+
+    @Test
+    @DisplayName("교환 요청 목록 조회 - 키워드 검색 (상품명)")
+    void getExchangeRequests_WithProductNameKeyword() {
+        // Given
+        User mockCustomer = createMockUser(201L, "고객");
+        User mockArtist = createMockUser(TEST_ARTIST_ID, "작가");
+        Product mockProduct = createMockProduct(101L, "손흥민 유니폼", 50000, 0, SellingStatus.SELLING);
+        setProductUser(mockProduct, mockArtist);
+
+        com.back.domain.order.order.entity.Order mockOrder = createMockOrder(1L, mockCustomer, "ORD123");
+        com.back.domain.order.orderItem.entity.OrderItem mockOrderItem = createMockOrderItem(1L, mockOrder, mockProduct, 1);
+        com.back.domain.order.exchange.entity.ExchangeItem mockExchangeItem = createMockExchangeItem(1L, mockOrderItem, 1);
+        com.back.domain.order.exchange.entity.Exchange mockExchange = createMockExchange(
+                1L, mockOrder, mockCustomer, List.of(mockExchangeItem),
+                com.back.domain.order.exchange.entity.Exchange.ExchangeStatus.REQUESTED,
+                com.back.domain.order.exchange.entity.Exchange.ExchangeMethod.DIRECT
+        );
+
+        Page<com.back.domain.order.exchange.entity.Exchange> mockPage = new PageImpl<>(
+                List.of(mockExchange),
+                PageRequest.of(0, 10),
+                1
+        );
+
+        when(exchangeRepository.findExchangesByArtist(
+                eq(TEST_ARTIST_ID), isNull(), eq("손흥민"), any(PageRequest.class)))
+                .thenReturn(mockPage);
+
+        com.back.domain.dashboard.artist.dto.request.ArtistExchangeSearchRequest request =
+                new com.back.domain.dashboard.artist.dto.request.ArtistExchangeSearchRequest(
+                        0, 10, null, "손흥민", null, null, null, null, null
+                );
+
+        // When
+        com.back.domain.dashboard.artist.dto.response.ArtistExchangeResponse.List result =
+                artistDashboardService.getExchangeRequests(TEST_ARTIST_ID, request);
+
+        // Then
+        assertAll(
+                () -> assertThat(result.content()).hasSize(1),
+                () -> assertThat(result.content().getFirst().orderItem().productName()).contains("손흥민")
+        );
+    }
+
+    @Test
+    @DisplayName("교환 요청 목록 조회 - 키워드 검색 (구매자 이름)")
+    void getExchangeRequests_WithCustomerNameKeyword() {
+        // Given
+        User mockCustomer = createMockUser(201L, "이강인");
+        User mockArtist = createMockUser(TEST_ARTIST_ID, "작가");
+        Product mockProduct = createMockProduct(101L, "상품", 30000, 0, SellingStatus.SELLING);
+        setProductUser(mockProduct, mockArtist);
+
+        com.back.domain.order.order.entity.Order mockOrder = createMockOrder(1L, mockCustomer, "ORD123");
+        com.back.domain.order.orderItem.entity.OrderItem mockOrderItem = createMockOrderItem(1L, mockOrder, mockProduct, 1);
+        com.back.domain.order.exchange.entity.ExchangeItem mockExchangeItem = createMockExchangeItem(1L, mockOrderItem, 1);
+        com.back.domain.order.exchange.entity.Exchange mockExchange = createMockExchange(
+                1L, mockOrder, mockCustomer, List.of(mockExchangeItem),
+                com.back.domain.order.exchange.entity.Exchange.ExchangeStatus.REQUESTED,
+                com.back.domain.order.exchange.entity.Exchange.ExchangeMethod.PICKUP
+        );
+
+        Page<com.back.domain.order.exchange.entity.Exchange> mockPage = new PageImpl<>(
+                List.of(mockExchange),
+                PageRequest.of(0, 10),
+                1
+        );
+
+        when(exchangeRepository.findExchangesByArtist(
+                eq(TEST_ARTIST_ID), isNull(), eq("이강인"), any(PageRequest.class)))
+                .thenReturn(mockPage);
+
+        com.back.domain.dashboard.artist.dto.request.ArtistExchangeSearchRequest request =
+                new com.back.domain.dashboard.artist.dto.request.ArtistExchangeSearchRequest(
+                        0, 10, null, "이강인", null, null, null, null, null
+                );
+
+        // When
+        com.back.domain.dashboard.artist.dto.response.ArtistExchangeResponse.List result =
+                artistDashboardService.getExchangeRequests(TEST_ARTIST_ID, request);
+
+        // Then
+        assertAll(
+                () -> assertThat(result.content()).hasSize(1),
+                () -> assertThat(result.content().getFirst().customer().nickname()).contains("이강인")
+        );
+    }
+
+    @Test
+    @DisplayName("교환 요청 목록 조회 - 상태별 필터 (PENDING)")
+    void getExchangeRequests_WithStatusFilterPending() {
+        // Given
+        User mockCustomer = createMockUser(201L, "고객");
+        User mockArtist = createMockUser(TEST_ARTIST_ID, "작가");
+        Product mockProduct = createMockProduct(101L, "상품", 20000, 0, SellingStatus.SELLING);
+        setProductUser(mockProduct, mockArtist);
+
+        com.back.domain.order.order.entity.Order mockOrder = createMockOrder(1L, mockCustomer, "ORD123");
+        com.back.domain.order.orderItem.entity.OrderItem mockOrderItem = createMockOrderItem(1L, mockOrder, mockProduct, 1);
+        com.back.domain.order.exchange.entity.ExchangeItem mockExchangeItem = createMockExchangeItem(1L, mockOrderItem, 1);
+        com.back.domain.order.exchange.entity.Exchange mockExchange = createMockExchange(
+                1L, mockOrder, mockCustomer, List.of(mockExchangeItem),
+                com.back.domain.order.exchange.entity.Exchange.ExchangeStatus.REQUESTED,
+                com.back.domain.order.exchange.entity.Exchange.ExchangeMethod.DIRECT
+        );
+
+        Page<com.back.domain.order.exchange.entity.Exchange> mockPage = new PageImpl<>(
+                List.of(mockExchange),
+                PageRequest.of(0, 10),
+                1
+        );
+
+        when(exchangeRepository.findExchangesByArtist(
+                eq(TEST_ARTIST_ID), eq(com.back.domain.order.exchange.entity.Exchange.ExchangeStatus.REQUESTED),
+                isNull(), any(PageRequest.class)))
+                .thenReturn(mockPage);
+
+        com.back.domain.dashboard.artist.dto.request.ArtistExchangeSearchRequest request =
+                new com.back.domain.dashboard.artist.dto.request.ArtistExchangeSearchRequest(
+                        0, 10, "PENDING", null, null, null, null, null, null
+                );
+
+        // When
+        com.back.domain.dashboard.artist.dto.response.ArtistExchangeResponse.List result =
+                artistDashboardService.getExchangeRequests(TEST_ARTIST_ID, request);
+
+        // Then
+        assertAll(
+                () -> assertThat(result.content()).hasSize(1),
+                () -> assertThat(result.content().getFirst().status()).isEqualTo("PENDING"),
+                () -> assertThat(result.content().getFirst().statusText()).isEqualTo("처리대기"),
+                // PENDING 상태이므로 승인/거절 가능
+                () -> assertThat(result.content().getFirst().permissions().canApprove()).isTrue(),
+                () -> assertThat(result.content().getFirst().permissions().canReject()).isTrue()
+        );
+    }
+
+    @Test
+    @DisplayName("교환 요청 목록 조회 - 상태별 필터 (APPROVED)")
+    void getExchangeRequests_WithStatusFilterApproved() {
+        // Given
+        User mockCustomer = createMockUser(201L, "고객");
+        User mockArtist = createMockUser(TEST_ARTIST_ID, "작가");
+        Product mockProduct = createMockProduct(101L, "상품", 20000, 0, SellingStatus.SELLING);
+        setProductUser(mockProduct, mockArtist);
+
+        com.back.domain.order.order.entity.Order mockOrder = createMockOrder(1L, mockCustomer, "ORD123");
+        com.back.domain.order.orderItem.entity.OrderItem mockOrderItem = createMockOrderItem(1L, mockOrder, mockProduct, 1);
+        com.back.domain.order.exchange.entity.ExchangeItem mockExchangeItem = createMockExchangeItem(1L, mockOrderItem, 1);
+        com.back.domain.order.exchange.entity.Exchange mockExchange = createMockExchange(
+                1L, mockOrder, mockCustomer, List.of(mockExchangeItem),
+                com.back.domain.order.exchange.entity.Exchange.ExchangeStatus.COMPLETED,
+                com.back.domain.order.exchange.entity.Exchange.ExchangeMethod.PICKUP
+        );
+
+        Page<com.back.domain.order.exchange.entity.Exchange> mockPage = new PageImpl<>(
+                List.of(mockExchange),
+                PageRequest.of(0, 10),
+                1
+        );
+
+        when(exchangeRepository.findExchangesByArtist(
+                eq(TEST_ARTIST_ID), eq(com.back.domain.order.exchange.entity.Exchange.ExchangeStatus.COMPLETED),
+                isNull(), any(PageRequest.class)))
+                .thenReturn(mockPage);
+
+        com.back.domain.dashboard.artist.dto.request.ArtistExchangeSearchRequest request =
+                new com.back.domain.dashboard.artist.dto.request.ArtistExchangeSearchRequest(
+                        0, 10, "APPROVED", null, null, null, null, null, null
+                );
+
+        // When
+        com.back.domain.dashboard.artist.dto.response.ArtistExchangeResponse.List result =
+                artistDashboardService.getExchangeRequests(TEST_ARTIST_ID, request);
+
+        // Then
+        assertAll(
+                () -> assertThat(result.content()).hasSize(1),
+                () -> assertThat(result.content().getFirst().status()).isEqualTo("APPROVED"),
+                () -> assertThat(result.content().getFirst().statusText()).isEqualTo("승인됨"),
+                // APPROVED 상태이므로 승인/거절 불가
+                () -> assertThat(result.content().getFirst().permissions().canApprove()).isFalse(),
+                () -> assertThat(result.content().getFirst().permissions().canReject()).isFalse()
+        );
+    }
+
+    @Test
+    @DisplayName("교환 요청 목록 조회 - 상품명 정렬 (오름차순)")
+    void getExchangeRequests_SortByProductNameAsc() {
+        // Given
+        User mockCustomer = createMockUser(201L, "고객");
+        User mockArtist = createMockUser(TEST_ARTIST_ID, "작가");
+        Product mockProduct1 = createMockProduct(101L, "A상품", 10000, 0, SellingStatus.SELLING);
+        Product mockProduct2 = createMockProduct(102L, "B상품", 20000, 0, SellingStatus.SELLING);
+        setProductUser(mockProduct1, mockArtist);
+        setProductUser(mockProduct2, mockArtist);
+
+        com.back.domain.order.order.entity.Order mockOrder1 = createMockOrder(1L, mockCustomer, "ORD001");
+        com.back.domain.order.order.entity.Order mockOrder2 = createMockOrder(2L, mockCustomer, "ORD002");
+
+        com.back.domain.order.orderItem.entity.OrderItem mockOrderItem1 = createMockOrderItem(1L, mockOrder1, mockProduct1, 1);
+        com.back.domain.order.orderItem.entity.OrderItem mockOrderItem2 = createMockOrderItem(2L, mockOrder2, mockProduct2, 1);
+
+        com.back.domain.order.exchange.entity.ExchangeItem mockExchangeItem1 = createMockExchangeItem(1L, mockOrderItem1, 1);
+        com.back.domain.order.exchange.entity.ExchangeItem mockExchangeItem2 = createMockExchangeItem(2L, mockOrderItem2, 1);
+
+        com.back.domain.order.exchange.entity.Exchange mockExchange1 = createMockExchange(
+                1L, mockOrder1, mockCustomer, List.of(mockExchangeItem1),
+                com.back.domain.order.exchange.entity.Exchange.ExchangeStatus.REQUESTED,
+                com.back.domain.order.exchange.entity.Exchange.ExchangeMethod.PICKUP
+        );
+        com.back.domain.order.exchange.entity.Exchange mockExchange2 = createMockExchange(
+                2L, mockOrder2, mockCustomer, List.of(mockExchangeItem2),
+                com.back.domain.order.exchange.entity.Exchange.ExchangeStatus.REQUESTED,
+                com.back.domain.order.exchange.entity.Exchange.ExchangeMethod.DIRECT
+        );
+
+        Page<com.back.domain.order.exchange.entity.Exchange> mockPage = new PageImpl<>(
+                List.of(mockExchange1, mockExchange2),
+                PageRequest.of(0, 10),
+                2
+        );
+
+        when(exchangeRepository.findExchangesByArtist(
+                eq(TEST_ARTIST_ID), isNull(), isNull(), any(PageRequest.class)))
+                .thenReturn(mockPage);
+
+        com.back.domain.dashboard.artist.dto.request.ArtistExchangeSearchRequest request =
+                new com.back.domain.dashboard.artist.dto.request.ArtistExchangeSearchRequest(
+                        0, 10, null, null, null, null, null, "productName", "ASC"
+                );
+
+        // When
+        com.back.domain.dashboard.artist.dto.response.ArtistExchangeResponse.List result =
+                artistDashboardService.getExchangeRequests(TEST_ARTIST_ID, request);
+
+        // Then
+        assertAll(
+                () -> assertThat(result.content()).hasSize(2),
+                () -> assertThat(result.content().get(0).orderItem().productName()).isEqualTo("A상품"),
+                () -> assertThat(result.content().get(1).orderItem().productName()).isEqualTo("B상품")
+        );
+    }
+
+    @Test
+    @DisplayName("교환 요청 목록 조회 - 구매자 이름 정렬 (내림차순)")
+    void getExchangeRequests_SortByCustomerNameDesc() {
+        // Given
+        User mockCustomer1 = createMockUser(201L, "김철수");
+        User mockCustomer2 = createMockUser(202L, "박영희");
+        User mockArtist = createMockUser(TEST_ARTIST_ID, "작가");
+        Product mockProduct = createMockProduct(101L, "상품", 15000, 0, SellingStatus.SELLING);
+        setProductUser(mockProduct, mockArtist);
+
+        com.back.domain.order.order.entity.Order mockOrder1 = createMockOrder(1L, mockCustomer1, "ORD001");
+        com.back.domain.order.order.entity.Order mockOrder2 = createMockOrder(2L, mockCustomer2, "ORD002");
+
+        com.back.domain.order.orderItem.entity.OrderItem mockOrderItem1 = createMockOrderItem(1L, mockOrder1, mockProduct, 1);
+        com.back.domain.order.orderItem.entity.OrderItem mockOrderItem2 = createMockOrderItem(2L, mockOrder2, mockProduct, 1);
+
+        com.back.domain.order.exchange.entity.ExchangeItem mockExchangeItem1 = createMockExchangeItem(1L, mockOrderItem1, 1);
+        com.back.domain.order.exchange.entity.ExchangeItem mockExchangeItem2 = createMockExchangeItem(2L, mockOrderItem2, 1);
+
+        com.back.domain.order.exchange.entity.Exchange mockExchange1 = createMockExchange(
+                1L, mockOrder1, mockCustomer1, List.of(mockExchangeItem1),
+                com.back.domain.order.exchange.entity.Exchange.ExchangeStatus.REQUESTED,
+                com.back.domain.order.exchange.entity.Exchange.ExchangeMethod.PICKUP
+        );
+        com.back.domain.order.exchange.entity.Exchange mockExchange2 = createMockExchange(
+                2L, mockOrder2, mockCustomer2, List.of(mockExchangeItem2),
+                com.back.domain.order.exchange.entity.Exchange.ExchangeStatus.REQUESTED,
+                com.back.domain.order.exchange.entity.Exchange.ExchangeMethod.DIRECT
+        );
+
+        Page<com.back.domain.order.exchange.entity.Exchange> mockPage = new PageImpl<>(
+                List.of(mockExchange1, mockExchange2),
+                PageRequest.of(0, 10),
+                2
+        );
+
+        when(exchangeRepository.findExchangesByArtist(
+                eq(TEST_ARTIST_ID), isNull(), isNull(), any(PageRequest.class)))
+                .thenReturn(mockPage);
+
+        com.back.domain.dashboard.artist.dto.request.ArtistExchangeSearchRequest request =
+                new com.back.domain.dashboard.artist.dto.request.ArtistExchangeSearchRequest(
+                        0, 10, null, null, null, null, null, "customerName", "DESC"
+                );
+
+        // When
+        com.back.domain.dashboard.artist.dto.response.ArtistExchangeResponse.List result =
+                artistDashboardService.getExchangeRequests(TEST_ARTIST_ID, request);
+
+        // Then
+        assertAll(
+                () -> assertThat(result.content()).hasSize(2),
+                () -> assertThat(result.content().get(0).customer().nickname()).isEqualTo("박영희"),
+                () -> assertThat(result.content().get(1).customer().nickname()).isEqualTo("김철수")
+        );
+    }
+
+    @Test
+    @DisplayName("교환 요청 목록 조회 - 페이징 (기본 10개)")
+    void getExchangeRequests_Pagination() {
+        // Given
+        User mockCustomer = createMockUser(201L, "고객");
+        User mockArtist = createMockUser(TEST_ARTIST_ID, "작가");
+
+        List<com.back.domain.order.exchange.entity.Exchange> exchanges = new ArrayList<>();
+        for (int i = 1; i <= 15; i++) {
+            Product mockProduct = createMockProduct((long) (100 + i), "상품" + i, 10000, 0, SellingStatus.SELLING);
+            setProductUser(mockProduct, mockArtist);
+
+            com.back.domain.order.order.entity.Order mockOrder = createMockOrder((long) i, mockCustomer, "ORD" + String.format("%03d", i));
+            com.back.domain.order.orderItem.entity.OrderItem mockOrderItem = createMockOrderItem((long) i, mockOrder, mockProduct, 1);
+            com.back.domain.order.exchange.entity.ExchangeItem mockExchangeItem = createMockExchangeItem((long) i, mockOrderItem, 1);
+
+            com.back.domain.order.exchange.entity.Exchange mockExchange = createMockExchange(
+                    (long) i, mockOrder, mockCustomer, List.of(mockExchangeItem),
+                    com.back.domain.order.exchange.entity.Exchange.ExchangeStatus.REQUESTED,
+                    com.back.domain.order.exchange.entity.Exchange.ExchangeMethod.PICKUP
+            );
+            exchanges.add(mockExchange);
+        }
+
+        // 첫 페이지 (10개)
+        Page<com.back.domain.order.exchange.entity.Exchange> firstPage = new PageImpl<>(
+                exchanges.subList(0, 10),
+                PageRequest.of(0, 10),
+                15
+        );
+
+        when(exchangeRepository.findExchangesByArtist(
+                eq(TEST_ARTIST_ID), isNull(), isNull(), eq(PageRequest.of(0, 10))))
+                .thenReturn(firstPage);
+
+        com.back.domain.dashboard.artist.dto.request.ArtistExchangeSearchRequest request =
+                new com.back.domain.dashboard.artist.dto.request.ArtistExchangeSearchRequest(
+                        0, 10, null, null, null, null, null, null, null
+                );
+
+        // When
+        com.back.domain.dashboard.artist.dto.response.ArtistExchangeResponse.List result =
+                artistDashboardService.getExchangeRequests(TEST_ARTIST_ID, request);
+
+        // Then
+        assertAll(
+                () -> assertThat(result.content()).hasSize(10),
+                () -> assertThat(result.totalElements()).isEqualTo(15),
+                () -> assertThat(result.totalPages()).isEqualTo(2),
+                () -> assertThat(result.hasNext()).isTrue(),
+                () -> assertThat(result.hasPrevious()).isFalse(),
+                () -> assertThat(result.page()).isEqualTo(0),
+                () -> assertThat(result.size()).isEqualTo(10)
+        );
+    }
+
+    /**
+     * Mock ExchangeItem 생성 헬퍼 메서드
+     */
+    private com.back.domain.order.exchange.entity.ExchangeItem createMockExchangeItem(
+            Long id, com.back.domain.order.orderItem.entity.OrderItem orderItem, int quantity) {
+
+        com.back.domain.order.exchange.entity.ExchangeItem exchangeItem =
+                com.back.domain.order.exchange.entity.ExchangeItem.builder()
+                        .orderItem(orderItem)
+                        .quantity(quantity)
+                        .build();
+
+        try {
+            java.lang.reflect.Field idField = exchangeItem.getClass().getSuperclass().getDeclaredField("id");
+            idField.setAccessible(true);
+            idField.set(exchangeItem, id);
+        } catch (Exception e) {
+            throw new RuntimeException("Failed to set id", e);
+        }
+
+        return exchangeItem;
+    }
+
+    /**
+     * Mock Exchange 생성 헬퍼 메서드
+     */
+    private com.back.domain.order.exchange.entity.Exchange createMockExchange(
+            Long id, com.back.domain.order.order.entity.Order order, User user,
+            List<com.back.domain.order.exchange.entity.ExchangeItem> exchangeItems,
+            com.back.domain.order.exchange.entity.Exchange.ExchangeStatus status,
+            com.back.domain.order.exchange.entity.Exchange.ExchangeMethod method) {
+
+        com.back.domain.order.exchange.entity.Exchange exchange =
+                com.back.domain.order.exchange.entity.Exchange.builder()
+                        .order(order)
+                        .user(user)
+                        .status(status)
+                        .reason("사이즈 변경")
+                        .detailReason("L사이즈로 교환 희망")
+                        .exchangeMethod(method)
+                        .build();
+
+        try {
+            java.lang.reflect.Field idField = exchange.getClass().getSuperclass().getDeclaredField("id");
+            idField.setAccessible(true);
+            idField.set(exchange, id);
+
+            java.lang.reflect.Field createDateField = exchange.getClass().getSuperclass().getDeclaredField("createDate");
+            createDateField.setAccessible(true);
+            createDateField.set(exchange, LocalDateTime.now());
+
+            java.lang.reflect.Field exchangeItemsField = exchange.getClass().getDeclaredField("exchangeItems");
+            exchangeItemsField.setAccessible(true);
+            exchangeItemsField.set(exchange, exchangeItems);
+
+            // ExchangeItem에 Exchange 설정
+            for (com.back.domain.order.exchange.entity.ExchangeItem item : exchangeItems) {
+                java.lang.reflect.Field exchangeField = item.getClass().getDeclaredField("exchange");
+                exchangeField.setAccessible(true);
+                exchangeField.set(item, exchange);
+            }
+        } catch (Exception e) {
+            throw new RuntimeException("Failed to set exchange fields", e);
+        }
+
+        return exchange;
     }
 }
