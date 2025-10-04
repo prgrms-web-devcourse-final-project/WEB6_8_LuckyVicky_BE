@@ -1,7 +1,9 @@
 package com.back.domain.funding.dto.response;
 
 import com.back.domain.funding.entity.Funding;
+import io.swagger.v3.oas.annotations.media.Schema;
 
+@Schema(description = "펀딩 목록 응답")
 public record FundingCardDto(
         Long id,              // 펀딩 ID
         String title,         // 펀딩 제목

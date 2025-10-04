@@ -33,6 +33,7 @@ import org.springframework.test.context.ActiveProfiles;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertAll;
@@ -480,19 +481,19 @@ class AdminDashboardServiceImplTest {
      * 테스트용 펀딩 생성
      */
     private Funding createTestFunding(String title, FundingStatus status) {
-        Funding funding = Funding.builder()
-                .user(artistUser)
-                .title(title)
-                .description("테스트 펀딩 설명")
-                .imageUrl("https://example.com/image.jpg")
-                .targetAmount(1000000)
-                .startDate(LocalDateTime.now().minusDays(5))
-                .endDate(LocalDateTime.now().plusDays(25))
-                .status(status)
-                .build();
+        LocalDateTime now = LocalDateTime.now();
 
-        funding.attachOption(FundingOption.create("기본 옵션", 10000, 100, 1));
-        return funding;
+        return Funding.create(
+                artistUser,                                 // 작성자
+                title,                                      // 제목
+                "테스트 펀딩 설명",                              // 설명
+                "https://example.com/image.jpg",            // 이미지
+                1_000_000L,                                 // 목표 금액 (long)
+                now.plusDays(1),                            // 시작일: 현재 이후
+                now.plusDays(25),                           // 종료일: 시작일 이후
+                status,                                     // 초기 상태
+                List.of(FundingOption.create("기본 옵션", 10_000L, 100, 1)) // 옵션들
+        );
     }
 
     /**

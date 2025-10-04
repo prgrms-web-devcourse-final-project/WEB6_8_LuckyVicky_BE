@@ -2,14 +2,13 @@ package com.back.domain.funding.dto.request;
 
 
 import com.fasterxml.jackson.annotation.JsonFormat;
-import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.NotNull;
-import jakarta.validation.constraints.Positive;
-import jakarta.validation.constraints.Size;
+import io.swagger.v3.oas.annotations.media.Schema;
+import jakarta.validation.constraints.*;
 
 import java.time.LocalDateTime;
 import java.util.List;
 
+@Schema(description = "펀딩 생성 요청")
 public record FundingCreateRequest(
         @NotBlank(message = "펀딩 제목은 필수입니다.")
         @Size(max = 50, message = "펀딩 제목은 최대 50자까지 가능합니다.")

@@ -1,6 +1,7 @@
 package com.back.domain.funding.controller;
 
 import com.back.domain.funding.dto.request.FundingCreateRequest;
+import com.back.domain.funding.dto.request.FundingUpdateRequest;
 import com.back.domain.funding.dto.response.FundingCardDto;
 import com.back.domain.funding.dto.response.FundingCreateResponse;
 import com.back.domain.funding.dto.response.FundingDetailResponse;
@@ -33,7 +34,7 @@ public class FundingController {
 
     @PostMapping
     @PreAuthorize("hasAuthority('ROLE_ARTIST') or hasAuthority('ROLE_ADMIN') or hasAuthority('ROLE_ROOT')")
-    @Operation(summary = "펀딩 생성")
+    @Operation(summary = "펀딩 생성", description = "새로운 펀딩을 생성합니다. 아티스트, 관리자, 루트 권한이 필요합니다.")
     public ResponseEntity<RsData<FundingCreateResponse>> createFunding(
             @Valid @RequestBody FundingCreateRequest request,
             @AuthenticationPrincipal(expression = "username") String userEmail) {
@@ -53,7 +54,7 @@ public class FundingController {
     }
 
     @GetMapping
-    @Operation(summary = "펀딩 목록 조회")
+    @Operation(summary = "펀딩 목록 조회", description = "펀딩 목록을 조회합니다. 다양한 필터링 및 정렬 옵션을 제공합니다.")
     public ResponseEntity<RsData<Page<FundingCardDto>>> getFundingList(
             @Parameter(description = "[필터링] 펀딩 상태 목록. 진행중(OPEN), 종료(CLOSED), 성공(SUCCESS), 실패(FAILED), 취소(CANCELED)",
                     example = "OPEN,CLOSED")
@@ -89,5 +90,17 @@ public class FundingController {
 
         RsData<Page<FundingCardDto>> body = RsData.of("200", "펀딩 목록 조회 성공", fundingList);
         return ResponseEntity.ok(body);
+    }
+
+    @PatchMapping("/{id}")
+    @Operation(summary = "펀딩 수정", description = "펀딩을 수정합니다. 목표 금액은 참여자가 없을 때만 수정할 수 있습니다.")
+    @PreAuthorize("hasAuthority('ROLE_ARTIST') or hasAuthority('ROLE_ADMIN') or hasAuthority('ROLE_ROOT')")
+    public ResponseEntity<RsData<FundingDetailResponse>> updateFunding(
+            @PathVariable @Positive Long id,
+            @RequestBody FundingUpdateRequest request,
+            @AuthenticationPrincipal(expression = "username") String userEmail) {
+        fundingService.updateFunding(id, userEmail, request);
+        FundingDetailResponse updatedFunding = fundingService.getFunding(id);
+        return ResponseEntity.ok(new RsData<>("200", "펀딩이 수정되었습니다.", updatedFunding));
     }
 }

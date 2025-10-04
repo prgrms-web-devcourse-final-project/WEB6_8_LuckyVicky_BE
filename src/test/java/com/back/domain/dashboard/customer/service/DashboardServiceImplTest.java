@@ -20,6 +20,7 @@ import org.springframework.test.context.ActiveProfiles;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertAll;
@@ -99,36 +100,40 @@ class DashboardServiceImplTest {
                 .sortOrder(1)
                 .build();
 
-        // 진행중인 펀딩 생성 (옵션 포함)
-        activeFunding = Funding.builder()
-                .user(testArtist)
-                .title("진행중인 펀딩")
-                .description("테스트 펀딩입니다")
-                .imageUrl("https://example.com/image1.jpg")
-                .targetAmount(1000000L)
-                .collectedAmount(500000L)
-                .startDate(LocalDateTime.now().minusDays(5))
-                .endDate(LocalDateTime.now().plusDays(25))
-                .status(FundingStatus.OPEN)
-                .participantCount(5)
-                .build();
-        activeFunding.attachOption(activeOption);
+        // 진행중 펀딩 생성 (옵션 포함)
+        activeFunding = Funding.create(
+                testArtist,
+                "진행중인 펀딩",
+                "테스트 펀딩입니다",
+                "https://example.com/image1.jpg",
+                1_000_000L,
+                LocalDateTime.now().plusDays(1),          // 생성 규칙상 startDate는 현재 이후
+                LocalDateTime.now().plusDays(25),
+                FundingStatus.OPEN,
+                List.of(FundingOption.create("기본 옵션", 10_000L, 100, 1))
+        );
+// 누적값/참여자는 도메인 메서드로
+        activeFunding.increaseCollectedAmount(500_000L);
+        activeFunding.increaseParticipantCount(5);
         activeFunding = fundingRepository.save(activeFunding);
 
-        // 종료된 펀딩 생성 (옵션 포함)
-        endedFunding = Funding.builder()
-                .user(testArtist)
-                .title("종료된 펀딩")
-                .description("테스트 펀딩입니다")
-                .imageUrl("https://example.com/image2.jpg")
-                .targetAmount(500000L)
-                .collectedAmount(600000L)
-                .startDate(LocalDateTime.now().minusDays(35))
-                .endDate(LocalDateTime.now().minusDays(5))
-                .status(FundingStatus.SUCCESS)
-                .participantCount(10)
-                .build();
-        endedFunding.attachOption(endedOption);
+// 종료된 펀딩 생성 (옵션 포함)
+        endedFunding = Funding.create(
+                testArtist,
+                "종료된 펀딩",
+                "테스트 펀딩입니다",
+                "https://example.com/image2.jpg",
+                500_000L,
+                LocalDateTime.now().plusDays(1),
+                LocalDateTime.now().plusDays(5),
+                FundingStatus.OPEN,
+                List.of(FundingOption.create("프리미엄 세트", 30_000L, 30, 1))
+        );
+// 성공 상태가 되도록 금액/참여자 반영 후 상태 전이
+        endedFunding.increaseCollectedAmount(600_000L);
+        endedFunding.increaseParticipantCount(10);
+        endedFunding.close();         // OPEN -> CLOSED
+        endedFunding.markAsSuccess(); // CLOSED -> SUCCESS
         endedFunding = fundingRepository.save(endedFunding);
 
         // 저장된 옵션 가져오기 (cascade로 저장됨)

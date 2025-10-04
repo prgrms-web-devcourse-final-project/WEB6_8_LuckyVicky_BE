@@ -11,6 +11,7 @@ import com.back.domain.funding.repository.FundingRepository;
 import com.back.domain.product.product.entity.Product;
 import com.back.domain.product.product.entity.SellingStatus;
 import com.back.domain.product.product.repository.ProductRepository;
+import com.back.domain.user.entity.User;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -20,10 +21,8 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
-import com.back.domain.user.entity.User;
 
 import java.time.LocalDateTime;
-import java.util.ArrayList;
 import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -255,22 +254,21 @@ class ArtistDashboardServiceImplTest {
     private Funding createMockFunding(Long id, User user, String title, long targetAmount, FundingStatus status) {
         LocalDateTime now = LocalDateTime.now();
 
-        Funding funding = Funding.builder()
-                .user(user)
-                .title(title)
-                .description("테스트 펀딩 설명")
-                .imageUrl("https://example.com/image.jpg")
-                .status(status)
-                .targetAmount(targetAmount)
-                .collectedAmount(0L)
-                .startDate(now.minusDays(10))
-                .endDate(now.plusDays(20))
-                .participantCount(10)
-                .options(new ArrayList<>())
-                .news(new ArrayList<>())
-                .communities(new ArrayList<>())
-                .images(new ArrayList<>())
-                .build();
+        Funding funding = Funding.create(
+                user,
+                title,
+                "테스트 펀딩 설명",
+                "https://example.com/image.jpg",
+                targetAmount,
+                now.plusDays(1),          // 시작일은 현재 이후여야 함 (검증 통과)
+                now.plusDays(20),
+                status,                   // 전달받은 상태
+                List.of()                 // 옵션 비워두기 (new ArrayList<>() 불필요)
+        );
+
+// 도메인 메서드로 참여자 수 반영 (직접 세터/빌더로 넣지 않음)
+        funding.increaseParticipantCount(10);
+
 
         // Reflection을 통해 id와 createDate 설정
         try {

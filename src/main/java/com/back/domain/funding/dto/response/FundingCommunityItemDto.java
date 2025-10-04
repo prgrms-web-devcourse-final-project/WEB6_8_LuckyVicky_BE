@@ -2,9 +2,11 @@ package com.back.domain.funding.dto.response;
 
 import com.back.domain.funding.entity.FundingCommunity;
 import com.fasterxml.jackson.annotation.JsonFormat;
+import io.swagger.v3.oas.annotations.media.Schema;
 
 import java.time.LocalDateTime;
 
+@Schema(description = "펀딩 커뮤니티 글 응답")
 public record FundingCommunityItemDto(
         Long id,
         String writerName,
