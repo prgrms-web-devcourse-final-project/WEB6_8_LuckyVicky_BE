@@ -41,9 +41,9 @@ public record ArtistCancellationSearchRequest(
         @Positive(message = "상품 ID는 양수여야 합니다")
         Long productId,
 
-        /** 정렬 기준 */
-        @Pattern(regexp = "^(requestDate|orderNumber|status|refundAmount|customerName)$",
-                message = "sort는 requestDate, orderNumber, status, refundAmount, customerName 중 하나여야 합니다")
+        /** 정렬 기준 (상품명, 구매자 이름, 주문상태, 주문일자) */
+        @Pattern(regexp = "^(productName|customerName|status|requestDate)$",
+                message = "sort는 productName, customerName, status, requestDate 중 하나여야 합니다")
         String sort,
 
         /** 정렬 방향 */
@@ -56,7 +56,7 @@ public record ArtistCancellationSearchRequest(
      */
     public ArtistCancellationSearchRequest {
         if (page == null) page = 0;
-        if (size == null) size = 20;
+        if (size == null) size = 10;
         if (sort == null) sort = "requestDate";
         if (order == null) order = "DESC";
     }

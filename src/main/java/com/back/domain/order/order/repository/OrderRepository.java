@@ -95,4 +95,39 @@ public interface OrderRepository extends JpaRepository<Order, Long> {
             "LEFT JOIN FETCH oi.product p " +
             "WHERE o.id IN :orderIds")
     List<Order> findOrdersWithDetailsById(@Param("orderIds") List<Long> orderIds);
+
+    /**
+     * 작가별 주문 목록 조회 (작가용 대시보드)
+     * 작가가 판매한 상품의 주문만 조회
+     * 주문 상태, 키워드 검색, 날짜 범위 필터 지원
+     */
+    @Query("SELECT DISTINCT o FROM Order o " +
+            "JOIN o.orderItems oi " +
+            "JOIN oi.product p " +
+            "WHERE p.user.id = :artistId " +
+            "AND (:status IS NULL OR o.status = :status) " +
+            "AND (:keyword IS NULL OR :keyword = '' OR " +
+            "     o.user.name LIKE CONCAT('%', :keyword, '%') OR " +
+            "     p.name LIKE CONCAT('%', :keyword, '%')) " +
+            "AND (:startDate IS NULL OR o.orderDate >= :startDate) " +
+            "AND (:endDate IS NULL OR o.orderDate <= :endDate)")
+    Page<Order> findOrdersByArtist(
+            @Param("artistId") Long artistId,
+            @Param("status") OrderStatus status,
+            @Param("keyword") String keyword,
+            @Param("startDate") java.time.LocalDateTime startDate,
+            @Param("endDate") java.time.LocalDateTime endDate,
+            Pageable pageable
+    );
+
+    /**
+     * 작가별 주문 상세 정보 조회 (Fetch Join)
+     */
+    @Query("SELECT DISTINCT o FROM Order o " +
+            "LEFT JOIN FETCH o.orderItems oi " +
+            "LEFT JOIN FETCH oi.product p " +
+            "LEFT JOIN FETCH o.user " +
+            "WHERE o.id IN :orderIds " +
+            "AND EXISTS (SELECT 1 FROM OrderItem oi2 JOIN oi2.product p2 WHERE oi2.order = o AND p2.user.id = :artistId)")
+    List<Order> findOrdersWithDetailsByArtist(@Param("orderIds") List<Long> orderIds, @Param("artistId") Long artistId);
 }
