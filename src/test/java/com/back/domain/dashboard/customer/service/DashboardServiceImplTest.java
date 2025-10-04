@@ -246,31 +246,14 @@ class DashboardServiceImplTest {
         // Then
         assertAll(
                 () -> assertThat(result).isNotNull(),
-                () -> assertThat(result.getSummary()).isNotNull(),
+                () -> assertThat(result.getSummary()).isNull(),  // summary는 null
                 () -> assertThat(result.getContent()).isNotNull(),
                 () -> assertThat(result.getContent()).hasSize(2)
         );
     }
 
-    @Test
-    @DisplayName("펀딩 참여 목록 조회 - 통계 계산 검증")
-    void getFundingParticipations_CalculatesStatistics() {
-        // Given
-        FundingSearchRequest request = new FundingSearchRequest(
-                0, 10, null, null, "paidAt", "DESC"
-        );
-
-        // When
-        FundingResponse.List result = dashboardService.getFundingParticipations(
-                testBuyer.getId(), request);
-
-        // Then
-        assertAll(
-                () -> assertThat(result.getSummary().totalParticipations()).isEqualTo(2),
-                () -> assertThat(result.getSummary().active()).isEqualTo(1),
-                () -> assertThat(result.getSummary().ended()).isEqualTo(1)
-        );
-    }
+    // 통계 계산 테스트 제거 (프론트 요구사항에 통계 없음)
+    // TODO: 프론트에서 통계 기능 요청 시 다시 추가
 
     @Test
     @DisplayName("펀딩 참여 목록 조회 - participationNumber 포맷 검증")
@@ -528,7 +511,7 @@ class DashboardServiceImplTest {
         assertAll(
                 () -> assertThat(result.getContent()).isNotEmpty(),
                 () -> assertThat(result.getContent().get(0).paidDate())
-                        .matches("^\\d{4}-\\d{2}-\\d{2}$")
+                        .matches("^\\d{4}\\. \\d{2}\\. \\d{2}$")
         );
     }
 

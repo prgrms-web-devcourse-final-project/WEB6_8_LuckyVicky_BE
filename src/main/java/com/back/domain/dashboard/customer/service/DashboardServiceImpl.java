@@ -4,6 +4,7 @@ import com.back.domain.dashboard.customer.dto.request.*;
 import com.back.domain.dashboard.customer.dto.response.*;
 import com.back.domain.funding.entity.Funding;
 import com.back.domain.funding.entity.FundingContribution;
+import com.back.domain.funding.entity.FundingImage;
 import com.back.domain.funding.entity.FundingStatus;
 import com.back.domain.funding.repository.FundingContributionRepository;
 import com.back.domain.user.entity.User;
@@ -39,6 +40,7 @@ public class DashboardServiceImpl implements DashboardService {
     private final com.back.domain.order.order.repository.OrderRepository orderRepository;
 
     private static final DateTimeFormatter ORDER_DATE_FORMATTER = DateTimeFormatter.ofPattern("yyyy. MM. dd");
+    private static final DateTimeFormatter FUNDING_DATE_FORMATTER = DateTimeFormatter.ofPattern("yyyy. MM. dd");
 
     @Override
     public AccountResponse.Settings getAccountSettings(Long userId, String include) {
@@ -450,12 +452,14 @@ public class DashboardServiceImpl implements DashboardService {
     public FundingResponse.List getFundingParticipations(Long userId, FundingSearchRequest request) {
         log.debug("펀딩 목록 조회 - userId: {}, request: {}", userId, request);
 
-        // Pageable 생성 (정렬 포함)
-        Pageable pageable = createPageable(
-                request.page(), request.size(),
-                request.sort(), request.order());
+        // 1. 사용자 조회
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new ServiceException("USER_NOT_FOUND", "사용자를 찾을 수 없습니다."));
 
-        // Repository 조회
+        // 2. Pageable 생성 (정렬 포함)
+        Pageable pageable = createFundingPageable(request);
+
+        // 3. 펀딩 참여 목록 조회
         Page<FundingContribution> contributionPage = fundingContributionRepository
                 .findContributionsByBuyerWithFilters(
                         userId,
@@ -463,17 +467,14 @@ public class DashboardServiceImpl implements DashboardService {
                         request.status(),
                         pageable);
 
-        // 엔티티 → DTO 변환
+        // 4. 엔티티 → DTO 변환
         List<FundingResponse.Participation> content = contributionPage.getContent().stream()
                 .map(this::toParticipationDto)
                 .collect(Collectors.toList());
 
-        // 통계 계산 (배송 상태 제외)
-        FundingResponse.SummaryDto summary = calculateSummary(userId);
-
-        // 응답 생성
+        // 5. 응답 생성 (summary는 null - 프론트 요구사항에 통계 없음)
         return new FundingResponse.List(
-                summary,
+                null,  // summary는 프론트 확정 시까지 null
                 content,
                 contributionPage.getNumber(),
                 contributionPage.getSize(),
@@ -485,15 +486,11 @@ public class DashboardServiceImpl implements DashboardService {
     }
 
     /**
-     * Pageable 생성 (정렬 포함)
+     * 펀딩용 Pageable 생성 (정렬 포함)
      */
-    private Pageable createPageable(int page, int size, String sort, String order) {
-        if (sort == null || sort.isEmpty()) {
-            sort = "paidAt";
-        }
-        if (order == null || order.isEmpty()) {
-            order = "DESC";
-        }
+    private Pageable createFundingPageable(FundingSearchRequest request) {
+        String sort = request.sort() != null ? request.sort() : "paidAt";
+        String order = request.order() != null ? request.order() : "DESC";
 
         org.springframework.data.domain.Sort.Direction direction =
                 "ASC".equalsIgnoreCase(order) ?
@@ -509,7 +506,8 @@ public class DashboardServiceImpl implements DashboardService {
             default -> "paidAt";
         };
 
-        return PageRequest.of(page, size, org.springframework.data.domain.Sort.by(direction, sortField));
+        return PageRequest.of(request.page(), request.size(),
+                org.springframework.data.domain.Sort.by(direction, sortField));
     }
 
     /**
@@ -521,7 +519,7 @@ public class DashboardServiceImpl implements DashboardService {
         return new FundingResponse.Participation(
                 generateParticipationNumber(contribution.getId()),
                 contribution.getId(),
-                funding.getImageUrl(),
+                getFundingThumbnailUrl(funding),
                 funding.getTitle(),
                 new FundingResponse.Artist(
                         funding.getUser().getId(),
@@ -531,10 +529,37 @@ public class DashboardServiceImpl implements DashboardService {
                 contribution.getTotalAmount(),
                 mapFundingStatus(funding.getStatus()),
                 mapFundingStatusText(funding.getStatus()),
-                contribution.getPaidAt().toLocalDate().toString(),
+                contribution.getPaidAt().format(FUNDING_DATE_FORMATTER),  // "2025. 09. 18" 형식
                 new FundingResponse.Link("/fundings/" + funding.getId()),
                 null  // Meta는 목록 조회에서 제외
         );
+    }
+
+    /**
+     * 펀딩 썸네일 이미지 URL 조회
+     * 우선순위: THUMBNAIL > imageUrl
+     */
+    private String getFundingThumbnailUrl(Funding funding) {
+        try {
+            // images 컬렉션에서 THUMBNAIL 타입 찾기
+            if (funding.getImages() != null && !funding.getImages().isEmpty()) {
+                String thumbnailUrl = funding.getImages().stream()
+                        .filter(image -> image != null && "THUMBNAIL".equals(image.getFileType().name()))
+                        .findFirst()
+                        .map(FundingImage::getFileUrl)
+                        .orElse(null);
+                
+                if (thumbnailUrl != null) {
+                    return thumbnailUrl;
+                }
+            }
+        } catch (Exception e) {
+            // LazyInitializationException 등의 에러 발생 시 imageUrl 사용
+            log.warn("펀딩 이미지 컬렉션 접근 실패, imageUrl 사용 - fundingId: {}", funding.getId(), e);
+        }
+        
+        // THUMBNAIL이 없거나 에러 발생 시 imageUrl 사용
+        return funding.getImageUrl();
     }
 
     /**
@@ -565,35 +590,6 @@ public class DashboardServiceImpl implements DashboardService {
             case FAILED -> "실패";
             case CANCELED -> "취소";
         };
-    }
-
-    /**
-     * 펀딩 참여 통계 계산 (배송 상태 제외)
-     */
-    private FundingResponse.SummaryDto calculateSummary(Long userId) {
-        // 상태별 카운트 (간단한 방법 - 성능이 중요하면 별도 쿼리 메서드 추가)
-        List<FundingContribution> allContributions = fundingContributionRepository
-                .findContributionsByBuyerWithFilters(userId, null, null, Pageable.unpaged())
-                .getContent();
-
-        int total = allContributions.size();
-
-        int activeCount = (int) allContributions.stream()
-                .filter(fc -> fc.getFunding().getStatus() == FundingStatus.OPEN)
-                .count();
-
-        int endedCount = (int) allContributions.stream()
-                .filter(fc -> fc.getFunding().getStatus() == FundingStatus.CLOSED ||
-                        fc.getFunding().getStatus() == FundingStatus.SUCCESS ||
-                        fc.getFunding().getStatus() == FundingStatus.FAILED ||
-                        fc.getFunding().getStatus() == FundingStatus.CANCELED)
-                .count();
-
-        return new FundingResponse.SummaryDto(
-                total,
-                activeCount,
-                endedCount
-        );
     }
 
     @Override
