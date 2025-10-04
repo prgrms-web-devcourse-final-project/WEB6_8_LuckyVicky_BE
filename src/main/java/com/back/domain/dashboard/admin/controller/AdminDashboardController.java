@@ -18,34 +18,23 @@ import org.springframework.web.bind.annotation.*;
 
 /**
  * 관리자 대시보드 컨트롤러
-<<<<<<< HEAD
- * 관리자가 전체 플랫폼 현황을 모니터링할 수 있는 대시보드 기능을 제공
- * 모든 API는 JWT 인증과 관리자 권한이 필요
-=======
  * <p>
  * 관리자가 전체 플랫폼 현황을 모니터링할 수 있는 대시보드 기능을 제공
  * 모든 API는 JWT 인증과 관리자 권한이 필요
  * <p>
->>>>>>> 2f4795372b442dd5b55cfd8b8cfe7ba547b36a98
  * 제공 기능:
  * <ul>
- *   <li>전체 현황 조회 (사용자/매출/펀딩 통계, 유입 경로)</li>
+ *   <li>전체 현황 조회 (사용자/매출/펀딩 통계, 카테고리별 분포)</li>
  *   <li>매출 및 주문 트렌드 조회</li>
  *   <li>사용자 증가 현황 조회</li>
- *   <li>카테고리별 상품 분포 조회</li>
  *   <li>승인 대기 알림 조회</li>
  *   <li>상품 목록 조회 및 관리</li>
  *   <li>사용자 목록 조회 및 관리</li>
  *   <li>펀딩 모니터링 목록 조회</li>
  *   <li>입점 신청 목록 조회 및 관리</li>
  * </ul>
-<<<<<<< HEAD
- * 2025.10.01 GA4 유입 경로 통합 - 메인 현황에 포함
- * 2025.10.02 JWT 표준 패턴 적용 - @AuthenticationPrincipal 사용
-=======
  * <p>
- * 2025.10.01 GA4 유입 경로 통합 - 메인 현황에 포함
->>>>>>> 2f4795372b442dd5b55cfd8b8cfe7ba547b36a98
+ * 2025.10.04 수정 - GA4 유입 경로 제거 (작가 대시보드 전용)
  */
 @RestController
 @RequestMapping("/api/dashboard/admin")
@@ -62,7 +51,7 @@ public class AdminDashboardController {
      */
     @GetMapping("/overview")
     @Operation(summary = "관리자 대시보드 전체 현황 조회",
-            description = "사용자, 매출, 펀딩 통계와 트렌드 차트, 승인 대기 알림, 유입 경로(GA4) 정보를 조회합니다")
+            description = "사용자, 매출, 펀딩 통계와 트렌드 차트, 승인 대기 알림, 카테고리별 상품 분포 정보를 조회합니다")
     public ResponseEntity<RsData<AdminOverviewResponse>> getOverview(
             @AuthenticationPrincipal CustomUserDetails adminUser,
             @Valid @ModelAttribute AdminOverviewRequest request) {
