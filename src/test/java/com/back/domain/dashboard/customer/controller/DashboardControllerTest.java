@@ -110,7 +110,7 @@ class DashboardControllerTest {
     }
 
     @Test
-    @DisplayName("주문 목록 조회 API - 성공")
+    @DisplayName("주문 목록 조회 API - 성공 (실제 DB 연동)")
     void getOrders_Success() throws Exception {
         // Given
         OrderResponse.List mockResponse = createMockOrderList();
@@ -122,13 +122,164 @@ class DashboardControllerTest {
         mockMvc.perform(get("/api/dashboard/orders")
                         .param("page", "0")
                         .param("size", "10")
-                        .param("status", "PENDING"))
+                        .param("keyword", "상품명")
+                        .param("sort", "orderDate")
+                        .param("order", "DESC"))
                 .andDo(print())
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.data.summary.totalOrders").value(25))
+                .andExpect(jsonPath("$.resultCode").value("200"))
+                .andExpect(jsonPath("$.data.summary.totalOrders").exists())
                 .andExpect(jsonPath("$.data.content").isArray())
                 .andExpect(jsonPath("$.data.content[0].orderId").exists())
-                .andExpect(jsonPath("$.data.timezone").value("Asia/Seoul"));
+                .andExpect(jsonPath("$.data.content[0].orderNumber").exists())
+                .andExpect(jsonPath("$.data.content[0].orderDate").exists())
+                .andExpect(jsonPath("$.data.content[0].status").exists())
+                .andExpect(jsonPath("$.data.content[0].statusText").exists())
+                .andExpect(jsonPath("$.data.content[0].totalAmount").exists())
+                .andExpect(jsonPath("$.data.content[0].representativeItem").exists())
+                .andExpect(jsonPath("$.data.page").value(0))
+                .andExpect(jsonPath("$.data.size").value(10));
+    }
+
+    @Test
+    @DisplayName("주문 목록 조회 API - 주문번호 7자리 포맷 검증")
+    void getOrders_ValidatesOrderNumberFormat() throws Exception {
+        // Given
+        OrderResponse.List mockResponse = createMockOrderList();
+        given(dashboardService.getOrders(
+                eq(TEST_USER_ID), any(OrderSearchRequest.class)))
+                .willReturn(mockResponse);
+
+        // When & Then
+        mockMvc.perform(get("/api/dashboard/orders")
+                        .param("page", "0")
+                        .param("size", "10"))
+                .andDo(print())
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.content[0].orderNumber").isString())
+                .andExpect(jsonPath("$.data.content[0].orderNumber").value("0001234"));
+    }
+
+    @Test
+    @DisplayName("주문 목록 조회 API - 4가지 상태만 반환 검증")
+    void getOrders_OnlyReturnsValidStatuses() throws Exception {
+        // Given
+        OrderResponse.List mockResponse = createMockOrderList();
+        given(dashboardService.getOrders(
+                eq(TEST_USER_ID), any(OrderSearchRequest.class)))
+                .willReturn(mockResponse);
+
+        // When & Then
+        mockMvc.perform(get("/api/dashboard/orders")
+                        .param("page", "0")
+                        .param("size", "10"))
+                .andDo(print())
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.content[0].status").value("PAYMENT_COMPLETED"))
+                .andExpect(jsonPath("$.data.content[0].statusText").value("결제완료"));
+    }
+
+    @Test
+    @DisplayName("주문 목록 조회 API - 날짜 포맷 검증")
+    void getOrders_ValidatesDateFormat() throws Exception {
+        // Given
+        OrderResponse.List mockResponse = createMockOrderList();
+        given(dashboardService.getOrders(
+                eq(TEST_USER_ID), any(OrderSearchRequest.class)))
+                .willReturn(mockResponse);
+
+        // When & Then
+        mockMvc.perform(get("/api/dashboard/orders")
+                        .param("page", "0")
+                        .param("size", "10"))
+                .andDo(print())
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.content[0].orderDate").value("2025. 09. 18"));
+    }
+
+    @Test
+    @DisplayName("주문 목록 조회 API - 삭제된 상품 처리 검증")
+    void getOrders_HandlesDeletedProducts() throws Exception {
+        // Given
+        OrderResponse.List mockResponse = createMockOrderListWithDeletedProduct();
+        given(dashboardService.getOrders(
+                eq(TEST_USER_ID), any(OrderSearchRequest.class)))
+                .willReturn(mockResponse);
+
+        // When & Then
+        mockMvc.perform(get("/api/dashboard/orders")
+                        .param("page", "0")
+                        .param("size", "10"))
+                .andDo(print())
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.content[0].representativeItem.productName")
+                        .value("테스트상품"))  // 삭제된 상품도 이름은 그대로
+                .andExpect(jsonPath("$.data.content[0].representativeItem.imageUrl").isEmpty());  // 이미지만 null
+    }
+
+    @Test
+    @DisplayName("주문 목록 조회 API - 검색 파라미터 검증")
+    void getOrders_ValidatesSearchParameters() throws Exception {
+        // Given
+        OrderResponse.List mockResponse = createMockOrderList();
+        given(dashboardService.getOrders(
+                eq(TEST_USER_ID), any(OrderSearchRequest.class)))
+                .willReturn(mockResponse);
+
+        // When & Then - 상품명으로 검색
+        mockMvc.perform(get("/api/dashboard/orders")
+                        .param("page", "0")
+                        .param("size", "10")
+                        .param("keyword", "포스터"))
+                .andDo(print())
+                .andExpect(status().isOk());
+    }
+
+    @Test
+    @DisplayName("주문 목록 조회 API - 정렬 파라미터 검증")
+    void getOrders_ValidatesSortParameters() throws Exception {
+        // Given
+        OrderResponse.List mockResponse = createMockOrderList();
+        given(dashboardService.getOrders(
+                eq(TEST_USER_ID), any(OrderSearchRequest.class)))
+                .willReturn(mockResponse);
+
+        // When & Then - 금액순 정렬
+        mockMvc.perform(get("/api/dashboard/orders")
+                        .param("page", "0")
+                        .param("size", "10")
+                        .param("sort", "totalAmount")
+                        .param("order", "DESC"))
+                .andDo(print())
+                .andExpect(status().isOk());
+    }
+
+    @Test
+    @DisplayName("주문 목록 조회 API - 상품명 정렬 검증")
+    void getOrders_SortsByProductName() throws Exception {
+        // Given
+        OrderResponse.List mockResponse = createMockOrderList();
+        given(dashboardService.getOrders(
+                eq(TEST_USER_ID), any(OrderSearchRequest.class)))
+                .willReturn(mockResponse);
+
+        // When & Then - 상품명 오름차순 정렬
+        mockMvc.perform(get("/api/dashboard/orders")
+                        .param("page", "0")
+                        .param("size", "10")
+                        .param("sort", "productName")
+                        .param("order", "ASC"))
+                .andDo(print())
+                .andExpect(status().isOk());
+
+        // When & Then - 상품명 내림차순 정렬
+        mockMvc.perform(get("/api/dashboard/orders")
+                        .param("page", "0")
+                        .param("size", "10")
+                        .param("sort", "productName")
+                        .param("order", "DESC"))
+                .andDo(print())
+                .andExpect(status().isOk());
     }
 
     @Test
@@ -238,57 +389,93 @@ class DashboardControllerTest {
     }
 
     private OrderResponse.List createMockOrderList() {
-        OrderResponse.SummaryDto summary = new OrderResponse.SummaryDto(
-                25, 3, 2, 0, 0, 0, 0, 2, 0, 0, 1, 0, 0
-        );
+        OrderResponse.SummaryDto summary = new OrderResponse.SummaryDto(156);
 
         List<OrderResponse.Summary> content = List.of(
                 new OrderResponse.Summary(
-                        "test-order-123",
-                        "ORD001",
-                        "2025-09-20T11:20:00+09:00",
-                        "PENDING",
-                        "발주 전",
-                        47500,
-                        2,
-                        new OrderResponse.Product(
+                        "1234",                           // orderId
+                        "0001234",                        // orderNumber (7자리 포맷)
+                        "2025. 09. 18",                   // orderDate (포맷팅됨)
+                        "PAYMENT_COMPLETED",              // status
+                        "결제완료",                        // statusText
+                        10000,                            // totalAmount
+                        2,                                // itemCount
+                        new OrderResponse.Product(        // representativeItem
                                 101L,
                                 "테스트상품",
-                                1,
-                                25000,
+                                2,
+                                5000,
                                 "https://cdn.example.com/product.jpg"
                         ),
-                        null, // shipping
-                        new OrderResponse.Aftersales(
-                                new OrderResponse.AftersalesItem(
-                                        "REQUESTED",
-                                        "취소 요청 중",
-                                        901L
-                                ),
-                                null // exchange
+                        new OrderResponse.Shipping(       // shipping
+                                "서울시 강남구",
+                                "홍길동"
                         ),
-                        null, // permissions
-                        null, // links
-                        List.of(
+                        null,                             // aftersales (제거됨)
+                        new OrderResponse.Permission(     // permissions
+                                true,                     // canCancel
+                                false,                    // canReturn
+                                false                     // canExchange
+                        ),
+                        new OrderResponse.Link(           // links
+                                "/orders/ORD1234567890"
+                        ),
+                        List.of(                          // items
                                 new OrderResponse.OrderItem(
                                         1L,
                                         101L,
                                         "테스트상품",
-                                        1,
-                                        25000,
-                                        null
+                                        2,
+                                        5000,
+                                        "https://cdn.example.com/product.jpg"
                                 )
                         )
                 )
         );
 
-        OrderResponse.PeriodInfo periodInfo = new OrderResponse.PeriodInfo(
-                "MONTH",
-                "2025-09-01",
-                "2025-09-30"
+        return new OrderResponse.List(summary, content, 0, 10, 156, 16, true, false);
+    }
+
+    private OrderResponse.List createMockOrderListWithDeletedProduct() {
+        OrderResponse.SummaryDto summary = new OrderResponse.SummaryDto(1);
+
+        List<OrderResponse.Summary> content = List.of(
+                new OrderResponse.Summary(
+                        "1234",
+                        "0001234",
+                        "2025. 09. 18",
+                        "PAYMENT_COMPLETED",
+                        "결제완료",
+                        10000,
+                        1,
+                        new OrderResponse.Product(
+                                101L,
+                                "테스트상품",              // 삭제된 상품도 이름은 그대로
+                                1,
+                                10000,
+                                null                      // 이미지만 null
+                        ),
+                        new OrderResponse.Shipping(
+                                "서울시 강남구",
+                                "홍길동"
+                        ),
+                        null,
+                        new OrderResponse.Permission(true, false, false),
+                        new OrderResponse.Link("/orders/ORD1234567890"),
+                        List.of(
+                                new OrderResponse.OrderItem(
+                                        1L,
+                                        101L,
+                                        "테스트상품",      // 삭제된 상품도 이름은 그대로
+                                        1,
+                                        10000,
+                                        null              // 이미지만 null
+                                )
+                        )
+                )
         );
 
-        return new OrderResponse.List(summary, content, 0, 10, 25, 3, true, false, "Asia/Seoul", periodInfo);
+        return new OrderResponse.List(summary, content, 0, 10, 1, 1, false, false);
     }
 
     private com.back.domain.dashboard.customer.dto.response.FundingResponse.List createMockFundingList() {

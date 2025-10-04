@@ -4,6 +4,7 @@ import com.back.domain.dashboard.customer.dto.request.*;
 import com.back.domain.dashboard.customer.dto.response.*;
 import com.back.domain.funding.entity.Funding;
 import com.back.domain.funding.entity.FundingContribution;
+import com.back.domain.funding.entity.FundingImage;
 import com.back.domain.funding.entity.FundingStatus;
 import com.back.domain.funding.repository.FundingContributionRepository;
 import com.back.domain.user.entity.User;
@@ -18,6 +19,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.Arrays;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -25,6 +27,7 @@ import java.util.stream.Collectors;
 /**
  * 고객용 대시보드 서비스 구현체
  * 2025.10.02 수정 - JWT 표준 패턴 적용, Request DTO 활용
+ * 2025.10.03 수정 - 주문일자 포맷팅 추가
  */
 @Service
 @RequiredArgsConstructor
@@ -34,6 +37,10 @@ public class DashboardServiceImpl implements DashboardService {
 
     private final FundingContributionRepository fundingContributionRepository;
     private final UserRepository userRepository;
+    private final com.back.domain.order.order.repository.OrderRepository orderRepository;
+
+    private static final DateTimeFormatter ORDER_DATE_FORMATTER = DateTimeFormatter.ofPattern("yyyy. MM. dd");
+    private static final DateTimeFormatter FUNDING_DATE_FORMATTER = DateTimeFormatter.ofPattern("yyyy. MM. dd");
 
     @Override
     public AccountResponse.Settings getAccountSettings(Long userId, String include) {
@@ -141,74 +148,230 @@ public class DashboardServiceImpl implements DashboardService {
 
     @Override
     public OrderResponse.List getOrders(Long userId, OrderSearchRequest request) {
-        // TODO: 실제 주문 데이터 조회 로직 구현
         log.debug("주문 목록 조회 - userId: {}, request: {}", userId, request);
 
+        // 1. 사용자 조회
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new ServiceException("USER_NOT_FOUND", "사용자를 찾을 수 없습니다."));
+
+        // 2. 주문 목록 조회 (상품명 정렬 여부에 따라 다른 메서드 사용)
+        Page<com.back.domain.order.order.entity.Order> orderPage;
+        
+        if ("productName".equals(request.sort())) {
+            // 상품명 정렬: 별도 쿼리 사용 (Pageable의 정렬은 무시됨)
+            String direction = request.order() != null ? request.order() : "DESC";
+            Pageable pageable = PageRequest.of(request.page(), request.size());
+            orderPage = orderRepository.findOrdersForDashboardSortedByProductName(
+                    user, request.keyword(), direction, pageable);
+        } else {
+            // 기본 정렬: Pageable의 정렬 사용
+            Pageable pageable = createOrderPageable(request);
+            orderPage = orderRepository.findOrdersForDashboard(user, request.keyword(), pageable);
+        }
+
+        // 3. 빈 결과 처리
+        List<OrderResponse.Summary> content;
+        if (orderPage.isEmpty()) {
+            content = List.of();
+        } else {
+            // 4. 조회된 주문 ID 목록 추출
+            List<Long> orderIds = orderPage.getContent().stream()
+                    .map(com.back.domain.order.order.entity.Order::getId)
+                    .collect(Collectors.toList());
+
+            // 5. 주문 상세 정보 조회 (OrderItem, Product, Images 포함)
+            List<com.back.domain.order.order.entity.Order> ordersWithDetails =
+                    orderRepository.findOrdersWithDetailsById(orderIds);
+
+            // 6. 정렬 순서 유지를 위한 Map 생성
+            java.util.Map<Long, com.back.domain.order.order.entity.Order> orderMap = ordersWithDetails.stream()
+                    .collect(Collectors.toMap(
+                            com.back.domain.order.order.entity.Order::getId,
+                            order -> order
+                    ));
+
+            // 7. 원래 페이징 순서대로 엔티티 정렬 및 DTO 변환
+            content = orderPage.getContent().stream()
+                    .map(order -> orderMap.get(order.getId()))
+                    .filter(java.util.Objects::nonNull)
+                    .map(this::convertToOrderSummary)
+                    .collect(Collectors.toList());
+        }
+
+        // 8. 통계 계산
         OrderResponse.SummaryDto summary = new OrderResponse.SummaryDto(
-                25, 3, 2, 5, 10, 5, 2, 1, 0, 1, 1, 0, 1
+                (int) orderPage.getTotalElements()
         );
 
-        List<OrderResponse.Summary> content = List.of(
-                new OrderResponse.Summary(
-                        "ORDER-001",
-                        "0123157",
-                        "2025-09-18T11:20:00+09:00",
-                        "PENDING",
-                        "결제완료",
-                        47500,
-                        2,
-                        new OrderResponse.Product(
-                                101L,
-                                "감성 포스터",
-                                1,
-                                25000,
-                                "https://example.com/product101.jpg"
-                        ),
-                        new OrderResponse.Shipping(
-                                "서울시 강남구",
-                                "홍길동"
-                        ),
-                        null, // aftersales
-                        new OrderResponse.Permission(
-                                true,
-                                false,
-                                false
-                        ),
-                        new OrderResponse.Link(
-                                "/orders/0123157"
-                        ),
-                        Arrays.asList(
-                                new OrderResponse.OrderItem(
-                                        1L,
-                                        101L,
-                                        "감성 포스터",
-                                        1,
-                                        25000,
-                                        "https://example.com/product101.jpg"
-                                ),
-                                new OrderResponse.OrderItem(
-                                        2L,
-                                        102L,
-                                        "아트 스티커",
-                                        1,
-                                        22500,
-                                        "https://example.com/product102.jpg"
-                                )
-                        )
-                )
-        );
-
-        OrderResponse.PeriodInfo periodInfo = new OrderResponse.PeriodInfo(
-                request.period() != null ? request.period() : "MONTH",
-                request.from() != null ? request.from() : "2025-09-01",
-                request.to() != null ? request.to() : "2025-09-30"
-        );
-
+        // 9. 응답 생성
         return new OrderResponse.List(
                 summary, content,
-                request.page(), request.size(),
-                25, 3, true, false,
-                "Asia/Seoul", periodInfo);
+                orderPage.getNumber(), orderPage.getSize(),
+                orderPage.getTotalElements(), orderPage.getTotalPages(),
+                orderPage.hasNext(), orderPage.hasPrevious()
+        );
+    }
+
+    /**
+     * 주문용 Pageable 생성 (정렬 포함)
+     * productName 정렬은 별도 쿼리에서 처리하므로 여기서는 제외
+     */
+    private Pageable createOrderPageable(OrderSearchRequest request) {
+        String sort = request.sort() != null ? request.sort() : "orderDate";
+        String order = request.order() != null ? request.order() : "DESC";
+
+        org.springframework.data.domain.Sort.Direction direction =
+                "ASC".equalsIgnoreCase(order) ?
+                        org.springframework.data.domain.Sort.Direction.ASC :
+                        org.springframework.data.domain.Sort.Direction.DESC;
+
+        // 정렬 필드 매핑
+        String sortField = switch (sort) {
+            case "totalAmount" -> "totalAmount";
+            case "status" -> "status";
+            default -> "orderDate"; // productName은 여기서 처리하지 않음
+        };
+
+        return PageRequest.of(request.page(), request.size(),
+                org.springframework.data.domain.Sort.by(direction, sortField));
+    }
+
+    /**
+     * Order 엔티티를 OrderResponse.Summary로 변환
+     */
+    private OrderResponse.Summary convertToOrderSummary(com.back.domain.order.order.entity.Order order) {
+        List<com.back.domain.order.orderItem.entity.OrderItem> orderItems = order.getOrderItems();
+
+        // 화면 표시용 주문번호 생성 (7자리 포맷)
+        String displayOrderNumber = String.format("%07d", order.getId());
+
+        // 대표 상품 (첫 번째 상품)
+        OrderResponse.Product representativeProduct = null;
+        if (!orderItems.isEmpty()) {
+            com.back.domain.order.orderItem.entity.OrderItem firstItem = orderItems.get(0);
+            representativeProduct = convertToProductDto(firstItem);
+        }
+
+        // 모든 주문 상품 변환
+        List<OrderResponse.OrderItem> items = orderItems.stream()
+                .map(this::convertToOrderItemDto)
+                .collect(Collectors.toList());
+
+        // 배송 정보
+        OrderResponse.Shipping shipping = new OrderResponse.Shipping(
+                order.getShippingAddress1() != null ? order.getShippingAddress1() : "",
+                order.getRecipientName() != null ? order.getRecipientName() : ""
+        );
+
+        // 주문 상태 매핑 (4가지 상태만)
+        String status = mapOrderStatus(order.getStatus());
+        String statusText = mapOrderStatusText(order.getStatus());
+
+        // 권한 정보 (결제완료일 때만 취소 가능)
+        OrderResponse.Permission permissions = new OrderResponse.Permission(
+                order.getStatus() == com.back.domain.order.order.entity.OrderStatus.PAYMENT_COMPLETED,
+                false, // 반품 기능 제거
+                false  // 교환 기능 제거
+        );
+
+        // 링크 정보 (실제 orderNumber 사용)
+        OrderResponse.Link links = new OrderResponse.Link("/orders/" + order.getOrderNumber());
+
+        return new OrderResponse.Summary(
+                order.getId().toString(),
+                displayOrderNumber,  // 화면에는 7자리 포맷팅된 번호 표시
+                order.getOrderDate().format(ORDER_DATE_FORMATTER),  // "2025. 09. 18" 형식
+                status,
+                statusText,
+                order.getTotalAmount().intValue(),
+                orderItems.size(),
+                representativeProduct,
+                shipping,
+                null,  // A/S 정보 제거
+                permissions,
+                links,
+                items
+        );
+    }
+
+    /**
+     * OrderItem을 Product DTO로 변환
+     */
+    private OrderResponse.Product convertToProductDto(com.back.domain.order.orderItem.entity.OrderItem orderItem) {
+        com.back.domain.product.product.entity.Product product = orderItem.getProduct();
+
+        return new OrderResponse.Product(
+                product.getId(),
+                product.getName(),
+                orderItem.getQuantity(),
+                orderItem.getPrice().intValue(),
+                getProductThumbnailUrl(product)
+        );
+    }
+
+    /**
+     * OrderItem을 OrderItem DTO로 변환
+     */
+    private OrderResponse.OrderItem convertToOrderItemDto(com.back.domain.order.orderItem.entity.OrderItem orderItem) {
+        com.back.domain.product.product.entity.Product product = orderItem.getProduct();
+
+        return new OrderResponse.OrderItem(
+                orderItem.getId(),
+                product.getId(),
+                product.getName(),
+                orderItem.getQuantity(),
+                orderItem.getPrice().intValue(),
+                getProductThumbnailUrl(product)
+        );
+    }
+
+    /**
+     * 상품 썸네일 이미지 URL 조회
+     * 삭제된 상품이거나 이미지가 없으면 null 반환
+     */
+    private String getProductThumbnailUrl(com.back.domain.product.product.entity.Product product) {
+        // 삭제된 상품은 이미지 null
+        if (product.isDeleted()) {
+            return null;
+        }
+        
+        if (product.getImages() == null || product.getImages().isEmpty()) {
+            return null;
+        }
+        
+        return product.getImages().stream()
+                .filter(image -> "THUMBNAIL".equals(image.getFileType().name()))
+                .findFirst()
+                .map(com.back.domain.product.product.entity.ProductImage::getFileUrl)
+                .orElse(null);
+    }
+
+    /**
+     * OrderStatus를 프론트엔드용 상태 코드로 매핑 (4가지 상태만)
+     * 주문/배송 조회에서는 이 4가지 상태만 조회되므로 default 케이스는 발생하지 않음
+     */
+    private String mapOrderStatus(com.back.domain.order.order.entity.OrderStatus status) {
+        return switch (status) {
+            case PAYMENT_COMPLETED -> "PAYMENT_COMPLETED";
+            case PREPARING_SHIPMENT -> "PREPARING";
+            case SHIPPING -> "SHIPPING";
+            case DELIVERED -> "DELIVERED";
+            default -> throw new IllegalArgumentException("주문/배송 조회에서 허용되지 않는 상태: " + status);
+        };
+    }
+
+    /**
+     * OrderStatus를 한글 텍스트로 매핑 (4가지 상태만)
+     * 주문/배송 조회에서는 이 4가지 상태만 조회되므로 default 케이스는 발생하지 않음
+     */
+    private String mapOrderStatusText(com.back.domain.order.order.entity.OrderStatus status) {
+        return switch (status) {
+            case PAYMENT_COMPLETED -> "결제완료";
+            case PREPARING_SHIPMENT -> "배송준비중";
+            case SHIPPING -> "배송중";
+            case DELIVERED -> "배송완료";
+            default -> throw new IllegalArgumentException("주문/배송 조회에서 허용되지 않는 상태: " + status);
+        };
     }
 
     @Override
@@ -289,12 +452,14 @@ public class DashboardServiceImpl implements DashboardService {
     public FundingResponse.List getFundingParticipations(Long userId, FundingSearchRequest request) {
         log.debug("펀딩 목록 조회 - userId: {}, request: {}", userId, request);
 
-        // Pageable 생성 (정렬 포함)
-        Pageable pageable = createPageable(
-                request.page(), request.size(),
-                request.sort(), request.order());
+        // 1. 사용자 조회
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new ServiceException("USER_NOT_FOUND", "사용자를 찾을 수 없습니다."));
 
-        // Repository 조회
+        // 2. Pageable 생성 (정렬 포함)
+        Pageable pageable = createFundingPageable(request);
+
+        // 3. 펀딩 참여 목록 조회
         Page<FundingContribution> contributionPage = fundingContributionRepository
                 .findContributionsByBuyerWithFilters(
                         userId,
@@ -302,17 +467,14 @@ public class DashboardServiceImpl implements DashboardService {
                         request.status(),
                         pageable);
 
-        // 엔티티 → DTO 변환
+        // 4. 엔티티 → DTO 변환
         List<FundingResponse.Participation> content = contributionPage.getContent().stream()
                 .map(this::toParticipationDto)
                 .collect(Collectors.toList());
 
-        // 통계 계산 (배송 상태 제외)
-        FundingResponse.SummaryDto summary = calculateSummary(userId);
-
-        // 응답 생성
+        // 5. 응답 생성 (summary는 null - 프론트 요구사항에 통계 없음)
         return new FundingResponse.List(
-                summary,
+                null,  // summary는 프론트 확정 시까지 null
                 content,
                 contributionPage.getNumber(),
                 contributionPage.getSize(),
@@ -324,15 +486,11 @@ public class DashboardServiceImpl implements DashboardService {
     }
 
     /**
-     * Pageable 생성 (정렬 포함)
+     * 펀딩용 Pageable 생성 (정렬 포함)
      */
-    private Pageable createPageable(int page, int size, String sort, String order) {
-        if (sort == null || sort.isEmpty()) {
-            sort = "paidAt";
-        }
-        if (order == null || order.isEmpty()) {
-            order = "DESC";
-        }
+    private Pageable createFundingPageable(FundingSearchRequest request) {
+        String sort = request.sort() != null ? request.sort() : "paidAt";
+        String order = request.order() != null ? request.order() : "DESC";
 
         org.springframework.data.domain.Sort.Direction direction =
                 "ASC".equalsIgnoreCase(order) ?
@@ -348,7 +506,8 @@ public class DashboardServiceImpl implements DashboardService {
             default -> "paidAt";
         };
 
-        return PageRequest.of(page, size, org.springframework.data.domain.Sort.by(direction, sortField));
+        return PageRequest.of(request.page(), request.size(),
+                org.springframework.data.domain.Sort.by(direction, sortField));
     }
 
     /**
@@ -360,7 +519,7 @@ public class DashboardServiceImpl implements DashboardService {
         return new FundingResponse.Participation(
                 generateParticipationNumber(contribution.getId()),
                 contribution.getId(),
-                funding.getImageUrl(),
+                getFundingThumbnailUrl(funding),
                 funding.getTitle(),
                 new FundingResponse.Artist(
                         funding.getUser().getId(),
@@ -370,10 +529,37 @@ public class DashboardServiceImpl implements DashboardService {
                 contribution.getTotalAmount(),
                 mapFundingStatus(funding.getStatus()),
                 mapFundingStatusText(funding.getStatus()),
-                contribution.getPaidAt().toLocalDate().toString(),
+                contribution.getPaidAt().format(FUNDING_DATE_FORMATTER),  // "2025. 09. 18" 형식
                 new FundingResponse.Link("/fundings/" + funding.getId()),
                 null  // Meta는 목록 조회에서 제외
         );
+    }
+
+    /**
+     * 펀딩 썸네일 이미지 URL 조회
+     * 우선순위: THUMBNAIL > imageUrl
+     */
+    private String getFundingThumbnailUrl(Funding funding) {
+        try {
+            // images 컬렉션에서 THUMBNAIL 타입 찾기
+            if (funding.getImages() != null && !funding.getImages().isEmpty()) {
+                String thumbnailUrl = funding.getImages().stream()
+                        .filter(image -> image != null && "THUMBNAIL".equals(image.getFileType().name()))
+                        .findFirst()
+                        .map(FundingImage::getFileUrl)
+                        .orElse(null);
+                
+                if (thumbnailUrl != null) {
+                    return thumbnailUrl;
+                }
+            }
+        } catch (Exception e) {
+            // LazyInitializationException 등의 에러 발생 시 imageUrl 사용
+            log.warn("펀딩 이미지 컬렉션 접근 실패, imageUrl 사용 - fundingId: {}", funding.getId(), e);
+        }
+        
+        // THUMBNAIL이 없거나 에러 발생 시 imageUrl 사용
+        return funding.getImageUrl();
     }
 
     /**
@@ -404,35 +590,6 @@ public class DashboardServiceImpl implements DashboardService {
             case FAILED -> "실패";
             case CANCELED -> "취소";
         };
-    }
-
-    /**
-     * 펀딩 참여 통계 계산 (배송 상태 제외)
-     */
-    private FundingResponse.SummaryDto calculateSummary(Long userId) {
-        // 상태별 카운트 (간단한 방법 - 성능이 중요하면 별도 쿼리 메서드 추가)
-        List<FundingContribution> allContributions = fundingContributionRepository
-                .findContributionsByBuyerWithFilters(userId, null, null, Pageable.unpaged())
-                .getContent();
-
-        int total = allContributions.size();
-
-        int activeCount = (int) allContributions.stream()
-                .filter(fc -> fc.getFunding().getStatus() == FundingStatus.OPEN)
-                .count();
-
-        int endedCount = (int) allContributions.stream()
-                .filter(fc -> fc.getFunding().getStatus() == FundingStatus.CLOSED ||
-                        fc.getFunding().getStatus() == FundingStatus.SUCCESS ||
-                        fc.getFunding().getStatus() == FundingStatus.FAILED ||
-                        fc.getFunding().getStatus() == FundingStatus.CANCELED)
-                .count();
-
-        return new FundingResponse.SummaryDto(
-                total,
-                activeCount,
-                endedCount
-        );
     }
 
     @Override
