@@ -76,10 +76,6 @@ public class Order extends BaseEntity {
         this.status = newStatus;
     }
 
-    public void cancel() {
-        this.status = OrderStatus.CANCELLATION_REQUESTED;
-    }
-
     public void validateOwnership(User user) {
         if (!this.user.getId().equals(user.getId())) {
             throw new IllegalStateException("해당 주문에 대한 권한이 없습니다.");
@@ -132,6 +128,80 @@ public class Order extends BaseEntity {
      */
     private static String generateOrderNumber() {
         return "ORD" + System.currentTimeMillis() + java.util.UUID.randomUUID().toString().substring(0, 8);
+    }
+
+    // ==================== Business Methods ====================
+
+    /**
+     * 환불 가능 여부 검증
+     */
+    public void validateRefundEligibility() {
+        if (this.status != OrderStatus.DELIVERED) {
+            throw new IllegalStateException("배송완료된 주문만 환불 신청이 가능합니다.");
+        }
+        
+        LocalDateTime refundDeadline = this.orderDate.plusDays(7);
+        if (LocalDateTime.now().isAfter(refundDeadline)) {
+            throw new IllegalStateException("배송완료 후 7일 이내에만 환불 신청이 가능합니다.");
+        }
+    }
+
+    /**
+     * 교환 가능 여부 검증
+     */
+    public void validateExchangeEligibility() {
+        if (this.status != OrderStatus.DELIVERED) {
+            throw new IllegalStateException("배송완료된 주문만 교환 신청이 가능합니다.");
+        }
+        
+        LocalDateTime exchangeDeadline = this.orderDate.plusDays(7);
+        if (LocalDateTime.now().isAfter(exchangeDeadline)) {
+            throw new IllegalStateException("배송완료 후 7일 이내에만 교환 신청이 가능합니다.");
+        }
+    }
+
+    /**
+     * 환불 신청 처리
+     */
+    public void requestRefund() {
+        validateRefundEligibility();
+        this.status = OrderStatus.REFUND_REQUESTED;
+    }
+
+    /**
+     * 교환 신청 처리
+     */
+    public void requestExchange() {
+        validateExchangeEligibility();
+        this.status = OrderStatus.EXCHANGE_REQUESTED;
+    }
+
+    /**
+     * 환불 완료 처리
+     */
+    public void completeRefund() {
+        this.status = OrderStatus.REFUND_COMPLETED;
+    }
+
+    /**
+     * 교환 완료 처리
+     */
+    public void completeExchange() {
+        this.status = OrderStatus.EXCHANGE_COMPLETED;
+    }
+
+    /**
+     * 취소 처리
+     */
+    public void cancel() {
+        this.status = OrderStatus.CANCELLATION_REQUESTED;
+    }
+
+    /**
+     * 취소 완료 처리
+     */
+    public void completeCancellation() {
+        this.status = OrderStatus.CANCELLATION_COMPLETED;
     }
 
 }
