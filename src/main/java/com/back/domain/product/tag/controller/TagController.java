@@ -37,12 +37,16 @@ public class TagController {
                                     mediaType = "application/json",
                                     schema = @Schema(
                                             example = """
-                                                    [
-                                                      {"id": 1, "tagName": "심플"},
-                                                      {"id": 2, "tagName": "감성"},
-                                                      {"id": 3, "tagName": "빈티지"}
-                                                    ]
-                                                    """
+                                            {
+                                              "resultCode": "200",
+                                              "msg": "태그 조회 성공",
+                                              "data": [
+                                                {"id": 1, "tagName": "심플"},
+                                                {"id": 2, "tagName": "감성"},
+                                                {"id": 3, "tagName": "빈티지"}
+                                              ]
+                                            }
+                                            """
                                     )
                             )
                     )
@@ -65,8 +69,15 @@ public class TagController {
                                     mediaType = "application/json",
                                     schema = @Schema(
                                             example = """
-                                                    {"id": 4, "tagName": "귀염"}
-                                                    """
+                                            {
+                                              "resultCode": "200",
+                                              "msg": "태그가 등록되었습니다.",
+                                              "data": {
+                                                "id": 4,
+                                                "tagName": "귀염"
+                                              }
+                                            }
+                                            """
                                     )
                             )
                     ),
@@ -108,8 +119,15 @@ public class TagController {
                                     mediaType = "application/json",
                                     schema = @Schema(
                                             example = """
-                                                    {"id": 2, "tagName": "동양풍"}
-                                                    """
+                                            {
+                                              "resultCode": "200",
+                                              "msg": "태그가 수정되었습니다.",
+                                              "data": {
+                                                "id": 2,
+                                                "tagName": "동양풍"
+                                              }
+                                            }
+                                            """
                                     )
                             )
                     ),

@@ -37,25 +37,29 @@ public class CategoryController {
                                     mediaType = "application/json",
                                     schema = @Schema(
                                             example = """
-                                                    [
-                                                      {
-                                                        "id": 1,
-                                                        "categoryName": "스티커",
-                                                        "subCategories": [
-                                                          {
-                                                            "id": 2,
-                                                            "categoryName": "씰스티커",
-                                                            "subCategories": []
-                                                          },
-                                                          {
-                                                            "id": 3,
-                                                            "categoryName": "자석스티커",
-                                                            "subCategories": []
-                                                          }
-                                                        ]
-                                                      }
-                                                    ]
-                                                    """
+                                            {
+                                              "resultCode": "200",
+                                              "msg": "카테고리 조회 성공",
+                                              "data": [
+                                                {
+                                                  "id": 1,
+                                                  "categoryName": "스티커",
+                                                  "subCategories": [
+                                                    {
+                                                      "id": 2,
+                                                      "categoryName": "씰스티커",
+                                                      "subCategories": []
+                                                    },
+                                                    {
+                                                      "id": 3,
+                                                      "categoryName": "자석스티커",
+                                                      "subCategories": []
+                                                    }
+                                                  ]
+                                                }
+                                              ]
+                                            }
+                                            """
                                     )
                             )
                     )
@@ -78,12 +82,16 @@ public class CategoryController {
                                     mediaType = "application/json",
                                     schema = @Schema(
                                             example = """
-                                                    {
-                                                      "id": 1,
-                                                      "categoryName": "스티커",
-                                                      "subCategories": []
-                                                    }
-                                                    """
+                                            {
+                                              "resultCode": "200",
+                                              "msg": "카테고리가 등록되었습니다.",
+                                              "data": {
+                                                "id": 1,
+                                                "categoryName": "스티커",
+                                                "subCategories": []
+                                              }
+                                            }
+                                            """
                                     )
                             )
                     ),
