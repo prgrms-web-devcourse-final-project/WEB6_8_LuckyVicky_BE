@@ -303,7 +303,7 @@ class AdminDashboardServiceImplTest {
         long expectedFundingCount = fundingRepository.count();
 
         AdminFundingSearchRequest request = new AdminFundingSearchRequest(
-                0, 20, null, null, null, null, null, null, null, null, null, null, "endDate", "ASC"
+                0, 20, null, null, null, null, null, null, null, null, null, "endDate", "ASC"
         );
 
         // When
@@ -338,7 +338,7 @@ class AdminDashboardServiceImplTest {
         fundingRepository.save(openFunding);
 
         AdminFundingSearchRequest request = new AdminFundingSearchRequest(
-                0, 20, null, "OPEN", null, null, null, null, null, null, null, null, "endDate", "ASC"
+                0, 20, null, "OPEN", null, null, null, null, null, null, null, "endDate", "ASC"
         );
 
         // When

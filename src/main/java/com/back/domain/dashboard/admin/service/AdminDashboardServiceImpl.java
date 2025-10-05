@@ -531,9 +531,9 @@ public class AdminDashboardServiceImpl implements AdminDashboardService {
         // JWT 토큰에서 관리자 정보 추출 및 권한 검증
         CustomUserDetails adminUser = validateAdminAuthentication();
 
-        log.info("관리자 펀딩 목록 조회 - userId: {}, role: {}, page: {}, size: {}, keyword: {}, status: {}, categoryId: {}, artistId: {}",
+        log.info("관리자 펀딩 목록 조회 - userId: {}, role: {}, page: {}, size: {}, keyword: {}, status: {}, artistId: {}",
                 adminUser.getUserId(), adminUser.getCurrentRole(), request.page(), request.size(),
-                request.keyword(), request.status(), request.categoryId(), request.artistId());
+                request.keyword(), request.status(), request.artistId());
 
         // 페이징 및 정렬 설정
         Pageable pageable = buildPageable(request.page(), request.size(), request.sort(), request.order(), this::mapFundingSortField);
@@ -776,14 +776,14 @@ public class AdminDashboardServiceImpl implements AdminDashboardService {
     private AdminOverviewResponse.CategoryDistribution calculateCategoryDistribution(int totalProducts) {
         try {
             // 모든 상위 카테고리 조회
-            List<com.back.domain.product.category.entity.Category> topCategories = 
+            List<com.back.domain.product.category.entity.Category> topCategories =
                     categoryRepository.findAllByParentIdIsNull();
 
             if (topCategories.isEmpty()) {
                 log.warn("카테고리가 존재하지 않습니다.");
                 return new AdminOverviewResponse.CategoryDistribution(
-                        LocalDate.now().toString(), 
-                        totalProducts, 
+                        LocalDate.now().toString(),
+                        totalProducts,
                         List.of()
                 );
             }
@@ -794,7 +794,7 @@ public class AdminDashboardServiceImpl implements AdminDashboardService {
             for (com.back.domain.product.category.entity.Category category : topCategories) {
                 // 해당 카테고리의 삭제되지 않은 상품 수 조회
                 long count = productRepository.countByCategoryAndIsDeletedFalse(category);
-                
+
                 // 하위 카테고리의 상품도 합산
                 for (com.back.domain.product.category.entity.Category subCategory : category.getSubCategories()) {
                     count += productRepository.countByCategoryAndIsDeletedFalse(subCategory);
@@ -816,20 +816,20 @@ public class AdminDashboardServiceImpl implements AdminDashboardService {
             // 점유율 높은 순으로 정렬
             buckets.sort((a, b) -> Double.compare(b.share(), a.share()));
 
-            log.info("카테고리별 분포 계산 완료 - 총 {}개 카테고리, 전체 상품 {}개", 
+            log.info("카테고리별 분포 계산 완료 - 총 {}개 카테고리, 전체 상품 {}개",
                     buckets.size(), totalProducts);
 
             return new AdminOverviewResponse.CategoryDistribution(
-                    LocalDate.now().toString(), 
-                    totalProducts, 
+                    LocalDate.now().toString(),
+                    totalProducts,
                     buckets
             );
 
         } catch (Exception e) {
             log.error("카테고리별 분포 계산 중 오류 발생", e);
             return new AdminOverviewResponse.CategoryDistribution(
-                    LocalDate.now().toString(), 
-                    totalProducts, 
+                    LocalDate.now().toString(),
+                    totalProducts,
                     List.of()
             );
         }
