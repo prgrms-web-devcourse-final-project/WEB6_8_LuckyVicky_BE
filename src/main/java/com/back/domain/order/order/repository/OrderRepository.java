@@ -84,7 +84,7 @@ public interface OrderRepository extends JpaRepository<Order, Long> {
             @Param("direction") String direction,
             Pageable pageable
     );
-    
+
     /**
      * 주문 상세 정보 조회 (OrderItem, Product 포함)
      * 대시보드에서 페이징 후 실제 데이터를 가져올 때 사용
@@ -130,4 +130,49 @@ public interface OrderRepository extends JpaRepository<Order, Long> {
             "WHERE o.id IN :orderIds " +
             "AND EXISTS (SELECT 1 FROM OrderItem oi2 JOIN oi2.product p2 WHERE oi2.order = o AND p2.user.id = :artistId)")
     List<Order> findOrdersWithDetailsByArtist(@Param("orderIds") List<Long> orderIds, @Param("artistId") Long artistId);
+
+    /**
+     * 작가 대시보드 통계 조회 (한 번의 쿼리로 모든 통계)
+     * - 오늘의 주문 건수, 오늘의 매출
+     * - 총 주문 건수, 총 매출
+     */
+    @Query("SELECT new com.back.domain.dashboard.artist.dto.DashboardStatsDto(" +
+            "CAST(SUM(CASE WHEN o.orderDate >= :startOfDay AND o.orderDate < :endOfDay THEN 1 ELSE 0 END) AS long), " +
+            "CAST(COALESCE(SUM(CASE WHEN o.orderDate >= :startOfDay AND o.orderDate < :endOfDay THEN o.finalAmount ELSE 0 END), 0) AS long), " +
+            "COUNT(o.id), " +
+            "CAST(COALESCE(SUM(o.finalAmount), 0) AS long)) " +
+            "FROM Order o " +
+            "JOIN o.orderItems oi " +
+            "JOIN oi.product p " +
+            "WHERE p.user.id = :artistId " +
+            "AND o.status = com.back.domain.order.order.entity.OrderStatus.PAYMENT_COMPLETED")
+    com.back.domain.dashboard.artist.dto.DashboardStatsDto getArtistDashboardStats(
+            @Param("artistId") Long artistId,
+            @Param("startOfDay") java.time.LocalDateTime startOfDay,
+            @Param("endOfDay") java.time.LocalDateTime endOfDay
+    );
+
+    /**
+     * 작가별 일별 트렌드 조회 (매출 + 주문 수)
+     * - 기간 내 일별 집계
+     * - 1M, 3M, 6M, 1Y, ALL 지원
+     */
+    @Query("SELECT new com.back.domain.dashboard.artist.dto.DailyTrendDto(" +
+            "CAST(o.orderDate AS LocalDate), " +
+            "COUNT(o.id), " +
+            "CAST(COALESCE(SUM(o.finalAmount), 0) AS long)) " +
+            "FROM Order o " +
+            "JOIN o.orderItems oi " +
+            "JOIN oi.product p " +
+            "WHERE p.user.id = :artistId " +
+            "AND o.orderDate >= :startDate " +
+            "AND o.orderDate < :endDate " +
+            "AND o.status = com.back.domain.order.order.entity.OrderStatus.PAYMENT_COMPLETED " +
+            "GROUP BY CAST(o.orderDate AS LocalDate) " +
+            "ORDER BY CAST(o.orderDate AS LocalDate) ASC")
+    List<com.back.domain.dashboard.artist.dto.DailyTrendDto> findDailyTrendsByArtist(
+            @Param("artistId") Long artistId,
+            @Param("startDate") java.time.LocalDateTime startDate,
+            @Param("endDate") java.time.LocalDateTime endDate
+    );
 }

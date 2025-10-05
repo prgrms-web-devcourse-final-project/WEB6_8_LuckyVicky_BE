@@ -50,4 +50,19 @@ public class FundingOption extends BaseEntity {
                 .sortOrder(sortOrder)
                 .build();
     }
+
+    public void update(String name, long price, Integer stock, Integer sortOrder) {
+        if (name != null && !name.isBlank()){
+            this.name = name;
+        }
+        if (price > 0) {
+            this.price = price;
+        }
+        if (stock != null && stock >= 0) {
+            this.stock = stock;
+        }
+        if (sortOrder != null) {
+            this.sortOrder = sortOrder;
+        }
+    }
 }

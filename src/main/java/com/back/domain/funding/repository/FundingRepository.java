@@ -4,14 +4,16 @@ import com.back.domain.funding.entity.Funding;
 import com.back.domain.funding.entity.FundingStatus;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
-import org.springframework.data.jpa.repository.*;
+import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
+import org.springframework.data.jpa.repository.Modifying;
+import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
-import java.util.Set;
 
 public interface FundingRepository extends JpaRepository<Funding, Long>, JpaSpecificationExecutor<Funding>, FundingCustomRepository {
 
@@ -26,27 +28,6 @@ public interface FundingRepository extends JpaRepository<Funding, Long>, JpaSpec
         ORDER BY o.sortOrder ASC, o.id ASC
         """)
     Optional<Funding> findByIdWithUserAndOptions(@Param("id") Long id);
-
-    // 상태 + 제목으로 펀딩 검색
-    @EntityGraph(attributePaths = {"user"})
-    Page<Funding> findByStatusInAndTitleContainingIgnoreCase(
-            Set<FundingStatus> statuses, String title, Pageable pageable);
-
-    // 상태별 펀딩 목록 조회
-    @EntityGraph(attributePaths = {"user"})
-    Page<Funding> findByStatusIn(Set<FundingStatus> statuses, Pageable pageable);
-
-    // 제목으로 펀딩 검색
-    @EntityGraph(attributePaths = {"user"})
-    Funding findByTitle(String title);
-
-    // 사용자별 펀딩 목록
-    @EntityGraph(attributePaths = {"user"})
-    Page<Funding> findByUserId(Long userId, Pageable pageable);
-
-    // 마감 임박순 펀딩 조회
-    @EntityGraph(attributePaths = {"user"})
-    Page<Funding> findByStatusOrderByEndDateAsc(FundingStatus status, Pageable pageable);
 
     // 작가 대시보드용 - 작가별 펀딩 목록 조회 (검색 + 필터링 + 정렬)
     @Query("""

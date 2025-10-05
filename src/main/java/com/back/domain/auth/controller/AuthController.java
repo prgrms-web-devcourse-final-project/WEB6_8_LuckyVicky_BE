@@ -18,6 +18,7 @@ import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.ResponseCookie;
 import org.springframework.http.ResponseEntity;
@@ -32,6 +33,12 @@ import org.springframework.web.bind.annotation.*;
 public class AuthController {
 
     private final AuthService authService;
+
+    @Value("${app.cookie.secure}")
+    private boolean cookieSecure;
+
+    @Value("${app.cookie.domain}")
+    private String cookieDomain;
 
     /**
      * 회원가입
@@ -177,7 +184,8 @@ public class AuthController {
     private ResponseCookie createTokenCookie(String name, String value, long maxAgeSeconds) {
         return ResponseCookie.from(name, value)
                 .httpOnly(true)
-                .secure(false) // 운영시 true
+                .secure(cookieSecure) // 환경변수로 제어, 개발: false, 운영: true
+                .domain(cookieDomain)  // 환경별 도메인 설정
                 .path("/")
                 .maxAge(maxAgeSeconds)
                 .sameSite("Strict")
@@ -190,7 +198,8 @@ public class AuthController {
     private ResponseCookie deleteCookie(String name) {
         return ResponseCookie.from(name, "")
                 .httpOnly(true)
-                .secure(false)
+                .secure(cookieSecure) // 환경변수로 제어, 개발: false, 운영: true
+                .domain(cookieDomain)  // 환경별 도메인 설정
                 .path("/")
                 .maxAge(0) // 즉시 만료
                 .sameSite("Strict")

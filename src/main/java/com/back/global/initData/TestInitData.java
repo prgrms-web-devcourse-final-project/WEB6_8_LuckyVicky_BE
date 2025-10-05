@@ -23,6 +23,7 @@ import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.util.List;
 
 @Slf4j
 @Component
@@ -98,72 +99,73 @@ public class TestInitData {
 
     @Transactional
     public void work2() {
-        // 펀딩 생성
+        // 0) 작성자 조회
         User user1 = userRepository.findByEmail("user1@user.com").orElseThrow();
 
-        Funding funding = Funding.builder()
-                .user(user1)
-                .title("펀딩 1 입니다.")
-                .description("펀딩 1이요~~")
-                .imageUrl("www.example.com")
-                .targetAmount(1000000)
-                .startDate(LocalDateTime.of(2025, 9, 24, 12, 30, 0))
-                .endDate(LocalDateTime.of(2025, 9, 29, 12, 30, 0))
-                .status(FundingStatus.OPEN)
-                .build();
+        LocalDateTime now = LocalDateTime.now();
 
-        funding.attachOption(FundingOption.create("1 옵션이요~", 10000, 11110, 1));
-        funding.attachOption(FundingOption.create("2 옵션이요~", 15000, 11110, 2));
+        // 1. 펀딩 1
+        Funding f0 = Funding.create(
+                user1,
+                "펀딩 1 입니다.",
+                "펀딩 1이요~~",
+                "www.example.com",
+                1_000_000L,
+                now.plusDays(5),
+                now.plusDays(25),
+                FundingStatus.OPEN,
+                List.of(
+                        FundingOption.create("1 옵션이요~", 10_000L, 11_110, 1),
+                        FundingOption.create("2 옵션이요~", 15_000L, 11_110, 2)
+                )
+        );
+        fundingRepository.save(f0);
+        log.info("테스트 펀딩 저장 완료 id={}", f0.getId());
 
-        fundingRepository.save(funding);
-        log.info("테스트 펀딩 저장 완료 id={}", funding.getId());
+        // 2. 신규 앨범 제작
+        Funding f1 = Funding.create(
+                user1,
+                "신규 앨범 제작",
+                "새로운 앨범을 만듭니다",
+                "image1.jpg",
+                1_000_000L,
+                now.plusDays(5),
+                now.plusDays(25),
+                FundingStatus.OPEN,
+                List.of(FundingOption.create("일반 앨범", 15_000L, 100, 1))
+        );
+        f1.increaseParticipantCount(50);
+        fundingRepository.save(f1);
 
-        Funding funding1 = Funding.builder()
-                .user(user1)
-                .title("신규 앨범 제작")
-                .description("새로운 앨범을 만듭니다")
-                .imageUrl("image1.jpg")
-                .targetAmount(1000000L)
-                .startDate(LocalDateTime.now().minusDays(5))
-                .endDate(LocalDateTime.now().plusDays(25))
-                .status(FundingStatus.OPEN)
-                .build();
+        // 3. 한정판 포토북
+        Funding f2 = Funding.create(
+                user1,
+                "한정판 포토북",
+                "프리미엄 포토북",
+                "image2.jpg",
+                500_000L,
+                now.plusDays(3),
+                now.plusDays(5),
+                FundingStatus.OPEN,
+                List.of(FundingOption.create("포토북 세트", 35_000L, 50, 1))
+        );
+        f2.increaseParticipantCount(30);
+        fundingRepository.save(f2);
 
-        funding1.attachOption(FundingOption.create("일반 앨범", 15000L, 100, 1));
-        funding1.increaseParticipantCount(50);
-        fundingRepository.save(funding1);
-
-        // 2. 포토북 펀딩
-        Funding funding2 = Funding.builder()
-                .user(user1)
-                .title("한정판 포토북")
-                .description("프리미엄 포토북")
-                .imageUrl("image2.jpg")
-                .targetAmount(500000L)
-                .startDate(LocalDateTime.now().minusDays(10))
-                .endDate(LocalDateTime.now().plusDays(5))
-                .status(FundingStatus.OPEN)
-                .build();
-
-        funding2.attachOption(FundingOption.create("포토북 세트", 35000L, 50, 1));
-        funding2.increaseParticipantCount(30);
-        fundingRepository.save(funding2);
-
-        // 3. 고가 굿즈
-        Funding funding3 = Funding.builder()
-                .user(user1)
-                .title("프리미엄 굿즈")
-                .description("한정판 굿즈")
-                .imageUrl("image3.jpg")
-                .targetAmount(2000000L)
-                .startDate(LocalDateTime.now().minusDays(1))
-                .endDate(LocalDateTime.now().plusDays(40))
-                .status(FundingStatus.OPEN)
-                .build();
-
-        funding3.attachOption(FundingOption.create("프리미엄 세트", 80000L, 30, 1));
-        funding3.increaseParticipantCount(10);
-        fundingRepository.save(funding3);
+        // 4. 프리미엄 굿즈
+        Funding f3 = Funding.create(
+                user1,
+                "프리미엄 굿즈",
+                "한정판 굿즈",
+                "image3.jpg",
+                2_000_000L,
+                now.plusDays(1),
+                now.plusDays(40),
+                FundingStatus.OPEN,
+                List.of(FundingOption.create("프리미엄 세트", 80_000L, 30, 1))
+        );
+        f3.increaseParticipantCount(10);
+        fundingRepository.save(f3);
     }
 
 
