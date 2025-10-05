@@ -3,6 +3,7 @@ package com.back.domain.product.category.controller;
 import com.back.domain.product.category.dto.request.CategoryRequest;
 import com.back.domain.product.category.dto.response.CategoryResponse;
 import com.back.domain.product.category.service.CategoryService;
+import com.back.global.rsData.RsData;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.media.Content;
@@ -11,6 +12,7 @@ import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -59,8 +61,9 @@ public class CategoryController {
                     )
             }
     )
-    public List<CategoryResponse> getAllCategories() {
-        return categoryService.getAllCategories();
+    public ResponseEntity<RsData<List<CategoryResponse>>> getAllCategories() {
+        List<CategoryResponse> categories = categoryService.getAllCategories();
+        return ResponseEntity.ok(RsData.of("200", "카테고리 조회 성공", categories));
     }
 
     /** 카테고리 등록 */
@@ -102,8 +105,9 @@ public class CategoryController {
                     )
             }
     )
-    public CategoryResponse createCategory(@RequestBody @Valid CategoryRequest request) {
-        return categoryService.createCategory(request);
+    public ResponseEntity<RsData<CategoryResponse>> createCategory(@RequestBody @Valid CategoryRequest request) {
+        CategoryResponse created = categoryService.createCategory(request);
+        return ResponseEntity.ok(RsData.of("200", "카테고리가 등록되었습니다.", created));
     }
 
     /** 카테고리 수정 */
@@ -164,8 +168,11 @@ public class CategoryController {
                     )
             }
     )
-    public CategoryResponse updateCategory(@PathVariable Long id, @RequestBody @Valid CategoryRequest request) {
-        return categoryService.updateCategory(id, request);
+    public ResponseEntity<RsData<CategoryResponse>> updateCategory(
+            @PathVariable Long id,
+            @RequestBody @Valid CategoryRequest request) {
+        CategoryResponse updated = categoryService.updateCategory(id, request);
+        return ResponseEntity.ok(RsData.of("200", "카테고리가 수정되었습니다.", updated));
     }
 
     /** 카테고리 삭제 */
@@ -214,8 +221,9 @@ public class CategoryController {
                     )
             }
     )
-    public void deleteCategory(@PathVariable Long id) {
+    public ResponseEntity<RsData<Void>> deleteCategory(@PathVariable Long id) {
         categoryService.deleteCategory(id);
+        return ResponseEntity.ok(RsData.of("200", "카테고리가 삭제되었습니다."));
     }
 
 }

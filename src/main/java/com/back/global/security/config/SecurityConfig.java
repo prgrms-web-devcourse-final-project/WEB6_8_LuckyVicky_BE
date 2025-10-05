@@ -58,17 +58,13 @@ public class SecurityConfig {
                         // 공개 API - 로그인 없이 접근 허용
                         .requestMatchers("/public/**").permitAll()
 
-                        // 상품 조회 공개 API - 로그인 없이 접근 허용
-                        .requestMatchers(HttpMethod.GET, "/api/products").permitAll()
-                        // 상품 등록 API - ARTIST, ADMIN, ROOT만 접근 가능
-                        .requestMatchers(HttpMethod.POST,"/api/products", "/api/products/images").hasAnyRole("ARTIST", "ADMIN", "ROOT")
+                        // 상품/카테고리/태그 조회 - 로그인 없이 접근 허용
+                        .requestMatchers(HttpMethod.GET, "/api/products", "/api/categories/**","/api/tag/**").permitAll()
+                        // 상품/상품이미지 등록, 수정, 삭제 - ARTIST, ADMIN, ROOT만 접근 가능
+                        .requestMatchers("/api/products", "/api/products/images").hasAnyRole("ARTIST", "ADMIN", "ROOT")
+                        // 카테고리/태그 등록, 수정, 삭제 - ADMIN, ROOT만 접근 가능
+                        .requestMatchers("/api/categories/**","/api/tag/**").hasAnyRole("ADMIN", "ROOT")
 
-                        // 카테고리 조회 - 로그인 없이 접근 허용
-                        .requestMatchers(HttpMethod.GET, "/api/categories/**").permitAll()
-                        // 카테고리 생성, 수정, 삭제 - ADMIN, ROOT만 접근 가능
-                        .requestMatchers(HttpMethod.POST, "/api/categories/**").hasAnyRole("ADMIN", "ROOT")
-                        .requestMatchers(HttpMethod.PUT, "/api/categories/**").hasAnyRole("ADMIN", "ROOT")
-                        .requestMatchers(HttpMethod.DELETE, "/api/categories/**").hasAnyRole("ADMIN", "ROOT")
 
                         // 펀딩 관련 공개 API - 로그인 없이 접근 허용
                         .requestMatchers(HttpMethod.GET, "/api/fundings/**").permitAll()
