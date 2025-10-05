@@ -58,13 +58,15 @@ public class SecurityConfig {
                         // 공개 API - 로그인 없이 접근 허용
                         .requestMatchers("/public/**").permitAll()
 
+                        // 작가 사업자 정보 조회 - 로그인 없이 접근 허용(상품 상세페이지에서 조회해야함)
+                        .requestMatchers(HttpMethod.GET, "/api/artist/business-info").permitAll()
+
                         // 상품/카테고리/태그 조회 - 로그인 없이 접근 허용
                         .requestMatchers(HttpMethod.GET, "/api/products", "/api/categories/**","/api/tag/**").permitAll()
                         // 상품/상품이미지 등록, 수정, 삭제 - ARTIST, ADMIN, ROOT만 접근 가능
                         .requestMatchers("/api/products", "/api/products/images").hasAnyRole("ARTIST", "ADMIN", "ROOT")
                         // 카테고리/태그 등록, 수정, 삭제 - ADMIN, ROOT만 접근 가능
                         .requestMatchers("/api/categories/**","/api/tag/**").hasAnyRole("ADMIN", "ROOT")
-
 
                         // 펀딩 관련 공개 API - 로그인 없이 접근 허용
                         .requestMatchers(HttpMethod.GET, "/api/fundings/**").permitAll()

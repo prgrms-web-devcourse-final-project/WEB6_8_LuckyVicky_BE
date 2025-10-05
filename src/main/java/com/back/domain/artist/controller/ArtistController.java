@@ -3,6 +3,7 @@ package com.back.domain.artist.controller;
 import com.back.domain.artist.dto.request.ArtistApplicationRequest;
 import com.back.domain.artist.dto.response.ArtistApplicationResponse;
 import com.back.domain.artist.dto.response.ArtistApplicationSimpleResponse;
+import com.back.domain.artist.dto.response.ArtistBusinessInfoResponse;
 import com.back.domain.artist.service.ArtistApplicationService;
 import com.back.global.rsData.RsData;
 import com.back.global.security.auth.CustomUserDetails;
@@ -97,5 +98,17 @@ public class ArtistController {
         return ResponseEntity.ok(
                 RsData.of("200", "작가 신청 취소 성공")
         );
+    }
+
+    /**
+     * 작가 사업자 관련 정보만 조회 (상품 등록 시 불러오기 기능)
+     */
+    @GetMapping("/business-info")
+    @Operation(summary="사업자 정보 조회", description="작가 본인의 사업자 관련 정보를 불러오기로 확인합니다.")
+    public ResponseEntity<RsData<ArtistBusinessInfoResponse>> getBusinessInfo(
+            @AuthenticationPrincipal CustomUserDetails userDetails){
+        log.info("사업자 정보 조회 - userId: {}", userDetails.getUserId());
+        ArtistBusinessInfoResponse response = artistApplicationService.getBusinessInfo(userDetails.getUserId());
+        return ResponseEntity.ok(RsData.of("200", "사업자 정보 조회 성공", response));
     }
 }
