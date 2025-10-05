@@ -166,6 +166,23 @@ public class OrderService {
     }
 
     /**
+     * 주문 취소 승인 (관리자용)
+     */
+    @Transactional
+    public void approveOrderCancellation(Long orderId, User admin) {
+        Order order = orderRepository.findById(orderId)
+                .orElseThrow(() -> new IllegalArgumentException("주문을 찾을 수 없습니다."));
+        
+        if (order.getStatus() != OrderStatus.CANCELLATION_REQUESTED) {
+            throw new IllegalStateException("취소 요청된 주문만 승인할 수 있습니다.");
+        }
+        
+        // 취소 완료 처리
+        order.completeCancellation();
+        orderRepository.save(order);
+    }
+
+    /**
      * 주문 상태 변경 (관리자용)
      */
     @Transactional
