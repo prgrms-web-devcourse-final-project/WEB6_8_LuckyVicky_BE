@@ -334,8 +334,9 @@ public class ProductController {
      * 상품 공유 링크 생성 (UTM 파라미터 포함)
      * 
      * 누구나 공유 가능 (로그인 불필요)
+     * 2025.10.05 수정 - productId를 productUuid로 변경
      */
-    @GetMapping("/{productId}/share-link")
+    @GetMapping("/{productUuid}/share-link")
     @Operation(
             summary = "상품 공유 링크 생성",
             description = "누구나 상품을 소셜 미디어에 공유할 수 있는 UTM 파라미터가 포함된 링크를 생성합니다.<br>" +
@@ -353,10 +354,10 @@ public class ProductController {
                                                       "resultCode": "200",
                                                       "msg": "공유 링크가 생성되었습니다.",
                                                       "data": {
-                                                        "shareLink": "https://mori-mori.store/product/123?utm_source=instagram&utm_medium=social&utm_campaign=artist_42&utm_content=product_share",
+                                                        "shareLink": "https://mori-mori.store/product/550e8400-e29b-41d4-a716-446655440000?utm_source=instagram&utm_medium=social&utm_campaign=artist_42&utm_content=product_share",
                                                         "platform": "instagram",
                                                         "artistId": 42,
-                                                        "productId": 123,
+                                                        "productUuid": "550e8400-e29b-41d4-a716-446655440000",
                                                         "description": "멋진 도자기 작품"
                                                       }
                                                     }
@@ -383,8 +384,8 @@ public class ProductController {
             }
     )
     public ResponseEntity<RsData<ShareLinkResponse>> generateShareLink(
-            @Parameter(description = "상품 ID", example = "123", required = true)
-            @PathVariable Long productId,
+            @Parameter(description = "상품 UUID", example = "550e8400-e29b-41d4-a716-446655440000", required = true)
+            @PathVariable UUID productUuid,
             
             @Parameter(description = "공유할 플랫폼 (instagram, youtube, naver, kakao 등)", example = "instagram", required = true)
             @RequestParam String platform,
@@ -392,7 +393,7 @@ public class ProductController {
             @Parameter(hidden = true)
             @AuthenticationPrincipal CustomUserDetails customUserDetails) {
         
-        ShareLinkResponse response = productService.generateShareLink(productId, platform, customUserDetails);
+        ShareLinkResponse response = productService.generateShareLink(productUuid, platform, customUserDetails);
         return ResponseEntity.ok(RsData.of("200", "공유 링크가 생성되었습니다.", response));
     }
 
