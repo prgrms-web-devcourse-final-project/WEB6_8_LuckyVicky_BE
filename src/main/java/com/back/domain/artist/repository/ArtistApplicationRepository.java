@@ -31,4 +31,6 @@ public interface ArtistApplicationRepository extends JpaRepository<ArtistApplica
             @Param("artistName") String artistName, Pageable pageable
     );
 
+    // userId로 조회
+    Optional<ArtistApplication> findByUserId(Long userId);
 }

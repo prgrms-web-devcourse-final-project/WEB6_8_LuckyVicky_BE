@@ -3,6 +3,7 @@ package com.back.domain.artist.service;
 import com.back.domain.artist.dto.request.ArtistApplicationRequest;
 import com.back.domain.artist.dto.response.ArtistApplicationResponse;
 import com.back.domain.artist.dto.response.ArtistApplicationSimpleResponse;
+import com.back.domain.artist.dto.response.ArtistBusinessInfoResponse;
 import com.back.domain.artist.entity.ApplicationStatus;
 import com.back.domain.artist.entity.ArtistApplication;
 import com.back.domain.artist.entity.DocumentType;
@@ -399,5 +400,64 @@ public class ArtistApplicationServiceTest {
                     });
         }
     }
+
+    @Nested
+    @DisplayName("사업자 정보 조회 테스트")
+    class GetBusinessInfoTest {
+
+        @Test
+        @DisplayName("사업자 정보 정상 조회")
+        void getBusinessInfo_Success() {
+            // given
+            ArtistApplication application = ArtistApplication.builder()
+                    .user(testUser)
+                    .businessName("홍길동 작가실")
+                    .businessNumber("123-45-67890")
+                    .ownerName("홍길동")
+                    .managerPhone("010-1234-5678")
+                    .email("artist@test.com")
+                    .businessAddress("서울시 강남구")
+                    .businessAddressDetail("2층")
+                    .telecomSalesNumber("2023-서울강남-0001")
+                    .build();
+
+            given(artistApplicationRepository.findByUserId(1L))
+                    .willReturn(Optional.of(application));
+
+            // when
+            ArtistBusinessInfoResponse response = artistApplicationService.getBusinessInfo(1L);
+
+            // then
+            assertThat(response.businessName()).isEqualTo("홍길동 작가실");
+            assertThat(response.businessNumber()).isEqualTo("123-45-67890");
+            assertThat(response.ownerName()).isEqualTo("홍길동");
+            assertThat(response.asManager()).isEqualTo("홍길동 작가실/010-1234-5678");
+            assertThat(response.email()).isEqualTo("artist@test.com");
+            assertThat(response.businessAddress()).isEqualTo("서울시 강남구 2층");
+            assertThat(response.telecomSalesNumber()).isEqualTo("2023-서울강남-0001");
+
+            verify(artistApplicationRepository).findByUserId(1L);
+        }
+
+        @Test
+        @DisplayName("사업자 정보 조회 실패 - 신청서 없음")
+        void getBusinessInfo_NotFound() {
+            // given
+            given(artistApplicationRepository.findByUserId(999L))
+                    .willReturn(Optional.empty());
+
+            // when & then
+            assertThatThrownBy(() -> artistApplicationService.getBusinessInfo(999L))
+                    .isInstanceOf(ServiceException.class)
+                    .satisfies(ex -> {
+                        ServiceException serviceEx = (ServiceException) ex;
+                        assertThat(serviceEx.getResultCode()).isEqualTo("404");
+                        assertThat(serviceEx.getMsg()).isEqualTo("작가 신청 정보가 없습니다.");
+                    });
+
+            verify(artistApplicationRepository).findByUserId(999L);
+        }
+    }
+
 
 }

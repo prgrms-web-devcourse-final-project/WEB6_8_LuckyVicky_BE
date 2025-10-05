@@ -3,6 +3,7 @@ package com.back.domain.artist.service;
 import com.back.domain.artist.dto.request.ArtistApplicationRequest;
 import com.back.domain.artist.dto.response.ArtistApplicationResponse;
 import com.back.domain.artist.dto.response.ArtistApplicationSimpleResponse;
+import com.back.domain.artist.dto.response.ArtistBusinessInfoResponse;
 import com.back.domain.artist.entity.ApplicationStatus;
 import com.back.domain.artist.entity.ArtistApplication;
 import com.back.domain.artist.entity.ArtistDocument;
@@ -198,5 +199,24 @@ public class ArtistApplicationService {
         }
 
         return documents;
+    }
+
+    /**
+     * 작가 사업자 관련 정보 조회
+     */
+    public ArtistBusinessInfoResponse getBusinessInfo(Long userId) {
+        log.info("작가 사업자 정보 조회 - userId: {}", userId);
+        ArtistApplication application = artistApplicationRepository.findByUserId(userId)
+                .orElseThrow(() -> new ServiceException("404", "작가 신청 정보가 없습니다."));
+
+        return new ArtistBusinessInfoResponse(
+                application.getBusinessName(), // 제조자
+                application.getBusinessNumber(), // 사업자 등록 번호
+                application.getOwnerName(), // 대표자명
+                application.getBusinessName() + "/" + application.getManagerPhone(), // A/S 책임자/전화번호
+                application.getEmail(), // 전자 우편 주소
+                application.getBusinessAddress() + " " + application.getBusinessAddressDetail(), // 사업장 소재지
+                application.getTelecomSalesNumber() // 통신판매업 신고 번호
+        );
     }
 }

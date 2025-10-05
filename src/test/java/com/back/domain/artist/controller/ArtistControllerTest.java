@@ -451,4 +451,44 @@ class ArtistControllerTest {
         resultActions.andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.msg").value("신청서를 찾을 수 없습니다."));
     }
+
+    @Test
+    @WithUserDetails("user2@user.com")
+    @DisplayName("15. 작가 사업자 정보 조회 - 성공")
+    void t15() throws Exception {
+        // given
+        User user = userRepository.findByEmail("user2@user.com").orElseThrow();
+        ArtistApplication application = ArtistApplication.builder()
+                .user(user)
+                .artistName("홍길동작가")
+                .businessName("홍길동 작가실")
+                .businessNumber("123-45-67890")
+                .ownerName("홍길동")
+                .phone("010-1234-5678")
+                .managerPhone("010-1234-5678")
+                .email("artist@example.com")
+                .businessAddress("서울시 강남구 테헤란로 123")
+                .businessAddressDetail("2층")
+                .telecomSalesNumber("2023-서울강남-0001")
+                .build();
+        artistApplicationRepository.save(application);
+
+        // when
+        ResultActions resultActions = mvc.perform(get("/api/artist/business-info")
+                        .contentType(MediaType.APPLICATION_JSON))
+                .andDo(print());
+
+        // then
+        resultActions.andExpect(status().isOk())
+                .andExpect(jsonPath("$.resultCode").value("200"))
+                .andExpect(jsonPath("$.msg").value("사업자 정보 조회 성공"))
+                .andExpect(jsonPath("$.data.businessName").value("홍길동 작가실"))
+                .andExpect(jsonPath("$.data.businessNumber").value("123-45-67890"))
+                .andExpect(jsonPath("$.data.ownerName").value("홍길동"))
+                .andExpect(jsonPath("$.data.asManager").value("홍길동 작가실/010-1234-5678"))
+                .andExpect(jsonPath("$.data.email").value("artist@example.com"))
+                .andExpect(jsonPath("$.data.businessAddress").value("서울시 강남구 테헤란로 123 2층"))
+                .andExpect(jsonPath("$.data.telecomSalesNumber").value("2023-서울강남-0001"));
+    }
+
 }

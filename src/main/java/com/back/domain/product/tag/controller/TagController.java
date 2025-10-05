@@ -37,12 +37,16 @@ public class TagController {
                                     mediaType = "application/json",
                                     schema = @Schema(
                                             example = """
-                                                    [
-                                                      {"id": 1, "tagName": "심플"},
-                                                      {"id": 2, "tagName": "시크"},
-                                                      {"id": 3, "tagName": "빈티지"}
-                                                    ]
-                                                    """
+                                            {
+                                              "resultCode": "200",
+                                              "msg": "태그 조회 성공",
+                                              "data": [
+                                                {"id": 1, "tagName": "심플"},
+                                                {"id": 2, "tagName": "감성"},
+                                                {"id": 3, "tagName": "빈티지"}
+                                              ]
+                                            }
+                                            """
                                     )
                             )
                     )
@@ -65,8 +69,15 @@ public class TagController {
                                     mediaType = "application/json",
                                     schema = @Schema(
                                             example = """
-                                                    {"id": 4, "tagName": "심플"}
-                                                    """
+                                            {
+                                              "resultCode": "200",
+                                              "msg": "태그가 등록되었습니다.",
+                                              "data": {
+                                                "id": 4,
+                                                "tagName": "귀염"
+                                              }
+                                            }
+                                            """
                                     )
                             )
                     ),
@@ -98,7 +109,7 @@ public class TagController {
     @Operation(
             summary = "태그 수정",
             parameters = {
-                    @Parameter(name = "id", description = "수정할 태그 ID", required = true)
+                    @Parameter(name = "id", description = "수정할 태그 ID", required = true, example="2")
             },
             responses = {
                     @ApiResponse(
@@ -108,8 +119,15 @@ public class TagController {
                                     mediaType = "application/json",
                                     schema = @Schema(
                                             example = """
-                                                    {"id": 2, "tagName": "클래식"}
-                                                    """
+                                            {
+                                              "resultCode": "200",
+                                              "msg": "태그가 수정되었습니다.",
+                                              "data": {
+                                                "id": 2,
+                                                "tagName": "동양풍"
+                                              }
+                                            }
+                                            """
                                     )
                             )
                     ),
@@ -159,10 +177,25 @@ public class TagController {
     @Operation(
             summary = "태그 삭제",
             parameters = {
-                    @Parameter(name = "id", description = "삭제할 태그 ID", required = true)
+                    @Parameter(name = "id", description = "삭제할 태그 ID", required = true, example="1")
             },
             responses = {
-                    @ApiResponse(responseCode = "200", description = "태그 삭제 성공"),
+                    @ApiResponse(
+                            responseCode = "200",
+                            description = "태그 삭제 성공",
+                            content = @Content(
+                                    mediaType = "application/json",
+                                    schema = @Schema(
+                                            example = """
+                                                    {
+                                                      "resultCode": "200",
+                                                      "msg": "태그가 삭제되었습니다.",
+                                                      "data": null
+                                                    }
+                                                    """
+                                    )
+                            )
+                    ),
                     @ApiResponse(
                             responseCode = "404",
                             description = "삭제할 태그 없음",
