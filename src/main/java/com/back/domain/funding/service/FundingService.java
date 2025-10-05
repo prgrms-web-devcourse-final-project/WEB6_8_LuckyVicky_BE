@@ -1,6 +1,7 @@
 package com.back.domain.funding.service;
 
 import com.back.domain.funding.dto.request.FundingCreateRequest;
+import com.back.domain.funding.dto.request.FundingUpdateRequest;
 import com.back.domain.funding.dto.response.FundingCardDto;
 import com.back.domain.funding.dto.response.FundingDetailResponse;
 import com.back.domain.funding.entity.Funding;
@@ -38,8 +39,6 @@ public class FundingService {
     private final CategoryRepository categoryRepository;
     private final S3ValidationService s3ValidationService;
     private final FundingContributionRepository fundingContributionRepository;
-    private final FundingNewsRepository fundingNewsRepository;
-    private final FundingCommunityRepository fundingCommunityRepository;
 
     @Transactional
     public Funding createFunding(FundingCreateRequest req, String userEmail) {
@@ -153,5 +152,65 @@ public class FundingService {
         );
 
         return new FundingCardDto(funding, currentAmount, progress, remainingDays);
+    }
+
+    @Transactional
+    public void updateFunding(Long FundingId, String userEmail, FundingUpdateRequest req) {
+        Funding funding = fundingRepository.findById(FundingId)
+                .orElseThrow(() -> new ServiceException("404", "존재하지 않는 펀딩입니다."));
+
+        if (!funding.getUser().getEmail().equals(userEmail)) {
+            throw new ServiceException("403", "권한이 없습니다.");
+        }
+
+        if (req.title() != null || req.description() != null || req.imageUrl() != null) {
+            funding.updateBasicInfo(req.title(), req.description(), req.imageUrl());
+        }
+
+        if (req.targetAmount() != null) {
+            try {
+                funding.updateTargetAmount(req.targetAmount());
+            } catch (IllegalStateException e) {
+                throw new ServiceException("400", e.getMessage());
+            }
+        }
+
+        if (req.endDate() != null) {
+            try {
+                funding.updateEndDate(req.endDate());
+            } catch (IllegalStateException e) {
+                throw new ServiceException("400", e.getMessage());
+            }
+        }
+
+        if (req.options() != null && !req.options().isEmpty()) {
+            updateOptions(funding, req.options());
+        }
+    }
+
+    private void updateOptions(Funding funding, List<FundingUpdateRequest.FundingOptionRequest> optionRequests) {
+        for (FundingUpdateRequest.FundingOptionRequest optionReq : optionRequests) {
+
+            // 기존 옵션 수정
+            if (optionReq.id() != null) {
+                funding.updateOption(
+                        optionReq.id(),
+                        optionReq.name(),
+                        optionReq.price(),
+                        optionReq.stock(),
+                        optionReq.sortOrder()
+                );
+            }
+            // 신규 옵션 추가
+            else {
+                FundingOption newOption = FundingOption.create(
+                        optionReq.name(),
+                        optionReq.price(),
+                        optionReq.stock(),
+                        optionReq.sortOrder() != null ? optionReq.sortOrder() : 999
+                );
+                funding.addOption(newOption);
+            }
+        }
     }
 }
