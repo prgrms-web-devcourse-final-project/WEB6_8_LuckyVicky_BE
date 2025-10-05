@@ -432,7 +432,6 @@ class ArtistDashboardControllerTest {
         );
 
         ArtistFundingResponse.List mockResponse = new ArtistFundingResponse.List(
-                new ArtistFundingResponse.Summary(15, 8, 6, 1),
                 List.of(mockFunding),
                 DEFAULT_PAGE, DEFAULT_SIZE, 15, 1, false, false
         );
@@ -450,7 +449,6 @@ class ArtistDashboardControllerTest {
         // Then
         ArtistFundingResponse.List data = assertSuccessResponse(response, "내 펀딩 모니터링 조회 성공");
         assertAll(
-                () -> assertThat(data.getSummary().totalFundings()).isEqualTo(15),
                 () -> assertThat(data.getContent()).hasSize(1),
                 () -> assertThat(data.getContent().getFirst().fundingId()).isEqualTo(456789L),
                 () -> assertThat(data.getContent().getFirst().status()).isEqualTo("OPEN"),

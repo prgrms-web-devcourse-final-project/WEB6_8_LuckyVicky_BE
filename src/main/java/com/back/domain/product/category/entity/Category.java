@@ -5,6 +5,7 @@ import com.back.global.jpa.entity.BaseEntity;
 import jakarta.persistence.*;
 import lombok.*;
 
+import java.util.ArrayList;
 import java.util.List;
 
 @Entity
@@ -26,8 +27,8 @@ public class Category extends BaseEntity {
 
     // 하위 카테고리
     @OneToMany(mappedBy = "parent", cascade = CascadeType.ALL, orphanRemoval = true) // 상위 카테고리 삭제 시 하위 카테고리들도 삭제
-    private List<Category> subCategories; // 하위 카테고리 리스트
+    private List<Category> subCategories = new ArrayList<>(); // 하위 카테고리 리스트
 
     @OneToMany(mappedBy = "category")
-    private List<Product> products; // 해당 카테고리에 속한 상품들
+    private List<Product> products = new ArrayList<>(); // 해당 카테고리에 속한 상품들
 }

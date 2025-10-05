@@ -63,6 +63,13 @@ public class SecurityConfig {
                         // 상품 등록 API - ARTIST, ADMIN, ROOT만 접근 가능
                         .requestMatchers(HttpMethod.POST,"/api/products", "/api/products/images").hasAnyRole("ARTIST", "ADMIN", "ROOT")
 
+                        // 카테고리 조회 - 로그인 없이 접근 허용
+                        .requestMatchers(HttpMethod.GET, "/api/categories/**").permitAll()
+                        // 카테고리 생성, 수정, 삭제 - ADMIN, ROOT만 접근 가능
+                        .requestMatchers(HttpMethod.POST, "/api/categories/**").hasAnyRole("ADMIN", "ROOT")
+                        .requestMatchers(HttpMethod.PUT, "/api/categories/**").hasAnyRole("ADMIN", "ROOT")
+                        .requestMatchers(HttpMethod.DELETE, "/api/categories/**").hasAnyRole("ADMIN", "ROOT")
+
                         // 펀딩 관련 공개 API - 로그인 없이 접근 허용
                         .requestMatchers(HttpMethod.GET, "/api/fundings/**").permitAll()
 

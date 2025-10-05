@@ -15,43 +15,15 @@ public class ArtistFundingResponse {
      */
     public static class List extends PageResponse<ArtistFundingResponse.Funding> {
 
-        /**
-         * 펀딩 요약 정보
-         */
-        private final Summary summary;
+        public List() {
+            super();
+        }
 
-        public List(Summary summary, java.util.List<Funding> content,
+        public List(java.util.List<Funding> content,
                     int page, int size, long totalElements, int totalPages, boolean hasNext, boolean hasPrevious) {
             super(content, page, size, totalElements, totalPages, hasNext, hasPrevious);
-            this.summary = summary;
-        }
-
-        public Summary getSummary() {
-            return summary;
         }
     }
-
-    /**
-     * 펀딩 요약 정보
-     */
-    public record Summary(
-            /**
-             * 전체 펀딩 수
-             */
-            int totalFundings,
-            /**
-             * 진행중 펀딩 수 (OPEN)
-             */
-            int openFundings,
-            /**
-             * 성공한 펀딩 수 (SUCCESS)
-             */
-            int successFundings,
-            /**
-             * 실패한 펀딩 수 (FAILED + CLOSED)
-             */
-            int failedFundings
-    ) {}
 
     /**
      * 펀딩 정보

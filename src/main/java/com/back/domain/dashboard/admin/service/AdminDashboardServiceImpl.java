@@ -17,10 +17,8 @@ import com.back.domain.user.entity.User;
 import com.back.domain.user.repository.UserRepository;
 import com.back.global.exception.ServiceException;
 import com.back.global.security.auth.CustomUserDetails;
-import com.google.analytics.data.v1beta.*;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -51,10 +49,6 @@ public class AdminDashboardServiceImpl implements AdminDashboardService {
     private final UserRepository userRepository;
     private final FundingRepository fundingRepository;
     private final ArtistApplicationRepository artistApplicationRepository;
-    private final BetaAnalyticsDataClient analyticsDataClient;
-
-    @Value("${google.analytics.property-id}")
-    private String propertyId;
 
     /**
      * SecurityContext에서 인증된 관리자 정보를 추출하고 권한을 검증하는 헬퍼 메서드
@@ -168,63 +162,7 @@ public class AdminDashboardServiceImpl implements AdminDashboardService {
                 fundingApprovals
         );
 
-        // 유입 경로 정보 (GA4) - 7일 기준
-        AdminOverviewResponse.TrafficSources trafficSources = getTrafficSourcesForOverview(request.timezone());
-
-        return new AdminOverviewResponse(overview, charts, alerts, trafficSources, LocalDateTime.now(), request.timezone());
-    }
-
-    /**
-     * 메인 대시보드용 유입 경로 데이터 조회 (간소화 버전)
-     */
-    private AdminOverviewResponse.TrafficSources getTrafficSourcesForOverview(String timezone) {
-        try {
-            // 기존 getTrafficSources 메서드 호출 (7일 기준)
-            AdminTrafficSourceResponse fullResponse = getTrafficSources(7, timezone);
-
-            // 메인 대시보드용으로 간소화
-            AdminOverviewResponse.Summary summary = new AdminOverviewResponse.Summary(
-                    fullResponse.summary().totalSessions(),
-                    fullResponse.summary().totalUsers(),
-                    fullResponse.summary().avgSessionDuration(),
-                    fullResponse.summary().bounceRate()
-            );
-
-            // 상위 5개 유입 경로만
-            List<AdminOverviewResponse.Source> sources = fullResponse.sources().stream()
-                    .limit(5)
-                    .map(source -> new AdminOverviewResponse.Source(
-                            source.name(),
-                            source.sessions(),
-                            source.users(),
-                            source.share()
-                    ))
-                    .toList();
-
-            // 차트 데이터
-            List<AdminOverviewResponse.ChartData> chartData = fullResponse.chart().data().stream()
-                    .limit(5)
-                    .map(data -> new AdminOverviewResponse.ChartData(
-                            data.name(),
-                            data.value(),
-                            data.percentage(),
-                            data.color()
-                    ))
-                    .toList();
-
-            AdminOverviewResponse.Chart chart = new AdminOverviewResponse.Chart(chartData);
-
-            return new AdminOverviewResponse.TrafficSources(summary, sources, chart);
-
-        } catch (Exception e) {
-            log.error("메인 대시보드 유입 경로 조회 중 오류 발생", e);
-            // 오류 발생 시 빈 데이터 반환
-            return new AdminOverviewResponse.TrafficSources(
-                    new AdminOverviewResponse.Summary(0, 0, 0.0, 0.0),
-                    List.of(),
-                    new AdminOverviewResponse.Chart(List.of())
-            );
-        }
+        return new AdminOverviewResponse(overview, charts, alerts, LocalDateTime.now(), request.timezone());
     }
 
     @Override
@@ -924,178 +862,5 @@ public class AdminDashboardServiceImpl implements AdminDashboardService {
                 decision,
                 permissions
         );
-    }
-
-    @Override
-    public AdminTrafficSourceResponse getTrafficSources(int days, String timezone) {
-        // JWT 토큰에서 관리자 정보 추출 및 권한 검증
-        CustomUserDetails adminUser = validateAdminAuthentication();
-
-        log.info("관리자 유입 경로 조회 - userId: {}, role: {}, days: {}, timezone: {}",
-                adminUser.getUserId(), adminUser.getCurrentRole(), days, timezone);
-
-        try {
-            // GA4 API 요청 생성
-            RunReportRequest request = RunReportRequest.newBuilder()
-                    .setProperty(propertyId)
-                    // 측정 기준: 세션 소스 (Instagram, YouTube, Google 등)
-                    .addDimensions(Dimension.newBuilder().setName("sessionSource"))
-                    // 지표: 세션 수, 사용자 수, 이탈률, 평균 세션 시간, 전환 수
-                    .addMetrics(Metric.newBuilder().setName("sessions"))
-                    .addMetrics(Metric.newBuilder().setName("totalUsers"))
-                    .addMetrics(Metric.newBuilder().setName("bounceRate"))
-                    .addMetrics(Metric.newBuilder().setName("averageSessionDuration"))
-                    .addMetrics(Metric.newBuilder().setName("conversions"))
-                    .addMetrics(Metric.newBuilder().setName("newUsers"))
-                    // 조회 기간 설정
-                    .addDateRanges(DateRange.newBuilder()
-                            .setStartDate(days + "daysAgo")
-                            .setEndDate("today"))
-                    // 세션 수 기준 내림차순 정렬
-                    .addOrderBys(OrderBy.newBuilder()
-                            .setMetric(OrderBy.MetricOrderBy.newBuilder()
-                                    .setMetricName("sessions"))
-                            .setDesc(true))
-                    .build();
-
-            // GA4 API 호출
-            RunReportResponse response = analyticsDataClient.runReport(request);
-
-            // 총합 계산
-            long totalSessions = 0;
-            long totalUsers = 0;
-            double totalBounceRate = 0;
-            double totalAvgDuration = 0;
-            long totalConversions = 0;
-
-            List<AdminTrafficSourceResponse.Source> sources = new ArrayList<>();
-            List<AdminTrafficSourceResponse.ChartData> chartData = new ArrayList<>();
-
-            // 색상 팔레트 (소셜 미디어별)
-            java.util.Map<String, String> colorMap = java.util.Map.of(
-                    "instagram", "#E4405F",
-                    "youtube", "#FF0000",
-                    "naver", "#03C75A",
-                    "google", "#4285F4",
-                    "facebook", "#1877F2",
-                    "twitter", "#1DA1F2",
-                    "kakao", "#FEE500"
-            );
-
-            // 응답 데이터 처리
-            for (Row row : response.getRowsList()) {
-                String sourceName = row.getDimensionValues(0).getValue();
-                long sessions = Long.parseLong(row.getMetricValues(0).getValue());
-                long users = Long.parseLong(row.getMetricValues(1).getValue());
-                double bounceRate = Double.parseDouble(row.getMetricValues(2).getValue());
-                double avgDuration = Double.parseDouble(row.getMetricValues(3).getValue());
-                long conversions = Long.parseLong(row.getMetricValues(4).getValue());
-                long newUsers = Long.parseLong(row.getMetricValues(5).getValue());
-
-                totalSessions += sessions;
-                totalUsers += users;
-                totalBounceRate += bounceRate;
-                totalAvgDuration += avgDuration;
-                totalConversions += conversions;
-
-                // 색상 선택 (소문자로 매칭)
-                String color = colorMap.getOrDefault(sourceName.toLowerCase(), "#999999");
-
-                sources.add(new AdminTrafficSourceResponse.Source(
-                        sourceName,
-                        sessions,
-                        users,
-                        0.0, // 점유율은 나중에 계산
-                        users > 0 ? (double) newUsers / users * 100 : 0.0,
-                        bounceRate,
-                        avgDuration,
-                        conversions,
-                        sessions > 0 ? (double) conversions / sessions * 100 : 0.0
-                ));
-
-                chartData.add(new AdminTrafficSourceResponse.ChartData(
-                        sourceName,
-                        sessions,
-                        0.0, // 퍼센트는 나중에 계산
-                        color
-                ));
-            }
-
-            // 점유율 계산 (총 세션 대비)
-            final long finalTotalSessions = totalSessions;
-            sources = sources.stream()
-                    .map(source -> new AdminTrafficSourceResponse.Source(
-                            source.name(),
-                            source.sessions(),
-                            source.users(),
-                            finalTotalSessions > 0 ? (double) source.sessions() / finalTotalSessions * 100 : 0.0,
-                            source.newUserRate(),
-                            source.bounceRate(),
-                            source.avgSessionDuration(),
-                            source.conversions(),
-                            source.conversionRate()
-                    ))
-                    .toList();
-
-            chartData = chartData.stream()
-                    .map(data -> new AdminTrafficSourceResponse.ChartData(
-                            data.name(),
-                            data.value(),
-                            finalTotalSessions > 0 ? (double) data.value() / finalTotalSessions * 100 : 0.0,
-                            data.color()
-                    ))
-                    .toList();
-
-            // 요약 정보
-            int sourceCount = sources.size();
-            AdminTrafficSourceResponse.Summary summary = new AdminTrafficSourceResponse.Summary(
-                    totalSessions,
-                    totalUsers,
-                    sourceCount > 0 ? totalAvgDuration / sourceCount : 0.0,
-                    sourceCount > 0 ? totalBounceRate / sourceCount : 0.0
-            );
-
-            // 차트 데이터
-            AdminTrafficSourceResponse.Chart chart = new AdminTrafficSourceResponse.Chart(
-                    chartData,
-                    5.0 // 5% 미만은 "기타"로 그룹화
-            );
-
-            // 조회 기간
-            LocalDate endDate = LocalDate.now();
-            LocalDate startDate = endDate.minusDays(days);
-            AdminTrafficSourceResponse.Period period = new AdminTrafficSourceResponse.Period(
-                    startDate.toString(),
-                    endDate.toString(),
-                    days
-            );
-
-            log.info("GA4 유입 경로 조회 완료 - 총 {}개 소스, 총 세션 {}", sources.size(), totalSessions);
-
-            return new AdminTrafficSourceResponse(
-                    summary,
-                    sources,
-                    chart,
-                    period,
-                    LocalDateTime.now(),
-                    timezone
-            );
-
-        } catch (Exception e) {
-            log.error("GA4 유입 경로 조회 중 오류 발생", e);
-            // 오류 발생 시 빈 데이터 반환
-            return new AdminTrafficSourceResponse(
-                    new AdminTrafficSourceResponse.Summary(0, 0, 0.0, 0.0),
-                    List.of(),
-                    new AdminTrafficSourceResponse.Chart(List.of(), 5.0),
-                    new AdminTrafficSourceResponse.Period(
-                            LocalDate.now().minusDays(days).toString(),
-                            LocalDate.now().toString(),
-                            days
-                    ),
-                    LocalDateTime.now(),
-                    timezone
-            );
-        }
     }
 }
