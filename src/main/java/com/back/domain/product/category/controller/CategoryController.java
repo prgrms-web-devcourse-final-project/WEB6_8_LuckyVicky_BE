@@ -73,7 +73,7 @@ public class CategoryController {
             responses = {
                     @ApiResponse(
                             responseCode = "200",
-                            description = "카테고리 등록 성공",
+                            description = "카테고리가 등록되었습니다.",
                             content = @Content(
                                     mediaType = "application/json",
                                     schema = @Schema(
@@ -115,7 +115,7 @@ public class CategoryController {
     @Operation(
             summary = "카테고리 수정",
             parameters = {
-                    @Parameter(name = "id", description = "수정할 카테고리 ID", required = true)
+                    @Parameter(name = "id", description = "수정할 카테고리 ID", required = true, example="1")
             },
             responses = {
                     @ApiResponse(
@@ -125,12 +125,16 @@ public class CategoryController {
                                     mediaType = "application/json",
                                     schema = @Schema(
                                             example = """
-                                                    {
-                                                      "id": 1,
-                                                      "categoryName": "스티커",
-                                                      "subCategories": []
-                                                    }
-                                                    """
+                                            {
+                                              "resultCode": "200",
+                                              "msg": "카테고리가 수정되었습니다.",
+                                              "data": {
+                                                "id": 1,
+                                                "categoryName": "스티커",
+                                                "subCategories": []
+                                              }
+                                            }
+                                            """
                                     )
                             )
                     ),
@@ -180,12 +184,24 @@ public class CategoryController {
     @Operation(
             summary = "카테고리 삭제",
             parameters = {
-                    @Parameter(name = "id", description = "삭제할 카테고리 ID", required = true)
+                    @Parameter(name = "id", description = "삭제할 카테고리 ID", required = true, example="1")
             },
             responses = {
                     @ApiResponse(
                             responseCode = "200",
-                            description = "카테고리 삭제 성공"
+                            description = "카테고리 삭제 성공",
+                            content = @Content(
+                                    mediaType = "application/json",
+                                    schema = @Schema(
+                                            example = """
+                                                    {
+                                                      "resultCode": "200",
+                                                      "msg": "카테고리가 삭제되었습니다.",
+                                                      "data": null
+                                                    }
+                                                    """
+                                    )
+                            )
                     ),
                     @ApiResponse(
                             responseCode = "400",
