@@ -104,7 +104,7 @@ public class ArtistController {
      * 작가 사업자 관련 정보만 조회 (상품 등록 시 불러오기 기능)
      */
     @GetMapping("/business-info")
-    @Operation(summary="사업자 정보 조회", description="작가 본인의 사업자 관련 정보를 불러오기로 확인합니다.")
+    @Operation(summary="상품 등록 시 사업자 정보 조회", description="상품 등록 시, 작가 본인의 사업자 관련 정보를 불러오기로 확인합니다.")
     public ResponseEntity<RsData<ArtistBusinessInfoResponse>> getBusinessInfo(
             @AuthenticationPrincipal CustomUserDetails userDetails){
         log.info("사업자 정보 조회 - userId: {}", userDetails.getUserId());
