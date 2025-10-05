@@ -77,7 +77,7 @@ public class CategoryController {
             responses = {
                     @ApiResponse(
                             responseCode = "200",
-                            description = "카테고리가 등록되었습니다.",
+                            description = "카테고리 등록 성공",
                             content = @Content(
                                     mediaType = "application/json",
                                     schema = @Schema(
