@@ -58,6 +58,9 @@ class ArtistDashboardServiceImplTest {
     @Mock
     private com.back.domain.order.exchange.repository.ExchangeRepository exchangeRepository;
 
+    @Mock
+    private com.back.domain.order.order.repository.OrderRepository orderRepository;
+
     private static final Long TEST_ARTIST_ID = 5L;
 
     // ==================== 상품 테스트 ====================
@@ -241,6 +244,103 @@ class ArtistDashboardServiceImplTest {
         );
     }
 
+    // ==================== 주문 내역 테스트 ====================
+
+    @Test
+    @DisplayName("주문 내역 조회 - 기본 조회 및 DTO 변환 검증")
+    void getOrders_Success() {
+        // Given
+        User mockCustomer = createMockUser(201L, "구매자김철수");
+        User mockArtist = createMockUser(TEST_ARTIST_ID, "작가");
+        Product mockProduct = createMockProduct(101L, "핸드메이드 도자기", 50000, 10, SellingStatus.SELLING);
+        setProductUser(mockProduct, mockArtist);
+
+        com.back.domain.order.order.entity.Order mockOrder = createMockOrder(1L, mockCustomer, "ORD20250918001");
+        setOrderStatus(mockOrder, com.back.domain.order.order.entity.OrderStatus.SHIPPING);
+        
+        com.back.domain.order.orderItem.entity.OrderItem mockOrderItem = createMockOrderItem(1L, mockOrder, mockProduct, 2);
+
+        // 주문에 주문 아이템 추가
+        try {
+            java.lang.reflect.Field orderItemsField = mockOrder.getClass().getDeclaredField("orderItems");
+            orderItemsField.setAccessible(true);
+            orderItemsField.set(mockOrder, List.of(mockOrderItem));
+        } catch (Exception e) {
+            throw new RuntimeException("Failed to set orderItems", e);
+        }
+
+        Page<com.back.domain.order.order.entity.Order> mockPage = new PageImpl<>(List.of(mockOrder), PageRequest.of(0, 10), 1);
+        when(orderRepository.findOrdersByArtist(
+                eq(TEST_ARTIST_ID), isNull(), isNull(), isNull(), isNull(), any(PageRequest.class)))
+                .thenReturn(mockPage);
+
+        when(orderRepository.findOrdersWithDetailsByArtist(anyList(), eq(TEST_ARTIST_ID)))
+                .thenReturn(List.of(mockOrder));
+
+        ArtistOrderSearchRequest request = new ArtistOrderSearchRequest(0, 10, null, null, null, null, null, null);
+
+        // When
+        ArtistOrderResponse.List result = artistDashboardService.getOrders(TEST_ARTIST_ID, request);
+
+        // Then
+        assertAll(
+                () -> assertThat(result.content()).hasSize(1),
+                () -> assertThat(result.content().getFirst().orderNumber()).isEqualTo("ORD20250918001"),
+                () -> assertThat(result.content().getFirst().status()).isEqualTo("SHIPPING"),
+                () -> assertThat(result.content().getFirst().statusText()).isEqualTo("배송중"),
+                () -> assertThat(result.content().getFirst().buyer().name()).isEqualTo("구매자김철수"),
+                () -> assertThat(result.content().getFirst().productSummary()).contains("도자기"),
+                () -> assertThat(result.content().getFirst().shipment().status()).isEqualTo("배송 중")
+        );
+    }
+
+    @Test
+    @DisplayName("주문 내역 조회 - 상태 필터 검증")
+    void getOrders_WithStatusFilter() {
+        // Given
+        User mockCustomer = createMockUser(201L, "구매자");
+        User mockArtist = createMockUser(TEST_ARTIST_ID, "작가");
+        Product mockProduct = createMockProduct(101L, "상품", 30000, 0, SellingStatus.SELLING);
+        setProductUser(mockProduct, mockArtist);
+
+        com.back.domain.order.order.entity.Order mockOrder = createMockOrder(1L, mockCustomer, "ORD001");
+        setOrderStatus(mockOrder, com.back.domain.order.order.entity.OrderStatus.PREPARING_SHIPMENT);
+        
+        com.back.domain.order.orderItem.entity.OrderItem mockOrderItem = createMockOrderItem(1L, mockOrder, mockProduct, 1);
+
+        try {
+            java.lang.reflect.Field orderItemsField = mockOrder.getClass().getDeclaredField("orderItems");
+            orderItemsField.setAccessible(true);
+            orderItemsField.set(mockOrder, List.of(mockOrderItem));
+        } catch (Exception e) {
+            throw new RuntimeException("Failed to set orderItems", e);
+        }
+
+        Page<com.back.domain.order.order.entity.Order> mockPage = new PageImpl<>(List.of(mockOrder), PageRequest.of(0, 10), 1);
+        when(orderRepository.findOrdersByArtist(
+                eq(TEST_ARTIST_ID), 
+                eq(com.back.domain.order.order.entity.OrderStatus.PREPARING_SHIPMENT), 
+                isNull(), isNull(), isNull(), 
+                any(PageRequest.class)))
+                .thenReturn(mockPage);
+
+        when(orderRepository.findOrdersWithDetailsByArtist(anyList(), eq(TEST_ARTIST_ID)))
+                .thenReturn(List.of(mockOrder));
+
+        ArtistOrderSearchRequest request = new ArtistOrderSearchRequest(
+                0, 10, "PREPARING_SHIPMENT", null, null, null, null, null);
+
+        // When
+        ArtistOrderResponse.List result = artistDashboardService.getOrders(TEST_ARTIST_ID, request);
+
+        // Then
+        assertAll(
+                () -> assertThat(result.content()).hasSize(1),
+                () -> assertThat(result.content().getFirst().status()).isEqualTo("PREPARING_SHIPMENT"),
+                () -> assertThat(result.content().getFirst().statusText()).isEqualTo("배송준비중")
+        );
+    }
+
     // ==================== 헬퍼 메서드 ====================
 
     private Product createMockProduct(Long id, String name, int price, int discountRate, SellingStatus status) {
@@ -331,6 +431,16 @@ class ArtistDashboardServiceImplTest {
             userField.set(product, user);
         } catch (Exception e) {
             throw new RuntimeException("Failed to set user", e);
+        }
+    }
+
+    private void setOrderStatus(com.back.domain.order.order.entity.Order order, com.back.domain.order.order.entity.OrderStatus status) {
+        try {
+            java.lang.reflect.Field statusField = order.getClass().getDeclaredField("status");
+            statusField.setAccessible(true);
+            statusField.set(order, status);
+        } catch (Exception e) {
+            throw new RuntimeException("Failed to set status", e);
         }
     }
 

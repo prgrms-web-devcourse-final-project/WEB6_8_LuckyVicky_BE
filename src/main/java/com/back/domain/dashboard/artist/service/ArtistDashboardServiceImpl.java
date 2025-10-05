@@ -401,27 +401,50 @@ public class ArtistDashboardServiceImpl implements ArtistDashboardService {
      * 작가의 주문 상태별 요약 정보 계산
      */
     private ArtistOrderResponse.Summary calculateOrderSummary(Long artistId) {
-        // 모든 주문 조회 (상태별 집계용)
-        Page<com.back.domain.order.order.entity.Order> allOrders = orderRepository.findOrdersByArtist(
-                artistId, null, null, null, null,
-                PageRequest.of(0, Integer.MAX_VALUE)
-        );
-
-        int total = (int) allOrders.getTotalElements();
+        // 상태별 카운트 조회 (실제 구현에서는 COUNT 쿼리 사용 권장)
+        int total = 0;
         int pending = 0;
         int preparing = 0;
         int shipped = 0;
         int delivered = 0;
         int canceled = 0;
 
-        for (com.back.domain.order.order.entity.Order order : allOrders.getContent()) {
-            switch (order.getStatus()) {
-                case PAYMENT_COMPLETED -> pending++;
-                case PREPARING_SHIPMENT -> preparing++;
-                case SHIPPING -> shipped++;
-                case DELIVERED -> delivered++;
-                case CANCELLATION_COMPLETED, REFUND_COMPLETED -> canceled++;
-            }
+        try {
+            // PAYMENT_COMPLETED 카운트
+            Page<com.back.domain.order.order.entity.Order> pendingOrders = orderRepository.findOrdersByArtist(
+                    artistId, com.back.domain.order.order.entity.OrderStatus.PAYMENT_COMPLETED, 
+                    null, null, null, PageRequest.of(0, 1));
+            pending = (int) pendingOrders.getTotalElements();
+
+            // PREPARING_SHIPMENT 카운트
+            Page<com.back.domain.order.order.entity.Order> preparingOrders = orderRepository.findOrdersByArtist(
+                    artistId, com.back.domain.order.order.entity.OrderStatus.PREPARING_SHIPMENT, 
+                    null, null, null, PageRequest.of(0, 1));
+            preparing = (int) preparingOrders.getTotalElements();
+
+            // SHIPPING 카운트
+            Page<com.back.domain.order.order.entity.Order> shippedOrders = orderRepository.findOrdersByArtist(
+                    artistId, com.back.domain.order.order.entity.OrderStatus.SHIPPING, 
+                    null, null, null, PageRequest.of(0, 1));
+            shipped = (int) shippedOrders.getTotalElements();
+
+            // DELIVERED 카운트
+            Page<com.back.domain.order.order.entity.Order> deliveredOrders = orderRepository.findOrdersByArtist(
+                    artistId, com.back.domain.order.order.entity.OrderStatus.DELIVERED, 
+                    null, null, null, PageRequest.of(0, 1));
+            delivered = (int) deliveredOrders.getTotalElements();
+
+            // 전체 카운트 (null status로 조회)
+            Page<com.back.domain.order.order.entity.Order> allOrders = orderRepository.findOrdersByArtist(
+                    artistId, null, null, null, null, PageRequest.of(0, 1));
+            total = (int) allOrders.getTotalElements();
+
+            // canceled는 total에서 계산
+            canceled = total - (pending + preparing + shipped + delivered);
+            if (canceled < 0) canceled = 0;
+
+        } catch (Exception e) {
+            log.error("주문 요약 정보 계산 중 오류 발생 - artistId: {}", artistId, e);
         }
 
         return new ArtistOrderResponse.Summary(total, pending, preparing, shipped, delivered, canceled);
