@@ -3,11 +3,13 @@ package com.back.domain.dashboard.admin.service;
 import com.back.domain.artist.entity.ApplicationStatus;
 import com.back.domain.artist.entity.ArtistApplication;
 import com.back.domain.artist.repository.ArtistApplicationRepository;
+import com.back.domain.dashboard.admin.dto.MonthlySettlementDto;
 import com.back.domain.dashboard.admin.dto.request.*;
 import com.back.domain.dashboard.admin.dto.response.*;
 import com.back.domain.funding.entity.Funding;
 import com.back.domain.funding.entity.FundingStatus;
 import com.back.domain.funding.repository.FundingRepository;
+import com.back.domain.order.order.repository.OrderRepository;
 import com.back.domain.product.product.entity.Product;
 import com.back.domain.product.product.entity.SellingStatus;
 import com.back.domain.product.product.repository.ProductRepository;
@@ -28,12 +30,15 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.Year;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 /**
  * 관리자용 대시보드 서비스 구현체
@@ -49,6 +54,7 @@ public class AdminDashboardServiceImpl implements AdminDashboardService {
     private final UserRepository userRepository;
     private final FundingRepository fundingRepository;
     private final ArtistApplicationRepository artistApplicationRepository;
+    private final OrderRepository orderRepository;
     private final com.back.domain.product.category.repository.CategoryRepository categoryRepository;
 
     /**
@@ -455,8 +461,6 @@ public class AdminDashboardServiceImpl implements AdminDashboardService {
         // JWT 토큰에서 관리자 정보 추출 및 권한 검증
         CustomUserDetails adminUser = validateAdminAuthentication();
 
-        // TODO: Order 테이블에서 실제 매출/정산 데이터 조회 및 집계
-
         // 연도 기본값 설정 (현재 연도)
         Integer year = request.year() != null ? request.year() : Year.now().getValue();
         Integer month = request.month();
@@ -467,34 +471,68 @@ public class AdminDashboardServiceImpl implements AdminDashboardService {
         // 조회 범위
         AdminSettlementResponse.Scope scope = new AdminSettlementResponse.Scope(year, month);
 
-        // 요약 정보 (더미 데이터 - Order 테이블 연동 필요)
+        // 1. DB에서 실제 매출/정산 데이터 조회
+        List<MonthlySettlementDto> settlements;
+        if (month != null) {
+            // 일별 집계
+            settlements = orderRepository.findDailySettlements(year, month);
+            log.info("일별 정산 데이터 조회 완료 - {}년 {}월, {} 건", year, month, settlements.size());
+        } else {
+            // 월별 집계
+            settlements = orderRepository.findMonthlySettlements(year);
+            log.info("월별 정산 데이터 조회 완료 - {}년, {} 건", year, settlements.size());
+        }
+
+        // 2. 요약 정보 계산
+        BigDecimal totalAmountBd = orderRepository.findTotalSettlementAmount(year, month);
+        long totalAmount = totalAmountBd != null ? totalAmountBd.longValue() : 0L;
+        long artistPayout = (long) (totalAmount * 0.9);
+        long netIncome = (long) (totalAmount * 0.1);
+
         AdminSettlementResponse.Summary summary = new AdminSettlementResponse.Summary(
-                0L,  // 총 매출액
-                0L,  // 총 작가 정산금
-                0L   // 총 순수익
+                totalAmount,   // 총 매출액
+                artistPayout,  // 총 작가 정산금 (90%)
+                netIncome      // 총 순수익 (10%)
         );
 
-        // 차트 데이터 생성 (더미 데이터)
+        log.info("정산 요약 - 총 매출: {}, 작가 정산금: {}, 순수익: {}", totalAmount, artistPayout, netIncome);
+
+        // 3. 차트 데이터 및 테이블 데이터 생성
         List<AdminSettlementResponse.DataPoint> grossSalesData = new ArrayList<>();
         List<AdminSettlementResponse.DataPoint> artistPayoutData = new ArrayList<>();
         List<AdminSettlementResponse.DataPoint> netIncomeData = new ArrayList<>();
         List<AdminSettlementResponse.TableRow> tableData = new ArrayList<>();
 
+        // DB 조회 결과를 Map으로 변환 (날짜 -> 데이터)
+        Map<LocalDate, MonthlySettlementDto> settlementMap = new HashMap<>();
+        for (MonthlySettlementDto dto : settlements) {
+            settlementMap.put(dto.date(), dto);
+        }
+
         if (month != null) {
-            // 일별 집계 (해당 월의 모든 일자)
+            // 일별 집계 - 해당 월의 모든 일자 생성
             LocalDate startDate = LocalDate.of(year, month, 1);
             int daysInMonth = startDate.lengthOfMonth();
+            
             for (int day = 1; day <= daysInMonth; day++) {
-                addDataPoint(year, month, day, grossSalesData, artistPayoutData, netIncomeData, tableData);
+                LocalDate currentDate = LocalDate.of(year, month, day);
+                MonthlySettlementDto settlement = settlementMap.getOrDefault(currentDate, 
+                        new MonthlySettlementDto(currentDate, 0L));
+                
+                addSettlementDataPoint(settlement, grossSalesData, artistPayoutData, netIncomeData, tableData);
             }
         } else {
-            // 월별 집계 (해당 연도의 모든 월)
+            // 월별 집계 - 해당 연도의 모든 월 생성
             for (int m = 1; m <= 12; m++) {
-                addDataPoint(year, m, 1, grossSalesData, artistPayoutData, netIncomeData, tableData);
+                LocalDate currentDate = LocalDate.of(year, m, 1);
+                MonthlySettlementDto settlement = settlementMap.getOrDefault(currentDate,
+                        new MonthlySettlementDto(currentDate, 0L));
+                
+                addSettlementDataPoint(settlement, grossSalesData, artistPayoutData, netIncomeData, tableData);
             }
         }
 
-        // 차트 데이터 통합
+        // 4. 차트 데이터 통합
         AdminSettlementResponse.Chart chart = new AdminSettlementResponse.Chart(
                 new AdminSettlementResponse.Series(grossSalesData, artistPayoutData, netIncomeData)
         );
@@ -505,20 +543,19 @@ public class AdminDashboardServiceImpl implements AdminDashboardService {
     }
 
     /**
-     * 정산 데이터 포인트 생성 헬퍼 메서드 (더미 데이터)
-     * TODO: Order 테이블에서 실제 집계로 교체 필요
+     * 정산 데이터 포인트 생성 헬퍼 메서드
+     * MonthlySettlementDto를 차트 및 테이블 데이터로 변환
      */
-    private void addDataPoint(int year, int monthOrMonth, int dayOrOne,
-                              List<AdminSettlementResponse.DataPoint> grossSalesData,
-                              List<AdminSettlementResponse.DataPoint> artistPayoutData,
-                              List<AdminSettlementResponse.DataPoint> netIncomeData,
-                              List<AdminSettlementResponse.TableRow> tableData) {
-        String bucketStart = String.format("%d-%02d-%02d", year, monthOrMonth, dayOrOne);
-
-        // 더미 데이터 - 실제로는 Order 테이블에서 집계
-        long grossSales = 0L;
-        long artistPayout = 0L;
-        long netIncome = 0L;
+    private void addSettlementDataPoint(MonthlySettlementDto settlement,
+                                       List<AdminSettlementResponse.DataPoint> grossSalesData,
+                                       List<AdminSettlementResponse.DataPoint> artistPayoutData,
+                                       List<AdminSettlementResponse.DataPoint> netIncomeData,
+                                       List<AdminSettlementResponse.TableRow> tableData) {
+        
+        String bucketStart = settlement.date().toString(); // yyyy-MM-dd 형식
+        long grossSales = settlement.totalAmount();
+        long artistPayout = settlement.getArtistPayout();  // 90%
+        long netIncome = settlement.getNetIncome();        // 10%
 
         grossSalesData.add(new AdminSettlementResponse.DataPoint(bucketStart, grossSales));
         artistPayoutData.add(new AdminSettlementResponse.DataPoint(bucketStart, artistPayout));
