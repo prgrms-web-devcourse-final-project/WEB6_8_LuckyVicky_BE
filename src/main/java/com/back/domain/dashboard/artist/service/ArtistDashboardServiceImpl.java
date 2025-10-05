@@ -55,8 +55,275 @@ public class ArtistDashboardServiceImpl implements ArtistDashboardService {
 
     @Override
     public ArtistMainResponse getMainStats(Long artistId, ArtistMainStatsRequest request) {
-        // TODO: 실제 데이터베이스 연동 필요
-        throw new UnsupportedOperationException("작가 메인 대시보드 통계는 아직 구현되지 않았습니다.");
+        log.info("작가 메인 대시보드 통계 조회 시작 - artistId: {}, timezone: {}", artistId, request.tz());
+
+        // 1. 작가 프로필 정보 조회
+        com.back.domain.artist.entity.ArtistProfile artistProfile = artistProfileRepository
+                .findByUserId(artistId)
+                .orElseThrow(() -> new com.back.global.exception.ServiceException("404", "작가 프로필을 찾을 수 없습니다."));
+
+        // 프로필 정보
+        ArtistMainResponse.Profile profile = new ArtistMainResponse.Profile(
+                artistProfile.getUser().getId(),
+                artistProfile.getArtistName(),
+                artistProfile.getEmail(),
+                artistProfile.getProfileImageUrl()
+        );
+
+        // 2. 통계 정보 조회 (한 번의 쿼리로)
+        LocalDateTime now = LocalDateTime.now();
+        LocalDateTime startOfDay = now.toLocalDate().atStartOfDay();
+        LocalDateTime endOfDay = now.toLocalDate().atTime(23, 59, 59);
+
+        com.back.domain.dashboard.artist.dto.DashboardStatsDto stats =
+                orderRepository.getArtistDashboardStats(artistId, startOfDay, endOfDay);
+
+        // TODO: 팔로우 기능 구현 시 수정 필요
+        // 팔로워 수 조회 부분입니다.
+        int followerCount = artistProfile.getFollowerCount();
+
+        // 오늘의 매출 조회 부분입니다.
+        int todaysSales = stats.todaysSales().intValue();
+
+        // 오늘의 주문 수 조회 부분입니다.
+        int todaysOrders = stats.todaysOrderCount().intValue();
+
+        // 상품 수 조회 부분입니다.
+        int productCount = artistProfile.getProductCount();
+
+        // 대기중인 주문 수 (결제완료 상태)
+        int pendingOrders = calculatePendingOrders(artistId);
+
+        ArtistMainResponse.Stats statsResponse = new ArtistMainResponse.Stats(
+                followerCount,
+                productCount,
+                todaysSales,
+                todaysOrders,
+                stats.totalSales().intValue(),
+                stats.totalOrderCount().intValue(),
+                0.0,  // TODO: 평균 평점 (리뷰 기능 구현 시)
+                pendingOrders
+        );
+
+        // 3. 트렌드 정보
+        ArtistMainResponse.Trends trends = createTrendsData(artistId, request.range(), request.tz());
+
+        // 4. 알림 정보 (빈 데이터 - 다음 단계에서 구현)
+        ArtistMainResponse.Notifications notifications = new ArtistMainResponse.Notifications(
+                List.of(),
+                List.of()
+        );
+
+        // 5. 유입 경로 정보 (GA4)
+        ArtistMainResponse.TrafficSources trafficSources = getTrafficSourcesForMain(artistId, request.tz());
+
+        log.info("작가 메인 대시보드 통계 조회 완료 - artistId: {}, 오늘 매출: {}, 오늘 주문: {}",
+                artistId, todaysSales, todaysOrders);
+
+        return new ArtistMainResponse(
+                profile,
+                statsResponse,
+                trends,
+                notifications,
+                trafficSources,
+                LocalDateTime.now(),
+                request.tz()
+        );
+    }
+
+    /**
+     * 대기중인 주문 수 계산
+     */
+    private int calculatePendingOrders(Long artistId) {
+        try {
+            Page<com.back.domain.order.order.entity.Order> pendingOrders = orderRepository.findOrdersByArtist(
+                    artistId,
+                    com.back.domain.order.order.entity.OrderStatus.PAYMENT_COMPLETED,
+                    null, null, null,
+                    PageRequest.of(0, 1)
+            );
+            return (int) pendingOrders.getTotalElements();
+        } catch (Exception e) {
+            log.error("대기중인 주문 수 조회 실패 - artistId: {}", artistId, e);
+            return 0;
+        }
+    }
+
+    /**
+     * 트렌드 데이터 생성 (매출 + 주문 수)
+     */
+    private ArtistMainResponse.Trends createTrendsData(Long artistId, String range, String timezone) {
+        // 1. 기간 계산
+        LocalDateTime endDate = LocalDateTime.now();
+        LocalDateTime startDate;
+        LocalDateTime compareEndDate;
+        LocalDateTime compareStartDate;
+        String interval = "day";
+        int maxPoints = 30;
+
+        // range 매핑: 1D/7D/30D/3M/6M/1Y/CUSTOM → 1M/3M/6M/1Y/ALL
+        String normalizedRange = range != null ? range : "30D";
+
+        switch (normalizedRange) {
+            case "1D" -> {
+                startDate = endDate.minusDays(1);
+                compareStartDate = startDate.minusDays(1);
+                compareEndDate = startDate;
+                maxPoints = 1;
+            }
+            case "7D" -> {
+                startDate = endDate.minusDays(7);
+                compareStartDate = startDate.minusDays(7);
+                compareEndDate = startDate;
+                maxPoints = 7;
+            }
+            case "30D" -> {
+                startDate = endDate.minusDays(30);
+                compareStartDate = startDate.minusDays(30);
+                compareEndDate = startDate;
+                maxPoints = 30;
+            }
+            case "3M" -> {
+                startDate = endDate.minusMonths(3);
+                compareStartDate = startDate.minusMonths(3);
+                compareEndDate = startDate;
+                maxPoints = 90;
+            }
+            case "6M" -> {
+                startDate = endDate.minusMonths(6);
+                compareStartDate = startDate.minusMonths(6);
+                compareEndDate = startDate;
+                maxPoints = 180;
+            }
+            case "1Y" -> {
+                startDate = endDate.minusYears(1);
+                compareStartDate = startDate.minusYears(1);
+                compareEndDate = startDate;
+                maxPoints = 365;
+            }
+            case "CUSTOM" -> {
+                // CUSTOM은 현재 30D로 처리 (추후 from/to 파라미터 추가 시 구현)
+                startDate = endDate.minusDays(30);
+                compareStartDate = startDate.minusDays(30);
+                compareEndDate = startDate;
+                maxPoints = 30;
+            }
+            default -> {
+                startDate = endDate.minusDays(30);
+                compareStartDate = startDate.minusDays(30);
+                compareEndDate = startDate;
+                maxPoints = 30;
+            }
+        }
+
+        // 2. 일별 트렌드 데이터 조회 (매출 + 주문 수 동시 조회)
+        List<com.back.domain.dashboard.artist.dto.DailyTrendDto> dailyTrends =
+                orderRepository.findDailyTrendsByArtist(artistId, startDate, endDate);
+
+        // 3. 비교 기간 데이터 조회
+        List<com.back.domain.dashboard.artist.dto.DailyTrendDto> compareTrends =
+                orderRepository.findDailyTrendsByArtist(artistId, compareStartDate, compareEndDate);
+
+        // 4. 매출 시계열 데이터 생성
+        List<ArtistMainResponse.DataPoint> salesPoints = dailyTrends.stream()
+                .map(d -> new ArtistMainResponse.DataPoint(
+                        d.date().toString(),
+                        d.salesAmount().intValue()
+                ))
+                .toList();
+
+        int totalSales = dailyTrends.stream()
+                .mapToInt(d -> d.salesAmount().intValue())
+                .sum();
+
+        ArtistMainResponse.SeriesData salesSeries = new ArtistMainResponse.SeriesData(
+                "원",
+                salesPoints,
+                totalSales
+        );
+
+        // 5. 주문 수 시계열 데이터 생성
+        List<ArtistMainResponse.DataPoint> orderPoints = dailyTrends.stream()
+                .map(d -> new ArtistMainResponse.DataPoint(
+                        d.date().toString(),
+                        d.orderCount().intValue()
+                ))
+                .toList();
+
+        int totalOrders = dailyTrends.stream()
+                .mapToInt(d -> d.orderCount().intValue())
+                .sum();
+
+        ArtistMainResponse.SeriesData orderSeries = new ArtistMainResponse.SeriesData(
+                "건",
+                orderPoints,
+                totalOrders
+        );
+
+        // TODO: 팔로우 기능 구현 시 수정 필요
+        // 6. 팔로워 시계열 데이터 (빈 데이터)
+        ArtistMainResponse.SeriesData followerSeries = new ArtistMainResponse.SeriesData(
+                "명",
+                List.of(),
+                0
+        );
+
+        ArtistMainResponse.Series series = new ArtistMainResponse.Series(
+                salesSeries,
+                orderSeries,
+                followerSeries
+        );
+
+        // 7. 변화량 계산
+        int compareSales = compareTrends.stream()
+                .mapToInt(d -> d.salesAmount().intValue())
+                .sum();
+
+        int compareOrders = compareTrends.stream()
+                .mapToInt(d -> d.orderCount().intValue())
+                .sum();
+
+        ArtistMainResponse.ChangeData salesChange = calculateChange(totalSales, compareSales);
+        ArtistMainResponse.ChangeData orderChange = calculateChange(totalOrders, compareOrders);
+        ArtistMainResponse.ChangeData followerChange = new ArtistMainResponse.ChangeData(0, 0.0);
+
+        ArtistMainResponse.Changes changes = new ArtistMainResponse.Changes(
+                salesChange,
+                orderChange,
+                followerChange
+        );
+
+        // 8. 메타 정보
+        ArtistMainResponse.Meta meta = new ArtistMainResponse.Meta(
+                normalizedRange,
+                startDate.toLocalDate().toString(),
+                endDate.toLocalDate().toString(),
+                interval,
+                timezone,
+                maxPoints,
+                new ArtistMainResponse.Compare(
+                        compareStartDate.toLocalDate().toString(),
+                        compareEndDate.toLocalDate().toString()
+                )
+        );
+
+        return new ArtistMainResponse.Trends(meta, series, changes);
+    }
+
+    /**
+     * 변화량 계산 (delta, rate)
+     */
+    private ArtistMainResponse.ChangeData calculateChange(int current, int previous) {
+        int delta = current - previous;
+        double rate = 0.0;
+
+        if (previous > 0) {
+            rate = ((double) delta / previous) * 100;
+        } else if (current > 0) {
+            rate = 100.0; // 이전 값이 0이고 현재 값이 있으면 100% 증가
+        }
+
+        return new ArtistMainResponse.ChangeData(delta, rate);
     }
 
     /**
@@ -202,7 +469,7 @@ public class ArtistDashboardServiceImpl implements ArtistDashboardService {
         // 날짜 파싱
         java.time.LocalDateTime startDateTime = null;
         java.time.LocalDateTime endDateTime = null;
-        
+
         if (request.startDate() != null && !request.startDate().isBlank()) {
             try {
                 startDateTime = java.time.LocalDate.parse(request.startDate()).atStartOfDay();
@@ -210,7 +477,7 @@ public class ArtistDashboardServiceImpl implements ArtistDashboardService {
                 log.warn("잘못된 시작 날짜 형식: {}", request.startDate());
             }
         }
-        
+
         if (request.endDate() != null && !request.endDate().isBlank()) {
             try {
                 endDateTime = java.time.LocalDate.parse(request.endDate()).atTime(23, 59, 59);
@@ -239,8 +506,8 @@ public class ArtistDashboardServiceImpl implements ArtistDashboardService {
                 .toList();
 
         // Fetch Join으로 상세 정보 조회 (N+1 방지)
-        List<com.back.domain.order.order.entity.Order> ordersWithDetails = orderIds.isEmpty() 
-                ? List.of() 
+        List<com.back.domain.order.order.entity.Order> ordersWithDetails = orderIds.isEmpty()
+                ? List.of()
                 : orderRepository.findOrdersWithDetailsByArtist(orderIds, artistId);
 
         // Entity → DTO 변환
@@ -281,16 +548,17 @@ public class ArtistDashboardServiceImpl implements ArtistDashboardService {
             sortOrder = "DESC";
         }
 
-        org.springframework.data.domain.Sort.Direction direction = 
-                "ASC".equalsIgnoreCase(sortOrder) 
-                ? org.springframework.data.domain.Sort.Direction.ASC 
-                : org.springframework.data.domain.Sort.Direction.DESC;
+        org.springframework.data.domain.Sort.Direction direction =
+                "ASC".equalsIgnoreCase(sortOrder)
+                        ? org.springframework.data.domain.Sort.Direction.ASC
+                        : org.springframework.data.domain.Sort.Direction.DESC;
 
         return switch (sortField) {
             case "status" -> org.springframework.data.domain.Sort.by(direction, "status");
             case "totalAmount" -> org.springframework.data.domain.Sort.by(direction, "totalAmount");
             case "customerName" -> org.springframework.data.domain.Sort.by(direction, "user.name");
-            case "productName" -> org.springframework.data.domain.Sort.by(direction, "orderDate"); // 상품명 정렬은 복잡하므로 일단 주문일자로 대체
+            case "productName" ->
+                    org.springframework.data.domain.Sort.by(direction, "orderDate"); // 상품명 정렬은 복잡하므로 일단 주문일자로 대체
             default -> org.springframework.data.domain.Sort.by(direction, "orderDate");
         };
     }
@@ -307,7 +575,7 @@ public class ArtistDashboardServiceImpl implements ArtistDashboardService {
         // 상품 요약 생성 (첫 번째 상품명 + 나머지 개수)
         String productSummary = "";
         int itemCount = artistOrderItems.size();
-        
+
         if (!artistOrderItems.isEmpty()) {
             String firstName = artistOrderItems.get(0).getProduct().getName();
             if (itemCount > 1) {
@@ -343,7 +611,7 @@ public class ArtistDashboardServiceImpl implements ArtistDashboardService {
 
         // 권한 정보
         boolean canChangeStatus = order.getStatus() == com.back.domain.order.order.entity.OrderStatus.PAYMENT_COMPLETED ||
-                                  order.getStatus() == com.back.domain.order.order.entity.OrderStatus.PREPARING_SHIPMENT;
+                order.getStatus() == com.back.domain.order.order.entity.OrderStatus.PREPARING_SHIPMENT;
         boolean canCancel = order.getStatus() == com.back.domain.order.order.entity.OrderStatus.PAYMENT_COMPLETED;
 
         ArtistOrderResponse.Permissions permissions = new ArtistOrderResponse.Permissions(
@@ -401,27 +669,50 @@ public class ArtistDashboardServiceImpl implements ArtistDashboardService {
      * 작가의 주문 상태별 요약 정보 계산
      */
     private ArtistOrderResponse.Summary calculateOrderSummary(Long artistId) {
-        // 모든 주문 조회 (상태별 집계용)
-        Page<com.back.domain.order.order.entity.Order> allOrders = orderRepository.findOrdersByArtist(
-                artistId, null, null, null, null,
-                PageRequest.of(0, Integer.MAX_VALUE)
-        );
-
-        int total = (int) allOrders.getTotalElements();
+        // 상태별 카운트 조회 (실제 구현에서는 COUNT 쿼리 사용 권장)
+        int total = 0;
         int pending = 0;
         int preparing = 0;
         int shipped = 0;
         int delivered = 0;
         int canceled = 0;
 
-        for (com.back.domain.order.order.entity.Order order : allOrders.getContent()) {
-            switch (order.getStatus()) {
-                case PAYMENT_COMPLETED -> pending++;
-                case PREPARING_SHIPMENT -> preparing++;
-                case SHIPPING -> shipped++;
-                case DELIVERED -> delivered++;
-                case CANCELLATION_COMPLETED, REFUND_COMPLETED -> canceled++;
-            }
+        try {
+            // PAYMENT_COMPLETED 카운트
+            Page<com.back.domain.order.order.entity.Order> pendingOrders = orderRepository.findOrdersByArtist(
+                    artistId, com.back.domain.order.order.entity.OrderStatus.PAYMENT_COMPLETED,
+                    null, null, null, PageRequest.of(0, 1));
+            pending = (int) pendingOrders.getTotalElements();
+
+            // PREPARING_SHIPMENT 카운트
+            Page<com.back.domain.order.order.entity.Order> preparingOrders = orderRepository.findOrdersByArtist(
+                    artistId, com.back.domain.order.order.entity.OrderStatus.PREPARING_SHIPMENT,
+                    null, null, null, PageRequest.of(0, 1));
+            preparing = (int) preparingOrders.getTotalElements();
+
+            // SHIPPING 카운트
+            Page<com.back.domain.order.order.entity.Order> shippedOrders = orderRepository.findOrdersByArtist(
+                    artistId, com.back.domain.order.order.entity.OrderStatus.SHIPPING,
+                    null, null, null, PageRequest.of(0, 1));
+            shipped = (int) shippedOrders.getTotalElements();
+
+            // DELIVERED 카운트
+            Page<com.back.domain.order.order.entity.Order> deliveredOrders = orderRepository.findOrdersByArtist(
+                    artistId, com.back.domain.order.order.entity.OrderStatus.DELIVERED,
+                    null, null, null, PageRequest.of(0, 1));
+            delivered = (int) deliveredOrders.getTotalElements();
+
+            // 전체 카운트 (null status로 조회)
+            Page<com.back.domain.order.order.entity.Order> allOrders = orderRepository.findOrdersByArtist(
+                    artistId, null, null, null, null, PageRequest.of(0, 1));
+            total = (int) allOrders.getTotalElements();
+
+            // canceled는 total에서 계산
+            canceled = total - (pending + preparing + shipped + delivered);
+            if (canceled < 0) canceled = 0;
+
+        } catch (Exception e) {
+            log.error("주문 요약 정보 계산 중 오류 발생 - artistId: {}", artistId, e);
         }
 
         return new ArtistOrderResponse.Summary(total, pending, preparing, shipped, delivered, canceled);

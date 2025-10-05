@@ -49,6 +49,7 @@ public class AdminDashboardServiceImpl implements AdminDashboardService {
     private final UserRepository userRepository;
     private final FundingRepository fundingRepository;
     private final ArtistApplicationRepository artistApplicationRepository;
+    private final com.back.domain.product.category.repository.CategoryRepository categoryRepository;
 
     /**
      * SecurityContext에서 인증된 관리자 정보를 추출하고 권한을 검증하는 헬퍼 메서드
@@ -137,8 +138,7 @@ public class AdminDashboardServiceImpl implements AdminDashboardService {
                                 new AdminOverviewResponse.DeltaInfo(0L, 0.0)
                         )
                 ),
-                new AdminOverviewResponse.CategoryDistribution(LocalDate.now().toString(), (int) totalProducts,
-                        List.of()) // TODO: 카테고리별 집계
+                calculateCategoryDistribution((int) totalProducts) // 실제 카테고리별 집계
         );
 
         // 승인 대기 알림 - 실제 데이터
@@ -768,6 +768,71 @@ public class AdminDashboardServiceImpl implements AdminDashboardService {
                         application.isPending()  // 대기중일 때만 거절 가능
                 )
         );
+    }
+
+    /**
+     * 카테고리별 상품 분포 계산 (실제 DB 연동)
+     */
+    private AdminOverviewResponse.CategoryDistribution calculateCategoryDistribution(int totalProducts) {
+        try {
+            // 모든 상위 카테고리 조회
+            List<com.back.domain.product.category.entity.Category> topCategories = 
+                    categoryRepository.findAllByParentIdIsNull();
+
+            if (topCategories.isEmpty()) {
+                log.warn("카테고리가 존재하지 않습니다.");
+                return new AdminOverviewResponse.CategoryDistribution(
+                        LocalDate.now().toString(), 
+                        totalProducts, 
+                        List.of()
+                );
+            }
+
+            // 카테고리별 상품 수 집계
+            List<AdminOverviewResponse.CategoryBucket> buckets = new ArrayList<>();
+
+            for (com.back.domain.product.category.entity.Category category : topCategories) {
+                // 해당 카테고리의 삭제되지 않은 상품 수 조회
+                long count = productRepository.countByCategoryAndIsDeletedFalse(category);
+                
+                // 하위 카테고리의 상품도 합산
+                for (com.back.domain.product.category.entity.Category subCategory : category.getSubCategories()) {
+                    count += productRepository.countByCategoryAndIsDeletedFalse(subCategory);
+                }
+
+                if (count > 0) {
+                    // 점유율 계산
+                    double share = totalProducts > 0 ? (count * 100.0 / totalProducts) : 0.0;
+
+                    buckets.add(new AdminOverviewResponse.CategoryBucket(
+                            category.getId(),
+                            category.getCategoryName(),
+                            (int) count,
+                            share
+                    ));
+                }
+            }
+
+            // 점유율 높은 순으로 정렬
+            buckets.sort((a, b) -> Double.compare(b.share(), a.share()));
+
+            log.info("카테고리별 분포 계산 완료 - 총 {}개 카테고리, 전체 상품 {}개", 
+                    buckets.size(), totalProducts);
+
+            return new AdminOverviewResponse.CategoryDistribution(
+                    LocalDate.now().toString(), 
+                    totalProducts, 
+                    buckets
+            );
+
+        } catch (Exception e) {
+            log.error("카테고리별 분포 계산 중 오류 발생", e);
+            return new AdminOverviewResponse.CategoryDistribution(
+                    LocalDate.now().toString(), 
+                    totalProducts, 
+                    List.of()
+            );
+        }
     }
 
     @Override
