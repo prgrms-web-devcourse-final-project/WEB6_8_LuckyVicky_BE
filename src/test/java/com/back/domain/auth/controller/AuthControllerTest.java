@@ -1,17 +1,5 @@
 package com.back.domain.auth.controller;
 
-import com.back.domain.auth.controller.AuthController;
-import com.back.domain.auth.dto.request.TokenRefreshRequest;
-import com.back.domain.auth.dto.response.AuthResponse;
-import com.back.domain.user.entity.Role;
-import com.back.global.exception.ServiceException;
-import com.back.global.rsData.RsData;
-import org.junit.jupiter.api.DisplayName;
-import org.junit.jupiter.api.Test;
-import org.springframework.http.ResponseEntity;
-
-import java.util.List;
-
 import com.back.domain.auth.dto.request.LoginRequest;
 import com.back.domain.auth.dto.request.SignUpRequest;
 import com.back.domain.auth.dto.request.TokenRefreshRequest;
@@ -19,6 +7,7 @@ import com.back.domain.auth.dto.response.AuthResponse;
 import com.back.domain.auth.dto.response.SignUpResponse;
 import com.back.domain.auth.service.AuthService;
 import com.back.domain.user.entity.Role;
+import com.back.global.exception.ServiceException;
 import com.back.global.rsData.RsData;
 import com.back.global.security.auth.CustomUserDetails;
 import jakarta.servlet.http.HttpServletRequest;
@@ -357,145 +346,196 @@ class AuthControllerTest {
     class LogoutTest {
 
         @Test
-        @DisplayName("정상적인 로그아웃 요청 성공")
-        void logout_Success() {
+        @DisplayName("쿠키에 RefreshToken이 있는 경우 정상 로그아웃")
+        void logout_WithRefreshTokenCookie_Success() {
             // given
-            TokenRefreshRequest request = new TokenRefreshRequest("validRefreshToken");
+            String refreshToken = "validRefreshToken";
 
             // when
-            ResponseEntity<RsData<Void>> response = authController.logout(request);
+            ResponseEntity<RsData<Void>> response = authController.logout(refreshToken);
 
             // then
             assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
             assertThat(response.getBody().resultCode()).isEqualTo("200");
             assertThat(response.getBody().msg()).isEqualTo("로그아웃 성공");
             assertThat(response.getBody().data()).isNull();
+            assertThat(response.getHeaders().get("Set-Cookie")).isNotNull();
 
             verify(authService).logout("validRefreshToken");
         }
 
         @Test
-        @DisplayName("다양한 형태의 RefreshToken으로 로그아웃 처리")
-        void logout_DifferentTokenFormats() {
+        @DisplayName("쿠키에 RefreshToken이 없는 경우에도 로그아웃 성공 (쿠키만 삭제)")
+        void logout_WithoutRefreshTokenCookie_Success() {
+            // given - RefreshToken이 null인 경우
+
+            // when
+            ResponseEntity<RsData<Void>> response = authController.logout(null);
+
+            // then
+            assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
+            assertThat(response.getBody().resultCode()).isEqualTo("200");
+            assertThat(response.getBody().msg()).isEqualTo("로그아웃 성공");
+            assertThat(response.getBody().data()).isNull();
+            assertThat(response.getHeaders().get("Set-Cookie")).isNotNull();
+
+            // RefreshToken이 없으면 authService.logout()이 호출되지 않음
+            verify(authService, never()).logout(any());
+        }
+
+        @Test
+        @DisplayName("빈 문자열 RefreshToken인 경우 로그아웃 (쿠키만 삭제)")
+        void logout_WithEmptyRefreshToken_Success() {
             // given
-            String[] tokens = {
+            String emptyRefreshToken = "";
+
+            // when
+            ResponseEntity<RsData<Void>> response = authController.logout(emptyRefreshToken);
+
+            // then
+            assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
+            assertThat(response.getBody().resultCode()).isEqualTo("200");
+            assertThat(response.getBody().msg()).isEqualTo("로그아웃 성공");
+            assertThat(response.getHeaders().get("Set-Cookie")).isNotNull();
+
+            // 빈 문자열이면 authService.logout()이 호출되지 않음
+            verify(authService, never()).logout(any());
+        }
+
+        @Test
+        @DisplayName("공백 문자열 RefreshToken인 경우 로그아웃 (쿠키만 삭제)")
+        void logout_WithBlankRefreshToken_Success() {
+            // given
+            String blankRefreshToken = "   ";
+
+            // when
+            ResponseEntity<RsData<Void>> response = authController.logout(blankRefreshToken);
+
+            // then
+            assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
+            assertThat(response.getBody().resultCode()).isEqualTo("200");
+            assertThat(response.getBody().msg()).isEqualTo("로그아웃 성공");
+            assertThat(response.getHeaders().get("Set-Cookie")).isNotNull();
+
+            // 공백 문자열이면 authService.logout()이 호출되지 않음
+            verify(authService, never()).logout(any());
+        }
+
+        @Test
+        @DisplayName("다양한 형태의 유효한 RefreshToken으로 로그아웃")
+        void logout_WithVariousValidTokens_Success() {
+            // given
+            String[] validTokens = {
                     "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJzdWI.signature",
                     "shortToken123",
                     "veryLongTokenWith1234567890AbcdefghijklmnopqrstuvwxyzMore",
                     "token-with-dashes-and-underscores_123"
             };
 
-            for (String token : tokens) {
-                TokenRefreshRequest request = new TokenRefreshRequest(token);
-
+            for (String token : validTokens) {
                 // when
-                ResponseEntity<RsData<Void>> response = authController.logout(request);
+                ResponseEntity<RsData<Void>> response = authController.logout(token);
 
                 // then
                 assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
                 verify(authService).logout(token);
             }
 
-            verify(authService, times(tokens.length)).logout(anyString());
+            verify(authService, times(validTokens.length)).logout(anyString());
         }
 
         @Test
         @DisplayName("로그아웃 응답에 쿠키 삭제 헤더가 포함되는지 확인")
-        void logout_ResponseContainsCookieDeletion() {
+        void logout_ResponseContainsCookieDeletionHeaders() {
             // given
-            TokenRefreshRequest request = new TokenRefreshRequest("validRefreshToken");
+            String refreshToken = "validRefreshToken";
 
             // when
-            ResponseEntity<RsData<Void>> response = authController.logout(request);
+            ResponseEntity<RsData<Void>> response = authController.logout(refreshToken);
 
             // then
             assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
             assertThat(response.getHeaders().get("Set-Cookie")).isNotNull();
-            // Set-Cookie 헤더로 쿠키 삭제(MaxAge=0) 헤더가 추가됨을 확인
+            assertThat(response.getHeaders().get("Set-Cookie").size()).isEqualTo(2);
+            // refreshToken과 accessToken 쿠키 삭제 헤더 2개 포함됨
         }
 
         @Test
-        @DisplayName("빈 문자열 토큰으로 로그아웃 시도")
-        void logout_EmptyToken() {
+        @DisplayName("동일한 RefreshToken으로 연속 로그아웃 요청")
+        void logout_ConsecutiveRequestsWithSameToken() {
             // given
-            TokenRefreshRequest request = new TokenRefreshRequest("");
+            String refreshToken = "sameToken";
 
             // when
-            ResponseEntity<RsData<Void>> response = authController.logout(request);
-
-            // then
-            assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
-            // Controller는 빈 문자열도 그대로 Service에 전달
-            verify(authService).logout("");
-        }
-
-        @Test
-        @DisplayName("공백으로만 이루어진 토큰으로 로그아웃 시도")
-        void logout_WhitespaceToken() {
-            // given
-            TokenRefreshRequest request = new TokenRefreshRequest("   ");
-
-            // when
-            ResponseEntity<RsData<Void>> response = authController.logout(request);
-
-            // then
-            assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
-            verify(authService).logout("   ");
-        }
-
-        @Test
-        @DisplayName("연속 로그아웃 요청 처리")
-        void logout_MultipleLogoutRequests() {
-            // given
-            TokenRefreshRequest request1 = new TokenRefreshRequest("token1");
-            TokenRefreshRequest request2 = new TokenRefreshRequest("token2");
-            TokenRefreshRequest request3 = new TokenRefreshRequest("token3");
-
-            // when
-            ResponseEntity<RsData<Void>> response1 = authController.logout(request1);
-            ResponseEntity<RsData<Void>> response2 = authController.logout(request2);
-            ResponseEntity<RsData<Void>> response3 = authController.logout(request3);
+            ResponseEntity<RsData<Void>> response1 = authController.logout(refreshToken);
+            ResponseEntity<RsData<Void>> response2 = authController.logout(refreshToken);
 
             // then
             assertThat(response1.getStatusCode()).isEqualTo(HttpStatus.OK);
             assertThat(response2.getStatusCode()).isEqualTo(HttpStatus.OK);
-            assertThat(response3.getStatusCode()).isEqualTo(HttpStatus.OK);
-
-            verify(authService).logout("token1");
-            verify(authService).logout("token2");
-            verify(authService).logout("token3");
-            verify(authService, times(3)).logout(anyString());
-        }
-
-        @Test
-        @DisplayName("동일한 토큰으로 중복 로그아웃 요청")
-        void logout_DuplicateLogoutRequests() {
-            // given
-            TokenRefreshRequest request = new TokenRefreshRequest("sameToken");
-
-            // when
-            ResponseEntity<RsData<Void>> response1 = authController.logout(request);
-            ResponseEntity<RsData<Void>> response2 = authController.logout(request);
-
-            // then
-            assertThat(response1.getStatusCode()).isEqualTo(HttpStatus.OK);
-            assertThat(response2.getStatusCode()).isEqualTo(HttpStatus.OK);
-            // Controller는 중복 요청도 동일하게 처리
             verify(authService, times(2)).logout("sameToken");
+        }
+
+        @Test
+        @DisplayName("여러 사용자의 동시 로그아웃 요청 처리")
+        void logout_MultipleConcurrentUsers() {
+            // given
+            String[] userTokens = {"userToken1", "userToken2", "userToken3"};
+
+            for (String token : userTokens) {
+                // when
+                ResponseEntity<RsData<Void>> response = authController.logout(token);
+
+                // then
+                assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
+                assertThat(response.getBody().msg()).isEqualTo("로그아웃 성공");
+                verify(authService).logout(token);
+            }
+
+            verify(authService, times(userTokens.length)).logout(anyString());
         }
 
         @Test
         @DisplayName("로그아웃 후 응답 데이터가 null인지 확인")
         void logout_ResponseDataIsNull() {
             // given
-            TokenRefreshRequest request = new TokenRefreshRequest("validRefreshToken");
+            String refreshToken = "validRefreshToken";
 
             // when
-            ResponseEntity<RsData<Void>> response = authController.logout(request);
+            ResponseEntity<RsData<Void>> response = authController.logout(refreshToken);
 
             // then
             assertThat(response.getBody().data()).isNull();
-            // Void 타입이므로 data는 항상 null이어야 함
+            // Void 타입이므로 data는 항상 null
+        }
+
+        @Test
+        @DisplayName("만료된 RefreshToken으로도 쿠키 삭제는 정상 수행")
+        void logout_WithExpiredToken_StillDeletesCookies() {
+            // given
+            String expiredToken = "expiredRefreshToken";
+            // Service에서 만료된 토큰 처리 시 예외가 발생할 수 있지만
+            // Controller는 쿠키 삭제를 정상 수행해야 함
+
+            // when
+            ResponseEntity<RsData<Void>> response = authController.logout(expiredToken);
+
+            // then
+            assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
+            assertThat(response.getHeaders().get("Set-Cookie")).isNotNull();
+            // 쿠키 삭제는 토큰 유효성과 관계없이 항상 수행됨
+        }
+
+        @Test
+        @DisplayName("RefreshToken이 null이어도 HTTP 200 응답")
+        void logout_NullToken_Returns200() {
+            // when
+            ResponseEntity<RsData<Void>> response = authController.logout(null);
+
+            // then
+            assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
+            assertThat(response.getBody().resultCode()).isEqualTo("200");
+            assertThat(response.getBody().msg()).isEqualTo("로그아웃 성공");
         }
     }
 
