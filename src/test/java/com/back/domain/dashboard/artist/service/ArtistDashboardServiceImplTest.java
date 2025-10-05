@@ -341,6 +341,137 @@ class ArtistDashboardServiceImplTest {
         );
     }
 
+    // ==================== 메인 대시보드 통계/트렌드 테스트 ====================
+
+    @Test
+    @DisplayName("메인 대시보드 통계 조회 - 기본 통계 및 팔로우 처리 검증")
+    void getMainStats_BasicStats() {
+        // Given
+        User mockArtist = createMockUser(TEST_ARTIST_ID, "작가");
+        com.back.domain.artist.entity.ArtistProfile mockProfile = createMockArtistProfileWithStats(
+                mockArtist, 150, 10  // followerCount, productCount
+        );
+
+        com.back.domain.dashboard.artist.dto.DashboardStatsDto mockStats =
+                new com.back.domain.dashboard.artist.dto.DashboardStatsDto(
+                        3L,        // 오늘 주문 건수
+                        150000L,   // 오늘 매출
+                        50L,       // 총 주문 건수
+                        5000000L   // 총 매출
+                );
+
+        when(artistProfileRepository.findByUserId(TEST_ARTIST_ID))
+                .thenReturn(java.util.Optional.of(mockProfile));
+        when(orderRepository.getArtistDashboardStats(eq(TEST_ARTIST_ID), any(), any()))
+                .thenReturn(mockStats);
+        when(orderRepository.findOrdersByArtist(
+                eq(TEST_ARTIST_ID),
+                eq(com.back.domain.order.order.entity.OrderStatus.PAYMENT_COMPLETED),
+                isNull(), isNull(), isNull(),
+                any(PageRequest.class)))
+                .thenReturn(new PageImpl<>(List.of(), PageRequest.of(0, 1), 5)); // 5건 대기중
+
+        // 트렌드 데이터 모킹 (빈 데이터)
+        when(orderRepository.findDailyTrendsByArtist(eq(TEST_ARTIST_ID), any(), any()))
+                .thenReturn(List.of());
+
+        ArtistMainStatsRequest request = new ArtistMainStatsRequest("30D", null, null, null, "Asia/Seoul");
+
+        // When
+        ArtistMainResponse result = artistDashboardService.getMainStats(TEST_ARTIST_ID, request);
+
+        // Then - 프로필 정보
+        assertAll(
+                () -> assertThat(result.profile().userId()).isEqualTo(TEST_ARTIST_ID),
+                () -> assertThat(result.profile().nickname()).isEqualTo("작가")
+        );
+
+        // Then - 통계 정보 (팔로우는 고정값, 나머지는 DB 조회)
+        assertAll(
+                () -> assertThat(result.stats().followerCount()).isEqualTo(150),  // 프로필에서 조회
+                () -> assertThat(result.stats().productCount()).isEqualTo(10),    // 프로필에서 조회
+                () -> assertThat(result.stats().todaysSales()).isEqualTo(150000), // DB 조회
+                () -> assertThat(result.stats().todaysOrders()).isEqualTo(3),     // DB 조회
+                () -> assertThat(result.stats().totalSales()).isEqualTo(5000000), // DB 조회
+                () -> assertThat(result.stats().totalOrders()).isEqualTo(50),     // DB 조회
+                () -> assertThat(result.stats().pendingOrders()).isEqualTo(5)     // DB 조회
+        );
+    }
+
+    @Test
+    @DisplayName("메인 대시보드 트렌드 조회 - 일별 매출/주문 집계 검증")
+    void getMainStats_DailyTrends() {
+        // Given
+        User mockArtist = createMockUser(TEST_ARTIST_ID, "작가");
+        com.back.domain.artist.entity.ArtistProfile mockProfile = createMockArtistProfileWithStats(mockArtist, 0, 0);
+
+        // 7일간의 트렌드 데이터
+        List<com.back.domain.dashboard.artist.dto.DailyTrendDto> dailyTrends = List.of(
+                new com.back.domain.dashboard.artist.dto.DailyTrendDto(
+                        java.time.LocalDate.now().minusDays(6), 5L, 250000L),
+                new com.back.domain.dashboard.artist.dto.DailyTrendDto(
+                        java.time.LocalDate.now().minusDays(5), 3L, 150000L),
+                new com.back.domain.dashboard.artist.dto.DailyTrendDto(
+                        java.time.LocalDate.now().minusDays(4), 8L, 400000L),
+                new com.back.domain.dashboard.artist.dto.DailyTrendDto(
+                        java.time.LocalDate.now().minusDays(3), 2L, 100000L),
+                new com.back.domain.dashboard.artist.dto.DailyTrendDto(
+                        java.time.LocalDate.now().minusDays(2), 6L, 300000L),
+                new com.back.domain.dashboard.artist.dto.DailyTrendDto(
+                        java.time.LocalDate.now().minusDays(1), 4L, 200000L),
+                new com.back.domain.dashboard.artist.dto.DailyTrendDto(
+                        java.time.LocalDate.now(), 7L, 350000L)
+        );
+
+        // 비교 기간 데이터
+        List<com.back.domain.dashboard.artist.dto.DailyTrendDto> compareTrends = List.of(
+                new com.back.domain.dashboard.artist.dto.DailyTrendDto(
+                        java.time.LocalDate.now().minusDays(13), 3L, 150000L),
+                new com.back.domain.dashboard.artist.dto.DailyTrendDto(
+                        java.time.LocalDate.now().minusDays(12), 4L, 200000L)
+        );
+
+        when(artistProfileRepository.findByUserId(TEST_ARTIST_ID))
+                .thenReturn(java.util.Optional.of(mockProfile));
+        when(orderRepository.getArtistDashboardStats(eq(TEST_ARTIST_ID), any(), any()))
+                .thenReturn(com.back.domain.dashboard.artist.dto.DashboardStatsDto.empty());
+        when(orderRepository.findOrdersByArtist(any(), any(), any(), any(), any(), any()))
+                .thenReturn(new PageImpl<>(List.of()));
+
+        // 첫 번째 호출: 현재 기간 트렌드
+        // 두 번째 호출: 비교 기간 트렌드
+        when(orderRepository.findDailyTrendsByArtist(eq(TEST_ARTIST_ID), any(), any()))
+                .thenReturn(dailyTrends)
+                .thenReturn(compareTrends);
+
+        ArtistMainStatsRequest request = new ArtistMainStatsRequest("7D", null, null, null, "Asia/Seoul");
+
+        // When
+        ArtistMainResponse result = artistDashboardService.getMainStats(TEST_ARTIST_ID, request);
+
+        // Then - 트렌드 시계열 데이터
+        ArtistMainResponse.Trends trends = result.trends();
+        
+        assertAll(
+                // 메타 정보
+                () -> assertThat(trends.meta().range()).isEqualTo("7D"),
+                () -> assertThat(trends.meta().interval()).isEqualTo("day"),
+                () -> assertThat(trends.meta().maxPoints()).isEqualTo(7),
+                
+                // 매출 시계열
+                () -> assertThat(trends.series().sales().points()).hasSize(7),
+                () -> assertThat(trends.series().sales().total()).isEqualTo(1750000), // 250k+150k+400k+100k+300k+200k+350k
+                
+                // 주문 수 시계열
+                () -> assertThat(trends.series().orders().points()).hasSize(7),
+                () -> assertThat(trends.series().orders().total()).isEqualTo(35), // 5+3+8+2+6+4+7
+                
+                // 팔로워 시계열 (빈 데이터)
+                () -> assertThat(trends.series().followers().points()).isEmpty(),
+                () -> assertThat(trends.series().followers().total()).isEqualTo(0)
+        );
+    }
+
     // ==================== 헬퍼 메서드 ====================
 
     private Product createMockProduct(Long id, String name, int price, int discountRate, SellingStatus status) {
@@ -422,6 +553,30 @@ class ArtistDashboardServiceImplTest {
                 .artistName("작가")
                 .bankAccount(accountNumber)
                 .build();
+    }
+
+    private com.back.domain.artist.entity.ArtistProfile createMockArtistProfileWithStats(
+            User user, int followerCount, int productCount) {
+        com.back.domain.artist.entity.ArtistProfile profile = 
+                com.back.domain.artist.entity.ArtistProfile.builder()
+                .user(user)
+                .artistName("작가")
+                .bankAccount("123-456-789012")
+                .build();
+
+        try {
+            java.lang.reflect.Field followerField = profile.getClass().getDeclaredField("followerCount");
+            followerField.setAccessible(true);
+            followerField.set(profile, followerCount);
+
+            java.lang.reflect.Field productField = profile.getClass().getDeclaredField("productCount");
+            productField.setAccessible(true);
+            productField.set(profile, productCount);
+        } catch (Exception e) {
+            throw new RuntimeException("Failed to set stats fields", e);
+        }
+
+        return profile;
     }
 
     private void setProductUser(Product product, User user) {
