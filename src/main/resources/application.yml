@@ -87,6 +87,7 @@ spring:
 app:
   cookie:
     secure: false
+    domain: localhost
   frontend-url: ${FRONTEND_URL:https://mori-mori.store}
 
 # JWT 설정 (.env 파일 없어도 동작하도록 기본값 제공)
