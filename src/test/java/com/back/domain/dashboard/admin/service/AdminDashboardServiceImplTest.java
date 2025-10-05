@@ -66,6 +66,9 @@ class AdminDashboardServiceImplTest {
     @Autowired
     private CategoryRepository categoryRepository;
 
+    @Autowired
+    private org.springframework.context.ApplicationContext applicationContext;
+
     private User artistUser;
     private User adminUser;
     private User customerUser;
@@ -297,6 +300,59 @@ class AdminDashboardServiceImplTest {
     }
 
     @Test
+    @DisplayName("매출/정산 조회 - 실제 집계 값 검증")
+    void getSettlements_WithRealOrders_VerifyCalculation() {
+        // Given - 간결하게 특정 월만 테스트
+        createOrderWithAmount(2025, 5, 1, 100_000);   // 5/1: 10만원
+        createOrderWithAmount(2025, 5, 10, 200_000);  // 5/10: 20만원
+        createOrderWithAmount(2025, 5, 20, 300_000);  // 5/20: 30만원
+
+        AdminSettlementRequest request = new AdminSettlementRequest(
+                2025, 5, "DAY", "Asia/Seoul" // 일별 조회로 변경 (H2 호환성 더 좋음)
+        );
+
+        // When
+        AdminSettlementResponse result = adminDashboardService.getSettlements(request);
+
+        // Then - 집계 값과 정산금 계산 검증
+        long expectedTotal = 600_000L;  // 총 60만원
+        long expectedArtist = 540_000L; // 90%
+        long expectedNet = 60_000L;     // 10%
+
+        assertAll(
+                () -> assertThat(result.scope().month()).isEqualTo(5),
+                () -> assertThat(result.summary().totalGrossSales()).isEqualTo(expectedTotal),
+                () -> assertThat(result.summary().totalArtistPayout()).isEqualTo(expectedArtist),
+                () -> assertThat(result.summary().totalNetIncome()).isEqualTo(expectedNet),
+                () -> assertThat(result.table()).hasSize(31), // 5월은 31일
+                () -> assertThat(result.chart().series().grossSales()).hasSize(31)
+        );
+    }
+
+    @Test
+    @DisplayName("매출/정산 조회 - 결제완료 상태만 집계")
+    void getSettlements_OnlyPaymentCompleted() {
+        // Given - PAYMENT_COMPLETED vs 다른 상태
+        createOrderWithStatus(2025, 6, 10, 100_000, com.back.domain.order.order.entity.OrderStatus.PAYMENT_COMPLETED);
+        createOrderWithStatus(2025, 6, 11, 200_000, com.back.domain.order.order.entity.OrderStatus.CANCELLATION_COMPLETED);
+        createOrderWithStatus(2025, 6, 12, 300_000, com.back.domain.order.order.entity.OrderStatus.REFUND_COMPLETED);
+
+        AdminSettlementRequest request = new AdminSettlementRequest(
+                2025, 6, "DAY", "Asia/Seoul"
+        );
+
+        // When
+        AdminSettlementResponse result = adminDashboardService.getSettlements(request);
+
+        // Then - PAYMENT_COMPLETED만 집계
+        assertAll(
+                () -> assertThat(result.summary().totalGrossSales()).isEqualTo(100_000L),
+                () -> assertThat(result.summary().totalArtistPayout()).isEqualTo(90_000L),
+                () -> assertThat(result.summary().totalNetIncome()).isEqualTo(10_000L)
+        );
+    }
+
+    @Test
     @DisplayName("펀딩 목록 조회 - 실제 DB 데이터로 검증")
     void getFundings_WithRealData() {
         // Given - TestInitData에 이미 펀딩 존재
@@ -510,5 +566,35 @@ class AdminDashboardServiceImplTest {
                 .businessAddressDetail("123동 456호")
                 .mainProducts("회화,조각")
                 .build();
+    }
+
+    /**
+     * 테스트용 주문 생성 헬퍼 - 금액 지정
+     */
+    private void createOrderWithAmount(int year, int month, int day, long amount) {
+        createOrderWithStatus(year, month, day, amount,
+                com.back.domain.order.order.entity.OrderStatus.PAYMENT_COMPLETED);
+    }
+
+    /**
+     * 테스트용 주문 생성 헬퍼 - 상태 지정
+     */
+    private void createOrderWithStatus(int year, int month, int day, long amount,
+                                      com.back.domain.order.order.entity.OrderStatus status) {
+        com.back.domain.order.order.entity.Order order = com.back.domain.order.order.entity.Order.builder()
+                .user(customerUser)
+                .orderNumber("TEST-" + System.nanoTime())
+                .status(status)
+                .totalQuantity(1)
+                .totalAmount(java.math.BigDecimal.valueOf(amount))
+                .shippingFee(java.math.BigDecimal.ZERO)
+                .finalAmount(java.math.BigDecimal.valueOf(amount))
+                .paymentMethod(com.back.domain.order.order.entity.PaymentMethod.CARD)
+                .orderDate(java.time.LocalDateTime.of(year, month, day, 12, 0))
+                .build();
+
+        com.back.domain.order.order.repository.OrderRepository orderRepository =
+                applicationContext.getBean(com.back.domain.order.order.repository.OrderRepository.class);
+        orderRepository.save(order);
     }
 }
