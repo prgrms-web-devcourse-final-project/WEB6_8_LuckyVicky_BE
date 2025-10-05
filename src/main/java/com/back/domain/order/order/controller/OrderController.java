@@ -116,6 +116,20 @@ public class OrderController {
     }
 
     /**
+     * 주문 취소 승인 (관리자용)
+     */
+    @PutMapping("/{orderId}/cancel/approve")
+    @PreAuthorize("hasAuthority('ROLE_ADMIN') or hasAuthority('ROLE_ROOT')")
+    @Operation(summary = "주문 취소 승인", description = "관리자가 주문 취소를 승인합니다. (관리자 전용)")
+    public ResponseEntity<Void> approveOrderCancellation(
+            @PathVariable Long orderId,
+            @AuthenticationPrincipal User admin
+    ) {
+        orderService.approveOrderCancellation(orderId, admin);
+        return ResponseEntity.ok().build();
+    }
+
+    /**
      * 주문 상태 변경 (관리자용)
      */
     @PatchMapping("/{orderId}/status")

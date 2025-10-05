@@ -831,7 +831,6 @@ public class AdminDashboardServiceImpl implements AdminDashboardService {
             for (com.back.domain.product.category.entity.Category category : topCategories) {
                 // 해당 카테고리의 삭제되지 않은 상품 수 조회
                 long count = productRepository.countByCategoryAndIsDeletedFalse(category);
-
                 // 하위 카테고리의 상품도 합산
                 for (com.back.domain.product.category.entity.Category subCategory : category.getSubCategories()) {
                     count += productRepository.countByCategoryAndIsDeletedFalse(subCategory);

@@ -1,6 +1,7 @@
 package com.back.domain.funding.controller;
 
 import com.back.domain.funding.dto.request.FundingCreateRequest;
+import com.back.domain.funding.dto.request.FundingUpdateRequest;
 import com.back.domain.funding.dto.response.FundingCardDto;
 import com.back.domain.funding.dto.response.FundingCreateResponse;
 import com.back.domain.funding.dto.response.FundingDetailResponse;
@@ -89,5 +90,17 @@ public class FundingController {
 
         RsData<Page<FundingCardDto>> body = RsData.of("200", "펀딩 목록 조회 성공", fundingList);
         return ResponseEntity.ok(body);
+    }
+
+    @PatchMapping("/{id}")
+    @Operation(summary = "펀딩 수정", description = "펀딩을 수정합니다. 목표 금액은 참여자가 없을 때만 수정할 수 있습니다.")
+    @PreAuthorize("hasAuthority('ROLE_ARTIST') or hasAuthority('ROLE_ADMIN') or hasAuthority('ROLE_ROOT')")
+    public ResponseEntity<RsData<FundingDetailResponse>> updateFunding(
+            @PathVariable @Positive Long id,
+            @RequestBody FundingUpdateRequest request,
+            @AuthenticationPrincipal(expression = "username") String userEmail) {
+        fundingService.updateFunding(id, userEmail, request);
+        FundingDetailResponse updatedFunding = fundingService.getFunding(id);
+        return ResponseEntity.ok(new RsData<>("200", "펀딩이 수정되었습니다.", updatedFunding));
     }
 }

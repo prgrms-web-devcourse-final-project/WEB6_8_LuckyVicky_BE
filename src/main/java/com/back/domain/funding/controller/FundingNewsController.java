@@ -2,7 +2,6 @@ package com.back.domain.funding.controller;
 
 import com.back.domain.funding.dto.request.FundingNewsCreateRequest;
 import com.back.domain.funding.service.FundingNewsService;
-import com.back.domain.funding.service.FundingService;
 import com.back.global.rsData.RsData;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -20,7 +19,6 @@ import org.springframework.web.bind.annotation.*;
 @RequiredArgsConstructor
 @Tag(name = "펀딩 새소식", description = "펀딩 새소식 API 컨트롤러")
 public class FundingNewsController{
-    private final FundingService fundingService;
     private final FundingNewsService fundingNewsService;
 
     @PostMapping("/{id}/news")
