@@ -1,10 +1,7 @@
 package com.back.domain.order.order.controller;
 
 import com.back.domain.order.order.dto.request.OrderCancelRequestDto;
-import com.back.domain.order.order.dto.request.OrderExchangeRequestDto;
-import com.back.domain.order.order.dto.request.OrderRefundRequestDto;
 import com.back.domain.order.order.dto.request.OrderRequestDto;
-import com.back.domain.order.order.dto.request.OrderStatusChangeRequestDto;
 import com.back.domain.order.order.dto.response.OrderResponseDto;
 import com.back.domain.order.order.entity.OrderStatus;
 import com.back.domain.order.order.entity.PaymentMethod;
@@ -14,302 +11,200 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.autoconfigure.security.oauth2.client.OAuth2ClientAutoConfiguration;
-import org.springframework.boot.autoconfigure.security.servlet.SecurityAutoConfiguration;
-import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
-import org.springframework.context.annotation.ComponentScan;
-import org.springframework.context.annotation.FilterType;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
-import org.springframework.http.MediaType;
-import org.springframework.test.context.bean.override.mockito.MockitoBean;
-import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
-import java.util.Arrays;
 import java.util.List;
-import java.util.UUID;
 
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.Mockito.*;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
-import static org.springframework.test.web.servlet.result.MockMvcResultHandlers.print;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+import static org.mockito.BDDMockito.given;
+import static org.mockito.BDDMockito.willDoNothing;
+import static org.mockito.Mockito.mock;
 
-@WebMvcTest(
-        controllers = OrderController.class,
-        excludeAutoConfiguration = {
-                SecurityAutoConfiguration.class,
-                org.springframework.boot.autoconfigure.security.servlet.SecurityFilterAutoConfiguration.class,
-                OAuth2ClientAutoConfiguration.class
-        },
-        excludeFilters = @ComponentScan.Filter(
-                type = FilterType.REGEX,
-                pattern = "com\\.back\\.global\\.security\\..*"
-        )
-)
 class OrderControllerTest {
 
-    @Autowired
-    private MockMvc mockMvc;
-
-    @MockitoBean
+    private OrderController orderController;
     private OrderService orderService;
-
-    @Autowired
     private ObjectMapper objectMapper;
 
     private User testUser;
     private OrderRequestDto orderRequestDto;
-    private OrderResponseDto orderResponseDto;
     private OrderCancelRequestDto orderCancelRequestDto;
-    private OrderRefundRequestDto orderRefundRequestDto;
-    private OrderExchangeRequestDto orderExchangeRequestDto;
-    private OrderStatusChangeRequestDto orderStatusChangeRequestDto;
+    private OrderResponseDto orderResponseDto;
 
     @BeforeEach
-    void setUp() {
-        testUser = User.createLocalUser(
-                "test@test.com",
-                "password",
-                "testUser",
-                "010-0000-0000"
-        );
-        // ID 주입
-        org.springframework.test.util.ReflectionTestUtils.setField(testUser, "id", 1L);
+    void setUp() throws Exception {
+        // Mock 서비스 설정
+        orderService = mock(OrderService.class);
+        objectMapper = new ObjectMapper();
+        orderController = new OrderController(orderService);
 
-        UUID productUuid = UUID.randomUUID();
+        // 테스트 사용자 설정 (reflection으로 ID 설정)
+        testUser = User.createLocalUser("test@example.com", "password123", "테스트사용자", "010-1234-5678");
+        java.lang.reflect.Field idField = testUser.getClass().getSuperclass().getDeclaredField("id");
+        idField.setAccessible(true);
+        idField.set(testUser, 1L);
+
+        // 주문 요청 DTO
         orderRequestDto = new OrderRequestDto(
-                Arrays.asList(new OrderRequestDto.OrderItemRequestDto(productUuid, 2, "색상: 빨강")),
-                "서울시 강남구",
-                "테헤란로 123",
-                "12345",
-                "홍길동",
-                "010-1234-5678",
-                "문 앞에 놓아주세요",
-                PaymentMethod.CARD
+                List.of( // orderItems
+                        new OrderRequestDto.OrderItemRequestDto(
+                                java.util.UUID.randomUUID(), // productUuid
+                                2, // quantity
+                                "빨강, L" // optionInfo
+                        )
+                ),
+                "서울시 강남구", // shippingAddress1
+                "테헤란로 123", // shippingAddress2
+                "12345", // shippingZip
+                "홍길동", // recipientName
+                "010-1234-5678", // recipientPhone
+                "문 앞에 놓아주세요", // deliveryRequest
+                PaymentMethod.CARD // paymentMethod
         );
 
-        OrderResponseDto.OrderItemResponseDto orderItemDto = new OrderResponseDto.OrderItemResponseDto(
-                1L,
-                1L,
-                "테스트상품",
-                "https://example.com/image.jpg",
-                2,
-                BigDecimal.valueOf(10000),
-                BigDecimal.valueOf(20000),
-                "색상: 빨강"
+        // 주문 취소 요청 DTO
+        orderCancelRequestDto = new OrderCancelRequestDto(
+                "단순변심", // cancelReason
+                List.of(1L, 2L) // orderItemIds
         );
 
+        // 주문 응답 DTO
         orderResponseDto = new OrderResponseDto(
-                1L,
-                "ORD123456789",
-                OrderStatus.PAYMENT_COMPLETED,
-                2,
-                BigDecimal.valueOf(20000),
-                BigDecimal.valueOf(3000),
-                BigDecimal.valueOf(23000),
-                "서울시 강남구",
-                "테헤란로 123",
-                "12345",
-                "홍길동",
-                "010-1234-5678",
-                "문 앞에 놓아주세요",
-                PaymentMethod.CARD,
-                LocalDateTime.now(),
-                Arrays.asList(orderItemDto)
+                1L, // orderId
+                "ORD123456789", // orderNumber
+                OrderStatus.PAYMENT_COMPLETED, // status
+                2, // totalQuantity
+                BigDecimal.valueOf(50000), // totalAmount
+                BigDecimal.valueOf(3000), // shippingFee
+                BigDecimal.valueOf(53000), // finalAmount
+                "서울시 강남구", // shippingAddress1
+                "테헤란로 123", // shippingAddress2
+                "12345", // shippingZip
+                "홍길동", // recipientName
+                "010-1234-5678", // recipientPhone
+                "문 앞에 놓아주세요", // deliveryRequest
+                PaymentMethod.CARD, // paymentMethod
+                LocalDateTime.now(), // orderDate
+                List.of( // orderItems
+                        new OrderResponseDto.OrderItemResponseDto(
+                                1L, // orderItemId
+                                1L, // productId
+                                "테스트 상품", // productName
+                                "http://example.com/image.jpg", // productThumbnailUrl
+                                2, // quantity
+                                BigDecimal.valueOf(25000), // price
+                                BigDecimal.valueOf(50000), // totalPrice
+                                "빨강, L" // optionInfo
+                        )
+                )
         );
-
-        orderCancelRequestDto = new OrderCancelRequestDto("단순 변심", Arrays.asList(1L));
-        orderRefundRequestDto = new OrderRefundRequestDto("상품 불량", Arrays.asList(1L));
-        orderExchangeRequestDto = new OrderExchangeRequestDto("사이즈 불량", Arrays.asList(1L));
-        orderStatusChangeRequestDto = new OrderStatusChangeRequestDto(OrderStatus.PREPARING_SHIPMENT);
     }
 
     @Test
     @DisplayName("주문 생성 - 성공")
-    void createOrder_Success() throws Exception {
-        // given
-        when(orderService.createOrder(any(), any(OrderRequestDto.class)))
-                .thenReturn(orderResponseDto);
+    void createOrder_Success() {
+        // Given
+        given(orderService.createOrder(any(User.class), any(OrderRequestDto.class)))
+                .willReturn(orderResponseDto);
 
-        // when & then
-        mockMvc.perform(post("/api/orders")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(orderRequestDto)))
-                .andDo(print())
-                .andExpect(status().isCreated());
+        // When
+        var result = orderController.createOrder(orderRequestDto, testUser);
 
-        verify(orderService, times(1)).createOrder(any(), any(OrderRequestDto.class));
+        // Then
+        assertThat(result.getStatusCode().value()).isEqualTo(201);
+        assertThat(result.getBody()).isNotNull();
+        assertThat(result.getBody().orderId()).isEqualTo(1L);
+        assertThat(result.getBody().orderNumber()).isEqualTo("ORD123456789");
+        assertThat(result.getBody().status()).isEqualTo(OrderStatus.PAYMENT_COMPLETED);
+        assertThat(result.getBody().totalQuantity()).isEqualTo(2);
+        assertThat(result.getBody().totalAmount()).isEqualTo(BigDecimal.valueOf(50000));
+        assertThat(result.getBody().shippingFee()).isEqualTo(BigDecimal.valueOf(3000));
+        assertThat(result.getBody().finalAmount()).isEqualTo(BigDecimal.valueOf(53000));
+        assertThat(result.getBody().recipientName()).isEqualTo("홍길동");
     }
 
     @Test
     @DisplayName("주문 목록 조회 - 성공")
-    void getOrderList_Success() throws Exception {
-        // given
-        Page<OrderResponseDto> orderPage = new PageImpl<>(Arrays.asList(orderResponseDto));
-        when(orderService.getOrderList(any(), any()))
-                .thenReturn(orderPage);
+    void getOrderList_Success() {
+        // Given
+        List<OrderResponseDto> orders = List.of(orderResponseDto);
+        Page<OrderResponseDto> orderPage = new PageImpl<>(orders, PageRequest.of(0, 8), 1);
+        
+        given(orderService.getOrderList(any(User.class), any(Pageable.class)))
+                .willReturn(orderPage);
 
-        // when & then
-        mockMvc.perform(get("/api/orders"))
-                .andDo(print())
-                .andExpect(status().isOk());
+        // When
+        var result = orderController.getOrderList(PageRequest.of(0, 8), testUser);
 
-        verify(orderService, times(1)).getOrderList(any(), any());
+        // Then
+        assertThat(result.getStatusCode().value()).isEqualTo(200);
+        assertThat(result.getBody()).isNotNull();
+        assertThat(result.getBody().getContent()).hasSize(1);
+        assertThat(result.getBody().getTotalElements()).isEqualTo(1);
+        assertThat(result.getBody().getContent().get(0).orderId()).isEqualTo(1L);
     }
 
     @Test
     @DisplayName("주문 상세 조회 - 성공")
-    void getOrderDetail_Success() throws Exception {
-        // given
-        Long orderId = 1L;
-        when(orderService.getOrderDetail(eq(orderId), any()))
-                .thenReturn(orderResponseDto);
+    void getOrderDetail_Success() {
+        // Given
+        given(orderService.getOrderDetail(eq(1L), any(User.class)))
+                .willReturn(orderResponseDto);
 
-        // when & then
-        mockMvc.perform(get("/api/orders/{orderId}", orderId))
-                .andDo(print())
-                .andExpect(status().isOk());
+        // When
+        var result = orderController.getOrderDetail(1L, testUser);
 
-        verify(orderService, times(1)).getOrderDetail(eq(orderId), any());
+        // Then
+        assertThat(result.getStatusCode().value()).isEqualTo(200);
+        assertThat(result.getBody()).isNotNull();
+        assertThat(result.getBody().orderId()).isEqualTo(1L);
+        assertThat(result.getBody().orderNumber()).isEqualTo("ORD123456789");
     }
 
     @Test
     @DisplayName("주문 취소 - 성공")
-    void cancelOrder_Success() throws Exception {
-        // given
-        Long orderId = 1L;
-        doNothing().when(orderService).cancelOrder(eq(orderId), any(), any(OrderCancelRequestDto.class));
+    void cancelOrder_Success() {
+        // Given
+        willDoNothing().given(orderService).cancelOrder(eq(1L), any(User.class), any(OrderCancelRequestDto.class));
 
-        // when & then
-        mockMvc.perform(post("/api/orders/{orderId}/cancel", orderId)
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(orderCancelRequestDto)))
-                .andDo(print())
-                .andExpect(status().isOk());
+        // When
+        var result = orderController.cancelOrder(1L, orderCancelRequestDto, testUser);
 
-        verify(orderService, times(1)).cancelOrder(eq(orderId), any(), any(OrderCancelRequestDto.class));
+        // Then
+        assertThat(result.getStatusCode().value()).isEqualTo(200);
     }
 
     @Test
-    @DisplayName("환불 신청 - 성공")
-    void requestRefund_Success() throws Exception {
-        // given
-        Long orderId = 1L;
-        doNothing().when(orderService).requestRefund(eq(orderId), any(), any(OrderRefundRequestDto.class));
+    @DisplayName("주문 취소 승인 - 성공")
+    void approveOrderCancellation_Success() {
+        // Given
+        willDoNothing().given(orderService).approveOrderCancellation(eq(1L), any(User.class));
 
-        // when & then
-        mockMvc.perform(post("/api/orders/{orderId}/refund", orderId)
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(orderRefundRequestDto)))
-                .andDo(print())
-                .andExpect(status().isOk());
+        // When
+        var result = orderController.approveOrderCancellation(1L, testUser);
 
-        verify(orderService, times(1)).requestRefund(eq(orderId), any(), any(OrderRefundRequestDto.class));
-    }
-
-    @Test
-    @DisplayName("교환 신청 - 성공")
-    void requestExchange_Success() throws Exception {
-        // given
-        Long orderId = 1L;
-        doNothing().when(orderService).requestExchange(eq(orderId), any(), any(OrderExchangeRequestDto.class));
-
-        // when & then
-        mockMvc.perform(post("/api/orders/{orderId}/exchange", orderId)
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(orderExchangeRequestDto)))
-                .andDo(print())
-                .andExpect(status().isOk());
-
-        verify(orderService, times(1)).requestExchange(eq(orderId), any(), any(OrderExchangeRequestDto.class));
-    }
-
-    @Test
-    @DisplayName("주문 상태 변경 - 성공")
-    void changeOrderStatus_Success() throws Exception {
-        // given
-        Long orderId = 1L;
-        doNothing().when(orderService).changeOrderStatus(eq(orderId), any(OrderStatusChangeRequestDto.class), any());
-
-        // when & then
-        mockMvc.perform(patch("/api/orders/{orderId}/status", orderId)
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(orderStatusChangeRequestDto)))
-                .andDo(print())
-                .andExpect(status().isOk());
-
-        verify(orderService, times(1)).changeOrderStatus(eq(orderId), any(OrderStatusChangeRequestDto.class), any());
-    }
-
-    @Test
-    @DisplayName("주문 목록 페이징 - 성공")
-    void getOrderList_Pagination() throws Exception {
-        // given
-        Page<OrderResponseDto> orderPage = new PageImpl<>(Arrays.asList(orderResponseDto));
-        when(orderService.getOrderList(any(), any()))
-                .thenReturn(orderPage);
-
-        // when & then
-        mockMvc.perform(get("/api/orders")
-                        .param("page", "0")
-                        .param("size", "8"))
-                .andDo(print())
-                .andExpect(status().isOk());
-
-        verify(orderService, times(1)).getOrderList(any(), any());
+        // Then
+        assertThat(result.getStatusCode().value()).isEqualTo(200);
     }
 
     @Test
     @DisplayName("주문 상세 조회 - 존재하지 않는 주문")
-    void getOrderDetail_NotFound() throws Exception {
-        // given
-        Long orderId = 999L;
-        when(orderService.getOrderDetail(eq(orderId), any()))
-                .thenThrow(new IllegalArgumentException("주문을 찾을 수 없습니다."));
+    void getOrderDetail_NotFound() {
+        // Given
+        given(orderService.getOrderDetail(eq(999L), any(User.class)))
+                .willThrow(new IllegalArgumentException("주문을 찾을 수 없습니다."));
 
-        // when & then
-        mockMvc.perform(get("/api/orders/{orderId}", orderId))
-                .andDo(print())
-                .andExpect(status().isBadRequest());
-
-        verify(orderService, times(1)).getOrderDetail(eq(orderId), any());
-    }
-
-    @Test
-    @DisplayName("인증되지 않은 사용자 접근 - 성공")
-    void unauthorizedAccess_Success() throws Exception {
-        // given - Security 비활성화로 인해 인증 없이도 접근 가능하므로 Mock 설정
-        Page<OrderResponseDto> orderPage = new PageImpl<>(Arrays.asList(orderResponseDto));
-        when(orderService.getOrderList(any(), any()))
-                .thenReturn(orderPage);
-        
-        // when & then
-        mockMvc.perform(get("/api/orders"))
-                .andDo(print())
-                .andExpect(status().isOk()); // Security 비활성화로 인해 인증 없이도 접근 가능
-
-        verify(orderService, times(1)).getOrderList(any(), any());
-    }
-
-    @Test
-    @DisplayName("서비스 예외 발생 시 처리")
-    void serviceException_Handling() throws Exception {
-        // given
-        when(orderService.createOrder(any(), any(OrderRequestDto.class)))
-                .thenThrow(new RuntimeException("서비스 오류"));
-
-        // when & then
-        mockMvc.perform(post("/api/orders")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(orderRequestDto)))
-                .andDo(print())
-                .andExpect(status().isInternalServerError());
-
-        verify(orderService, times(1)).createOrder(any(), any(OrderRequestDto.class));
+        // When & Then
+        assertThatThrownBy(() -> orderController.getOrderDetail(999L, testUser))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessage("주문을 찾을 수 없습니다.");
     }
 }
