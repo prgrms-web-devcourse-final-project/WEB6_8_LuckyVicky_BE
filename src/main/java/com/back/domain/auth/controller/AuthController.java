@@ -22,10 +22,7 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.http.ResponseCookie;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
 @Slf4j
 @RestController
@@ -107,10 +104,19 @@ public class AuthController {
     @PostMapping("/logout")
     @Operation(summary = "로그아웃", description = "현재 기기에서 로그아웃을 처리합니다.")
     public ResponseEntity<RsData<Void>> logout(
-            @Valid @RequestBody TokenRefreshRequest request
+            @CookieValue(value = "refreshToken", required = false) String refreshToken
     ) {
-        authService.logout(request.refreshToken());
 
+        // RefreshToken이 있으면 DB에서 삭제
+        if (refreshToken != null && !refreshToken.isBlank()) {
+            try {
+                authService.logout(refreshToken);
+            } catch (Exception e) {
+                log.warn("로그아웃 처리 중 오류 발생 (쿠키는 삭제됨): {}", e.getMessage());
+            }
+        }
+
+        // 쿠키 삭제 (토큰 유무와 관계없이 실행)
         HttpHeaders headers = new HttpHeaders();
         headers.add(HttpHeaders.SET_COOKIE, deleteCookie("refreshToken").toString());
         headers.add(HttpHeaders.SET_COOKIE, deleteCookie("accessToken").toString());
