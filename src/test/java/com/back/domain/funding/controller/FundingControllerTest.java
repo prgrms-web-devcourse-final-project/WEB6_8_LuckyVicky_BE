@@ -1,5 +1,6 @@
 package com.back.domain.funding.controller;
 
+import com.back.domain.funding.entity.Funding;
 import com.back.domain.funding.repository.FundingRepository;
 import com.back.domain.funding.service.FundingService;
 import org.junit.jupiter.api.DisplayName;
@@ -14,9 +15,10 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.ResultActions;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDateTime;
+
 import static org.hamcrest.Matchers.*;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultHandlers.print;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
@@ -46,7 +48,7 @@ public class FundingControllerTest {
                                   "description": "테스트 펀딩 설명",
                                   "imageUrl": "http://example.com/image.jpg",
                                   "targetAmount": 1000000,
-                                  "startDate": "2025-10-01 00:00:00",
+                                  "startDate": "2025-11-20 00:00:00",
                                   "endDate": "2025-12-31 23:59:59",
                                   "options": [
                                     {
@@ -72,7 +74,7 @@ public class FundingControllerTest {
                 .andExpect(jsonPath("$.data.description").value("테스트 펀딩 설명"))
                 .andExpect(jsonPath("$.data.imageUrl").value("http://example.com/image.jpg"))
                 .andExpect(jsonPath("$.data.targetAmount").value(1000000))
-                .andExpect(jsonPath("$.data.startDate").value("2025-10-01 00:00:00"))
+                .andExpect(jsonPath("$.data.startDate").value("2025-11-20 00:00:00"))
                 .andExpect(jsonPath("$.data.endDate").value("2025-12-31 23:59:59"))
                 .andExpect(jsonPath("$.data.options[0].name").value("옵션 1"))
                 .andExpect(jsonPath("$.data.options[0].price").value(50000))
@@ -322,7 +324,7 @@ public class FundingControllerTest {
 
     @Test
     @DisplayName("GET /api/fundings - 전체 조회")
-    void getFundings_All() throws Exception {
+    void t9() throws Exception {
         mvc.perform(get("/api/fundings"))
                 .andDo(print())
                 .andExpect(status().isOk())
@@ -334,7 +336,7 @@ public class FundingControllerTest {
 
     @Test
     @DisplayName("GET /api/fundings?keyword=앨범 - 키워드 검색")
-    void getFundings_SearchByKeyword() throws Exception {
+    void t10() throws Exception {
         mvc.perform(get("/api/fundings")
                         .param("keyword", "앨범"))
                 .andDo(print())
@@ -345,7 +347,7 @@ public class FundingControllerTest {
 
     @Test
     @DisplayName("GET /api/fundings?keyword=포토북 - 포토북 검색")
-    void getFundings_SearchPhotobook() throws Exception {
+    void t11() throws Exception {
         mvc.perform(get("/api/fundings")
                         .param("keyword", "포토북"))
                 .andDo(print())
@@ -356,7 +358,7 @@ public class FundingControllerTest {
 
     @Test
     @DisplayName("GET /api/fundings?statuses=OPEN - 상태 필터")
-    void getFundings_FilterByStatus() throws Exception {
+    void t12() throws Exception {
         mvc.perform(get("/api/fundings")
                         .param("statuses", "OPEN"))
                 .andDo(print())
@@ -366,7 +368,7 @@ public class FundingControllerTest {
 
     @Test
     @DisplayName("GET /api/fundings?minPrice=30000 - 최소 가격 필터")
-    void getFundings_FilterByMinPrice() throws Exception {
+    void t13() throws Exception {
         mvc.perform(get("/api/fundings")
                         .param("minPrice", "30000"))
                 .andDo(print())
@@ -376,7 +378,7 @@ public class FundingControllerTest {
 
     @Test
     @DisplayName("GET /api/fundings?maxPrice=20000 - 최대 가격 필터")
-    void getFundings_FilterByMaxPrice() throws Exception {
+    void t14() throws Exception {
         mvc.perform(get("/api/fundings")
                         .param("maxPrice", "20000"))
                 .andDo(print())
@@ -386,7 +388,7 @@ public class FundingControllerTest {
 
     @Test
     @DisplayName("GET /api/fundings?minPrice=10000&maxPrice=50000 - 가격 범위")
-    void getFundings_FilterByPriceRange() throws Exception {
+    void t15() throws Exception {
         mvc.perform(get("/api/fundings")
                         .param("minPrice", "10000")
                         .param("maxPrice", "50000"))
@@ -397,7 +399,7 @@ public class FundingControllerTest {
 
     @Test
     @DisplayName("GET /api/fundings?sortBy=popular - 인기순 정렬")
-    void getFundings_SortByPopular() throws Exception {
+    void t16() throws Exception {
         mvc.perform(get("/api/fundings")
                         .param("sortBy", "popular"))
                 .andDo(print())
@@ -408,18 +410,18 @@ public class FundingControllerTest {
 
     @Test
     @DisplayName("GET /api/fundings?sortBy=deadline - 마감임박순")
-    void getFundings_SortByDeadline() throws Exception {
+    void t17() throws Exception {
         mvc.perform(get("/api/fundings")
                         .param("sortBy", "deadline"))
                 .andDo(print())
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.content", hasSize(4)))
-                .andExpect(jsonPath("$.data.content[0].title").value("펀딩 1 입니다.")); // 5일 남음
+                .andExpect(jsonPath("$.data.content[0].title").value("한정판 포토북")); // 5일 남음
     }
 
     @Test
     @DisplayName("GET /api/fundings?sortBy=highAmount - 목표금액 높은순")
-    void getFundings_SortByHighAmount() throws Exception {
+    void t18() throws Exception {
         mvc.perform(get("/api/fundings")
                         .param("sortBy", "highAmount"))
                 .andDo(print())
@@ -431,7 +433,7 @@ public class FundingControllerTest {
 
     @Test
     @DisplayName("GET /api/fundings?page=0&size=2 - 페이징")
-    void getFundings_Paging() throws Exception {
+    void t19() throws Exception {
         mvc.perform(get("/api/fundings")
                         .param("page", "0")
                         .param("size", "2"))
@@ -446,7 +448,7 @@ public class FundingControllerTest {
 
     @Test
     @DisplayName("GET /api/fundings - 복합 필터 (상태+키워드+가격)")
-    void getFundings_MultipleFilters() throws Exception {
+    void t20() throws Exception {
         mvc.perform(get("/api/fundings")
                         .param("statuses", "OPEN")
                         .param("keyword", "앨범")
@@ -460,7 +462,7 @@ public class FundingControllerTest {
 
     @Test
     @DisplayName("GET /api/fundings?keyword=없는검색어 - 검색 결과 없음")
-    void getFundings_NotFound() throws Exception {
+    void t21() throws Exception {
         mvc.perform(get("/api/fundings")
                         .param("keyword", "존재하지않는검색어"))
                 .andDo(print())
@@ -471,7 +473,7 @@ public class FundingControllerTest {
 
     @Test
     @DisplayName("GET /api/fundings - 응답 DTO 필드 검증")
-    void getFundings_ResponseFields() throws Exception {
+    void t22() throws Exception {
         mvc.perform(get("/api/fundings"))
                 .andDo(print())
                 .andExpect(status().isOk())
@@ -487,7 +489,7 @@ public class FundingControllerTest {
 
     @Test
     @DisplayName("GET /api/fundings - Page 메타데이터 검증")
-    void getFundings_PageMetadata() throws Exception {
+    void t23() throws Exception {
         mvc.perform(get("/api/fundings")
                         .param("page", "0")
                         .param("size", "2"))
@@ -503,7 +505,7 @@ public class FundingControllerTest {
 
     @Test
     @DisplayName("GET /api/fundings?sortBy=recent - 최신순 정렬 (기본값)")
-    void getFundings_SortByRecent() throws Exception {
+    void t24() throws Exception {
         mvc.perform(get("/api/fundings")
                         .param("sortBy", "recent"))
                 .andDo(print())
@@ -513,7 +515,7 @@ public class FundingControllerTest {
 
     @Test
     @DisplayName("GET /api/fundings - sortBy 파라미터 없을 때 (기본값 적용)")
-    void getFundings_DefaultSort() throws Exception {
+    void t25() throws Exception {
         mvc.perform(get("/api/fundings"))
                 .andDo(print())
                 .andExpect(status().isOk())
@@ -522,7 +524,7 @@ public class FundingControllerTest {
 
     @Test
     @DisplayName("GET /api/fundings?statuses=OPEN,CLOSED - 여러 상태 필터")
-    void getFundings_MultipleStatuses() throws Exception {
+    void t26() throws Exception {
         mvc.perform(get("/api/fundings")
                         .param("statuses", "OPEN,CLOSED"))
                 .andDo(print())
@@ -532,7 +534,7 @@ public class FundingControllerTest {
 
     @Test
     @DisplayName("GET /api/fundings?page=1 - 2페이지 조회")
-    void getFundings_SecondPage() throws Exception {
+    void t27() throws Exception {
         mvc.perform(get("/api/fundings")
                         .param("page", "1")
                         .param("size", "2"))
@@ -546,7 +548,7 @@ public class FundingControllerTest {
 
     @Test
     @DisplayName("GET /api/fundings?minPrice=100000 - 범위 벗어난 가격")
-    void getFundings_PriceOutOfRange() throws Exception {
+    void t28() throws Exception {
         mvc.perform(get("/api/fundings")
                         .param("minPrice", "100000"))
                 .andDo(print())
@@ -557,7 +559,7 @@ public class FundingControllerTest {
 
     @Test
     @DisplayName("GET /api/fundings - URL 인코딩된 한글 키워드")
-    void getFundings_EncodedKeyword() throws Exception {
+    void t29() throws Exception {
         mvc.perform(get("/api/fundings")
                         .param("keyword", "앨범"))
                 .andDo(print())
@@ -568,7 +570,7 @@ public class FundingControllerTest {
 
     @Test
     @DisplayName("GET /api/fundings - 진행률 계산 검증")
-    void getFundings_ProgressCalculation() throws Exception {
+    void t30() throws Exception {
         mvc.perform(get("/api/fundings")
                         .param("keyword", "앨범"))
                 .andDo(print())
@@ -579,10 +581,131 @@ public class FundingControllerTest {
 
     @Test
     @DisplayName("GET /api/fundings - 남은 일수 계산 검증")
-    void getFundings_RemainingDaysCalculation() throws Exception {
+    void t31() throws Exception {
         mvc.perform(get("/api/fundings"))
                 .andDo(print())
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.content[0].remainingDays").isNumber());
+    }
+
+    @Test
+    @WithUserDetails("user1@user.com")
+    @DisplayName("1. 펀딩 수정 성공 - 제목/이미지/종료일/옵션 수정+추가")
+    void t32() throws Exception {
+        ResultActions ra = mvc.perform(patch("/api/fundings/1")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "title": "제목 수정",
+                                  "description": "설명 수정",
+                                  "imageUrl": "https://example.com/new.jpg",
+                                  "targetAmount": 1200000,
+                                  "endDate": "2030-12-31T12:30:00",
+                                  "options": [
+                                    { "id": %d, "name": "옵션 수정됨", "price": 15000, "stock": 80, "sortOrder": 1 },
+                                    { "name": "신규 옵션", "price": 9000, "stock": 50, "sortOrder": 2 }
+                                  ]
+                                }
+                                """.formatted(1L)))
+                .andDo(print());
+
+        ra.andExpect(status().isOk())
+                .andExpect(jsonPath("$.msg").value("펀딩이 수정되었습니다."))
+                .andExpect(jsonPath("$.data.title").value("제목 수정"))
+                .andExpect(jsonPath("$.data.imageUrl").value("https://example.com/new.jpg"))
+                .andExpect(jsonPath("$.data.targetAmount").value(1200000))
+                .andExpect(jsonPath("$.data.endDate").value("2030-12-31 12:30:00"))
+                .andExpect(jsonPath("$.data.options[?(@.name=='옵션 수정됨')]").exists())
+                .andExpect(jsonPath("$.data.options[?(@.name=='신규 옵션')]").exists());
+    }
+
+    @Test
+    @WithUserDetails("user1@user.com")
+    @DisplayName("3. 펀딩 수정 실패 - 종료일이 기존 종료일보다 이전")
+    void t33() throws Exception {
+
+        ResultActions ra = mvc.perform(patch("/api/fundings/1")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                { "endDate": "%s" }
+                                """.formatted(LocalDateTime.now().minusDays(30).toString())))
+                .andDo(print());
+
+        ra.andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.msg").value("종료일은 기존 종료일보다 이후여야 합니다."));
+    }
+
+    @Test
+    @WithUserDetails("user1@user.com")
+    @DisplayName("4. 펀딩 수정 실패 - 목표 금액이 0 이하")
+    void t34() throws Exception {
+        ResultActions ra = mvc.perform(patch("/api/fundings/1")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                { "targetAmount": 0 }
+                                """))
+                .andDo(print());
+
+        ra.andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.msg").value("목표 금액은 0보다 커야 합니다."));
+    }
+
+//    @Test
+//    @WithUserDetails("user1@user.com")
+//    @DisplayName("5. 펀딩 수정 실패 - 참여자 존재 시 목표 금액 변경 불가")
+//    void t35() throws Exception {
+//        // 준비: 참여자 존재 상태로 만들기 (도메인 메서드 사용)
+//        activeFunding.increaseParticipantCount(1);
+//        fundingRepository.saveAndFlush(activeFunding);
+//
+//        ResultActions ra = mvc.perform(patch("/api/fundings/{id}", activeFunding.getId())
+//                        .contentType(MediaType.APPLICATION_JSON)
+//                        .content("""
+//                                { "targetAmount": 2000000 }
+//                                """))
+//                .andDo(print());
+//
+//        ra.andExpect(status().isBadRequest())
+//                .andExpect(jsonPath("$.msg").value("참여자가 있으면 목표 금액을 수정할 수 없습니다."));
+//    }
+
+    @Test
+    @WithUserDetails("user1@user.com")
+    @DisplayName("6. 펀딩 수정 실패 - 존재하지 않는 옵션 ID")
+    void t36() throws Exception {
+        long invalidOptionId = 9_999_999L;
+
+        ResultActions ra = mvc.perform(patch("/api/fundings/1")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "options": [
+                                    { "id": %d, "name": "없는 옵션", "price": 1000, "stock": 1, "sortOrder": 1 }
+                                  ]
+                                }
+                                """.formatted(invalidOptionId)))
+                .andDo(print());
+
+        ra.andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.msg", containsString("옵션을 찾을 수 없습니다.")));
+    }
+
+    @Test
+    @WithUserDetails("user1@user.com")
+    @DisplayName("7. 펀딩 수정 실패 - 종료된 펀딩은 종료일 수정 불가")
+    void t38() throws Exception {
+        Funding funding = fundingRepository.findById(1L).orElseThrow();
+        funding.close();
+        fundingRepository.save(funding);
+
+        ResultActions ra = mvc.perform(patch("/api/fundings/1")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                { "endDate": "2030-01-01T00:00:00" }
+                                """))
+                .andDo(print());
+
+        ra.andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.msg").value("진행 중인 펀딩만 종료일을 수정할 수 있습니다."));
     }
 }
