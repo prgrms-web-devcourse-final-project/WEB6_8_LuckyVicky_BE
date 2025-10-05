@@ -16,10 +16,7 @@ import com.back.domain.dashboard.artist.dto.response.ArtistTrafficSourceResponse
 /**
  * 작가용 대시보드 서비스 인터페이스
  * 2025.10.01 GA4 유입 경로 통합 - 메인 현황에 포함
-<<<<<<< HEAD
  * 2025.10.02 JWT 표준 패턴 적용 - Request DTO 사용
-=======
->>>>>>> 2f4795372b442dd5b55cfd8b8cfe7ba547b36a98
  */
 public interface ArtistDashboardService {
 
