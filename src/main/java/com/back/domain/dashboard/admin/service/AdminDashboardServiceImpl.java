@@ -98,58 +98,45 @@ public class AdminDashboardServiceImpl implements AdminDashboardService {
         log.info("관리자 현황 조회 - userId: {}, role: {}, range: {}, granularity: {}",
                 adminUser.getUserId(), adminUser.getCurrentRole(), request.range(), request.granularity());
 
-        // 전체 현황 통계 계산
+        // 1. 전체 현황 통계 계산
         long totalUsers = userRepository.count();
         long totalProducts = productRepository.count();
         long totalFundings = fundingRepository.count();
 
-        // 작가 수는 직접 조회 (countByRole 제거됨)
+        // 작가 수 조회
         long artistCount = userRepository.findAll().stream()
                 .filter(User::isArtist)
                 .count();
 
-        // TODO: Order 테이블 연동 후 실제 주문 수, 매출 계산
-        long orderCount = 0L; // orderRepository.count();
-        long totalRevenue = 0L; // 실제 매출 집계 필요
+        // 2. 오늘 날짜 기준 통계
+        LocalDate today = LocalDate.now();
+        
+        // 오늘의 매출
+        BigDecimal todayRevenueBd = orderRepository.findTodayTotalRevenue(today);
+        long todayRevenue = todayRevenueBd != null ? todayRevenueBd.longValue() : 0L;
+        
+        // 오늘의 주문 수
+        long todayOrderCount = orderRepository.countTodayOrders(today);
 
+        log.info("메인 현황 통계 - 가입자: {}, 상품: {}, 펀딩: {}, 작가: {}, 오늘 주문: {}, 오늘 매출: {}",
+                totalUsers, totalProducts, totalFundings, artistCount, todayOrderCount, todayRevenue);
+
+        // 3. Overview 객체 생성
         AdminOverviewResponse.Overview overview = new AdminOverviewResponse.Overview(
                 new AdminOverviewResponse.StatInfo(totalUsers, "가입자 수", "명", 0L, 0.0),
-                new AdminOverviewResponse.StatInfo(orderCount, "주문", "건", 0L, 0.0),
-                new AdminOverviewResponse.StatInfo(totalRevenue, "매출", "원", 0L, 0.0),
+                new AdminOverviewResponse.StatInfo(todayOrderCount, "오늘의 주문", "건", 0L, 0.0),
+                new AdminOverviewResponse.StatInfo(todayRevenue, "오늘의 매출", "원", 0L, 0.0),
                 new AdminOverviewResponse.StatInfo(totalProducts, "상품수", "개", 0L, 0.0),
                 new AdminOverviewResponse.StatInfo(totalFundings, "펀딩수", "개", 0L, 0.0),
                 new AdminOverviewResponse.StatInfo(artistCount, "작가수", "명", 0L, 0.0)
         );
 
-        // 차트 데이터 (최소한) - 실제 집계는 추후 구현
-        AdminOverviewResponse.Charts charts = new AdminOverviewResponse.Charts(
-                new AdminOverviewResponse.ChartMeta(request.range(), request.granularity(), request.timezone()),
-                new AdminOverviewResponse.SalesTrend(
-                        new AdminOverviewResponse.SalesSeries(
-                                List.of(new AdminOverviewResponse.DataPoint(LocalDate.now().toString(), 0L)),
-                                List.of(new AdminOverviewResponse.DataPoint(LocalDate.now().toString(), 0L))
-                        ),
-                        new AdminOverviewResponse.SalesDelta(
-                                new AdminOverviewResponse.DeltaInfo(0L, 0.0),
-                                new AdminOverviewResponse.DeltaInfo(0L, 0.0)
-                        )
-                ),
-                new AdminOverviewResponse.UserGrowth(
-                        new AdminOverviewResponse.UserSeries(
-                                List.of(new AdminOverviewResponse.DataPoint(LocalDate.now().toString(), totalUsers)),
-                                List.of(new AdminOverviewResponse.DataPoint(LocalDate.now().toString(), artistCount))
-                        ),
-                        new AdminOverviewResponse.UserDelta(
-                                new AdminOverviewResponse.DeltaInfo(0L, 0.0),
-                                new AdminOverviewResponse.DeltaInfo(0L, 0.0)
-                        )
-                ),
-                calculateCategoryDistribution((int) totalProducts) // 실제 카테고리별 집계
-        );
+        // 4. 차트 데이터 생성 (실제 트렌드 데이터)
+        AdminOverviewResponse.Charts charts = createChartsData(request);
 
-        // 승인 대기 알림 - 실제 데이터
+        // 5. 승인 대기 알림 - 작가만 (펀딩은 나중에 추가)
         List<ArtistApplication> pendingApplications = artistApplicationRepository
-                .findByStatusOrderByCreateDateDesc(ApplicationStatus.PENDING, PageRequest.of(0, 5))
+                .findByStatusOrderByCreateDateDesc(ApplicationStatus.PENDING, PageRequest.of(0, 2))
                 .getContent();
 
         List<AdminOverviewResponse.ArtistApproval> artistApprovals = pendingApplications.stream()
@@ -160,7 +147,7 @@ public class AdminDashboardServiceImpl implements AdminDashboardService {
                 ))
                 .toList();
 
-        // TODO: 펀딩 승인 대기는 현재 없음 (펀딩 승인 프로세스 추가 시 구현)
+        // 펀딩 승인은 나중에 구현
         List<AdminOverviewResponse.FundingApproval> fundingApprovals = List.of();
 
         AdminOverviewResponse.Alerts alerts = new AdminOverviewResponse.Alerts(
@@ -169,6 +156,163 @@ public class AdminDashboardServiceImpl implements AdminDashboardService {
         );
 
         return new AdminOverviewResponse(overview, charts, alerts, LocalDateTime.now(), request.timezone());
+    }
+
+    /**
+     * 차트 데이터 생성 (매출 + 주문 + 사용자 트렌드)
+     */
+    private AdminOverviewResponse.Charts createChartsData(AdminOverviewRequest request) {
+        // 1. 기간 계산
+        LocalDateTime endDate = LocalDateTime.now();
+        LocalDateTime startDate;
+        LocalDateTime compareEndDate;
+        LocalDateTime compareStartDate;
+        
+        String range = request.range() != null ? request.range() : "1M";
+        
+        switch (range) {
+            case "1M" -> {
+                startDate = endDate.minusMonths(1);
+                compareStartDate = startDate.minusMonths(1);
+                compareEndDate = startDate;
+            }
+            case "3M" -> {
+                startDate = endDate.minusMonths(3);
+                compareStartDate = startDate.minusMonths(3);
+                compareEndDate = startDate;
+            }
+            case "6M" -> {
+                startDate = endDate.minusMonths(6);
+                compareStartDate = startDate.minusMonths(6);
+                compareEndDate = startDate;
+            }
+            case "1Y" -> {
+                startDate = endDate.minusYears(1);
+                compareStartDate = startDate.minusYears(1);
+                compareEndDate = startDate;
+            }
+            case "ALL" -> {
+                // 전체 기간 (서비스 시작일부터)
+                startDate = LocalDateTime.of(2024, 1, 1, 0, 0);
+                compareStartDate = startDate;
+                compareEndDate = startDate.plusYears(1);
+            }
+            default -> {
+                startDate = endDate.minusMonths(1);
+                compareStartDate = startDate.minusMonths(1);
+                compareEndDate = startDate;
+            }
+        }
+
+        log.info("차트 데이터 조회 - range: {}, startDate: {}, endDate: {}", range, startDate, endDate);
+
+        // 2. 매출/주문 트렌드 데이터 조회
+        List<com.back.domain.dashboard.artist.dto.DailyTrendDto> salesTrends =
+                orderRepository.findDailyTrendsForAdmin(startDate, endDate);
+        
+        List<com.back.domain.dashboard.artist.dto.DailyTrendDto> compareSalesTrends =
+                orderRepository.findDailyTrendsForAdmin(compareStartDate, compareEndDate);
+
+        log.info("매출/주문 트렌드 조회 완료 - {} 건", salesTrends.size());
+
+        // 3. 사용자 증가 트렌드 데이터 조회
+        List<com.back.domain.dashboard.admin.dto.DailyUserGrowthDto> userGrowthTrends =
+                userRepository.findDailyUserGrowth(startDate, endDate);
+        
+        List<com.back.domain.dashboard.admin.dto.DailyUserGrowthDto> compareUserGrowthTrends =
+                userRepository.findDailyUserGrowth(compareStartDate, compareEndDate);
+        
+        List<com.back.domain.dashboard.admin.dto.DailyUserGrowthDto> artistGrowthTrends =
+                userRepository.findDailyArtistGrowth(startDate, endDate);
+        
+        List<com.back.domain.dashboard.admin.dto.DailyUserGrowthDto> compareArtistGrowthTrends =
+                userRepository.findDailyArtistGrowth(compareStartDate, compareEndDate);
+
+        log.info("사용자/작가 증가 트렌드 조회 완료 - 사용자: {} 건, 작가: {} 건", 
+                userGrowthTrends.size(), artistGrowthTrends.size());
+
+        // 4. 매출 트렌드 차트 데이터 생성
+        List<AdminOverviewResponse.DataPoint> salesData = salesTrends.stream()
+                .map(d -> new AdminOverviewResponse.DataPoint(d.date().toString(), d.salesAmount()))
+                .toList();
+        
+        List<AdminOverviewResponse.DataPoint> orderData = salesTrends.stream()
+                .map(d -> new AdminOverviewResponse.DataPoint(d.date().toString(), d.orderCount()))
+                .toList();
+
+        // 총합 계산
+        long totalSales = salesTrends.stream().mapToLong(com.back.domain.dashboard.artist.dto.DailyTrendDto::salesAmount).sum();
+        long totalOrders = salesTrends.stream().mapToLong(com.back.domain.dashboard.artist.dto.DailyTrendDto::orderCount).sum();
+        
+        long compareTotalSales = compareSalesTrends.stream().mapToLong(com.back.domain.dashboard.artist.dto.DailyTrendDto::salesAmount).sum();
+        long compareTotalOrders = compareSalesTrends.stream().mapToLong(com.back.domain.dashboard.artist.dto.DailyTrendDto::orderCount).sum();
+
+        // 변화량 계산
+        AdminOverviewResponse.DeltaInfo salesDelta = calculateDelta(totalSales, compareTotalSales);
+        AdminOverviewResponse.DeltaInfo orderDelta = calculateDelta(totalOrders, compareTotalOrders);
+
+        log.info("매출 트렌드 - 총 매출: {}, 총 주문: {}, 매출 증감: {}%, 주문 증감: {}%", 
+                totalSales, totalOrders, salesDelta.rate(), orderDelta.rate());
+
+        AdminOverviewResponse.SalesTrend salesTrend = new AdminOverviewResponse.SalesTrend(
+                new AdminOverviewResponse.SalesSeries(salesData, orderData),
+                new AdminOverviewResponse.SalesDelta(salesDelta, orderDelta)
+        );
+
+        // 5. 사용자 증가 차트 데이터 생성
+        List<AdminOverviewResponse.DataPoint> userData = userGrowthTrends.stream()
+                .map(d -> new AdminOverviewResponse.DataPoint(d.date().toString(), d.userCount()))
+                .toList();
+        
+        List<AdminOverviewResponse.DataPoint> artistData = artistGrowthTrends.stream()
+                .map(d -> new AdminOverviewResponse.DataPoint(d.date().toString(), d.userCount()))
+                .toList();
+
+        long totalNewUsers = userGrowthTrends.stream().mapToLong(com.back.domain.dashboard.admin.dto.DailyUserGrowthDto::userCount).sum();
+        long totalNewArtists = artistGrowthTrends.stream().mapToLong(com.back.domain.dashboard.admin.dto.DailyUserGrowthDto::userCount).sum();
+        
+        long compareTotalNewUsers = compareUserGrowthTrends.stream().mapToLong(com.back.domain.dashboard.admin.dto.DailyUserGrowthDto::userCount).sum();
+        long compareTotalNewArtists = compareArtistGrowthTrends.stream().mapToLong(com.back.domain.dashboard.admin.dto.DailyUserGrowthDto::userCount).sum();
+
+        AdminOverviewResponse.DeltaInfo userDelta = calculateDelta(totalNewUsers, compareTotalNewUsers);
+        AdminOverviewResponse.DeltaInfo artistDelta = calculateDelta(totalNewArtists, compareTotalNewArtists);
+
+        log.info("사용자 증가 트렌드 - 신규 사용자: {}, 신규 작가: {}, 사용자 증감: {}%, 작가 증감: {}%", 
+                totalNewUsers, totalNewArtists, userDelta.rate(), artistDelta.rate());
+
+        AdminOverviewResponse.UserGrowth userGrowth = new AdminOverviewResponse.UserGrowth(
+                new AdminOverviewResponse.UserSeries(userData, artistData),
+                new AdminOverviewResponse.UserDelta(userDelta, artistDelta)
+        );
+
+        // 6. 카테고리 분포 (기존 코드 유지)
+        long totalProducts = productRepository.count();
+        AdminOverviewResponse.CategoryDistribution categoryDist = calculateCategoryDistribution((int) totalProducts);
+
+        // 7. 메타 정보
+        AdminOverviewResponse.ChartMeta meta = new AdminOverviewResponse.ChartMeta(
+                range,
+                request.granularity(),
+                request.timezone()
+        );
+
+        return new AdminOverviewResponse.Charts(meta, salesTrend, userGrowth, categoryDist);
+    }
+
+    /**
+     * 변화량 계산 (delta, rate)
+     */
+    private AdminOverviewResponse.DeltaInfo calculateDelta(long current, long previous) {
+        long delta = current - previous;
+        double rate = 0.0;
+
+        if (previous > 0) {
+            rate = ((double) delta / previous) * 100;
+        } else if (current > 0) {
+            rate = 100.0;
+        }
+
+        return new AdminOverviewResponse.DeltaInfo(delta, rate);
     }
 
     @Override

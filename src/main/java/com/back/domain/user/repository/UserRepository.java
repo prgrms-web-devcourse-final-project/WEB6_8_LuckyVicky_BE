@@ -32,4 +32,38 @@ public interface UserRepository extends JpaRepository<User, Long>, JpaSpecificat
 
     // 이메일과 Provider로 사용자 찾기
     boolean existsByEmailAndProvider(String email, Provider provider);
+
+    /**
+     * 관리자 대시보드 - 일별 사용자 증가 트렌드 조회
+     */
+    @org.springframework.data.jpa.repository.Query("SELECT new com.back.domain.dashboard.admin.dto.DailyUserGrowthDto(" +
+            "CAST(u.createDate AS LocalDate), " +
+            "COUNT(u.id)) " +
+            "FROM User u " +
+            "WHERE u.createDate >= :startDate " +
+            "AND u.createDate < :endDate " +
+            "GROUP BY CAST(u.createDate AS LocalDate) " +
+            "ORDER BY CAST(u.createDate AS LocalDate) ASC")
+    java.util.List<com.back.domain.dashboard.admin.dto.DailyUserGrowthDto> findDailyUserGrowth(
+            @org.springframework.data.repository.query.Param("startDate") java.time.LocalDateTime startDate,
+            @org.springframework.data.repository.query.Param("endDate") java.time.LocalDateTime endDate
+    );
+
+    /**
+     * 관리자 대시보드 - 일별 작가 증가 트렌드 조회
+     */
+    @org.springframework.data.jpa.repository.Query("SELECT new com.back.domain.dashboard.admin.dto.DailyUserGrowthDto(" +
+            "CAST(u.createDate AS LocalDate), " +
+            "COUNT(u.id)) " +
+            "FROM User u " +
+            "WHERE u.createDate >= :startDate " +
+            "AND u.createDate < :endDate " +
+            "AND u.role = com.back.domain.user.entity.Role.ARTIST " +
+            "AND u.isArtistVerified = true " +
+            "GROUP BY CAST(u.createDate AS LocalDate) " +
+            "ORDER BY CAST(u.createDate AS LocalDate) ASC")
+    java.util.List<com.back.domain.dashboard.admin.dto.DailyUserGrowthDto> findDailyArtistGrowth(
+            @org.springframework.data.repository.query.Param("startDate") java.time.LocalDateTime startDate,
+            @org.springframework.data.repository.query.Param("endDate") java.time.LocalDateTime endDate
+    );
 }
