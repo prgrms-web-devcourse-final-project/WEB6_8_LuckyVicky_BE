@@ -156,7 +156,7 @@ public class DashboardServiceImpl implements DashboardService {
 
         // 2. 주문 목록 조회 (상품명 정렬 여부에 따라 다른 메서드 사용)
         Page<com.back.domain.order.order.entity.Order> orderPage;
-        
+
         if ("productName".equals(request.sort())) {
             // 상품명 정렬: 별도 쿼리 사용 (Pageable의 정렬은 무시됨)
             String direction = request.order() != null ? request.order() : "DESC";
@@ -334,11 +334,11 @@ public class DashboardServiceImpl implements DashboardService {
         if (product.isDeleted()) {
             return null;
         }
-        
+
         if (product.getImages() == null || product.getImages().isEmpty()) {
             return null;
         }
-        
+
         return product.getImages().stream()
                 .filter(image -> "THUMBNAIL".equals(image.getFileType().name()))
                 .findFirst()
@@ -548,7 +548,7 @@ public class DashboardServiceImpl implements DashboardService {
                         .findFirst()
                         .map(FundingImage::getFileUrl)
                         .orElse(null);
-                
+
                 if (thumbnailUrl != null) {
                     return thumbnailUrl;
                 }
@@ -557,7 +557,7 @@ public class DashboardServiceImpl implements DashboardService {
             // LazyInitializationException 등의 에러 발생 시 imageUrl 사용
             log.warn("펀딩 이미지 컬렉션 접근 실패, imageUrl 사용 - fundingId: {}", funding.getId(), e);
         }
-        
+
         // THUMBNAIL이 없거나 에러 발생 시 imageUrl 사용
         return funding.getImageUrl();
     }
@@ -593,23 +593,40 @@ public class DashboardServiceImpl implements DashboardService {
     }
 
     @Override
-    public ReturnResponse.FormData getReturnFormData(Long userId, Long returnId) {
-        // TODO: 실제 데이터베이스 조회 로직 구현
-        // TODO: 반품 신청자 본인 확인 로직 추가
-        log.debug("교환/반품 폼 데이터 조회 - userId: {}, returnId: {}", userId, returnId);
+    public ReturnResponse.FormData getReturnFormData(Long userId, Long orderId) {
+        log.debug("교환/반품 신청 모달 상품 정보 조회 - userId: {}, orderId: {}", userId, orderId);
 
+        // 1. 주문 조회 (OrderItem, Product, ProductImage 함께 조회)
+        com.back.domain.order.order.entity.Order order = orderRepository.findOrdersWithDetailsById(List.of(orderId))
+                .stream()
+                .findFirst()
+                .orElseThrow(() -> new ServiceException("ORDER_NOT_FOUND", "주문을 찾을 수 없습니다."));
+
+        // 2. 본인 확인
+        if (!order.getUser().getId().equals(userId)) {
+            throw new ServiceException("FORBIDDEN", "해당 주문에 대한 권한이 없습니다.");
+        }
+
+        // 3. 첫 번째 주문 상품 정보 조회 (대표 상품)
+        com.back.domain.order.orderItem.entity.OrderItem firstOrderItem =
+                order.getOrderItems().stream()
+                        .findFirst()
+                        .orElseThrow(() -> new ServiceException("ORDER_ITEM_NOT_FOUND", "주문 상품 정보를 찾을 수 없습니다."));
+
+        com.back.domain.product.product.entity.Product product = firstOrderItem.getProduct();
+
+        // 4. Summary 생성 (상품 정보만 반환)
         ReturnResponse.Summary summary = new ReturnResponse.Summary(
-                "0123157", "아티스트브랜드", "감성 포스터", 25000, 1,
-                "https://cdn.example.com/product.jpg");
+                String.format("%07d", order.getId()),       // 주문번호 (7자리)
+                product.getBrandName(),                      // 브랜드명
+                product.getName(),                           // 상품명
+                order.getTotalAmount().intValue(),           // 총 가격
+                order.getOrderItems().size(),                // 상품 갯수
+                getProductThumbnailUrl(product)             // 썸네일
+        );
 
-        ReturnResponse.Form form = new ReturnResponse.Form(
-                "EXCHANGE", "PICKUP", "DEFECT", "상품 불량",
-                List.of(new ReturnResponse.Image("img-1", "photo.jpg")),
-                new ReturnResponse.Pickup("12345", "서울 강남구", "3층", "홍길동", "010-1234-5678"));
-
-        ReturnResponse.Permission permissions = new ReturnResponse.Permission(true, true);
-
-        return new ReturnResponse.FormData(summary, form, permissions);
+        // 5. Form과 Permission은 null (프론트에서 사용자 입력으로 처리)
+        return new ReturnResponse.FormData(summary, null, null);
     }
 
     @Override
