@@ -59,7 +59,6 @@ public class AdminDashboardServiceImpl implements AdminDashboardService {
 
     /**
      * SecurityContext에서 인증된 관리자 정보를 추출하고 권한을 검증하는 헬퍼 메서드
-     *
      * @return CustomUserDetails 인증된 사용자 정보
      * @throws ServiceException 인증되지 않았거나 관리자 권한이 없는 경우
      */
