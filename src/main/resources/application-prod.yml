@@ -40,4 +40,4 @@ app:
   cookie:
     secure: true
     domain: .mori-mori.store
-  frontend-url: ${FRONTEND_URL:https://mori-mori.store}
+  frontend-url: https://www.mori-mori.store
