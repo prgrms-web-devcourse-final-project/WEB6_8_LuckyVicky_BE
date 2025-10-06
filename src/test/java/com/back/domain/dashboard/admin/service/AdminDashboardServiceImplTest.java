@@ -36,8 +36,8 @@ import static org.junit.jupiter.api.Assertions.assertAll;
 
 /**
  * 관리자 대시보드 서비스 통합 테스트
- * - 알림 부분 제외 (펀딩 승인 프로세스 미구현)
- * - 핵심 기능만 간단하게 테스트
+ * 알림 부분 제외 (펀딩 승인 프로세스 미구현)
+ * 핵심 기능만 간단하게 테스트
  */
 @SpringBootTest
 @ActiveProfiles("test")
