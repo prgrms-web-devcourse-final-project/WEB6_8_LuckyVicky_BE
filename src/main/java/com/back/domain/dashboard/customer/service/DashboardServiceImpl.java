@@ -620,7 +620,7 @@ public class DashboardServiceImpl implements DashboardService {
                 String.format("%07d", order.getId()),       // 주문번호 (7자리)
                 product.getBrandName(),                      // 브랜드명
                 product.getName(),                           // 상품명
-                order.getTotalAmount().intValue(),           // 총 가격
+                order.getFinalAmount().intValue(),           // 총 가격 (배송비 포함)
                 order.getOrderItems().size(),                // 상품 갯수
                 getProductThumbnailUrl(product)             // 썸네일
         );
