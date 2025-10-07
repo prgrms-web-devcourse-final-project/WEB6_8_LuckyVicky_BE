@@ -175,4 +175,96 @@ public interface OrderRepository extends JpaRepository<Order, Long> {
             @Param("startDate") java.time.LocalDateTime startDate,
             @Param("endDate") java.time.LocalDateTime endDate
     );
+
+    /**
+     * 관리자 대시보드 - 일별 트렌드 조회 (전체 플랫폼)
+     * - 기간 내 일별 집계
+     * - 1M, 3M, 6M, 1Y, ALL 지원
+     * - 모든 작가의 주문 포함
+     */
+    @Query("SELECT new com.back.domain.dashboard.artist.dto.DailyTrendDto(" +
+            "CAST(o.orderDate AS LocalDate), " +
+            "COUNT(o.id), " +
+            "CAST(COALESCE(SUM(o.finalAmount), 0) AS long)) " +
+            "FROM Order o " +
+            "WHERE o.orderDate >= :startDate " +
+            "AND o.orderDate < :endDate " +
+            "AND o.status = com.back.domain.order.order.entity.OrderStatus.PAYMENT_COMPLETED " +
+            "GROUP BY CAST(o.orderDate AS LocalDate) " +
+            "ORDER BY CAST(o.orderDate AS LocalDate) ASC")
+    List<com.back.domain.dashboard.artist.dto.DailyTrendDto> findDailyTrendsForAdmin(
+            @Param("startDate") java.time.LocalDateTime startDate,
+            @Param("endDate") java.time.LocalDateTime endDate
+    );
+
+    /**
+     * 관리자 대시보드 - 오늘의 총 매출 조회
+     */
+    @Query("SELECT COALESCE(SUM(o.finalAmount), 0) " +
+            "FROM Order o " +
+            "WHERE CAST(o.orderDate AS LocalDate) = :today " +
+            "AND o.status = com.back.domain.order.order.entity.OrderStatus.PAYMENT_COMPLETED")
+    java.math.BigDecimal findTodayTotalRevenue(@Param("today") java.time.LocalDate today);
+
+    /**
+     * 관리자 대시보드 - 오늘의 주문 수 조회
+     */
+    @Query("SELECT COUNT(o) " +
+            "FROM Order o " +
+            "WHERE CAST(o.orderDate AS LocalDate) = :today " +
+            "AND o.status = com.back.domain.order.order.entity.OrderStatus.PAYMENT_COMPLETED")
+    long countTodayOrders(@Param("today") java.time.LocalDate today);
+
+    /**
+     * 관리자 대시보드 - 월별 매출/정산 집계 조회
+     * - 특정 연도의 모든 월별 집계
+     * - 결제완료(PAYMENT_COMPLETED) 주문만 집계
+     * - finalAmount 합계 조회
+     */
+    @Query("SELECT new com.back.domain.dashboard.admin.dto.MonthlySettlementDto(" +
+            "CAST(CONCAT(YEAR(o.orderDate), '-', " +
+            "LPAD(CAST(MONTH(o.orderDate) AS string), 2, '0'), '-01') AS LocalDate), " +
+            "CAST(COALESCE(SUM(o.finalAmount), 0) AS long)) " +
+            "FROM Order o " +
+            "WHERE YEAR(o.orderDate) = :year " +
+            "AND o.status = com.back.domain.order.order.entity.OrderStatus.PAYMENT_COMPLETED " +
+            "GROUP BY YEAR(o.orderDate), MONTH(o.orderDate) " +
+            "ORDER BY YEAR(o.orderDate), MONTH(o.orderDate)")
+    List<com.back.domain.dashboard.admin.dto.MonthlySettlementDto> findMonthlySettlements(
+            @Param("year") int year
+    );
+
+    /**
+     * 관리자 대시보드 - 일별 매출/정산 집계 조회
+     * - 특정 월의 모든 일별 집계
+     * - 결제완료(PAYMENT_COMPLETED) 주문만 집계
+     * - finalAmount 합계 조회
+     */
+    @Query("SELECT new com.back.domain.dashboard.admin.dto.MonthlySettlementDto(" +
+            "CAST(o.orderDate AS LocalDate), " +
+            "CAST(COALESCE(SUM(o.finalAmount), 0) AS long)) " +
+            "FROM Order o " +
+            "WHERE YEAR(o.orderDate) = :year " +
+            "AND MONTH(o.orderDate) = :month " +
+            "AND o.status = com.back.domain.order.order.entity.OrderStatus.PAYMENT_COMPLETED " +
+            "GROUP BY CAST(o.orderDate AS LocalDate) " +
+            "ORDER BY CAST(o.orderDate AS LocalDate)")
+    List<com.back.domain.dashboard.admin.dto.MonthlySettlementDto> findDailySettlements(
+            @Param("year") int year,
+            @Param("month") int month
+    );
+
+    /**
+     * 관리자 대시보드 - 특정 기간 전체 매출 합계 조회
+     * - 연도별 또는 월별 전체 합계
+     */
+    @Query("SELECT COALESCE(SUM(o.finalAmount), 0) " +
+            "FROM Order o " +
+            "WHERE YEAR(o.orderDate) = :year " +
+            "AND (:month IS NULL OR MONTH(o.orderDate) = :month) " +
+            "AND o.status = com.back.domain.order.order.entity.OrderStatus.PAYMENT_COMPLETED")
+    java.math.BigDecimal findTotalSettlementAmount(
+            @Param("year") int year,
+            @Param("month") Integer month
+    );
 }

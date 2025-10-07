@@ -133,10 +133,10 @@ public class AdminDashboardController {
             @AuthenticationPrincipal CustomUserDetails adminUser,
             @Valid @ModelAttribute AdminFundingSearchRequest request) {
 
-        log.info("관리자 펀딩 목록 조회 - adminId: {}, role: {}, page: {}, size: {}, keyword: {}, status: {}, categoryId: {}, artistId: {}",
+        log.info("관리자 펀딩 목록 조회 - adminId: {}, role: {}, page: {}, size: {}, keyword: {}, status: {}, artistId: {}",
                 adminUser.getUserId(), adminUser.getCurrentRole(),
                 request.page(), request.size(), request.keyword(), request.status(),
-                request.categoryId(), request.artistId());
+                request.artistId());
 
         AdminFundingResponse response = adminDashboardService.getFundings(request);
 
