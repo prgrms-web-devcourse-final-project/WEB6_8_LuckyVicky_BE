@@ -50,7 +50,7 @@ public interface CashTransactionRepository extends JpaRepository<CashTransaction
     Integer getTotalChargedAmountByUser(@Param("user") User user);
 
     /**
-     * 사용자별 총 환전 금액
+     * 작가별 총 환전 금액 (작가만 환전 가능)
      */
     @Query("SELECT SUM(ct.amount) FROM CashTransaction ct WHERE ct.user = :user AND ct.transactionType = 'EXCHANGE' AND ct.status = 'COMPLETED'")
     Integer getTotalExchangedAmountByUser(@Param("user") User user);

@@ -1,7 +1,6 @@
 package com.back.domain.payment.moriCash.entity;
 
 import com.back.domain.order.order.entity.Order;
-import com.back.domain.order.order.entity.PaymentMethod;
 import com.back.domain.user.entity.User;
 import com.back.global.jpa.entity.BaseEntity;
 import jakarta.persistence.*;
@@ -46,22 +45,12 @@ public class MoriCashPayment extends BaseEntity {
     @Column(name = "refund_price")
     private Integer refundPrice;
 
-    @Enumerated(EnumType.STRING)
-    @Column(name = "payment_method")
-    private PaymentMethod paymentMethod; // MORI_CASH, POINT
-
     // 모리캐시 관련 필드들
-    @Column(name = "used_mori_cash")
+    @Column(name = "used_mori_cash", nullable = false)
     private Integer usedMoriCash; // 사용한 모리캐시 금액
-
-    @Column(name = "used_point")
-    private Integer usedPoint; // 사용한 포인트 금액
 
     @Column(name = "cash_transaction_id")
     private String cashTransactionId; // 내부 캐시 거래 ID
-
-    @Column(name = "point_transaction_id")
-    private String pointTransactionId; // 내부 포인트 거래 ID
 
     @Column(name = "failure_reason")
     private String failureReason; // 실패 사유
@@ -84,15 +73,13 @@ public class MoriCashPayment extends BaseEntity {
     private Integer balanceAfter; // 거래 후 잔액
 
     @Builder
-    private MoriCashPayment(Order order, User user, Integer totalPrice, PaymentMethod paymentMethod,
-                          Integer usedMoriCash, Integer usedPoint, String refundId, Integer refundPrice,
+    private MoriCashPayment(Order order, User user, Integer totalPrice,
+                          Integer usedMoriCash, String refundId, Integer refundPrice,
                           TransactionType transactionType, String description, Integer balanceAfter) {
         this.order = order;
         this.user = user;
         this.totalPrice = totalPrice;
-        this.paymentMethod = paymentMethod;
         this.usedMoriCash = usedMoriCash;
-        this.usedPoint = usedPoint;
         this.refundId = refundId;
         this.refundPrice = refundPrice;
         this.transactionType = transactionType;
@@ -102,12 +89,11 @@ public class MoriCashPayment extends BaseEntity {
     }
 
     /**
-     * 결제 완료 처리 (모리캐시/포인트 차감 후)
+     * 결제 완료 처리 (모리캐시 차감 후)
      */
-    public void completePayment(String cashTransactionId, String pointTransactionId) {
+    public void completePayment(String cashTransactionId) {
         this.status = MoriCashPaymentStatus.COMPLETED;
         this.cashTransactionId = cashTransactionId;
-        this.pointTransactionId = pointTransactionId;
         this.paidAt = LocalDateTime.now();
     }
 
@@ -129,7 +115,7 @@ public class MoriCashPayment extends BaseEntity {
     }
 
     /**
-     * 환불 처리 (모리캐시/포인트 복원)
+     * 환불 처리 (모리캐시 복원)
      */
     public void processRefund(Integer refundAmount, String refundId) {
         this.refundPrice = refundAmount;
@@ -162,12 +148,5 @@ public class MoriCashPayment extends BaseEntity {
      */
     public boolean isMoriCashUsed() {
         return this.usedMoriCash != null && this.usedMoriCash > 0;
-    }
-
-    /**
-     * 포인트 사용 여부 확인
-     */
-    public boolean isPointUsed() {
-        return this.usedPoint != null && this.usedPoint > 0;
     }
 }

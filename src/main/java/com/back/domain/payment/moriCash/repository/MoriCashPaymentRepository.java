@@ -37,11 +37,6 @@ public interface MoriCashPaymentRepository extends JpaRepository<MoriCashPayment
     Optional<MoriCashPayment> findByCashTransactionId(String cashTransactionId);
 
     /**
-     * 포인트 거래 ID로 조회
-     */
-    Optional<MoriCashPayment> findByPointTransactionId(String pointTransactionId);
-
-    /**
      * 환불 ID로 조회
      */
     Optional<MoriCashPayment> findByRefundId(String refundId);
@@ -78,20 +73,8 @@ public interface MoriCashPaymentRepository extends JpaRepository<MoriCashPayment
     Integer getTotalRefundAmountByOrder(@Param("order") Order order);
 
     /**
-     * 결제 방법별 조회
-     */
-    @Query("SELECT mcp FROM MoriCashPayment mcp WHERE mcp.paymentMethod = :paymentMethod ORDER BY mcp.createDate DESC")
-    List<MoriCashPayment> findByPaymentMethod(@Param("paymentMethod") com.back.domain.order.order.entity.PaymentMethod paymentMethod);
-
-    /**
      * 사용자별 모리캐시 사용량 합계
      */
     @Query("SELECT SUM(mcp.usedMoriCash) FROM MoriCashPayment mcp WHERE mcp.user = :user AND mcp.status = 'COMPLETED' AND mcp.usedMoriCash IS NOT NULL")
     Integer getTotalUsedMoriCashByUser(@Param("user") User user);
-
-    /**
-     * 사용자별 포인트 사용량 합계
-     */
-    @Query("SELECT SUM(mcp.usedPoint) FROM MoriCashPayment mcp WHERE mcp.user = :user AND mcp.status = 'COMPLETED' AND mcp.usedPoint IS NOT NULL")
-    Integer getTotalUsedPointByUser(@Param("user") User user);
 }
