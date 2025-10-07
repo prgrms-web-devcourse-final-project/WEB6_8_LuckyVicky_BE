@@ -179,7 +179,7 @@ class AuthServiceTest {
                     .satisfies(ex -> {
                         ServiceException serviceEx = (ServiceException) ex;
                         assertThat(serviceEx.getResultCode()).isEqualTo("401");
-                        assertThat(serviceEx.getMsg()).isEqualTo("이메일 또는 비밀번호가 잘못되었습니다.");
+                        assertThat(serviceEx.getMsg()).isEqualTo("이메일이 잘못되었습니다.");
                     });
         }
 
@@ -200,7 +200,7 @@ class AuthServiceTest {
                     .satisfies(ex -> {
                         ServiceException serviceEx = (ServiceException) ex;
                         assertThat(serviceEx.getResultCode()).isEqualTo("401");
-                        assertThat(serviceEx.getMsg()).isEqualTo("이메일 또는 비밀번호가 잘못되었습니다.");
+                        assertThat(serviceEx.getMsg()).isEqualTo("비밀번호가 잘못되었습니다.");
                     });
         }
     }
