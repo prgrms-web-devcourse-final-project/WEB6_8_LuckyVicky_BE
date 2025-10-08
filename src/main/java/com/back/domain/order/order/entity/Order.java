@@ -204,4 +204,20 @@ public class Order extends BaseEntity {
         this.status = OrderStatus.CANCELLATION_COMPLETED;
     }
 
+    /**
+     * 결제 가능 여부 확인
+     * (주문 생성 시 바로 결제완료 상태이므로 항상 false)
+     */
+    public boolean canPay() {
+        return false;
+    }
+
+    /**
+     * 결제 완료 처리
+     * (주문 생성 시 이미 결제완료 상태)
+     */
+    public void pay() {
+        // 이미 결제 완료 상태
+    }
+
 }

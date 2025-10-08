@@ -3,6 +3,7 @@ package com.back.domain.order.exchange.controller;
 import com.back.domain.order.exchange.dto.request.ExchangeRequestDto;
 import com.back.domain.order.exchange.dto.response.ExchangeResponseDto;
 import com.back.domain.order.exchange.entity.Exchange;
+import com.back.domain.order.exchange.entity.ExchangeReasonType;
 import com.back.domain.order.exchange.service.ExchangeService;
 import com.back.domain.user.entity.User;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -51,6 +52,7 @@ class ExchangeControllerTest {
         exchangeRequestDto = new ExchangeRequestDto(
                 1L, // orderId
                 List.of(1L, 2L), // orderItemIds
+                ExchangeReasonType.CHANGE_OF_MIND, // reasonType
                 "색상 불일치", // reason
                 "주문한 색상과 다른 색상이 배송됨", // detailReason
                 Exchange.ExchangeMethod.PICKUP, // exchangeMethod
@@ -170,10 +172,22 @@ class ExchangeControllerTest {
     void approveExchange_Success() {
         // Given
         ExchangeResponseDto approvedResponseDto = new ExchangeResponseDto(
-                1L, 1L, "ORD123456789", Exchange.ExchangeStatus.COMPLETED,
-                "색상 불일치", "주문한 색상과 다른 색상이 배송됨", Exchange.ExchangeMethod.PICKUP,
-                List.of(), "서울시 강남구", "테헤란로 123", "12345", "홍길동", "010-9876-5432",
-                LocalDateTime.now(), LocalDateTime.now(), List.of()
+                1L, // exchangeId
+                1L, // orderId
+                "ORD123456789", // orderNumber
+                Exchange.ExchangeStatus.COMPLETED, // status
+                "색상 불일치", // reason
+                "주문한 색상과 다른 색상이 배송됨", // detailReason
+                Exchange.ExchangeMethod.PICKUP, // exchangeMethod
+                List.of(), // attachmentFiles
+                "서울시 강남구", // newShippingAddress1
+                "테헤란로 123", // newShippingAddress2
+                "12345", // newShippingZip
+                "홍길동", // newRecipientName
+                "010-9876-5432", // newRecipientPhone
+                LocalDateTime.now(), // createdAt
+                LocalDateTime.now(), // updatedAt
+                List.of() // exchangeItems
         );
         
         given(exchangeService.approveItem(eq(1L), any(User.class)))
