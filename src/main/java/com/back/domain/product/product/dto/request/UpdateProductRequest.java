@@ -148,7 +148,7 @@ public record UpdateProductRequest(
             @Schema(description = "옵션 추가금", example = "5000")
             @Min(value = 0, message = "옵션 추가금은 0 이상이어야 합니다.")
             int optionAdditionalPrice
-    ) {}
+    ) implements BaseOption {}
 
     @Schema(description = "추가 상품")
     public record AdditionalProduct(
@@ -163,6 +163,6 @@ public record UpdateProductRequest(
             @Schema(description = "추가 상품 가격", example = "12000")
             @Min(value = 0, message = "추가상품 가격은 0 이상이어야 합니다.")
             int additionalProductPrice
-    ) {}
+    ) implements BaseAdditionalProduct {}
 }
 

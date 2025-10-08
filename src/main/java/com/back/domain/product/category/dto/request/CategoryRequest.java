@@ -8,7 +8,7 @@ import jakarta.validation.constraints.NotBlank;
  */
 public record CategoryRequest(
         @NotBlank(message = "카테고리 이름은 필수입니다.")
-        @Schema(description = "카테고리명", example = "키링")
+        @Schema(description = "카테고리명", example = "스티커")
         String categoryName,
 
         @Schema(description = "상위 카테고리 Id (null이면 상위 카테고리)", example = "null")

@@ -2,6 +2,8 @@ package com.back.domain.product.product.service;
 
 import com.back.domain.product.category.entity.Category;
 import com.back.domain.product.category.repository.CategoryRepository;
+import com.back.domain.product.product.dto.request.BaseAdditionalProduct;
+import com.back.domain.product.product.dto.request.BaseOption;
 import com.back.domain.product.product.dto.request.CreateProductRequest;
 import com.back.domain.product.product.dto.request.UpdateProductRequest;
 import com.back.domain.product.product.dto.response.ProductListResponse;
@@ -38,7 +40,7 @@ public class ProductService {
 
     private final ProductRepository productRepository;
     private final CategoryRepository categoryRepository;
-    private final TagRepository TagRepository;
+    private final TagRepository tagRepository;
     private final S3ValidationService s3ValidationService;
     private final S3Service s3Service;
     private final UserRepository userRepository;
@@ -49,137 +51,27 @@ public class ProductService {
     // 상품 등록
     @Transactional
     public UUID createProduct(CreateProductRequest request, CustomUserDetails customUserDetails) {
-
         // 현재 로그인한 사용자 (=상품 등록한 작가)
         User user = customUserDetails.getUser();
-
         // 존재하는 카테고리인지 검증
-        Category category = categoryRepository.findById(request.categoryId())
-                .orElseThrow(() -> new ServiceException("400", "존재하지 않는 카테고리입니다."));
-
-        // 배송비 유형
-        DeliveryType deliveryType = DeliveryType.valueOf(request.deliveryType());
-
-        // 배송비 유형이 조건부 무료 배송이면 conditionalFreeAmount null 체크
-        if (deliveryType == DeliveryType.CONDITIONAL_FREE) {
-            if (request.conditionalFreeAmount() == null || request.conditionalFreeAmount() < 1) {
-                throw new ServiceException("400", "조건부 무료 기준 금액은 NULL일 수 없으며, 1 이상이어야 합니다.");
-            }
-        }
-
-        // 최소/최대 구매수량 검증
-        if (request.maxQuantity() < request.minQuantity()) {
-            throw new ServiceException("400", "최대 구매 수량은 최소 구매 수량보다 작을 수 없습니다.");
-        }
+        Category category = validateAndGetCategory(request.categoryId());
+        // 조건부 무료 배송비 & 최소/최대 구매수량 검증
+        validateDeliveryAndQuantity(request.deliveryType(), request.conditionalFreeAmount(), request.minQuantity(), request.maxQuantity());
 
         // Product 생성
-        Product product = Product.builder()
-                .category(category) // DTO에 있던 검증된 카테고리
-                .user(user) // 작가 정보
-                .name(request.name()) // 상품명
-                .brandName(request.brandName()) // 브랜드명
-                .price(request.price()) // 가격
-                .discountRate(request.discountRate()) // 할인율
-                .bundleShippingAvailable(request.bundleShippingAvailable()) // 묶음 배송 가능 여부
-                .deliveryCharge(request.deliveryCharge()) // 기본 배송비
-                .additionalShippingCharge(request.additionalShippingCharges()) // 제주 추가 배송비
-                .deliveryType(deliveryType) // 배송비 유형
-                .conditionalFreeAmount(request.conditionalFreeAmount()) //조건부 배송일 경우 무료배송 조건 금액
-                .stock(request.stock()) //재고
-                .description(request.description()) // 상품 정보(텍스트+이미지 태그로 이루어진 HTML?)
-                .sellingStatus(request.sellingStatus() != null ? SellingStatus.valueOf(request.sellingStatus()) : SellingStatus.SELLING) //판매상태(null이면 기본값 판매중으로)
-                .displayStatus(DisplayStatus.valueOf(request.displayStatus())) // 전시상태
-                .minQuantity(request.minQuantity()) // 최소 구매수량
-                .maxQuantity(request.maxQuantity()) // 최대 구매수량
-                .isPlanned(request.isPlanned()) // 기획상품 여부
-                .isRestock(request.isRestock()) // 재입고상품 여부
-                .sellingStartDate(request.sellingStartDate() != null ? request.sellingStartDate().atStartOfDay() : null)// 판매시작일
-                .sellingEndDate(request.sellingEndDate() != null ? request.sellingEndDate().atStartOfDay() : null)// 판매종료일
-                .productModelName(request.productModelName()) //품명
-                .certification(request.certification()) // 법에 의한 인증,허가 확인사항
-                .origin(request.origin()) // 제조국
-                .material(request.material()) // 재질
-                .size(request.size()) //사이즈
-                .isDeleted(false) // 논리삭제 여부(db에서 삭제는 안하고, 삭제처리만 된 것)
-                .build();
-
+        Product product = buildProductFromRequest(request, user, category);
 
         // 옵션이 존재한다면 Option 생성
-        if (request.options() != null && !request.options().isEmpty()) {
-            List<Option> options = request.options().stream()
-                    .map(o -> Option.builder()
-                            .product(product)
-                            .optionName(o.optionName())
-                            .optionStock(o.optionStock())
-                            .optionAdditionalPrice(o.optionAdditionalPrice())
-                            .build())
-                    .collect(Collectors.toList());
-            product.getOptions().addAll(options);
-        }
-
+        product.getOptions().addAll(buildOptions(product, request.options()));
         // 추가상품이 존재한다면 AdditionalProduct 생성
-        if (request.additionalProducts() != null && !request.additionalProducts().isEmpty()) {
-            List<AdditionalProduct> additionalProducts = request.additionalProducts().stream()
-                    .map(a -> AdditionalProduct.builder()
-                            .product(product)
-                            .additionalName(a.additionalProductName())
-                            .additionalStock(a.additionalProductStock())
-                            .additionalPrice(a.additionalProductPrice())
-                            .build())
-                    .collect(Collectors.toList());
-            product.getAdditionalProducts().addAll(additionalProducts);
-        }
-
+        product.getAdditionalProducts().addAll(buildAdditionalProducts(product, request.additionalProducts()));
         // 태그 저장 (존재하는 태그인지 검증)
-        if (request.tags() != null && !request.tags().isEmpty()) {
-            List<ProductTagMapping> tagMappings = request.tags().stream()
-                    .map(tagId -> {
-                        Tag tag = TagRepository.findById(tagId)
-                                .orElseThrow(() -> new ServiceException("400", "존재하지 않는 태그입니다. tagId: " + tagId));
-                        // 상품-태그 중간테이블 생성
-                        return ProductTagMapping.builder()
-                                .product(product)
-                                .tag(tag)
-                                .build();
-                    })
-                    .toList();
-            product.getProductTags().addAll(tagMappings);
-        }
-
+        product.getProductTags().addAll(buildProductTags(product, request.tags()));
         // 이미지 저장
-        if (request.images() != null && !request.images().isEmpty()) {
-            List<ProductImage> images = request.images().stream()
-                    .map(imgRequest -> {
-                        s3ValidationService.validateFileExists(imgRequest.s3Key());
-                        return ProductImage.builder()
-                                .product(product)
-                                .fileUrl(imgRequest.url())
-                                .fileType(imgRequest.type())
-                                .s3Key(imgRequest.s3Key())
-                                .originalFilename(imgRequest.originalFileName())
-                                .build();
-                    })
-                    .collect(Collectors.toList());
-            product.getImages().addAll(images);
-        }
+        product.getImages().addAll(buildProductImages(product, request.images()));
 
-        // cascade로 옵션, 추가상품, 이미지, 태그까지 같이 저장됨
-        productRepository.save(product);
-
-        // 등록된 상품의 pk 반환
-        return product.getProductUuid();
-    }
-
-    // (상품) 파일 다운로드 메서드
-    @Transactional(readOnly = true)
-    public ProductImage getProductDocument(UUID productUuid) {
-        // productUuid로 상품 조회
-        Product product = productRepository.findByProductUuid(productUuid)
-                .orElseThrow(() -> new ServiceException("404", "존재하지 않는 상품입니다. productUuid: " + productUuid));
-        return product.getImages().stream()
-                .filter(img -> img.getFileType() == FileType.DOCUMENT)
-                .findFirst()
-                .orElseThrow(() -> new ServiceException("404", "다운로드할 문서가 존재하지 않습니다."));
+        // cascade로 옵션, 추가상품, 태그, 이미지까지 같이 저장 후 uuid 반환
+        return productRepository.save(product).getProductUuid();
     }
 
     // 상품 목록 조회
@@ -208,136 +100,45 @@ public class ProductService {
     // 상품 수정
     @Transactional
     public UUID updateProduct(UpdateProductRequest request, CustomUserDetails customUserDetails) {
-
         Product product = productRepository.findByProductUuid(request.productUuid())
                 .orElseThrow(() -> new ServiceException("404", "존재하지 않는 상품입니다."));
 
-        User user = customUserDetails.getUser();
-        if (!product.getUser().getId().equals(user.getId())) {
-            throw new ServiceException("403", "본인이 등록한 상품만 수정 가능합니다.");
-        }
+        // 상품 수정 권한 검증 (본인 상품만 수정 가능)
+        checkProductOwner(product, customUserDetails.getUser());
+        // 존재하는 카테고리인지 검증
+        Category category = validateAndGetCategory(request.categoryId());
+        // 조건부 무료 배송비 & 최소/최대 구매수량 검증
+        validateDeliveryAndQuantity(request.deliveryType(), request.conditionalFreeAmount(), request.minQuantity(), request.maxQuantity());
 
-        // 카테고리 체크
-        Category category = categoryRepository.findById(request.categoryId())
-                .orElseThrow(() -> new ServiceException("400", "존재하지 않는 카테고리입니다."));
-        product.setCategory(category);
-
-        // 배송비 유형이 조건부 무료배송이면 conditionalFreeAmount 체크
-        if ("CONDITIONAL_FREE".equals(request.deliveryType()) && request.conditionalFreeAmount() == null) {
-            throw new ServiceException("400", "조건부 무료 배송인 경우, 조건부 무료 기준 금액은 필수입니다.");
-        }
-
-        // 최소/최대 구매수량 검증
-        if (request.maxQuantity() < request.minQuantity()) {
-            throw new ServiceException("400", "최대 구매 수량은 최소 구매 수량보다 작을 수 없습니다.");
-        }
-
-        // DTO 값 그대로 덮어쓰기
-        product.setName(request.name());
-        product.setBrandName(request.brandName());
-        product.setPrice(request.price());
-        product.setDiscountRate(request.discountRate());
-        product.setBundleShippingAvailable(request.bundleShippingAvailable());
-        product.setDeliveryCharge(request.deliveryCharge());
-        product.setAdditionalShippingCharge(request.additionalShippingCharge());
-        product.setDeliveryType(DeliveryType.valueOf(request.deliveryType()));
-        product.setConditionalFreeAmount(request.conditionalFreeAmount());
-        product.setStock(request.stock());
-        product.setDescription(request.description());
-        product.setSellingStatus(SellingStatus.valueOf(request.sellingStatus()));
-        product.setDisplayStatus(DisplayStatus.valueOf(request.displayStatus()));
-        product.setMinQuantity(request.minQuantity());
-        product.setMaxQuantity(request.maxQuantity());
-        product.setProductModelName(request.productModelName());
-        product.setCertification(request.certification());
-        product.setOrigin(request.origin());
-        product.setMaterial(request.material());
-        product.setSize(request.size());
-        product.setPlanned(request.isPlanned());
-        product.setRestock(request.isRestock());
-        product.setSellingStartDate(request.sellingStartDate() != null ? request.sellingStartDate().atStartOfDay() : null);
-        product.setSellingEndDate(request.sellingEndDate() != null ? request.sellingEndDate().atStartOfDay() : null);
+        // Product 수정
+        updateProductFromRequest(product, request, category);
 
         // 옵션 처리
         product.getOptions().clear();
-        if (request.options() != null && !request.options().isEmpty()) {
-            List<Option> options = request.options().stream()
-                    .map(o -> Option.builder()
-                            .product(product)
-                            .optionName(o.optionName())
-                            .optionStock(o.optionStock())
-                            .optionAdditionalPrice(o.optionAdditionalPrice())
-                            .build())
-                    .toList();
-            product.getOptions().addAll(options);
-        }
-
+        product.getOptions().addAll(buildOptions(product, request.options()));
         // 추가상품 처리
         product.getAdditionalProducts().clear();
-        if (request.additionalProducts() != null && !request.additionalProducts().isEmpty()) {
-            List<AdditionalProduct> additionalProducts = request.additionalProducts().stream()
-                    .map(a -> AdditionalProduct.builder()
-                            .product(product)
-                            .additionalName(a.additionalProductName())
-                            .additionalStock(a.additionalProductStock())
-                            .additionalPrice(a.additionalProductPrice())
-                            .build())
-                    .toList();
-            product.getAdditionalProducts().addAll(additionalProducts);
-        }
-
+        product.getAdditionalProducts().addAll(buildAdditionalProducts(product, request.additionalProducts()));
         // 태그 처리
         product.getProductTags().clear();
-        if (request.tags() != null && !request.tags().isEmpty()) {
-            List<ProductTagMapping> tagMappings = request.tags().stream()
-                    .map(tagId -> {
-                        Tag tag = TagRepository.findById(tagId)
-                                .orElseThrow(() -> new ServiceException("400", "존재하지 않는 태그입니다. tagId: " + tagId));
-                        return ProductTagMapping.builder()
-                                .product(product)
-                                .tag(tag)
-                                .build();
-                    }).toList();
-            product.getProductTags().addAll(tagMappings);
-        }
+        product.getProductTags().addAll(buildProductTags(product, request.tags()));
+        // 이미지 처리
+        updateProductImages(product, request.images());
 
-        // 1. 기존 이미지 맵 생성
-        Map<String, ProductImage> existingImagesMap = product.getImages().stream()
-                .collect(Collectors.toMap(ProductImage::getS3Key, img -> img));
+        // cascade로 옵션, 추가상품, 태그, 이미지까지 같이 저장 후 uuid 반환
+        return productRepository.save(product).getProductUuid();
+    }
 
-        // 2. 프론트에서 받은 이미지 S3Key 리스트
-        Set<String> incomingKeys = request.images().stream()
-                .map(S3FileRequest::s3Key)
-                .collect(Collectors.toSet());
-
-        // 3. 삭제 처리 (DB에 있고 프론트에 없는 이미지)
-        for (ProductImage img : product.getImages()) {
-            if (!incomingKeys.contains(img.getS3Key())) {
-                s3Service.deleteFile(img.getS3Key()); // S3에서 삭제
-            }
-        }
-        // DB에서도 제거
-        product.getImages().removeIf(img -> !incomingKeys.contains(img.getS3Key()));
-
-        // 4. 새로 추가된 이미지 처리 (프론트에 있는데 DB에는 없는 이미지)
-        for (S3FileRequest imgRequest : request.images()) {
-            if (!existingImagesMap.containsKey(imgRequest.s3Key())) {
-                s3ValidationService.validateFileExists(imgRequest.s3Key()); // 선택적 검증
-                ProductImage newImage = ProductImage.builder()
-                        .product(product)
-                        .fileUrl(imgRequest.url())
-                        .fileType(imgRequest.type())
-                        .s3Key(imgRequest.s3Key())
-                        .originalFilename(imgRequest.originalFileName())
-                        .build();
-                product.getImages().add(newImage);
-            }
-        }
-
-        // cascade로 연관 데이터까지 모두 저장됨
-        productRepository.save(product);
-
-        return product.getProductUuid(); // UUID 반환
+    // (상품) 파일 다운로드 메서드
+    @Transactional(readOnly = true)
+    public ProductImage getProductDocument(UUID productUuid) {
+        // productUuid로 상품 조회
+        Product product = productRepository.findByProductUuid(productUuid)
+                .orElseThrow(() -> new ServiceException("404", "존재하지 않는 상품입니다. productUuid: " + productUuid));
+        return product.getImages().stream()
+                .filter(img -> img.getFileType() == FileType.DOCUMENT)
+                .findFirst()
+                .orElseThrow(() -> new ServiceException("404", "다운로드할 문서가 존재하지 않습니다."));
     }
 
 
@@ -435,5 +236,186 @@ public class ProductService {
     }
 
 
+    /** Validation 메서드 */
+    // 카테고리 검증
+    private Category validateAndGetCategory(Long categoryId) {
+        return categoryRepository.findById(categoryId)
+                .orElseThrow(() -> new ServiceException("400", "존재하지 않는 카테고리입니다."));
+    }
+    // 조건부 무료 배송비 & 최소/최대 구매수량 검증
+    private void validateDeliveryAndQuantity(String deliveryTypeStr, Integer conditionalFreeAmount, int minQuantity, int maxQuantity) {
+        if (deliveryTypeStr == null) {
+            throw new ServiceException("400", "배송 타입은 필수입니다.");
+        }
+        DeliveryType deliveryType;
+        try {
+            deliveryType = DeliveryType.valueOf(deliveryTypeStr);
+        } catch (IllegalArgumentException e) {
+            throw new ServiceException("400", "잘못된 배송 타입입니다: " + deliveryTypeStr);
+        }
+        if (deliveryType == DeliveryType.CONDITIONAL_FREE && (conditionalFreeAmount == null || conditionalFreeAmount < 1)) {
+            throw new ServiceException("400", "조건부 무료 기준 금액은 NULL일 수 없으며, 1 이상이어야 합니다.");
+        }
+        if (maxQuantity < minQuantity) {
+            throw new ServiceException("400", "최대 구매 수량은 최소 구매 수량보다 작을 수 없습니다.");
+        }
+    }
+    // 상품 수정 권한 검증
+    private void checkProductOwner(Product product, User user) {
+        if (!product.getUser().getId().equals(user.getId())) {
+            throw new ServiceException("403", "본인이 등록한 상품만 수정 가능합니다.");
+        }
+    }
+
+
+    /** Builder 패턴  */
+    // Product 생성
+    private Product buildProductFromRequest(CreateProductRequest request, User user, Category category) {
+        return Product.builder()
+                .category(category) // DTO에 있던 검증된 카테고리
+                .user(user) // 작가 정보
+                .name(request.name()) // 상품명
+                .brandName(request.brandName()) // 브랜드명
+                .price(request.price()) // 가격
+                .discountRate(request.discountRate()) // 할인율
+                .bundleShippingAvailable(request.bundleShippingAvailable()) // 묶음 배송 가능 여부
+                .deliveryCharge(request.deliveryCharge()) // 기본 배송비
+                .additionalShippingCharge(request.additionalShippingCharge()) // 제주 추가 배송비
+                .deliveryType(DeliveryType.valueOf(request.deliveryType())) // 배송비 유형
+                .conditionalFreeAmount(request.conditionalFreeAmount()) //조건부 배송일 경우 무료배송 조건 금액
+                .stock(request.stock()) //재고
+                .description(request.description()) // 상품 정보(텍스트+이미지 태그로 이루어진 HTML?)
+                .sellingStatus(request.sellingStatus() != null ? SellingStatus.valueOf(request.sellingStatus()) : SellingStatus.SELLING) //판매상태(null이면 기본값 판매중으로)
+                .displayStatus(DisplayStatus.valueOf(request.displayStatus())) // 전시상태
+                .minQuantity(request.minQuantity()) // 최소 구매수량
+                .maxQuantity(request.maxQuantity()) // 최대 구매수량
+                .isPlanned(request.isPlanned()) // 기획상품 여부
+                .isRestock(request.isRestock()) // 재입고상품 여부
+                .sellingStartDate(request.sellingStartDate() != null ? request.sellingStartDate().atStartOfDay() : null)// 판매시작일
+                .sellingEndDate(request.sellingEndDate() != null ? request.sellingEndDate().atStartOfDay() : null)// 판매종료일
+                .productModelName(request.productModelName()) //품명
+                .certification(request.certification()) // 법에 의한 인증,허가 확인사항
+                .origin(request.origin()) // 제조국
+                .material(request.material()) // 재질
+                .size(request.size()) //사이즈
+                .isDeleted(false) // 논리삭제 여부(db에서 삭제는 안하고, 삭제처리만 된 것)
+                .build();
+    }
+    // Product 수정
+    private void updateProductFromRequest(Product product, UpdateProductRequest request, Category category){
+        // DTO 값 그대로 덮어쓰기
+        product.setCategory(category);
+        product.setName(request.name());
+        product.setBrandName(request.brandName());
+        product.setPrice(request.price());
+        product.setDiscountRate(request.discountRate());
+        product.setBundleShippingAvailable(request.bundleShippingAvailable());
+        product.setDeliveryCharge(request.deliveryCharge());
+        product.setAdditionalShippingCharge(request.additionalShippingCharge());
+        product.setDeliveryType(DeliveryType.valueOf(request.deliveryType()));
+        product.setConditionalFreeAmount(request.conditionalFreeAmount());
+        product.setStock(request.stock());
+        product.setDescription(request.description());
+        product.setSellingStatus(SellingStatus.valueOf(request.sellingStatus()));
+        product.setDisplayStatus(DisplayStatus.valueOf(request.displayStatus()));
+        product.setMinQuantity(request.minQuantity());
+        product.setMaxQuantity(request.maxQuantity());
+        product.setProductModelName(request.productModelName());
+        product.setCertification(request.certification());
+        product.setOrigin(request.origin());
+        product.setMaterial(request.material());
+        product.setSize(request.size());
+        product.setPlanned(request.isPlanned());
+        product.setRestock(request.isRestock());
+        product.setSellingStartDate(request.sellingStartDate() != null ? request.sellingStartDate().atStartOfDay() : null);
+        product.setSellingEndDate(request.sellingEndDate() != null ? request.sellingEndDate().atStartOfDay() : null);
+    }
+
+
+    /** 옵션, 추가상품, 태그, 이미지 메서드  */
+    // 옵션이 존재한다면 Option 생성
+    private List<Option> buildOptions(Product product, List<? extends BaseOption> options) {
+        if (options == null || options.isEmpty()) return List.of();
+        return options.stream()
+                .map(o -> Option.builder()
+                        .product(product)
+                        .optionName(o.optionName())
+                        .optionStock(o.optionStock())
+                        .optionAdditionalPrice(o.optionAdditionalPrice())
+                        .build())
+                .toList();
+    }
+    // 추가상품이 존재한다면 AdditionalProduct 생성
+    private List<AdditionalProduct> buildAdditionalProducts(Product product, List<? extends BaseAdditionalProduct> additionalProducts) {
+        if (additionalProducts == null || additionalProducts.isEmpty()) return List.of();
+        return additionalProducts.stream()
+                .map(a -> AdditionalProduct.builder()
+                        .product(product)
+                        .additionalName(a.additionalProductName())
+                        .additionalStock(a.additionalProductStock())
+                        .additionalPrice(a.additionalProductPrice())
+                        .build())
+                .toList();
+    }
+    // 태그 저장
+    private List<ProductTagMapping> buildProductTags(Product product, List<Long> tagIds) {
+        if (tagIds == null || tagIds.isEmpty()) return List.of();
+        return tagIds.stream()
+                .map(tagId -> {
+                    Tag tag = tagRepository.findById(tagId)
+                            .orElseThrow(() -> new ServiceException("400", "존재하지 않는 태그입니다. tagId: " + tagId));
+                    return ProductTagMapping.builder()
+                            .product(product)
+                            .tag(tag)
+                            .build();
+                }).toList();
+    }
+    // 이미지 저장 (Create용)
+    private List<ProductImage> buildProductImages(Product product, List<S3FileRequest> images) {
+        if (images == null || images.isEmpty()) return List.of();
+        return images.stream()
+                .map(img -> {
+                    s3ValidationService.validateFileExists(img.s3Key());
+                    return ProductImage.builder()
+                            .product(product)
+                            .fileUrl(img.url())
+                            .fileType(img.type())
+                            .s3Key(img.s3Key())
+                            .originalFilename(img.originalFileName())
+                            .build();
+                }).toList();
+    }
+    // 이미지 저장 (Update용)
+    private void updateProductImages(Product product, List<S3FileRequest> incomingImages) {
+        if (incomingImages == null) incomingImages = List.of();
+        // 기존 이미지
+        Map<String, ProductImage> existingMap = product.getImages().stream()
+                .collect(Collectors.toMap(ProductImage::getS3Key, img -> img));
+        // 프론트에게 받은 이미지 S3Key 리스트
+        Set<String> incomingKeys = incomingImages.stream().map(S3FileRequest::s3Key).collect(Collectors.toSet());
+
+        // DB, S3에서 이미지 삭제 (DB에 있고 프론트에 없는 이미지)
+        product.getImages().removeIf(img -> {
+            if (!incomingKeys.contains(img.getS3Key())) {
+                s3Service.deleteFile(img.getS3Key());
+                return true;
+            }
+            return false;
+        });
+
+        // 이미지 추가 (프론트에 있는데 DB에는 없는 이미지)
+        for (S3FileRequest img : incomingImages) {
+            if (!existingMap.containsKey(img.s3Key())) {
+                s3ValidationService.validateFileExists(img.s3Key());
+                product.getImages().add(ProductImage.builder()
+                        .product(product)
+                        .fileUrl(img.url())
+                        .fileType(img.type())
+                        .s3Key(img.s3Key())
+                        .originalFilename(img.originalFileName())
+                        .build());
+            }
+        }
+    }
 
 }

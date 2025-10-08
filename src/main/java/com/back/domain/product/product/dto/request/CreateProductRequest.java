@@ -42,7 +42,7 @@ public record CreateProductRequest(
 
         @Schema(description = "제주 추가 배송비", example = "5000")
         @Min(value = 0, message = "추가 배송비는 최소 0 이상이어야 합니다.")
-        int additionalShippingCharges, // 추가 배송비
+        int additionalShippingCharge, // 추가 배송비
 
         @Schema(description = "배송비 유형(FREE(무료배송)|CONDITIONAL_FREE(조건부 무료배송)|PAID(유료배송))", example = "CONDITIONAL_FREE")
         @NotBlank(message = "배송비 유형은 필수입니다.")
@@ -145,7 +145,7 @@ public record CreateProductRequest(
             @Schema(description = "옵션 추가금", example = "5000")
             @Min(value = 0, message = "옵션 추가금은 0 이상이어야 합니다.")
             int optionAdditionalPrice // 옵션 추가금
-    ) {}
+    ) implements BaseOption {}
     @Schema(description = "추가 상품")
     public record AdditionalProduct(
             @Schema(description = "추가 상품명", example = "장미 키링")
@@ -159,6 +159,6 @@ public record CreateProductRequest(
             @Schema(description = "추가 상품 가격", example = "12000")
             @Min(value = 0, message = "추가상품 가격은 0 이상이어야 합니다.")
             int additionalProductPrice
-    ) {}
+    ) implements BaseAdditionalProduct {}
 }
 
