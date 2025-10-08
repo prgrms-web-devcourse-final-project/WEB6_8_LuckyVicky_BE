@@ -7,6 +7,7 @@ import jakarta.validation.constraints.Pattern;
 /**
  * 관리자 펀딩 모니터링 목록 조회 요청 DTO
  * 2025.09.28 신규 생성
+ * 2025.10.05 수정 - categoryId 제거 (펀딩에는 카테고리 불필요)
  */
 public record AdminFundingSearchRequest(
         /** 페이지 번호 (0-based) */
@@ -25,9 +26,6 @@ public record AdminFundingSearchRequest(
         @Pattern(regexp = "^(OPEN|CLOSED|SUCCESS|FAILED|CANCELED)$",
                 message = "status는 OPEN, CLOSED, SUCCESS, FAILED, CANCELED 중 하나여야 합니다")
         String status,
-
-        /** 카테고리 ID */
-        Long categoryId,
 
         /** 작가 ID */
         Long artistId,

@@ -197,18 +197,18 @@ public class ProductService {
      * 누구나 상품을 공유할 수 있으며, 작가 ID는 상품 소유자 기준으로 설정됨
      * UTM 파라미터를 통해 작가별 유입 경로 추적 가능
      * 
-     * @param productId 상품 ID
+     * @param productUuid 상품 UUID
      * @param platform 공유할 플랫폼 (instagram, youtube, naver 등)
      * @param customUserDetails 현재 로그인한 사용자 정보 (선택사항)
      * @return UTM 파라미터가 포함된 공유 링크
      */
     @Transactional(readOnly = true)
-    public ShareLinkResponse generateShareLink(Long productId, String platform, CustomUserDetails customUserDetails) {
-        log.info("공유 링크 생성 시작 - 상품 ID: {}, 플랫폼: {}", productId, platform);
+    public ShareLinkResponse generateShareLink(UUID productUuid, String platform, CustomUserDetails customUserDetails) {
+        log.info("공유 링크 생성 시작 - 상품 UUID: {}, 플랫폼: {}", productUuid, platform);
 
         // 상품 존재 여부 확인
-        Product product = productRepository.findById(productId)
-                .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 상품입니다. ID: " + productId));
+        Product product = productRepository.findByProductUuid(productUuid)
+                .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 상품입니다. UUID: " + productUuid));
 
         // 논리 삭제된 상품은 공유 불가
         if (product.isDeleted()) {
@@ -217,8 +217,8 @@ public class ProductService {
 
         // 판매 중이 아닌 상품은 공유 불가 (선택적)
         if (product.getSellingStatus() != SellingStatus.SELLING) {
-            log.warn("판매 중이 아닌 상품 공유 시도 - productId: {}, status: {}", 
-                     productId, product.getSellingStatus());
+            log.warn("판매 중이 아닌 상품 공유 시도 - productUuid: {}, status: {}", 
+                     productUuid, product.getSellingStatus());
             // 경고만 하고 공유는 허용 (작가가 예약 판매 등을 미리 공유할 수 있도록)
         }
 
@@ -229,7 +229,7 @@ public class ProductService {
         String normalizedPlatform = validateAndNormalizePlatform(platform);
 
         // 베이스 URL 생성 (프론트엔드 URL)
-        String baseUrl = frontendUrl + "/product/" + productId;
+        String baseUrl = frontendUrl + "/product/" + productUuid;
 
         // UTM 파라미터 생성
         // utm_source: 유입 경로 (instagram, youtube 등)
@@ -244,14 +244,14 @@ public class ProductService {
 
         String shareLink = baseUrl + utmParams;
 
-        log.info("공유 링크 생성 완료 - 작가 ID: {}, 상품 ID: {}, 플랫폼: {}", 
-                 artistId, productId, normalizedPlatform);
+        log.info("공유 링크 생성 완료 - 작가 ID: {}, 상품 UUID: {}, 플랫폼: {}", 
+                 artistId, productUuid, normalizedPlatform);
 
         return new ShareLinkResponse(
                 shareLink,
                 normalizedPlatform,
                 artistId,
-                productId,
+                productUuid,
                 product.getName() // 상품명을 설명으로 사용
         );
     }

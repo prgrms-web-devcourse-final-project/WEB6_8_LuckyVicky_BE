@@ -247,13 +247,19 @@ public class AuthService {
      */
     private User validateLoginCredentials(LoginRequest request) {
         User user = userRepository.findByEmail(request.email())
-                .orElseThrow(() -> new ServiceException("401", "이메일 또는 비밀번호가 잘못되었습니다."));
+                .orElseThrow(() -> {
+                    log.warn("로그인 실패 - 존재하지 않는 이메일: {}", request.email());
+                    return new ServiceException("401", "이메일이 잘못되었습니다.");
+                });
 
         if (!passwordEncoder.matches(request.password(), user.getPassword())) {
-            throw new ServiceException("401", "이메일 또는 비밀번호가 잘못되었습니다.");
+            log.warn("로그인 실패 - 비밀번호 불일치: email={}", request.email());
+            throw new ServiceException("401", "비밀번호가 잘못되었습니다.");
         }
 
         if (!user.getRole().canLoginAs(request.selectedRole())) {
+            log.warn("로그인 실패 - 권한 불일치: email={}, requestedRole={}, userRole={}",
+                    request.email(), request.selectedRole(), user.getRole());
             throw new ServiceException("403", "선택한 역할로 로그인할 수 없습니다.");
         }
 
