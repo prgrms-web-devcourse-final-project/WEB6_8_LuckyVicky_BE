@@ -49,13 +49,20 @@ public class SecurityConfig {
         http
                 // URL별 권한 설정
                 .authorizeHttpRequests(auth -> auth
-                        // 인증이 필요 없는 API
+                        // ========================================
+                        // 🔓 인증 불필요 - 공개 API
+                        // ========================================
+
+                        // 인증/인가 - 회원가입, 로그인, 토큰 관련
                         .requestMatchers("/api/auth/signup", "/api/auth/login", "/api/auth/refresh", "/api/auth/logout").permitAll()
 
-                        // OAuth2 로그인 엔드포인트 - 인증 불필요
+                        // 중복 검증 - 이메일, 닉네임, 전화번호
+                        .requestMatchers("/api/auth/duplicate/**").permitAll()
+
+                        // OAuth2 로그인 엔드포인트
                         .requestMatchers("/oauth2/**", "/login/oauth2/**").permitAll()
 
-                        // 공개 API - 로그인 없이 접근 허용
+                        // 공개 API
                         .requestMatchers("/public/**").permitAll()
 
                         // 상품/카테고리/태그 조회 - 로그인 없이 접근 허용
