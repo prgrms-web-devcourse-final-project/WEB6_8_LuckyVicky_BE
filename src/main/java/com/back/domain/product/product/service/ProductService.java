@@ -3,17 +3,19 @@ package com.back.domain.product.product.service;
 import com.back.domain.product.category.entity.Category;
 import com.back.domain.product.category.repository.CategoryRepository;
 import com.back.domain.product.product.dto.request.CreateProductRequest;
+import com.back.domain.product.product.dto.request.UpdateProductRequest;
 import com.back.domain.product.product.dto.response.ProductListResponse;
 import com.back.domain.product.product.dto.response.ShareLinkResponse;
 import com.back.domain.product.product.entity.*;
 import com.back.domain.product.product.repository.ProductRepository;
 import com.back.domain.product.tag.entity.Tag;
 import com.back.domain.product.tag.repository.TagRepository;
-import com.back.domain.user.entity.Role;
 import com.back.domain.user.entity.User;
 import com.back.domain.user.repository.UserRepository;
 import com.back.global.exception.ServiceException;
 import com.back.global.s3.FileType;
+import com.back.global.s3.S3FileRequest;
+import com.back.global.s3.S3Service;
 import com.back.global.s3.S3ValidationService;
 import com.back.global.security.auth.CustomUserDetails;
 import lombok.RequiredArgsConstructor;
@@ -24,6 +26,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
@@ -37,6 +40,7 @@ public class ProductService {
     private final CategoryRepository categoryRepository;
     private final TagRepository TagRepository;
     private final S3ValidationService s3ValidationService;
+    private final S3Service s3Service;
     private final UserRepository userRepository;
 
     @Value("${app.frontend-url:https://mori-mori.store}")
@@ -48,14 +52,25 @@ public class ProductService {
 
         // 현재 로그인한 사용자 (=상품 등록한 작가)
         User user = customUserDetails.getUser();
-        // 권한 체크(ARTIST,ADMIN,ROOT만 상품 등록 가능)
-        if (!Set.of(Role.ARTIST, Role.ADMIN, Role.ROOT).contains(user.getRole())) {
-            throw new ServiceException("403", "상품 등록 권한이 없습니다.");
-        }
 
         // 존재하는 카테고리인지 검증
         Category category = categoryRepository.findById(request.categoryId())
                 .orElseThrow(() -> new ServiceException("400", "존재하지 않는 카테고리입니다."));
+
+        // 배송비 유형
+        DeliveryType deliveryType = DeliveryType.valueOf(request.deliveryType());
+
+        // 배송비 유형이 조건부 무료 배송이면 conditionalFreeAmount null 체크
+        if (deliveryType == DeliveryType.CONDITIONAL_FREE) {
+            if (request.conditionalFreeAmount() == null || request.conditionalFreeAmount() < 1) {
+                throw new ServiceException("400", "조건부 무료 기준 금액은 NULL일 수 없으며, 1 이상이어야 합니다.");
+            }
+        }
+
+        // 최소/최대 구매수량 검증
+        if (request.maxQuantity() < request.minQuantity()) {
+            throw new ServiceException("400", "최대 구매 수량은 최소 구매 수량보다 작을 수 없습니다.");
+        }
 
         // Product 생성
         Product product = Product.builder()
@@ -68,7 +83,7 @@ public class ProductService {
                 .bundleShippingAvailable(request.bundleShippingAvailable()) // 묶음 배송 가능 여부
                 .deliveryCharge(request.deliveryCharge()) // 기본 배송비
                 .additionalShippingCharge(request.additionalShippingCharges()) // 제주 추가 배송비
-                .deliveryType(DeliveryType.valueOf(request.deliveryType())) // 배송비 유형
+                .deliveryType(deliveryType) // 배송비 유형
                 .conditionalFreeAmount(request.conditionalFreeAmount()) //조건부 배송일 경우 무료배송 조건 금액
                 .stock(request.stock()) //재고
                 .description(request.description()) // 상품 정보(텍스트+이미지 태그로 이루어진 HTML?)
@@ -155,7 +170,6 @@ public class ProductService {
         return product.getProductUuid();
     }
 
-
     // (상품) 파일 다운로드 메서드
     @Transactional(readOnly = true)
     public ProductImage getProductDocument(UUID productUuid) {
@@ -190,6 +204,142 @@ public class ProductService {
                 pageable
         );
     }
+
+    // 상품 수정
+    @Transactional
+    public UUID updateProduct(UpdateProductRequest request, CustomUserDetails customUserDetails) {
+
+        Product product = productRepository.findByProductUuid(request.productUuid())
+                .orElseThrow(() -> new ServiceException("404", "존재하지 않는 상품입니다."));
+
+        User user = customUserDetails.getUser();
+        if (!product.getUser().getId().equals(user.getId())) {
+            throw new ServiceException("403", "본인이 등록한 상품만 수정 가능합니다.");
+        }
+
+        // 카테고리 체크
+        Category category = categoryRepository.findById(request.categoryId())
+                .orElseThrow(() -> new ServiceException("400", "존재하지 않는 카테고리입니다."));
+        product.setCategory(category);
+
+        // 배송비 유형이 조건부 무료배송이면 conditionalFreeAmount 체크
+        if ("CONDITIONAL_FREE".equals(request.deliveryType()) && request.conditionalFreeAmount() == null) {
+            throw new ServiceException("400", "조건부 무료 배송인 경우, 조건부 무료 기준 금액은 필수입니다.");
+        }
+
+        // 최소/최대 구매수량 검증
+        if (request.maxQuantity() < request.minQuantity()) {
+            throw new ServiceException("400", "최대 구매 수량은 최소 구매 수량보다 작을 수 없습니다.");
+        }
+
+        // DTO 값 그대로 덮어쓰기
+        product.setName(request.name());
+        product.setBrandName(request.brandName());
+        product.setPrice(request.price());
+        product.setDiscountRate(request.discountRate());
+        product.setBundleShippingAvailable(request.bundleShippingAvailable());
+        product.setDeliveryCharge(request.deliveryCharge());
+        product.setAdditionalShippingCharge(request.additionalShippingCharge());
+        product.setDeliveryType(DeliveryType.valueOf(request.deliveryType()));
+        product.setConditionalFreeAmount(request.conditionalFreeAmount());
+        product.setStock(request.stock());
+        product.setDescription(request.description());
+        product.setSellingStatus(SellingStatus.valueOf(request.sellingStatus()));
+        product.setDisplayStatus(DisplayStatus.valueOf(request.displayStatus()));
+        product.setMinQuantity(request.minQuantity());
+        product.setMaxQuantity(request.maxQuantity());
+        product.setProductModelName(request.productModelName());
+        product.setCertification(request.certification());
+        product.setOrigin(request.origin());
+        product.setMaterial(request.material());
+        product.setSize(request.size());
+        product.setPlanned(request.isPlanned());
+        product.setRestock(request.isRestock());
+        product.setSellingStartDate(request.sellingStartDate() != null ? request.sellingStartDate().atStartOfDay() : null);
+        product.setSellingEndDate(request.sellingEndDate() != null ? request.sellingEndDate().atStartOfDay() : null);
+
+        // 옵션 처리
+        product.getOptions().clear();
+        if (request.options() != null && !request.options().isEmpty()) {
+            List<Option> options = request.options().stream()
+                    .map(o -> Option.builder()
+                            .product(product)
+                            .optionName(o.optionName())
+                            .optionStock(o.optionStock())
+                            .optionAdditionalPrice(o.optionAdditionalPrice())
+                            .build())
+                    .toList();
+            product.getOptions().addAll(options);
+        }
+
+        // 추가상품 처리
+        product.getAdditionalProducts().clear();
+        if (request.additionalProducts() != null && !request.additionalProducts().isEmpty()) {
+            List<AdditionalProduct> additionalProducts = request.additionalProducts().stream()
+                    .map(a -> AdditionalProduct.builder()
+                            .product(product)
+                            .additionalName(a.additionalProductName())
+                            .additionalStock(a.additionalProductStock())
+                            .additionalPrice(a.additionalProductPrice())
+                            .build())
+                    .toList();
+            product.getAdditionalProducts().addAll(additionalProducts);
+        }
+
+        // 태그 처리
+        product.getProductTags().clear();
+        if (request.tags() != null && !request.tags().isEmpty()) {
+            List<ProductTagMapping> tagMappings = request.tags().stream()
+                    .map(tagId -> {
+                        Tag tag = TagRepository.findById(tagId)
+                                .orElseThrow(() -> new ServiceException("400", "존재하지 않는 태그입니다. tagId: " + tagId));
+                        return ProductTagMapping.builder()
+                                .product(product)
+                                .tag(tag)
+                                .build();
+                    }).toList();
+            product.getProductTags().addAll(tagMappings);
+        }
+
+        // 1. 기존 이미지 맵 생성
+        Map<String, ProductImage> existingImagesMap = product.getImages().stream()
+                .collect(Collectors.toMap(ProductImage::getS3Key, img -> img));
+
+        // 2. 프론트에서 받은 이미지 S3Key 리스트
+        Set<String> incomingKeys = request.images().stream()
+                .map(S3FileRequest::s3Key)
+                .collect(Collectors.toSet());
+
+        // 3. 삭제 처리 (DB에 있고 프론트에 없는 이미지)
+        for (ProductImage img : product.getImages()) {
+            if (!incomingKeys.contains(img.getS3Key())) {
+                s3Service.deleteFile(img.getS3Key()); // S3에서 삭제
+            }
+        }
+        // DB에서도 제거
+        product.getImages().removeIf(img -> !incomingKeys.contains(img.getS3Key()));
+
+        // 4. 새로 추가된 이미지 처리 (프론트에 있는데 DB에는 없는 이미지)
+        for (S3FileRequest imgRequest : request.images()) {
+            if (!existingImagesMap.containsKey(imgRequest.s3Key())) {
+                s3ValidationService.validateFileExists(imgRequest.s3Key()); // 선택적 검증
+                ProductImage newImage = ProductImage.builder()
+                        .product(product)
+                        .fileUrl(imgRequest.url())
+                        .fileType(imgRequest.type())
+                        .s3Key(imgRequest.s3Key())
+                        .originalFilename(imgRequest.originalFileName())
+                        .build();
+                product.getImages().add(newImage);
+            }
+        }
+
+        // cascade로 연관 데이터까지 모두 저장됨
+        productRepository.save(product);
+
+        return product.getProductUuid(); // UUID 반환
+    }
+
 
     /**
      * 상품 공유 링크 생성 (UTM 파라미터 포함)
@@ -283,5 +433,7 @@ public class ProductService {
 
         return normalized;
     }
+
+
 
 }

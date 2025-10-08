@@ -1,6 +1,7 @@
 package com.back.domain.product.product.controller;
 
 import com.back.domain.product.product.dto.request.CreateProductRequest;
+import com.back.domain.product.product.dto.request.UpdateProductRequest;
 import com.back.domain.product.product.dto.response.ProductListResponse;
 import com.back.domain.product.product.dto.response.ShareLinkResponse;
 import com.back.domain.product.product.entity.ProductImage;
@@ -329,6 +330,68 @@ public class ProductController {
         );
         return ResponseEntity.ok(RsData.of("200", "상품 목록 조회 성공", products));
     }
+
+    @PutMapping
+    @Operation(
+            summary = "상품 수정",
+            responses = {
+                    @ApiResponse(
+                            responseCode = "200",
+                            description = "상품 수정 성공",
+                            content = @Content(
+                                    mediaType = "application/json",
+                                    schema = @Schema(
+                                            example = """
+                                                {
+                                                  "resultCode": "200",
+                                                  "msg": "상품이 성공적으로 수정되었습니다.",
+                                                  "data": null
+                                                }
+                                                """
+                                    )
+                            )
+                    ),
+                    @ApiResponse(
+                            responseCode = "400",
+                            description = "잘못된 요청 (Validation 실패, 존재하지 않는 카테고리/태그 등)",
+                            content = @Content(
+                                    mediaType = "application/json",
+                                    schema = @Schema(
+                                            example = """
+                                                {
+                                                  "resultCode": "400",
+                                                  "msg": "최대 구매 수량은 최소 구매 수량보다 작을 수 없습니다.",
+                                                  "data": null
+                                                }
+                                                """
+                                    )
+                            )
+                    ),
+                    @ApiResponse(
+                            responseCode = "403",
+                            description = "권한 없음",
+                            content = @Content(
+                                    mediaType = "application/json",
+                                    schema = @Schema(
+                                            example = """
+                                                {
+                                                  "resultCode": "403",
+                                                  "msg": "본인이 등록한 상품만 수정 가능합니다.",
+                                                  "data": null
+                                                }
+                                                """
+                                    )
+                            )
+                    )
+            }
+    )
+    public ResponseEntity<RsData<UUID>> updateProduct(
+            @Valid @RequestBody UpdateProductRequest request,
+            @AuthenticationPrincipal CustomUserDetails customUserDetails) {
+        UUID updatedProductUuid = productService.updateProduct(request, customUserDetails);
+        return ResponseEntity.ok(RsData.of("200", "상품이 성공적으로 수정되었습니다.", updatedProductUuid));
+    }
+
 
     /**
      * 상품 공유 링크 생성 (UTM 파라미터 포함)

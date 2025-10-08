@@ -2,9 +2,11 @@ package com.back.domain.product.product.controller;
 
 import com.back.domain.product.category.repository.CategoryRepository;
 import com.back.domain.product.product.dto.request.CreateProductRequest;
+import com.back.domain.product.product.dto.request.UpdateProductRequest;
 import com.back.domain.product.product.dto.response.ProductListResponse;
 import com.back.domain.product.product.entity.ProductImage;
 import com.back.domain.product.product.service.ProductService;
+import com.back.global.exception.ServiceException;
 import com.back.global.rsData.RsData;
 import com.back.global.s3.FileType;
 import com.back.global.s3.S3FileRequest;
@@ -36,8 +38,8 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.doReturn;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.mockito.Mockito.doThrow;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultHandlers.print;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
@@ -232,4 +234,114 @@ class ProductControllerTest {
         assertThat(rsData.data().products().get(0).name()).isEqualTo("상품1");
         assertThat(rsData.data().products().get(1).discountPrice()).isEqualTo(16000);
     }
+
+    @Test
+    @DisplayName("상품 수정 API 성공")
+    @WithMockUser(username = "artist@test.com", roles = "ARTIST")
+    void updateProduct_test() throws Exception {
+        UUID productUuid = UUID.randomUUID(); // 수정할 상품 UUID
+
+        UpdateProductRequest request = new UpdateProductRequest(
+                productUuid,
+                1L,
+                "수정된 상품명",
+                "수정된 브랜드",
+                15000,
+                15,
+                true,
+                3000,
+                3000,
+                "PAID",
+                null,
+                200,
+                "수정된 상세 설명",
+                "SELLING",
+                "DISPLAYED",
+                2,
+                20,
+                false,
+                false,
+                null,
+                null,
+                List.of(1L, 2L),
+                null,
+                null,
+                List.of(new S3FileRequest("https://example.com/image-updated.jpg", FileType.MAIN, "product-images/image-updated.jpg", "image-updated.jpg")),
+                "수정된 모델명",
+                true,
+                "한국",
+                "면",
+                "M"
+        );
+
+        // 서비스 호출 결과 mock
+        doReturn(productUuid).when(productService).updateProduct(any(), any());
+
+        ResultActions resultActions = mockMvc.perform(
+                put("/api/products")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request))
+        ).andDo(print());
+
+        resultActions
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data").value(productUuid.toString()))
+                .andExpect(jsonPath("$.msg").value("상품이 성공적으로 수정되었습니다."));
+    }
+
+    @Test
+    @DisplayName("상품 수정 실패 - 최소/최대 수량 검증 실패")
+    @WithMockUser(username = "artist@test.com", roles = "ARTIST")
+    void updateProduct_fail_minMaxQuantity() throws Exception {
+        UUID productUuid = UUID.randomUUID();
+
+        UpdateProductRequest request = new UpdateProductRequest(
+                productUuid,
+                1L,
+                "상품명",
+                "브랜드명",
+                15000,
+                15,
+                true,
+                3000,
+                3000,
+                "PAID",
+                null,
+                200,
+                "상세 설명",
+                "SELLING",
+                "DISPLAYED",
+                10, // minQuantity
+                5,  // maxQuantity < minQuantity
+                false,
+                false,
+                null,
+                null,
+                List.of(1L, 2L),
+                null,
+                null,
+                List.of(new S3FileRequest("https://example.com/image.jpg", FileType.MAIN, "product-images/image.jpg", "image.jpg")),
+                "모델명",
+                true,
+                "한국",
+                "면",
+                "M"
+        );
+
+        // 서비스에서 예외 던지도록 mock
+        doThrow(new ServiceException("400", "최대 구매 수량은 최소 구매 수량보다 작을 수 없습니다."))
+                .when(productService).updateProduct(any(), any());
+
+        ResultActions resultActions = mockMvc.perform(
+                put("/api/products")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request))
+        ).andDo(print());
+
+        resultActions
+                .andExpect(status().isBadRequest())
+                .andExpect(content().string(containsString("최대 구매 수량은 최소 구매 수량보다 작을 수 없습니다.")));
+    }
+
+
 }
