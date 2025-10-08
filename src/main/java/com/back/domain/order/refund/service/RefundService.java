@@ -12,6 +12,7 @@ import com.back.domain.order.refund.entity.RefundItem;
 import com.back.domain.order.refund.repository.RefundItemRepository;
 import com.back.domain.order.refund.repository.RefundRepository;
 import com.back.domain.order.refund.util.RefundConverter;
+import com.back.domain.product.product.entity.Product;
 import com.back.domain.user.entity.User;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -59,6 +60,7 @@ public class RefundService extends BaseOrderActionService<Refund, RefundResponse
         Refund refund = Refund.createRefund(
             order,
             user,
+            requestDto.reasonType(), // 환불 사유 타입 추가
             requestDto.reason(),
             requestDto.detailReason(),
             requestDto.refundAmount(),
@@ -137,11 +139,19 @@ public class RefundService extends BaseOrderActionService<Refund, RefundResponse
     public RefundResponseDto approveItem(Long refundId, User admin) {
         log.info("환불 승인 - 환불 ID: {}, 관리자: {}", refundId, admin.getId());
         
-        Refund refund = refundRepository.findById(refundId)
+        Refund refund = refundRepository.findByIdWithItems(refundId)
                 .orElseThrow(() -> new IllegalArgumentException("환불 정보를 찾을 수 없습니다."));
         
         if (refund.getStatus() != Refund.RefundStatus.REQUESTED) {
             throw new IllegalStateException("승인 대기 중인 환불만 승인할 수 있습니다.");
+        }
+        
+        // 재고 복원 여부 확인 (사유 타입에 따라 자동 판단)
+        if (refund.getReasonType().shouldRestoreStock()) {
+            log.info("환불 사유가 '{}'이므로 재고를 복원합니다.", refund.getReasonType().getDescription());
+            restoreStockForRefund(refund);
+        } else {
+            log.info("환불 사유가 '{}'이므로 재고를 복원하지 않습니다.", refund.getReasonType().getDescription());
         }
         
         // 환불 승인 처리
@@ -152,10 +162,19 @@ public class RefundService extends BaseOrderActionService<Refund, RefundResponse
         
         log.info("환불 승인 완료 - 환불 ID: {}", refundId);
         
-        // N+1 문제 해결: 한 번의 쿼리로 모든 데이터 조회
-        Refund refundWithItems = refundRepository.findByIdWithItems(refundId)
-                .orElseThrow(() -> new IllegalArgumentException("환불 정보를 찾을 수 없습니다."));
-        
-        return refundConverter.toResponseDto(refundWithItems, refundWithItems.getRefundItems());
+        return refundConverter.toResponseDto(refund, refund.getRefundItems());
+    }
+
+    /**
+     * 환불 시 재고 복원
+     */
+    private void restoreStockForRefund(Refund refund) {
+        refund.getRefundItems().forEach(refundItem -> {
+            Product product = refundItem.getOrderItem().getProduct();
+            int restoredStock = product.getStock() + refundItem.getQuantity();
+            product.setStock(restoredStock);
+            log.info("재고 복원 - 상품: {}, 복원 수량: {}, 복원 후 재고: {}", 
+                    product.getName(), refundItem.getQuantity(), restoredStock);
+        });
     }
 }

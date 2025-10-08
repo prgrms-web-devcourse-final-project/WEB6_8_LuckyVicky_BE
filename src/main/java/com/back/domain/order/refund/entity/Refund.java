@@ -31,6 +31,10 @@ public class Refund extends BaseEntity {
     @Column(nullable = false)
     private RefundStatus status;
 
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
+    private RefundReasonType reasonType; // 환불 사유 타입
+
     @Column(nullable = false)
     private String reason;
 
@@ -51,12 +55,13 @@ public class Refund extends BaseEntity {
     private List<RefundItem> refundItems = new ArrayList<>();
 
     @Builder
-    public Refund(Order order, User user, RefundStatus status, String reason, 
-                  String detailReason, BigDecimal refundAmount, RefundMethod refundMethod, 
-                  String attachmentFiles) {
+    public Refund(Order order, User user, RefundStatus status, RefundReasonType reasonType,
+                  String reason, String detailReason, BigDecimal refundAmount, 
+                  RefundMethod refundMethod, String attachmentFiles) {
         this.order = order;
         this.user = user;
         this.status = status;
+        this.reasonType = reasonType;
         this.reason = reason;
         this.detailReason = detailReason;
         this.refundAmount = refundAmount;
@@ -70,12 +75,14 @@ public class Refund extends BaseEntity {
     /**
      * 환불 엔티티 생성 팩토리 메서드
      */
-    public static Refund createRefund(Order order, User user, String reason, String detailReason,
-                                    BigDecimal refundAmount, RefundMethod refundMethod, String attachmentFiles) {
+    public static Refund createRefund(Order order, User user, RefundReasonType reasonType,
+                                    String reason, String detailReason, BigDecimal refundAmount, 
+                                    RefundMethod refundMethod, String attachmentFiles) {
         return Refund.builder()
                 .order(order)
                 .user(user)
                 .status(RefundStatus.REQUESTED)
+                .reasonType(reasonType)
                 .reason(reason)
                 .detailReason(detailReason)
                 .refundAmount(refundAmount)
