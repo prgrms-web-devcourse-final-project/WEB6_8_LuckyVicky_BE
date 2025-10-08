@@ -38,6 +38,7 @@ public class ProductController {
     private final ProductService productService;
     private final S3Service s3Service;
 
+    /** 상품 등록 */
     @PostMapping
     @Operation(
             summary = "상품 등록",
@@ -99,7 +100,7 @@ public class ProductController {
         return ResponseEntity.ok(RsData.of("200", "상품이 성공적으로 등록되었습니다.", productUuid));
     }
 
-
+    /** 상품 이미지 업로드 */
     @PostMapping("/images")
     @Operation(
             summary = "상품 이미지 업로드",
@@ -191,7 +192,7 @@ public class ProductController {
         return ResponseEntity.ok(RsData.of("200","이미지 업로드 성공",uploaded));
     }
 
-
+    /** 상품 이미지(파일) 다운로드 */
     @GetMapping("/images/download/{productUuid}")
     @Operation(
             summary = "상품 문서 다운로드 (테스트용)",
@@ -256,6 +257,7 @@ public class ProductController {
                 .body(fileBytes); // 실제 파일 바이트
     }
 
+    /** 상품 목록 조회 */
     @GetMapping
     @Operation(
             summary = "상품 목록 조회",
@@ -331,6 +333,7 @@ public class ProductController {
         return ResponseEntity.ok(RsData.of("200", "상품 목록 조회 성공", products));
     }
 
+    /** 상품 수정 */
     @PutMapping
     @Operation(
             summary = "상품 수정",

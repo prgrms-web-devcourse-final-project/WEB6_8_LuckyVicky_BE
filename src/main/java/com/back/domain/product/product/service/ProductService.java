@@ -48,7 +48,7 @@ public class ProductService {
     @Value("${app.frontend-url:https://mori-mori.store}")
     private String frontendUrl;
 
-    // 상품 등록
+    /** 상품 등록 */
     @Transactional
     public UUID createProduct(CreateProductRequest request, CustomUserDetails customUserDetails) {
         // 현재 로그인한 사용자 (=상품 등록한 작가)
@@ -74,7 +74,7 @@ public class ProductService {
         return productRepository.save(product).getProductUuid();
     }
 
-    // 상품 목록 조회
+    /** 상품 목록 조회 */
     @Transactional(readOnly = true)
     public ProductListResponse getProducts(
             Long categoryId,
@@ -97,7 +97,7 @@ public class ProductService {
         );
     }
 
-    // 상품 수정
+    /** 상품 수정 */
     @Transactional
     public UUID updateProduct(UpdateProductRequest request, CustomUserDetails customUserDetails) {
         Product product = productRepository.findByProductUuid(request.productUuid())
@@ -129,7 +129,7 @@ public class ProductService {
         return productRepository.save(product).getProductUuid();
     }
 
-    // (상품) 파일 다운로드 메서드
+    /** 상품 이미지(파일) 다운로드 */
     @Transactional(readOnly = true)
     public ProductImage getProductDocument(UUID productUuid) {
         // productUuid로 상품 조회
@@ -235,6 +235,8 @@ public class ProductService {
         return normalized;
     }
 
+
+    /** --------메서드 추상화-------- */
 
     /** Validation 메서드 */
     // 카테고리 검증
