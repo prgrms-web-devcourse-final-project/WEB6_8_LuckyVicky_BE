@@ -102,6 +102,7 @@ class RefundServiceTest {
         refund = Refund.createRefund(
                 order,
                 user,
+                com.back.domain.order.refund.entity.RefundReasonType.DEFECTIVE,
                 "상품 불량",
                 "세부 사유",
                 BigDecimal.valueOf(20000),
@@ -113,6 +114,7 @@ class RefundServiceTest {
         requestDto = new RefundRequestDto(
                 1L,
                 List.of(1L),
+                com.back.domain.order.refund.entity.RefundReasonType.DEFECTIVE,
                 "상품 불량",
                 "세부 사유",
                 BigDecimal.valueOf(20000),
@@ -128,6 +130,7 @@ class RefundServiceTest {
         Refund savedRefund = Refund.createRefund(
                 order,
                 user,
+                com.back.domain.order.refund.entity.RefundReasonType.DEFECTIVE,
                 "상품 불량",
                 "세부 사유",
                 BigDecimal.valueOf(20000),
@@ -310,7 +313,6 @@ class RefundServiceTest {
         idField.set(admin, 2L);
         
         admin.becomeArtist(); // ADMIN 역할로 변경
-        given(refundRepository.findById(1L)).willReturn(Optional.of(refund));
         given(refundRepository.findByIdWithItems(1L)).willReturn(Optional.of(refund));
         given(refundConverter.toResponseDto(any(Refund.class), anyList())).willReturn(mock(RefundResponseDto.class));
 
@@ -319,7 +321,6 @@ class RefundServiceTest {
 
         // then
         assertThat(result).isNotNull();
-        verify(refundRepository).findById(1L);
         verify(refundRepository).findByIdWithItems(1L);
         assertThat(refund.getStatus()).isEqualTo(Refund.RefundStatus.COMPLETED);
     }
@@ -336,7 +337,7 @@ class RefundServiceTest {
         
         admin.becomeArtist(); // ADMIN 역할로 변경
         refund.approve(); // 이미 승인된 상태로 변경
-        given(refundRepository.findById(1L)).willReturn(Optional.of(refund));
+        given(refundRepository.findByIdWithItems(1L)).willReturn(Optional.of(refund));
 
         // when & then
         assertThatThrownBy(() -> refundService.approveItem(1L, admin))

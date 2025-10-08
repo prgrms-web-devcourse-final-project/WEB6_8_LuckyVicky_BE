@@ -77,4 +77,16 @@ public interface MoriCashPaymentRepository extends JpaRepository<MoriCashPayment
      */
     @Query("SELECT SUM(mcp.usedMoriCash) FROM MoriCashPayment mcp WHERE mcp.user = :user AND mcp.status = 'COMPLETED' AND mcp.usedMoriCash IS NOT NULL")
     Integer getTotalUsedMoriCashByUser(@Param("user") User user);
+
+    /**
+     * 사용자별 총 충전 금액
+     */
+    @Query("SELECT SUM(mcp.usedMoriCash) FROM MoriCashPayment mcp WHERE mcp.user = :user AND mcp.transactionType = 'CHARGING' AND mcp.status = 'COMPLETED'")
+    Integer getTotalChargedAmountByUser(@Param("user") User user);
+
+    /**
+     * 사용자별 총 사용 금액
+     */
+    @Query("SELECT SUM(mcp.usedMoriCash) FROM MoriCashPayment mcp WHERE mcp.user = :user AND mcp.transactionType = 'PURCHASE' AND mcp.status = 'COMPLETED'")
+    Integer getTotalUsedAmountByUser(@Param("user") User user);
 }
