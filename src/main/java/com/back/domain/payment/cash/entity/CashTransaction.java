@@ -57,16 +57,20 @@ public class CashTransaction extends BaseEntity {
     @Column(name = "cancellation_reason")
     private String cancellationReason; // 취소 사유
 
+    @Column(name = "payment_method")
+    private String paymentMethod; // 결제/환전 수단 (예: "토스페이", "계좌이체")
+
     // 캐시 잔액 관련 (피그마 대시보드용)
     @Column(name = "balance_after")
     private Integer balanceAfter; // 거래 후 캐시 잔액
 
     @Builder
     private CashTransaction(User user, CashTransactionType transactionType, Integer amount,
-                          String pgProvider, Integer balanceAfter) {
+                          String paymentMethod, String pgProvider, Integer balanceAfter) {
         this.user = user;
         this.transactionType = transactionType;
         this.amount = amount;
+        this.paymentMethod = paymentMethod;
         this.pgProvider = pgProvider;
         this.balanceAfter = balanceAfter;
         this.status = CashTransactionStatus.PENDING;

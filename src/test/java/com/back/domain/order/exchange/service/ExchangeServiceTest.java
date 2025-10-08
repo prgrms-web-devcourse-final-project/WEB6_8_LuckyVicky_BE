@@ -101,6 +101,7 @@ class ExchangeServiceTest {
         exchange = Exchange.createExchange(
                 order,
                 user,
+                com.back.domain.order.exchange.entity.ExchangeReasonType.DEFECTIVE,
                 "상품 불량",
                 "세부 사유",
                 Exchange.ExchangeMethod.PICKUP,
@@ -116,6 +117,7 @@ class ExchangeServiceTest {
         requestDto = new ExchangeRequestDto(
                 1L,
                 List.of(1L),
+                com.back.domain.order.exchange.entity.ExchangeReasonType.DEFECTIVE,
                 "상품 불량",
                 "세부 사유",
                 Exchange.ExchangeMethod.PICKUP,
@@ -135,6 +137,7 @@ class ExchangeServiceTest {
         Exchange savedExchange = Exchange.createExchange(
                 order,
                 user,
+                com.back.domain.order.exchange.entity.ExchangeReasonType.DEFECTIVE,
                 "상품 불량",
                 "세부 사유",
                 Exchange.ExchangeMethod.PICKUP,
@@ -321,7 +324,6 @@ class ExchangeServiceTest {
         idField.set(admin, 2L);
         
         admin.becomeArtist(); // ADMIN 역할로 변경
-        given(exchangeRepository.findById(1L)).willReturn(Optional.of(exchange));
         given(exchangeRepository.findByIdWithItems(1L)).willReturn(Optional.of(exchange));
         given(exchangeConverter.toResponseDto(any(Exchange.class), anyList())).willReturn(mock(ExchangeResponseDto.class));
 
@@ -330,7 +332,6 @@ class ExchangeServiceTest {
 
         // then
         assertThat(result).isNotNull();
-        verify(exchangeRepository).findById(1L);
         verify(exchangeRepository).findByIdWithItems(1L);
         assertThat(exchange.getStatus()).isEqualTo(Exchange.ExchangeStatus.COMPLETED);
     }
@@ -347,7 +348,7 @@ class ExchangeServiceTest {
         
         admin.becomeArtist(); // ADMIN 역할로 변경
         exchange.approve(); // 이미 승인된 상태로 변경
-        given(exchangeRepository.findById(1L)).willReturn(Optional.of(exchange));
+        given(exchangeRepository.findByIdWithItems(1L)).willReturn(Optional.of(exchange));
 
         // when & then
         assertThatThrownBy(() -> exchangeService.approveItem(1L, admin))
