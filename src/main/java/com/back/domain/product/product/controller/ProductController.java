@@ -345,7 +345,7 @@ public class ProductController {
                                                 {
                                                   "resultCode": "200",
                                                   "msg": "상품이 성공적으로 수정되었습니다.",
-                                                  "data": null
+                                                  "data": "4d9f5d8a-9f39-4f79-b18b-7a9b3adcb45c"
                                                 }
                                                 """
                                     )
