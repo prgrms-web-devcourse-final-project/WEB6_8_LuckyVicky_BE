@@ -30,6 +30,10 @@ public class Exchange extends BaseEntity {
     @Column(nullable = false)
     private ExchangeStatus status;
 
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
+    private ExchangeReasonType reasonType; // 교환 사유 타입
+
     @Column(nullable = false)
     private String reason;
 
@@ -63,13 +67,14 @@ public class Exchange extends BaseEntity {
     private List<ExchangeItem> exchangeItems = new ArrayList<>();
 
     @Builder
-    public Exchange(Order order, User user, ExchangeStatus status, String reason, 
-                   String detailReason, ExchangeMethod exchangeMethod, String attachmentFiles,
-                   String newShippingAddress1, String newShippingAddress2, String newShippingZip,
-                   String newRecipientName, String newRecipientPhone) {
+    public Exchange(Order order, User user, ExchangeStatus status, ExchangeReasonType reasonType,
+                   String reason, String detailReason, ExchangeMethod exchangeMethod, 
+                   String attachmentFiles, String newShippingAddress1, String newShippingAddress2, 
+                   String newShippingZip, String newRecipientName, String newRecipientPhone) {
         this.order = order;
         this.user = user;
         this.status = status;
+        this.reasonType = reasonType;
         this.reason = reason;
         this.detailReason = detailReason;
         this.exchangeMethod = exchangeMethod;
@@ -87,14 +92,16 @@ public class Exchange extends BaseEntity {
     /**
      * 교환 엔티티 생성 팩토리 메서드
      */
-    public static Exchange createExchange(Order order, User user, String reason, String detailReason,
-                                        ExchangeMethod exchangeMethod, String attachmentFiles,
-                                        String newShippingAddress1, String newShippingAddress2,
-                                        String newShippingZip, String newRecipientName, String newRecipientPhone) {
+    public static Exchange createExchange(Order order, User user, ExchangeReasonType reasonType,
+                                        String reason, String detailReason, ExchangeMethod exchangeMethod, 
+                                        String attachmentFiles, String newShippingAddress1, 
+                                        String newShippingAddress2, String newShippingZip, 
+                                        String newRecipientName, String newRecipientPhone) {
         return Exchange.builder()
                 .order(order)
                 .user(user)
                 .status(ExchangeStatus.REQUESTED)
+                .reasonType(reasonType)
                 .reason(reason)
                 .detailReason(detailReason)
                 .exchangeMethod(exchangeMethod)

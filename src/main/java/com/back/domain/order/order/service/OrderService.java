@@ -93,7 +93,7 @@ public class OrderService {
      */
     @Transactional
     public void cancelOrder(Long orderId, User user, OrderCancelRequestDto requestDto) {
-        Order order = orderRepository.findById(orderId)
+        Order order = orderRepository.findByIdWithOrderItems(orderId)
                 .orElseThrow(() -> new IllegalArgumentException("주문을 찾을 수 없습니다."));
         
         // 권한 체크
@@ -105,6 +105,9 @@ public class OrderService {
             order.getStatus() == OrderStatus.DELIVERED) {
             throw new IllegalStateException("배송준비중으로 상태가 변경된 이후에는 취소할 수 없습니다.");
         }
+        
+        // 재고 복원
+        restoreStock(order);
         
         // 취소 실행
         order.cancel();
@@ -170,12 +173,15 @@ public class OrderService {
      */
     @Transactional
     public void approveOrderCancellation(Long orderId, User admin) {
-        Order order = orderRepository.findById(orderId)
+        Order order = orderRepository.findByIdWithOrderItems(orderId)
                 .orElseThrow(() -> new IllegalArgumentException("주문을 찾을 수 없습니다."));
         
         if (order.getStatus() != OrderStatus.CANCELLATION_REQUESTED) {
             throw new IllegalStateException("취소 요청된 주문만 승인할 수 있습니다.");
         }
+        
+        // 재고 복원
+        restoreStock(order);
         
         // 취소 완료 처리
         order.completeCancellation();
@@ -205,6 +211,13 @@ public class OrderService {
                     Product product = productRepository.findByProductUuid(itemRequest.productUuid())
                             .orElseThrow(() -> new IllegalArgumentException("상품을 찾을 수 없습니다."));
                     
+                    // 재고 감소
+                    int newStock = product.getStock() - itemRequest.quantity();
+                    if (newStock < 0) {
+                        throw new IllegalArgumentException("재고가 부족합니다. (상품: " + product.getName() + ", 현재 재고: " + product.getStock() + ")");
+                    }
+                    product.setStock(newStock);
+                    
                     return OrderItem.createOrderItem(product, itemRequest.quantity(), itemRequest.optionInfo());
                 })
                 .toList();
@@ -219,6 +232,17 @@ public class OrderService {
                 .toList();
         
         cartRepository.deleteByUserAndProductUuidIn(user, productUuids);
+    }
+
+    /**
+     * 재고 복원 (주문 취소 시)
+     */
+    private void restoreStock(Order order) {
+        order.getOrderItems().forEach(orderItem -> {
+            Product product = orderItem.getProduct();
+            int restoredStock = product.getStock() + orderItem.getQuantity();
+            product.setStock(restoredStock);
+        });
     }
 
     /**

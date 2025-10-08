@@ -171,22 +171,22 @@ public class DashboardController {
     }
 
     /**
-     * 교환/반품 폼 데이터 조회
+     * 교환/반품 신청 모달 상품 정보 조회
      */
-    @GetMapping("/returns/{returnId}/form-data")
-    @Operation(summary = "교환/반품 폼 데이터 조회", description = "특정 교환/반품 신청의 폼 데이터를 조회합니다")
+    @GetMapping("/returns/orders/{orderId}/form-data")
+    @Operation(summary = "교환/반품 신청 모달 상품 정보 조회", description = "교환/반품 신청 시 필요한 주문 상품 정보를 조회합니다")
     public ResponseEntity<RsData<ReturnResponse.FormData>> getReturnFormData(
             @AuthenticationPrincipal CustomUserDetails userDetails,
             @PathVariable
-            @Min(value = 1, message = "교환/반품 ID는 1 이상이어야 합니다")
-            Long returnId) {
+            @Min(value = 1, message = "주문 ID는 1 이상이어야 합니다")
+            Long orderId) {
 
-        log.info("교환/반품 폼 데이터 조회 - userId: {}, returnId: {}",
-                userDetails.getUserId(), returnId);
+        log.info("교환/반품 신청 모달 상품 정보 조회 - userId: {}, orderId: {}",
+                userDetails.getUserId(), orderId);
 
         ReturnResponse.FormData response = dashboardService.getReturnFormData(
-                userDetails.getUserId(), returnId);
-        return ResponseEntity.ok(RsData.ok("교환/반품 폼 데이터 조회 성공", response));
+                userDetails.getUserId(), orderId);
+        return ResponseEntity.ok(RsData.ok("교환/반품 신청 모달 상품 정보 조회 성공", response));
     }
 
     /**

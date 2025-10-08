@@ -12,6 +12,7 @@ import com.back.domain.order.exchange.entity.ExchangeItem;
 import com.back.domain.order.exchange.repository.ExchangeItemRepository;
 import com.back.domain.order.exchange.repository.ExchangeRepository;
 import com.back.domain.order.exchange.util.ExchangeConverter;
+import com.back.domain.product.product.entity.Product;
 import com.back.domain.user.entity.User;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -59,6 +60,7 @@ public class ExchangeService extends BaseOrderActionService<Exchange, ExchangeRe
         Exchange exchange = Exchange.createExchange(
             order,
             user,
+            requestDto.reasonType(), // 교환 사유 타입 추가
             requestDto.reason(),
             requestDto.detailReason(),
             requestDto.exchangeMethod(),
@@ -140,12 +142,24 @@ public class ExchangeService extends BaseOrderActionService<Exchange, ExchangeRe
     public ExchangeResponseDto approveItem(Long exchangeId, User admin) {
         log.info("교환 승인 - 교환 ID: {}, 관리자: {}", exchangeId, admin.getId());
         
-        Exchange exchange = exchangeRepository.findById(exchangeId)
+        Exchange exchange = exchangeRepository.findByIdWithItems(exchangeId)
                 .orElseThrow(() -> new IllegalArgumentException("교환 정보를 찾을 수 없습니다."));
         
         if (exchange.getStatus() != Exchange.ExchangeStatus.REQUESTED) {
             throw new IllegalStateException("승인 대기 중인 교환만 승인할 수 있습니다.");
         }
+        
+        // 재고 처리 (사유 타입에 따라 자동 판단)
+        if (exchange.getReasonType().shouldRestoreStock()) {
+            log.info("교환 사유가 '{}'이므로 반품 상품 재고를 복원합니다.", exchange.getReasonType().getDescription());
+            // 반품 상품 재고 복원
+            restoreStockForExchange(exchange);
+        } else {
+            log.info("교환 사유가 '{}'이므로 반품 상품 재고를 복원하지 않습니다.", exchange.getReasonType().getDescription());
+        }
+        
+        // 새 상품 재고 감소 (교환이므로 항상 수행)
+        deductStockForExchange(exchange);
         
         // 교환 승인 처리
         exchange.approve();
@@ -155,10 +169,35 @@ public class ExchangeService extends BaseOrderActionService<Exchange, ExchangeRe
         
         log.info("교환 승인 완료 - 교환 ID: {}", exchangeId);
         
-        // N+1 문제 해결: 한 번의 쿼리로 모든 데이터 조회
-        Exchange exchangeWithItems = exchangeRepository.findByIdWithItems(exchangeId)
-                .orElseThrow(() -> new IllegalArgumentException("교환 정보를 찾을 수 없습니다."));
-        
-        return exchangeConverter.toResponseDto(exchangeWithItems, exchangeWithItems.getExchangeItems());
+        return exchangeConverter.toResponseDto(exchange, exchange.getExchangeItems());
+    }
+
+    /**
+     * 교환 시 반품 상품 재고 복원
+     */
+    private void restoreStockForExchange(Exchange exchange) {
+        exchange.getExchangeItems().forEach(exchangeItem -> {
+            Product product = exchangeItem.getOrderItem().getProduct();
+            int restoredStock = product.getStock() + exchangeItem.getQuantity();
+            product.setStock(restoredStock);
+            log.info("반품 상품 재고 복원 - 상품: {}, 복원 수량: {}, 복원 후 재고: {}", 
+                    product.getName(), exchangeItem.getQuantity(), restoredStock);
+        });
+    }
+
+    /**
+     * 교환 시 새 상품 재고 감소
+     */
+    private void deductStockForExchange(Exchange exchange) {
+        exchange.getExchangeItems().forEach(exchangeItem -> {
+            Product product = exchangeItem.getOrderItem().getProduct();
+            int newStock = product.getStock() - exchangeItem.getQuantity();
+            if (newStock < 0) {
+                throw new IllegalArgumentException("교환할 상품의 재고가 부족합니다. (상품: " + product.getName() + ", 현재 재고: " + product.getStock() + ")");
+            }
+            product.setStock(newStock);
+            log.info("새 상품 재고 감소 - 상품: {}, 감소 수량: {}, 감소 후 재고: {}", 
+                    product.getName(), exchangeItem.getQuantity(), newStock);
+        });
     }
 }
