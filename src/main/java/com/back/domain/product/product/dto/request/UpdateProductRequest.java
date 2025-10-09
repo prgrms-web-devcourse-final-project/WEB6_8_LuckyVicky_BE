@@ -7,17 +7,12 @@ import jakarta.validation.constraints.*;
 
 import java.time.LocalDate;
 import java.util.List;
-import java.util.UUID;
 
 /**
  * 상품 수정 요청을 받는 DTO
  */
 @Schema(name = "UpdateProductRequest", description = "상품 수정 요청 DTO")
 public record UpdateProductRequest(
-
-        @Schema(description = "상품 UUID", example = "uuid-1234-5678")
-        @NotNull(message = "상품 UUID는 필수입니다.")
-        UUID productUuid,
 
         @Schema(description = "카테고리 ID", example = "1")
         @NotNull(message = "카테고리 ID는 필수입니다.")

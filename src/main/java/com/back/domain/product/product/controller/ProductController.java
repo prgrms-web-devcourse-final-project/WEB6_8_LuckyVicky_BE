@@ -334,7 +334,7 @@ public class ProductController {
     }
 
     /** 상품 수정 */
-    @PutMapping
+    @PutMapping("/{productUuid}")
     @Operation(
             summary = "상품 수정",
             responses = {
@@ -389,10 +389,78 @@ public class ProductController {
             }
     )
     public ResponseEntity<RsData<UUID>> updateProduct(
+            @PathVariable UUID productUuid,
             @Valid @RequestBody UpdateProductRequest request,
             @AuthenticationPrincipal CustomUserDetails customUserDetails) {
-        UUID updatedProductUuid = productService.updateProduct(request, customUserDetails);
+        UUID updatedProductUuid = productService.updateProduct(productUuid, request, customUserDetails);
         return ResponseEntity.ok(RsData.of("200", "상품이 성공적으로 수정되었습니다.", updatedProductUuid));
+    }
+
+    /** 상품 삭제(논리삭제) */
+    @DeleteMapping("/{productUuid}")
+    @Operation(
+            summary = "상품 삭제",
+            description = "관리자(ADMIN/ROOT) 또는 상품을 등록한 작가 본인만 삭제 가능하며, 논리삭제 처리됩니다.",
+            responses = {
+                    @ApiResponse(
+                            responseCode = "200",
+                            description = "상품 삭제 성공",
+                            content = @Content(
+                                    mediaType = "application/json",
+                                    schema = @Schema(
+                                            example = """
+                                                {
+                                                  "resultCode": "200",
+                                                  "msg": "상품이 삭제되었습니다.",
+                                                  "data": "550e8400-e29b-41d4-a716-446655440000"
+                                                }
+                                                """
+                                    )
+                            )
+                    ),
+                    @ApiResponse(
+                            responseCode = "403",
+                            description = "권한 없음",
+                            content = @Content(
+                                    mediaType = "application/json",
+                                    schema = @Schema(
+                                            example = """
+                                                {
+                                                  "resultCode": "403",
+                                                  "msg": "상품 삭제 권한이 없습니다.",
+                                                  "data": null
+                                                }
+                                                """
+                                    )
+                            )
+                    ),
+                    @ApiResponse(
+                            responseCode = "404",
+                            description = "상품 없음",
+                            content = @Content(
+                                    mediaType = "application/json",
+                                    schema = @Schema(
+                                            example = """
+                                                {
+                                                  "resultCode": "404",
+                                                  "msg": "존재하지 않는 상품입니다.",
+                                                  "data": null
+                                                }
+                                                """
+                                    )
+                            )
+                    )
+            }
+    )
+    public ResponseEntity<RsData<UUID>> deleteProduct(
+            @Parameter(description = "삭제할 상품 UUID", example = "550e8400-e29b-41d4-a716-446655440000", required = true)
+            @PathVariable UUID productUuid,
+
+            @Parameter(hidden = true)
+            @AuthenticationPrincipal CustomUserDetails customUserDetails) {
+
+        productService.deleteProduct(productUuid, customUserDetails);
+        return ResponseEntity.ok(RsData.of("200", "상품이 삭제되었습니다.", productUuid));
     }
 
 
