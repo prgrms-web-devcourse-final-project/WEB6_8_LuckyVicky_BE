@@ -11,15 +11,18 @@ import com.back.global.rsData.RsData;
 import com.back.global.s3.FileType;
 import com.back.global.s3.S3FileRequest;
 import com.back.global.s3.S3Service;
+import com.back.global.security.auth.CustomUserDetails;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.mockito.Mockito;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
-import org.springframework.boot.test.mock.mockito.SpyBean;
+import org.springframework.data.domain.Pageable;
 import org.springframework.http.MediaType;
 import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.security.test.context.support.WithUserDetails;
@@ -34,11 +37,9 @@ import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.hamcrest.Matchers.containsString;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.BDDMockito.given;
-import static org.mockito.Mockito.doReturn;
-import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.*;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultHandlers.print;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
@@ -54,7 +55,7 @@ class ProductControllerTest {
     @Autowired
     private ObjectMapper objectMapper;
 
-    @SpyBean
+    @MockBean
     private ProductService productService;
 
     @MockBean
@@ -62,6 +63,11 @@ class ProductControllerTest {
 
     @MockBean
     private CategoryRepository categoryRepository;
+
+    @BeforeEach
+    void setUp() {
+        Mockito.reset(productService);
+    }
 
     @Test
     @DisplayName("상품 등록 API 성공")
@@ -174,6 +180,7 @@ class ProductControllerTest {
     @DisplayName("상품 목록 조회 API 테스트")
     @WithMockUser(username = "user@test.com", roles = "USER")
     void getProducts_test() throws Exception {
+        // Mock 데이터 생성
         ProductListResponse.ProductInfo product1 = new ProductListResponse.ProductInfo(
                 UUID.fromString("550e8400-e29b-41d4-a716-446655440001"),
                 "https://example.com/image1.jpg",
@@ -204,10 +211,17 @@ class ProductControllerTest {
                 List.of(product1, product2)
         );
 
-        doReturn(mockResponse).when(productService).getProducts(
-                any(), any(), any(), any(), any(), anyString(), any()
-        );
+        given(productService.getProducts(
+                eq(1L),
+                eq(List.of(1L, 2L)),
+                eq(5000),
+                eq(30000),
+                isNull(),
+                eq("priceAsc"),
+                any(Pageable.class)
+        )).willReturn(mockResponse);
 
+        // API 호출 (기존과 동일)
         ResultActions resultActions = mockMvc.perform(
                 get("/api/products")
                         .param("categoryId", "1")
@@ -219,16 +233,18 @@ class ProductControllerTest {
                         .param("size", "10")
         ).andDo(print());
 
+        // 결과 검증
         MvcResult mvcResult = resultActions
                 .andExpect(status().isOk())
                 .andReturn();
 
-        String jsonResponse = mvcResult.getResponse().getContentAsString();
+        String jsonResponse = mvcResult.getResponse().getContentAsString(StandardCharsets.UTF_8); // 인코딩 명시 권장
         RsData<ProductListResponse> rsData = objectMapper.readValue(
                 jsonResponse,
                 new TypeReference<>() {}
         );
 
+        assertThat(rsData.data()).isNotNull();
         assertThat(rsData.resultCode()).isEqualTo("200");
         assertThat(rsData.data().products()).hasSize(2);
         assertThat(rsData.data().products().get(0).name()).isEqualTo("상품1");
@@ -237,12 +253,11 @@ class ProductControllerTest {
 
     @Test
     @DisplayName("상품 수정 API 성공")
-    @WithMockUser(username = "artist@test.com", roles = "ARTIST")
+    @WithMockUser(username = "artist@test.com", roles = {"ARTIST"})
     void updateProduct_test() throws Exception {
-        UUID productUuid = UUID.randomUUID(); // 수정할 상품 UUID
+        UUID productUuid = UUID.fromString("04c089ab-b921-4c83-ac4c-a5a67fef035c");
 
         UpdateProductRequest request = new UpdateProductRequest(
-                productUuid,
                 1L,
                 "수정된 상품명",
                 "수정된 브랜드",
@@ -256,7 +271,7 @@ class ProductControllerTest {
                 200,
                 "수정된 상세 설명",
                 "SELLING",
-                "DISPLAYED",
+                "DISPLAYING",
                 2,
                 20,
                 false,
@@ -273,17 +288,20 @@ class ProductControllerTest {
                 "면",
                 "M"
         );
+        doReturn(productUuid)
+                .when(productService)
+                .updateProduct(
+                        any(UUID.class),
+                        any(UpdateProductRequest.class),
+                        any()
+                );
 
-        // 서비스 호출 결과 mock
-        doReturn(productUuid).when(productService).updateProduct(any(), any());
-
-        ResultActions resultActions = mockMvc.perform(
-                put("/api/products")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(request))
-        ).andDo(print());
-
-        resultActions
+        mockMvc.perform(
+                        put("/api/products/{productUuid}", productUuid)
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(objectMapper.writeValueAsString(request))
+                )
+                .andDo(print())
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data").value(productUuid.toString()))
                 .andExpect(jsonPath("$.msg").value("상품이 성공적으로 수정되었습니다."));
@@ -293,10 +311,9 @@ class ProductControllerTest {
     @DisplayName("상품 수정 실패 - 최소/최대 수량 검증 실패")
     @WithMockUser(username = "artist@test.com", roles = "ARTIST")
     void updateProduct_fail_minMaxQuantity() throws Exception {
-        UUID productUuid = UUID.randomUUID();
+        UUID productUuid = UUID.fromString("ec63cc31-2338-4134-8927-250af25e5809");
 
         UpdateProductRequest request = new UpdateProductRequest(
-                productUuid,
                 1L,
                 "상품명",
                 "브랜드명",
@@ -310,7 +327,7 @@ class ProductControllerTest {
                 200,
                 "상세 설명",
                 "SELLING",
-                "DISPLAYED",
+                "DISPLAYING",
                 10, // minQuantity
                 5,  // maxQuantity < minQuantity
                 false,
@@ -328,20 +345,82 @@ class ProductControllerTest {
                 "M"
         );
 
-        // 서비스에서 예외 던지도록 mock
-        doThrow(new ServiceException("400", "최대 구매 수량은 최소 구매 수량보다 작을 수 없습니다."))
-                .when(productService).updateProduct(any(), any());
+        given(productService.updateProduct(
+                eq(productUuid),
+                any(UpdateProductRequest.class),
+                any())
+        ).willThrow(new ServiceException("400", "최대 구매 수량은 최소 구매 수량보다 작을 수 없습니다."));
 
         ResultActions resultActions = mockMvc.perform(
-                put("/api/products")
+                put("/api/products/{productUuid}", productUuid)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request))
         ).andDo(print());
 
         resultActions
                 .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.resultCode").value("400")) // RsData의 resultCode도 400인지 확인
                 .andExpect(content().string(containsString("최대 구매 수량은 최소 구매 수량보다 작을 수 없습니다.")));
     }
 
+    @Test
+    @DisplayName("상품 삭제 API 성공")
+    @WithMockUser(username = "artist@test.com", roles = "ARTIST")
+    void deleteProduct_test() throws Exception {
+        UUID productUuid = UUID.randomUUID();
+
+        // void 메서드 stub
+        doNothing()
+                .when(productService).deleteProduct(any(UUID.class), any(CustomUserDetails.class));
+
+        ResultActions resultActions = mockMvc.perform(
+                delete("/api/products/{productUuid}", productUuid.toString())
+        ).andDo(print());
+
+        resultActions
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data").value(productUuid.toString()))
+                .andExpect(jsonPath("$.msg").value("상품이 삭제되었습니다."));
+    }
+
+
+    @Test
+    @DisplayName("상품 삭제 실패 - 권한 없음")
+    @WithMockUser(username = "user@test.com", roles = "USER") // 일반 사용자
+    void deleteProduct_fail_unauthorized() throws Exception {
+        UUID productUuid = UUID.fromString("550e8400-e29b-41d4-a716-446655440000");
+
+        ResultActions resultActions = mockMvc.perform(
+                delete("/api/products/{productUuid}", productUuid.toString())
+        ).andDo(print());
+
+        resultActions
+                .andExpect(status().isForbidden()); // Body 없이 403만 확인
+    }
+
+
+    @Test
+    @DisplayName("상품 삭제 실패 - 상품 없음")
+    @WithMockUser(username = "artist@test.com", roles = "ARTIST")
+    void deleteProduct_fail_notFound() throws Exception {
+        UUID productUuid = UUID.randomUUID();
+
+        doThrow(new ServiceException("404", "존재하지 않는 상품입니다."))
+                .when(productService)
+                .deleteProduct(
+                        eq(productUuid),
+                        any()
+                );
+
+        ResultActions resultActions = mockMvc.perform(
+                delete("/api/products/{productUuid}", productUuid.toString())
+        ).andDo(print());
+
+        // 결과 검증
+        resultActions
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.resultCode").value("404"))
+                .andExpect(content().string(containsString("존재하지 않는 상품입니다.")));
+    }
 
 }
