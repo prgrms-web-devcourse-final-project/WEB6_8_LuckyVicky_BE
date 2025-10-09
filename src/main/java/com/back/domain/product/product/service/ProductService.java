@@ -13,6 +13,7 @@ import com.back.domain.product.product.dto.response.ProductListResponse;
 import com.back.domain.product.product.dto.response.ShareLinkResponse;
 import com.back.domain.product.product.entity.*;
 import com.back.domain.product.product.repository.ProductRepository;
+import com.back.domain.product.product.repository.ProductTagMappingRepository;
 import com.back.domain.product.tag.dto.response.TagResponse;
 import com.back.domain.product.tag.entity.Tag;
 import com.back.domain.product.tag.repository.TagRepository;
@@ -24,6 +25,7 @@ import com.back.global.s3.S3FileRequest;
 import com.back.global.s3.S3Service;
 import com.back.global.s3.S3ValidationService;
 import com.back.global.security.auth.CustomUserDetails;
+import jakarta.persistence.EntityManager;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -42,9 +44,11 @@ public class ProductService {
     private final ProductRepository productRepository;
     private final CategoryRepository categoryRepository;
     private final TagRepository tagRepository;
+    private final ProductTagMappingRepository productTagMappingRepository;
     private final S3ValidationService s3ValidationService;
     private final S3Service s3Service;
     private final ArtistApplicationService artistApplicationService;
+    private final EntityManager entityManager;
 
     @Value("${app.frontend-url:https://mori-mori.store}")
     private String frontendUrl;
@@ -132,6 +136,8 @@ public class ProductService {
         product.getAdditionalProducts().clear();
         product.getAdditionalProducts().addAll(buildAdditionalProducts(product, request.additionalProducts()));
         // 태그 처리
+        // 기존 태그 매핑 삭제
+        productTagMappingRepository.deleteAllByProductId(product.getId()); // 제품 ID로 모든 태그 매핑 삭제
         product.getProductTags().clear();
         product.getProductTags().addAll(buildProductTags(product, request.tags()));
         // 이미지 처리

@@ -10,6 +10,7 @@ import com.back.domain.product.product.entity.QProductImage;
 import com.back.global.s3.FileType;
 import com.querydsl.core.BooleanBuilder;
 import com.querydsl.core.types.Projections;
+import com.querydsl.core.types.dsl.Expressions;
 import com.querydsl.jpa.impl.JPAQueryFactory;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Pageable;
@@ -90,7 +91,7 @@ public class ProductCustomRepositoryImpl implements ProductCustomRepository {
                         p.price, // 가격
                         p.discountRate,// 할인율
                         p.price.subtract(p.price.multiply(p.discountRate).divide(100)), // 할인된 최종 가격
-                        null // rating: 리뷰 연동 전이라서 일단 null로 함.
+                        Expressions.nullExpression(Double.class) // rating: 리뷰 연동 전이라서 일단 null로 함.
                 ))
                 .from(p)
                 .leftJoin(p.images, img) // left join

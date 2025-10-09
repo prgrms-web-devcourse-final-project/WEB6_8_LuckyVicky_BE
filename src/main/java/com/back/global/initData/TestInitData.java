@@ -8,6 +8,8 @@ import com.back.domain.funding.entity.FundingStatus;
 import com.back.domain.funding.repository.FundingRepository;
 import com.back.domain.product.category.entity.Category;
 import com.back.domain.product.category.repository.CategoryRepository;
+import com.back.domain.product.tag.entity.Tag;
+import com.back.domain.product.tag.repository.TagRepository;
 import com.back.domain.user.entity.Role;
 import com.back.domain.user.entity.User;
 import com.back.domain.user.repository.UserRepository;
@@ -39,6 +41,7 @@ public class TestInitData {
     private final PasswordEncoder passwordEncoder;
     private final FundingRepository fundingRepository;
     private final CategoryRepository categoryRepository;
+    private final TagRepository tagRepository;
 
     @Bean
     ApplicationRunner testInitDataApplicationRunner() {
@@ -46,6 +49,7 @@ public class TestInitData {
             self.work1();
             self.work2();
             self.work3(); // 카테고리 생성
+            self.work4(); // 태그 생성
         };
     }
 
@@ -207,6 +211,12 @@ public class TestInitData {
         createSubCategoryIfNotExists("예술사진", photography);
 
         log.info("테스트 카테고리 생성 완료");
+    }
+
+    @Transactional
+    public void work4() {
+        tagRepository.save(Tag.builder().name("태그1").build());
+        tagRepository.save(Tag.builder().name("태그2").build());
     }
 
     /**

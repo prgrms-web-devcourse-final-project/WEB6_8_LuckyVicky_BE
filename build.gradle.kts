@@ -14,6 +14,9 @@ java {
 }
 
 configurations {
+    all {
+        exclude(group = "commons-logging", module = "commons-logging")
+    }
     compileOnly {
         extendsFrom(configurations.annotationProcessor.get())
     }
@@ -68,4 +71,9 @@ dependencies {
 
 tasks.withType<Test> {
     useJUnitPlatform()
+    testLogging {
+        events("passed", "skipped", "failed")
+        exceptionFormat = org.gradle.api.tasks.testing.logging.TestExceptionFormat.FULL
+        showStandardStreams = true
+    }
 }
