@@ -593,43 +593,6 @@ public class DashboardServiceImpl implements DashboardService {
     }
 
     @Override
-    public ReturnResponse.FormData getReturnFormData(Long userId, Long orderId) {
-        log.debug("교환/반품 신청 모달 상품 정보 조회 - userId: {}, orderId: {}", userId, orderId);
-
-        // 1. 주문 조회 (OrderItem, Product, ProductImage 함께 조회)
-        com.back.domain.order.order.entity.Order order = orderRepository.findOrdersWithDetailsById(List.of(orderId))
-                .stream()
-                .findFirst()
-                .orElseThrow(() -> new ServiceException("ORDER_NOT_FOUND", "주문을 찾을 수 없습니다."));
-
-        // 2. 본인 확인
-        if (!order.getUser().getId().equals(userId)) {
-            throw new ServiceException("FORBIDDEN", "해당 주문에 대한 권한이 없습니다.");
-        }
-
-        // 3. 첫 번째 주문 상품 정보 조회 (대표 상품)
-        com.back.domain.order.orderItem.entity.OrderItem firstOrderItem =
-                order.getOrderItems().stream()
-                        .findFirst()
-                        .orElseThrow(() -> new ServiceException("ORDER_ITEM_NOT_FOUND", "주문 상품 정보를 찾을 수 없습니다."));
-
-        com.back.domain.product.product.entity.Product product = firstOrderItem.getProduct();
-
-        // 4. Summary 생성 (상품 정보만 반환)
-        ReturnResponse.Summary summary = new ReturnResponse.Summary(
-                String.format("%07d", order.getId()),       // 주문번호 (7자리)
-                product.getBrandName(),                      // 브랜드명
-                product.getName(),                           // 상품명
-                order.getFinalAmount().intValue(),           // 총 가격 (배송비 포함)
-                order.getOrderItems().size(),                // 상품 갯수
-                getProductThumbnailUrl(product)             // 썸네일
-        );
-
-        // 5. Form과 Permission은 null (프론트에서 사용자 입력으로 처리)
-        return new ReturnResponse.FormData(summary, null, null);
-    }
-
-    @Override
     public CashResponse.Balance getCashBalance(Long userId) {
         // TODO: 실제 데이터베이스 조회 로직 구현
         log.debug("캐시 정보 조회 - userId: {}", userId);
