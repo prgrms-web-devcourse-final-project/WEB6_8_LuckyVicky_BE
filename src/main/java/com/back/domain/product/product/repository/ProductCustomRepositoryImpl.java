@@ -4,6 +4,7 @@ import com.back.domain.product.category.entity.Category;
 import com.back.domain.product.category.repository.CategoryRepository;
 import com.back.domain.product.product.dto.response.ProductListResponse;
 import com.back.domain.product.product.dto.response.ProductListResponse.ProductInfo;
+import com.back.domain.product.product.entity.DisplayStatus;
 import com.back.domain.product.product.entity.QProduct;
 import com.back.domain.product.product.entity.QProductImage;
 import com.back.global.s3.FileType;
@@ -46,6 +47,9 @@ public class ProductCustomRepositoryImpl implements ProductCustomRepository {
 
         // 동적 조건을 누적해서 where절에 적용
         BooleanBuilder builder = new BooleanBuilder();
+
+        // 전시중인 상품만 조회
+        builder.and(p.displayStatus.eq(DisplayStatus.DISPLAYING));
 
         // 카테고리 필터
         if (categoryId != null) {

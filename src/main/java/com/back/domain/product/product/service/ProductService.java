@@ -12,6 +12,7 @@ import com.back.domain.product.product.entity.*;
 import com.back.domain.product.product.repository.ProductRepository;
 import com.back.domain.product.tag.entity.Tag;
 import com.back.domain.product.tag.repository.TagRepository;
+import com.back.domain.user.entity.Role;
 import com.back.domain.user.entity.User;
 import com.back.domain.user.repository.UserRepository;
 import com.back.global.exception.ServiceException;
@@ -51,7 +52,7 @@ public class ProductService {
     /** 상품 등록 */
     @Transactional
     public UUID createProduct(CreateProductRequest request, CustomUserDetails customUserDetails) {
-        // 현재 로그인한 사용자 (=상품 등록한 작가)
+        // 현재 로그인한 사용자
         User user = customUserDetails.getUser();
         // 존재하는 카테고리인지 검증
         Category category = validateAndGetCategory(request.categoryId());
@@ -99,10 +100,9 @@ public class ProductService {
 
     /** 상품 수정 */
     @Transactional
-    public UUID updateProduct(UpdateProductRequest request, CustomUserDetails customUserDetails) {
-        Product product = productRepository.findByProductUuid(request.productUuid())
-                .orElseThrow(() -> new ServiceException("404", "존재하지 않는 상품입니다."));
-
+    public UUID updateProduct(UUID productUuid, UpdateProductRequest request, CustomUserDetails customUserDetails) {
+        // 존재하는 상품인지 검증
+        Product product = getProductOrThrow(productUuid);
         // 상품 수정 권한 검증 (본인 상품만 수정 가능)
         checkProductOwner(product, customUserDetails.getUser());
         // 존재하는 카테고리인지 검증
@@ -128,6 +128,27 @@ public class ProductService {
         // cascade로 옵션, 추가상품, 태그, 이미지까지 같이 저장 후 uuid 반환
         return productRepository.save(product).getProductUuid();
     }
+
+    /** 상품 삭제(논리삭제) */
+    @Transactional
+    public void deleteProduct(UUID productUuid, CustomUserDetails customUserDetails) {
+        // 존재하는 상품인지 검증
+        Product product = getProductOrThrow(productUuid);
+        // 현재 로그인한 사용자
+        User user = customUserDetails.getUser();
+        // 삭제 권한 검증 (관리자이거나, 상품 등록한 작가 본인만 삭제 가능)
+        if (!user.getRole().equals(Role.ADMIN) && !user.getRole().equals(Role.ROOT) && !product.getUser().equals(user)) {
+            throw new ServiceException("403", "상품 삭제 권한이 없습니다.");
+        }
+
+        // 논리삭제 처리
+        product.setDeleted(true);
+        // 전시 종료로 전시 상태 변경 (-> 사용자에게 안보임)
+        product.setDisplayStatus(DisplayStatus.END_OF_DISPLAY);
+        // DB 저장
+        productRepository.save(product);
+    }
+
 
     /** 상품 이미지(파일) 다운로드 */
     @Transactional(readOnly = true)
@@ -236,6 +257,7 @@ public class ProductService {
     }
 
 
+
     /** --------메서드 추상화-------- */
 
     /** Validation 메서드 */
@@ -267,6 +289,11 @@ public class ProductService {
         if (!product.getUser().getId().equals(user.getId())) {
             throw new ServiceException("403", "본인이 등록한 상품만 수정 가능합니다.");
         }
+    }
+    // 존재하지 않는 상품 검증
+    private Product getProductOrThrow(UUID productUuid) {
+        return productRepository.findByProductUuid(productUuid)
+                .orElseThrow(() -> new ServiceException("404", "존재하지 않는 상품입니다. UUID: " + productUuid));
     }
 
 
