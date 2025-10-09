@@ -50,6 +50,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @AutoConfigureMockMvc
 @Transactional
 @ActiveProfiles("test")
+@DisplayName("ProductController 통합 테스트")
 class ProductControllerTest {
 
     @Autowired
@@ -100,7 +101,7 @@ class ProductControllerTest {
     // ==================== 상품 등록 (Create) ====================
 
     @Test
-    @DisplayName("ARTIST 권한으로 상품을 성공적으로 등록한다.")
+    @DisplayName("ARTIST 권한으로 상품 등록에 성공한다")
     void createProduct_Success() throws Exception {
         // Given
         CustomUserDetails userDetails = new CustomUserDetails(artistUser, artistUser.getRole());
@@ -130,7 +131,7 @@ class ProductControllerTest {
     }
 
     @Test
-    @DisplayName("USER 권한으로 상품 등록 시 403 Forbidden 에러가 발생한다.")
+    @DisplayName("USER 권한으로 상품 등록 시 403 에러가 발생한다")
     void createProduct_Fail_Unauthorized() throws Exception {
         // Given
         CustomUserDetails userDetails = new CustomUserDetails(normalUser, normalUser.getRole());
@@ -149,7 +150,7 @@ class ProductControllerTest {
     }
 
     @Test
-    @DisplayName("상품 등록 시 필수 입력값이 누락되면 400 Bad Request 에러가 발생한다.")
+    @DisplayName("상품 등록 시 필수 입력값이 누락되면 400 에러가 발생한다")
     void createProduct_Fail_InvalidInput() throws Exception {
         // Given
         CustomUserDetails userDetails = new CustomUserDetails(artistUser, artistUser.getRole());
@@ -177,7 +178,7 @@ class ProductControllerTest {
     // ==================== 상품 상세 조회 (Read) ====================
 
     @Test
-    @DisplayName("상품 상세 정보를 성공적으로 조회한다.")
+    @DisplayName("상품 상세 정보를 성공적으로 조회한다")
     void getProductDetail_Success() throws Exception {
         // Given
         // 상품 상세 조회 시 작가 정보 조회를 위해 ArtistApplication 데이터 필요
@@ -207,7 +208,7 @@ class ProductControllerTest {
     }
 
     @Test
-    @DisplayName("존재하지 않는 상품 ID로 조회 시 404 Not Found 에러가 발생한다.")
+    @DisplayName("존재하지 않는 상품 UUID로 조회 시 404 에러가 발생한다")
     void getProductDetail_Fail_NotFound() throws Exception {
         // Given
         UUID nonExistentUuid = UUID.randomUUID();
@@ -227,7 +228,7 @@ class ProductControllerTest {
     // ==================== 상품 목록 조회 (Read) ====================
 
     @Test
-    @DisplayName("다양한 조건으로 상품 목록을 필터링하고 정렬하여 조회한다.")
+    @DisplayName("다양한 조건으로 상품 목록을 필터링하고 정렬하여 조회한다")
     void getProducts_Success_WithFiltersAndSort() throws Exception {
         // Given
         productRepository.save(createSampleProduct(artistUser, category, List.of(tag1), "상품A", 10000));
@@ -252,7 +253,7 @@ class ProductControllerTest {
     }
 
     @Test
-    @DisplayName("조회 결과가 없는 경우 빈 목록을 반환한다.")
+    @DisplayName("조회 결과가 없는 경우 빈 목록을 반환한다")
     void getProducts_Success_EmptyResult() throws Exception {
         // When
         ResultActions resultActions = mockMvc.perform(
@@ -269,7 +270,7 @@ class ProductControllerTest {
     // ==================== 상품 수정 (Update) ====================
 
     @Test
-    @DisplayName("상품 소유자가 상품 정보를 성공적으로 수정한다.")
+    @DisplayName("상품 소유자가 상품 정보를 성공적으로 수정한다")
     void updateProduct_Success() throws Exception {
         // Given
         CustomUserDetails userDetails = new CustomUserDetails(artistUser, artistUser.getRole());
@@ -306,7 +307,7 @@ class ProductControllerTest {
     }
 
     @Test
-    @DisplayName("소유자가 아닌 다른 유저가 상품 수정을 시도하면 403 Forbidden 에러가 발생한다.")
+    @DisplayName("소유자가 아닌 다른 유저가 상품 수정을 시도하면 403 에러가 발생한다")
     void updateProduct_Fail_Forbidden() throws Exception {
         // Given
         CustomUserDetails userDetails = new CustomUserDetails(normalUser, normalUser.getRole());
@@ -333,7 +334,7 @@ class ProductControllerTest {
     // ==================== 상품 삭제 (Delete) ====================
 
     @Test
-    @DisplayName("상품 소유자가 상품을 성공적으로 논리 삭제한다.")
+    @DisplayName("상품 소유자가 상품을 성공적으로 논리 삭제한다")
     void deleteProduct_Success() throws Exception {
         // Given
         CustomUserDetails userDetails = new CustomUserDetails(artistUser, artistUser.getRole());
@@ -365,7 +366,7 @@ class ProductControllerTest {
     }
 
     @Test
-    @DisplayName("존재하지 않는 상품 삭제 시 404 Not Found 에러가 발생한다.")
+    @DisplayName("존재하지 않는 상품 삭제 시 404 에러가 발생한다")
     void deleteProduct_Fail_NotFound() throws Exception {
         // Given
         CustomUserDetails userDetails = new CustomUserDetails(artistUser, artistUser.getRole());
@@ -386,7 +387,7 @@ class ProductControllerTest {
     // ==================== 이미지 및 파일 관련 테스트 ====================
 
     @Test
-    @DisplayName("상품 이미지 업로드를 테스트한다 (S3 서비스 Mocking)")
+    @DisplayName("상품 이미지 업로드에 성공한다(S3 서비스 Mocking)")
     void uploadProductImages_Success() throws Exception {
         // Given
         CustomUserDetails userDetails = new CustomUserDetails(artistUser, artistUser.getRole());
