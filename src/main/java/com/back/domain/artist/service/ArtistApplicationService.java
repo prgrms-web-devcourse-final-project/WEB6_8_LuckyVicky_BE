@@ -9,6 +9,8 @@ import com.back.domain.artist.entity.ArtistApplication;
 import com.back.domain.artist.entity.ArtistDocument;
 import com.back.domain.artist.entity.DocumentType;
 import com.back.domain.artist.repository.ArtistApplicationRepository;
+import com.back.domain.notification.entity.NotificationType;
+import com.back.domain.notification.service.NotificationService;
 import com.back.domain.user.entity.User;
 import com.back.domain.user.repository.UserRepository;
 import com.back.global.exception.ServiceException;
@@ -33,6 +35,7 @@ public class ArtistApplicationService {
 
     private final ArtistApplicationRepository artistApplicationRepository;
     private final UserRepository userRepository;
+    private final NotificationService notificationService;
 
     /**
      * 작가 신청서 생성
@@ -59,6 +62,17 @@ public class ArtistApplicationService {
         savedApplication.getDocuments().addAll(documents);
 
         log.info("작가 신청서 생성 완료: userId={}, applicationId={}", userId, savedApplication.getId());
+
+        // 6. 알림 발송 - 모든 관리자에게 작가 인증 신청 알림
+        List<User> admins = userRepository.findAllAdmins();
+        for (User admin : admins) {
+            notificationService.sendNotification(
+                admin,
+                NotificationType.ARTIST_VERIFICATION_REQUEST,
+                user.getName() + "님이 작가 인증을 신청했습니다.",
+                "/admin/artist-applications/" + savedApplication.getId()
+            );
+        }
 
         return savedApplication.getId();
     }
