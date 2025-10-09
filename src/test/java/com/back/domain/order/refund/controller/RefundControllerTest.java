@@ -52,6 +52,7 @@ class RefundControllerTest {
         refundRequestDto = new RefundRequestDto(
                 1L, // orderId
                 List.of(1L, 2L), // orderItemIds
+                com.back.domain.order.refund.entity.RefundReasonType.CHANGE_OF_MIND, // reasonType
                 "단순변심", // reason
                 "색상이 마음에 들지 않음", // detailReason
                 BigDecimal.valueOf(50000), // refundAmount

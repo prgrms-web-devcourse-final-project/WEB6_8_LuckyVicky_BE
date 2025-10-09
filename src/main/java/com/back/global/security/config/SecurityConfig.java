@@ -62,6 +62,9 @@ public class SecurityConfig {
                         // OAuth2 로그인 엔드포인트
                         .requestMatchers("/oauth2/**", "/login/oauth2/**").permitAll()
 
+                        // 작가 공개 정보 조회
+                        .requestMatchers("/api/artist/profile/**", "/api/artist/list").permitAll()
+
                         // 공개 API
                         .requestMatchers("/public/**").permitAll()
 

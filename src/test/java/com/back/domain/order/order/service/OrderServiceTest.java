@@ -135,12 +135,12 @@ class OrderServiceTest {
         UUID productUuid = UUID.randomUUID();
         Order order = createOrderWithItem(user, createProduct(1L, productUuid));
         ReflectionTestUtils.setField(order, "id", 1L);
-        given(orderRepository.findById(1L)).willReturn(Optional.of(order));
+        given(orderRepository.findByIdWithOrderItems(1L)).willReturn(Optional.of(order));
         given(orderRepository.save(any(Order.class))).willAnswer(invocation -> invocation.getArgument(0));
 
         orderService.cancelOrder(1L, user, new OrderCancelRequestDto("단순 변심", List.of(1L)));
 
-        verify(orderRepository).findById(1L);
+        verify(orderRepository).findByIdWithOrderItems(1L);
         verify(orderRepository).save(order);
     }
 
@@ -151,7 +151,7 @@ class OrderServiceTest {
         UUID productUuid = UUID.randomUUID();
         Order order = createOrderWithItem(user, createProduct(1L, productUuid));
         order.changeStatus(OrderStatus.SHIPPING);
-        given(orderRepository.findById(1L)).willReturn(Optional.of(order));
+        given(orderRepository.findByIdWithOrderItems(1L)).willReturn(Optional.of(order));
 
         assertThatThrownBy(() -> orderService.cancelOrder(1L, user, new OrderCancelRequestDto("사유", List.of(1L))))
                 .isInstanceOf(IllegalStateException.class)

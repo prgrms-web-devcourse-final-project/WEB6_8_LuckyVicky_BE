@@ -1,7 +1,9 @@
 package com.back.domain.artist.controller;
 
 import com.back.domain.artist.entity.ArtistApplication;
+import com.back.domain.artist.entity.ArtistProfile;
 import com.back.domain.artist.repository.ArtistApplicationRepository;
+import com.back.domain.artist.repository.ArtistProfileRepository;
 import com.back.domain.user.entity.User;
 import com.back.domain.user.repository.UserRepository;
 import org.junit.jupiter.api.DisplayName;
@@ -37,6 +39,9 @@ class ArtistControllerTest {
 
     @Autowired
     private ArtistApplicationRepository artistApplicationRepository;
+
+    @Autowired
+    private ArtistProfileRepository artistProfileRepository;
 
     @Test
     @WithUserDetails("user2@user.com")
@@ -453,11 +458,11 @@ class ArtistControllerTest {
     }
 
     @Test
-    @WithUserDetails("user2@user.com")
+    @WithUserDetails("artist1@artist.com")
     @DisplayName("15. 작가 사업자 정보 조회 - 성공")
     void t15() throws Exception {
         // given
-        User user = userRepository.findByEmail("user2@user.com").orElseThrow();
+        User user = userRepository.findByEmail("artist1@artist.com").orElseThrow();
         ArtistApplication application = ArtistApplication.builder()
                 .user(user)
                 .artistName("홍길동작가")
@@ -489,6 +494,225 @@ class ArtistControllerTest {
                 .andExpect(jsonPath("$.data.email").value("artist@example.com"))
                 .andExpect(jsonPath("$.data.businessAddress").value("서울시 강남구 테헤란로 123 2층"))
                 .andExpect(jsonPath("$.data.telecomSalesNumber").value("2023-서울강남-0001"));
+    }
+
+    @Test
+    @DisplayName("16. 전체 작가 목록 조회 - 성공")
+    void t16() throws Exception {
+        // given - 작가 프로필 생성 (ArtistApplication 필수)
+        User user1 = userRepository.findByEmail("user1@user.com").orElseThrow();
+        User artist1 = userRepository.findByEmail("artist1@artist.com").orElseThrow();
+
+        // ArtistApplication 먼저 생성
+        ArtistApplication application1 = ArtistApplication.builder()
+                .user(user1)
+                .artistName("유저1작가")
+                .businessName("유저1 작가실")
+                .businessNumber("111-11-11111")
+                .ownerName("유저1")
+                .phone("010-1234-5678")
+                .managerPhone("010-1234-5678")
+                .email("user1@user.com")
+                .businessAddress("서울시 강남구")
+                .businessAddressDetail("1층")
+                .businessZipCode("12345")
+                .telecomSalesNumber("2023-서울강남-0001")
+                .build();
+        artistApplicationRepository.save(application1);
+
+        ArtistApplication application2 = ArtistApplication.builder()
+                .user(artist1)
+                .artistName("작가1")
+                .businessName("작가1 작가실")
+                .businessNumber("222-22-22222")
+                .ownerName("작가1")
+                .phone("010-2111-1111")
+                .managerPhone("010-2111-1111")
+                .email("artist1@artist.com")
+                .businessAddress("서울시 종로구")
+                .businessAddressDetail("2층")
+                .businessZipCode("54321")
+                .telecomSalesNumber("2023-서울종로-0002")
+                .build();
+        artistApplicationRepository.save(application2);
+
+        // ArtistProfile 생성
+        ArtistProfile profile1 = ArtistProfile.builder()
+                .user(user1)
+                .artistApplication(application1)  // ✅ 필수
+                .artistName("유저1작가")
+                .mainProducts("도자기")
+                .build();
+        artistProfileRepository.save(profile1);
+
+        ArtistProfile profile2 = ArtistProfile.builder()
+                .user(artist1)
+                .artistApplication(application2)  // ✅ 필수
+                .artistName("작가1")
+                .mainProducts("회화")
+                .build();
+        artistProfileRepository.save(profile2);
+
+        // when
+        ResultActions resultActions = mvc.perform(get("/api/artist/list")
+                        .contentType(MediaType.APPLICATION_JSON))
+                .andDo(print());
+
+        // then
+        resultActions.andExpect(status().isOk())
+                .andExpect(jsonPath("$.resultCode").value("200"))
+                .andExpect(jsonPath("$.msg").value("작가 목록 조회 성공"))
+                .andExpect(jsonPath("$.data").isArray())
+                .andExpect(jsonPath("$.data.length()").value(2))
+                .andExpect(jsonPath("$.data[0].artistId").exists())
+                .andExpect(jsonPath("$.data[0].artistName").exists());
+    }
+
+    @Test
+    @DisplayName("17. 전체 작가 목록 조회 - 빈 목록")
+    void t17() throws Exception {
+        // when - ArtistProfile이 없는 상태
+        ResultActions resultActions = mvc.perform(get("/api/artist/list")
+                        .contentType(MediaType.APPLICATION_JSON))
+                .andDo(print());
+
+        // then
+        resultActions.andExpect(status().isOk())
+                .andExpect(jsonPath("$.resultCode").value("200"))
+                .andExpect(jsonPath("$.msg").value("작가 목록 조회 성공"))
+                .andExpect(jsonPath("$.data").isArray())
+                .andExpect(jsonPath("$.data.length()").value(0));
+    }
+
+    @Test
+    @DisplayName("18. 작가 공개 프로필 조회 - 성공")
+    void t18() throws Exception {
+        // given
+        User user1 = userRepository.findByEmail("user1@user.com").orElseThrow();
+
+        // ArtistApplication 먼저 생성
+        ArtistApplication application = ArtistApplication.builder()
+                .user(user1)
+                .artistName("유저1작가")
+                .businessName("유저1 작가실")
+                .businessNumber("111-11-11111")
+                .ownerName("유저1")
+                .phone("010-1234-5678")
+                .managerPhone("010-1234-5678")
+                .email("user1@user.com")
+                .businessAddress("서울시 강남구")
+                .businessAddressDetail("1층")
+                .businessZipCode("12345")
+                .telecomSalesNumber("2023-서울강남-0001")
+                .build();
+        artistApplicationRepository.save(application);
+
+        // ArtistProfile 생성
+        ArtistProfile profile = ArtistProfile.builder()
+                .user(user1)
+                .artistApplication(application)  // ✅ 필수
+                .artistName("유저1작가")
+                .description("전통 도자기를 현대적으로 재해석하는 작가입니다.")
+                .mainProducts("도자기, 머그컵")
+                .snsAccount("@artist_user1")
+                .profileImageUrl("https://example.com/profile.jpg")
+                .build();
+        artistProfileRepository.save(profile);
+
+        // when
+        ResultActions resultActions = mvc.perform(get("/api/artist/profile/" + user1.getId())
+                        .contentType(MediaType.APPLICATION_JSON))
+                .andDo(print());
+
+        // then
+        resultActions.andExpect(status().isOk())
+                .andExpect(jsonPath("$.resultCode").value("200"))
+                .andExpect(jsonPath("$.msg").value("작가 프로필 조회 성공"))
+                .andExpect(jsonPath("$.data.artistId").value(user1.getId()))
+                .andExpect(jsonPath("$.data.artistName").value("유저1작가"))
+                .andExpect(jsonPath("$.data.description").value("전통 도자기를 현대적으로 재해석하는 작가입니다."))
+                .andExpect(jsonPath("$.data.mainProducts").value("도자기, 머그컵"))
+                .andExpect(jsonPath("$.data.snsAccount").value("@artist_user1"))
+                .andExpect(jsonPath("$.data.followerCount").value(0))
+                .andExpect(jsonPath("$.data.totalSales").value(0))
+                .andExpect(jsonPath("$.data.productCount").value(0))
+                .andExpect(jsonPath("$.data.createdAt").exists());
+    }
+
+    @Test
+    @DisplayName("19. 작가 공개 프로필 조회 - 실패 (존재하지 않는 작가)")
+    void t19() throws Exception {
+        // when
+        ResultActions resultActions = mvc.perform(get("/api/artist/profile/99999")
+                        .contentType(MediaType.APPLICATION_JSON))
+                .andDo(print());
+
+        // then
+        resultActions.andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.resultCode").value("404"))
+                .andExpect(jsonPath("$.msg").value("존재하지 않는 작가입니다."));
+    }
+
+    @Test
+    @DisplayName("20. 작가 상품 목록 조회 - 성공 (상품 없음)")
+    void t20() throws Exception {
+        // given
+        User user1 = userRepository.findByEmail("user1@user.com").orElseThrow();
+
+        // ArtistApplication 먼저 생성
+        ArtistApplication application = ArtistApplication.builder()
+                .user(user1)
+                .artistName("유저1작가")
+                .businessName("유저1 작가실")
+                .businessNumber("111-11-11111")
+                .ownerName("유저1")
+                .phone("010-1234-5678")
+                .managerPhone("010-1234-5678")
+                .email("user1@user.com")
+                .businessAddress("서울시 강남구")
+                .businessAddressDetail("1층")
+                .businessZipCode("12345")
+                .telecomSalesNumber("2023-서울강남-0001")
+                .build();
+        artistApplicationRepository.save(application);
+
+        // ArtistProfile 생성
+        ArtistProfile profile = ArtistProfile.builder()
+                .user(user1)
+                .artistApplication(application)  // ✅ 필수
+                .artistName("유저1작가")
+                .build();
+        artistProfileRepository.save(profile);
+
+        // when - 상품이 없는 상태에서 조회
+        ResultActions resultActions = mvc.perform(get("/api/artist/profile/" + user1.getId() + "/products")
+                        .param("page", "1")
+                        .param("size", "12")
+                        .contentType(MediaType.APPLICATION_JSON))
+                .andDo(print());
+
+        // then
+        resultActions.andExpect(status().isOk())
+                .andExpect(jsonPath("$.resultCode").value("200"))
+                .andExpect(jsonPath("$.msg").value("작가 상품 목록 조회 성공"))
+                .andExpect(jsonPath("$.data").isArray())
+                .andExpect(jsonPath("$.data.length()").value(0));
+    }
+
+    @Test
+    @DisplayName("21. 작가 상품 목록 조회 - 실패 (존재하지 않는 작가)")
+    void t21() throws Exception {
+        // when
+        ResultActions resultActions = mvc.perform(get("/api/artist/profile/99999/products")
+                        .param("page", "1")
+                        .param("size", "12")
+                        .contentType(MediaType.APPLICATION_JSON))
+                .andDo(print());
+
+        // then
+        resultActions.andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.resultCode").value("404"))
+                .andExpect(jsonPath("$.msg").value("존재하지 않는 작가입니다."));
     }
 
 }
