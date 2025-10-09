@@ -1,20 +1,23 @@
 package com.back.domain.product.product.service;
 
+import com.back.domain.artist.dto.response.ArtistBusinessInfoResponse;
+import com.back.domain.artist.service.ArtistApplicationService;
 import com.back.domain.product.category.entity.Category;
 import com.back.domain.product.category.repository.CategoryRepository;
 import com.back.domain.product.product.dto.request.BaseAdditionalProduct;
 import com.back.domain.product.product.dto.request.BaseOption;
 import com.back.domain.product.product.dto.request.CreateProductRequest;
 import com.back.domain.product.product.dto.request.UpdateProductRequest;
+import com.back.domain.product.product.dto.response.ProductDetailResponse;
 import com.back.domain.product.product.dto.response.ProductListResponse;
 import com.back.domain.product.product.dto.response.ShareLinkResponse;
 import com.back.domain.product.product.entity.*;
 import com.back.domain.product.product.repository.ProductRepository;
+import com.back.domain.product.tag.dto.response.TagResponse;
 import com.back.domain.product.tag.entity.Tag;
 import com.back.domain.product.tag.repository.TagRepository;
 import com.back.domain.user.entity.Role;
 import com.back.domain.user.entity.User;
-import com.back.domain.user.repository.UserRepository;
 import com.back.global.exception.ServiceException;
 import com.back.global.s3.FileType;
 import com.back.global.s3.S3FileRequest;
@@ -28,10 +31,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
-import java.util.UUID;
+import java.util.*;
 import java.util.stream.Collectors;
 
 @Service
@@ -44,7 +44,7 @@ public class ProductService {
     private final TagRepository tagRepository;
     private final S3ValidationService s3ValidationService;
     private final S3Service s3Service;
-    private final UserRepository userRepository;
+    private final ArtistApplicationService artistApplicationService;
 
     @Value("${app.frontend-url:https://mori-mori.store}")
     private String frontendUrl;
@@ -98,6 +98,18 @@ public class ProductService {
         );
     }
 
+    /** 상품 상세 조회 */
+    @Transactional
+    public ProductDetailResponse getProductDetail(UUID productUuid) {
+        // 존재하는 상품인지 검증
+        Product product = getProductOrThrow(productUuid);
+        // 작가 사업자 관련 정보 조회
+        ArtistBusinessInfoResponse businessInfo = artistApplicationService.getBusinessInfo(product.getUser().getId());
+        // 상품 + 작가 사업자 정보 DTO 반환
+        return toProductDetailResponse(product, businessInfo);
+    }
+
+
     /** 상품 수정 */
     @Transactional
     public UUID updateProduct(UUID productUuid, UpdateProductRequest request, CustomUserDetails customUserDetails) {
@@ -143,12 +155,11 @@ public class ProductService {
 
         // 논리삭제 처리
         product.setDeleted(true);
-        // 전시 종료로 전시 상태 변경 (-> 사용자에게 안보임)
-        product.setDisplayStatus(DisplayStatus.END_OF_DISPLAY);
+        product.setDisplayStatus(DisplayStatus.END_OF_DISPLAY); // 전시 상태 전시 종료로 변경 (-> 사용자에게 안보임)
+        product.setSellingStatus(SellingStatus.END_OF_SALE); // 판매 상태 판매 종료로 변경
         // DB 저장
         productRepository.save(product);
     }
-
 
     /** 상품 이미지(파일) 다운로드 */
     @Transactional(readOnly = true)
@@ -314,8 +325,8 @@ public class ProductService {
                 .conditionalFreeAmount(request.conditionalFreeAmount()) //조건부 배송일 경우 무료배송 조건 금액
                 .stock(request.stock()) //재고
                 .description(request.description()) // 상품 정보(텍스트+이미지 태그로 이루어진 HTML?)
-                .sellingStatus(request.sellingStatus() != null ? SellingStatus.valueOf(request.sellingStatus()) : SellingStatus.SELLING) //판매상태(null이면 기본값 판매중으로)
-                .displayStatus(DisplayStatus.valueOf(request.displayStatus())) // 전시상태
+                .sellingStatus(request.sellingStatus() != null ? SellingStatus.valueOf(request.sellingStatus()) : SellingStatus.SELLING) // 판매 상태 (null이면 기본값은 판매중)
+                .displayStatus(request.displayStatus() != null ? DisplayStatus.valueOf(request.displayStatus()) : DisplayStatus.DISPLAYING) // 전시 상태 (null이면 기본값은 전시중)
                 .minQuantity(request.minQuantity()) // 최소 구매수량
                 .maxQuantity(request.maxQuantity()) // 최대 구매수량
                 .isPlanned(request.isPlanned()) // 기획상품 여부
@@ -332,6 +343,9 @@ public class ProductService {
     }
     // Product 수정
     private void updateProductFromRequest(Product product, UpdateProductRequest request, Category category){
+        // 이전 재고 저장
+        int previousStock = product.getStock();
+
         // DTO 값 그대로 덮어쓰기
         product.setCategory(category);
         product.setName(request.name());
@@ -343,10 +357,10 @@ public class ProductService {
         product.setAdditionalShippingCharge(request.additionalShippingCharge());
         product.setDeliveryType(DeliveryType.valueOf(request.deliveryType()));
         product.setConditionalFreeAmount(request.conditionalFreeAmount());
-        product.setStock(request.stock());
+        product.setStock(request.stock()); // 변경된 재고
         product.setDescription(request.description());
-        product.setSellingStatus(SellingStatus.valueOf(request.sellingStatus()));
-        product.setDisplayStatus(DisplayStatus.valueOf(request.displayStatus()));
+        product.setSellingStatus(request.sellingStatus() != null ? SellingStatus.valueOf(request.sellingStatus()) : SellingStatus.SELLING); // null이면 기본값 판매중
+        product.setDisplayStatus(request.displayStatus() != null ? DisplayStatus.valueOf(request.displayStatus()) : DisplayStatus.DISPLAYING); // null이면 기본값 전시중
         product.setMinQuantity(request.minQuantity());
         product.setMaxQuantity(request.maxQuantity());
         product.setProductModelName(request.productModelName());
@@ -358,6 +372,60 @@ public class ProductService {
         product.setRestock(request.isRestock());
         product.setSellingStartDate(request.sellingStartDate() != null ? request.sellingStartDate().atStartOfDay() : null);
         product.setSellingEndDate(request.sellingEndDate() != null ? request.sellingEndDate().atStartOfDay() : null);
+
+        // 재고가 0 -> 0보다 큰 값으로 변경되면 재입고 상품 여부(isRestock) 자동 true
+        if (previousStock == 0 && product.getStock() > 0) {
+            product.setRestock(true);
+        }
+
+    }
+    // 상품 상세 조회
+    private ProductDetailResponse toProductDetailResponse(Product product, ArtistBusinessInfoResponse businessInfo) {
+        // 상품 필수 정보 DTO 생성
+        ProductDetailResponse.ProductEssentialInfo essentialInfo =
+                new ProductDetailResponse.ProductEssentialInfo(
+                        product.getProductModelName(),
+                        product.isCertification(),
+                        product.getOrigin(),
+                        product.getMaterial(),
+                        product.getSize(),
+                        businessInfo.businessName(),
+                        businessInfo.businessNumber(),
+                        businessInfo.ownerName(),
+                        businessInfo.asManager(),
+                        businessInfo.email(),
+                        businessInfo.businessAddress(),
+                        businessInfo.telecomSalesNumber()
+                );
+        return new ProductDetailResponse(
+                product.getProductUuid(),
+                product.getUser().getName(),
+                product.getBrandName(),
+                product.getName(),
+                product.getAverageRating() != null ? product.getAverageRating() : 0.0,
+                product.getReviewCount() != null ? product.getReviewCount() : 0,
+                product.getPrice(),
+                product.getDiscountRate(),
+                product.getDiscountPrice(),
+                product.isBundleShippingAvailable(),
+                product.getDeliveryCharge(),
+                product.getDeliveryType().name(),
+                product.getConditionalFreeAmount(),
+                product.getAdditionalShippingCharge(),
+                mapOptions(product.getOptions()),
+                mapAdditionalProducts(product.getAdditionalProducts()),
+                mapImages(product.getImages()),
+                essentialInfo,
+                product.getStock(),
+                product.getDescription(),
+                product.getMinQuantity(),
+                product.getMaxQuantity(),
+                product.getSellingStatus().name(),
+                product.getDisplayStatus().name(),
+                product.isPlanned(),
+                product.isRestock(),
+                mapTags(product.getProductTags())
+        );
     }
 
 
@@ -445,6 +513,38 @@ public class ProductService {
                         .build());
             }
         }
+    }
+
+    // 상품 상세 조회에서 옵션 엔티티를 DTO로 변환
+    private List<ProductDetailResponse.OptionResponse> mapOptions(List<Option> options) {
+        if (options == null || options.isEmpty()) return List.of();
+        return options.stream()
+                .map(ProductDetailResponse.OptionResponse::fromEntity)
+                .collect(Collectors.toList());
+    }
+
+    // 상품 상세 조회에서 추가상품 엔티티를 DTO로 변환
+    private List<ProductDetailResponse.AdditionalProductResponse> mapAdditionalProducts(List<AdditionalProduct> additionalProducts) {
+        if (additionalProducts == null || additionalProducts.isEmpty()) return List.of();
+        return additionalProducts.stream()
+                .map(ProductDetailResponse.AdditionalProductResponse::fromEntity)
+                .collect(Collectors.toList());
+    }
+
+    // 상품 상세 조회에서 상품 이미지 엔티티를 DTO로 변환
+    private List<ProductDetailResponse.ProductImageResponse> mapImages(List<ProductImage> images) {
+        if (images == null || images.isEmpty()) return List.of();
+        return images.stream()
+                .map(ProductDetailResponse.ProductImageResponse::fromEntity)
+                .collect(Collectors.toList());
+    }
+
+    // 상품 상세 조회에서 태그 엔티티를 DTO로 변환
+    private List<TagResponse> mapTags(Collection<ProductTagMapping> productTags) {
+        if (productTags == null || productTags.isEmpty()) return List.of();
+        return productTags.stream()
+                .map(pt -> new TagResponse(pt.getTag().getId(), pt.getTag().getName()))
+                .collect(Collectors.toList());
     }
 
 }

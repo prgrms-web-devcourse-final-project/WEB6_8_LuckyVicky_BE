@@ -3,6 +3,7 @@ package com.back.domain.product.product.controller;
 import com.back.domain.product.category.repository.CategoryRepository;
 import com.back.domain.product.product.dto.request.CreateProductRequest;
 import com.back.domain.product.product.dto.request.UpdateProductRequest;
+import com.back.domain.product.product.dto.response.ProductDetailResponse;
 import com.back.domain.product.product.dto.response.ProductListResponse;
 import com.back.domain.product.product.entity.ProductImage;
 import com.back.domain.product.product.service.ProductService;
@@ -422,5 +423,112 @@ class ProductControllerTest {
                 .andExpect(jsonPath("$.resultCode").value("404"))
                 .andExpect(content().string(containsString("존재하지 않는 상품입니다.")));
     }
+
+    @Test
+    @DisplayName("상품 상세 조회 API 성공")
+    @WithMockUser(username = "user@test.com", roles = "USER")
+    void getProductDetail_test_success() throws Exception {
+        UUID productUuid = UUID.fromString("550e8400-e29b-41d4-a716-446655440000");
+
+        // Mock ProductDetailResponse 생성
+        ProductDetailResponse.ProductEssentialInfo essentialInfo =
+                new ProductDetailResponse.ProductEssentialInfo(
+                        "MM-CHERRY-24",
+                        true,
+                        "대한민국",
+                        "면 100%",
+                        "12x30x5cm",
+                        "문구브랜드",
+                        "123-45-67890",
+                        "김작가",
+                        "(주)문구문구/010-1234-5678",
+                        "example@company.com",
+                        "서울특별시 강남구 테헤란로 1길 100 201호",
+                        "2023-서울강남-0001"
+                );
+
+        ProductDetailResponse.OptionResponse option1 =
+                new ProductDetailResponse.OptionResponse("색상-핑크", 50, 0);
+        ProductDetailResponse.OptionResponse option2 =
+                new ProductDetailResponse.OptionResponse("색상-화이트", 30, 500);
+
+        ProductDetailResponse.AdditionalProductResponse additional =
+                new ProductDetailResponse.AdditionalProductResponse("포장지 추가", 100, 1000);
+
+        ProductDetailResponse.ProductImageResponse image1 =
+                new ProductDetailResponse.ProductImageResponse(
+                        "https://s3.mori-mori.store/images/cherry_keyring_1.jpg", "IMAGE");
+        ProductDetailResponse.ProductImageResponse image2 =
+                new ProductDetailResponse.ProductImageResponse(
+                        "https://s3.mori-mori.store/images/cherry_keyring_2.jpg", "IMAGE");
+
+        ProductDetailResponse productDetail = new ProductDetailResponse(
+                productUuid,
+                "김작가",
+                "문구브랜드",
+                "벚꽃 키링",
+                4.6,
+                42,
+                10000,
+                10,
+                9000,
+                true,
+                3000,
+                "CONDITIONAL_FREE",
+                30000,
+                5000,
+                List.of(option1, option2),
+                List.of(additional),
+                List.of(image1, image2),
+                essentialInfo,
+                100,
+                "<p>벚꽃 키링 상세정보 및 사용 방법...</p>",
+                1,
+                5,
+                "SELLING",
+                "DISPLAYING",
+                false,
+                true,
+                List.of()
+        );
+
+        // Mock 서비스 호출
+        given(productService.getProductDetail(productUuid)).willReturn(productDetail);
+
+        ResultActions resultActions = mockMvc.perform(
+                get("/api/products/{productUuid}", productUuid.toString())
+                        .contentType(MediaType.APPLICATION_JSON)
+        ).andDo(print());
+
+        resultActions
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.productUuid").value(productUuid.toString()))
+                .andExpect(jsonPath("$.data.name").value("벚꽃 키링"))
+                .andExpect(jsonPath("$.data.essentialInfo.productModelName").value("MM-CHERRY-24"))
+                .andExpect(jsonPath("$.data.options[0].optionName").value("색상-핑크"))
+                .andExpect(jsonPath("$.data.images[1].fileUrl").value("https://s3.mori-mori.store/images/cherry_keyring_2.jpg"));
+    }
+
+    @Test
+    @DisplayName("상품 상세 조회 API 실패 - 상품 없음")
+    @WithMockUser(username = "user@test.com", roles = "USER")
+    void getProductDetail_test_fail_notFound() throws Exception {
+        UUID productUuid = UUID.randomUUID();
+
+        // 상품 없음 시 ServiceException 발생하도록 Mock
+        doThrow(new ServiceException("404", "존재하지 않는 상품입니다."))
+                .when(productService).getProductDetail(productUuid);
+
+        ResultActions resultActions = mockMvc.perform(
+                get("/api/products/{productUuid}", productUuid.toString())
+                        .contentType(MediaType.APPLICATION_JSON)
+        ).andDo(print());
+
+        resultActions
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.resultCode").value("404"))
+                .andExpect(content().string(containsString("존재하지 않는 상품입니다.")));
+    }
+
 
 }
