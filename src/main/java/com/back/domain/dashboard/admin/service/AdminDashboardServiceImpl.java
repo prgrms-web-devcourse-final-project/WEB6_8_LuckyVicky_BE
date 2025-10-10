@@ -59,30 +59,20 @@ public class AdminDashboardServiceImpl implements AdminDashboardService {
 
     /**
      * SecurityContext에서 인증된 관리자 정보를 추출하고 권한을 검증하는 헬퍼 메서드
-     * @return CustomUserDetails 인증된 사용자 정보
-     * @throws ServiceException 인증되지 않았거나 관리자 권한이 없는 경우
      */
     private CustomUserDetails validateAdminAuthentication() {
-        // 1. SecurityContext에서 인증 정보 가져오기
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
 
         if (authentication == null || !authentication.isAuthenticated()) {
-            log.error("인증되지 않은 접근 시도");
             throw new ServiceException("401", "인증이 필요합니다.");
         }
 
-        // 2. CustomUserDetails 추출
-        if (!(authentication.getPrincipal() instanceof CustomUserDetails)) {
-            log.error("잘못된 인증 타입: {}", authentication.getPrincipal().getClass());
+        if (!(authentication.getPrincipal() instanceof CustomUserDetails userDetails)) {
             throw new ServiceException("401", "유효하지 않은 인증 정보입니다.");
         }
 
-        CustomUserDetails userDetails = (CustomUserDetails) authentication.getPrincipal();
-
-        // 3. 관리자 권한 검증 (ADMIN 또는 ROOT만 허용)
         Role role = userDetails.getCurrentRole();
         if (role != Role.ADMIN && role != Role.ROOT) {
-            log.error("권한 없는 접근 시도 - userId: {}, role: {}", userDetails.getUserId(), role);
             throw new ServiceException("403", "관리자 권한이 필요합니다.");
         }
 
@@ -91,34 +81,19 @@ public class AdminDashboardServiceImpl implements AdminDashboardService {
 
     @Override
     public AdminOverviewResponse getOverview(AdminOverviewRequest request) {
-        // JWT 토큰에서 관리자 정보 추출 및 권한 검증
         CustomUserDetails adminUser = validateAdminAuthentication();
-
-        log.info("관리자 현황 조회 - userId: {}, role: {}, range: {}, granularity: {}",
-                adminUser.getUserId(), adminUser.getCurrentRole(), request.range(), request.granularity());
 
         // 1. 전체 현황 통계 계산
         long totalUsers = userRepository.count();
         long totalProducts = productRepository.count();
         long totalFundings = fundingRepository.count();
-
-        // 작가 수 조회
-        long artistCount = userRepository.findAll().stream()
-                .filter(User::isArtist)
-                .count();
+        long artistCount = userRepository.findAll().stream().filter(User::isArtist).count();
 
         // 2. 오늘 날짜 기준 통계
         LocalDate today = LocalDate.now();
-        
-        // 오늘의 매출
         BigDecimal todayRevenueBd = orderRepository.findTodayTotalRevenue(today);
         long todayRevenue = todayRevenueBd != null ? todayRevenueBd.longValue() : 0L;
-        
-        // 오늘의 주문 수
         long todayOrderCount = orderRepository.countTodayOrders(today);
-
-        log.info("메인 현황 통계 - 가입자: {}, 상품: {}, 펀딩: {}, 작가: {}, 오늘 주문: {}, 오늘 매출: {}",
-                totalUsers, totalProducts, totalFundings, artistCount, todayOrderCount, todayRevenue);
 
         // 3. Overview 객체 생성
         AdminOverviewResponse.Overview overview = new AdminOverviewResponse.Overview(
@@ -130,10 +105,10 @@ public class AdminDashboardServiceImpl implements AdminDashboardService {
                 new AdminOverviewResponse.StatInfo(artistCount, "작가수", "명", 0L, 0.0)
         );
 
-        // 4. 차트 데이터 생성 (실제 트렌드 데이터)
+        // 4. 차트 데이터 생성
         AdminOverviewResponse.Charts charts = createChartsData(request);
 
-        // 5. 승인 대기 알림 - 작가만 (펀딩은 나중에 추가)
+        // 5. 승인 대기 알림
         List<ArtistApplication> pendingApplications = artistApplicationRepository
                 .findByStatusOrderByCreateDateDesc(ApplicationStatus.PENDING, PageRequest.of(0, 2))
                 .getContent();
@@ -146,12 +121,9 @@ public class AdminDashboardServiceImpl implements AdminDashboardService {
                 ))
                 .toList();
 
-        // 펀딩 승인은 나중에 구현
-        List<AdminOverviewResponse.FundingApproval> fundingApprovals = List.of();
-
         AdminOverviewResponse.Alerts alerts = new AdminOverviewResponse.Alerts(
                 artistApprovals,
-                fundingApprovals
+                List.of()  // 펀딩 승인은 나중에 구현
         );
 
         return new AdminOverviewResponse(overview, charts, alerts, LocalDateTime.now(), request.timezone());
@@ -164,8 +136,8 @@ public class AdminDashboardServiceImpl implements AdminDashboardService {
         // 1. 기간 계산
         LocalDateTime endDate = LocalDateTime.now();
         LocalDateTime startDate;
-        LocalDateTime compareEndDate;
         LocalDateTime compareStartDate;
+        LocalDateTime compareEndDate;
         
         String range = request.range() != null ? request.range() : "1M";
         
@@ -191,7 +163,6 @@ public class AdminDashboardServiceImpl implements AdminDashboardService {
                 compareEndDate = startDate;
             }
             case "ALL" -> {
-                // 전체 기간 (서비스 시작일부터)
                 startDate = LocalDateTime.of(2024, 1, 1, 0, 0);
                 compareStartDate = startDate;
                 compareEndDate = startDate.plusYears(1);
@@ -203,55 +174,37 @@ public class AdminDashboardServiceImpl implements AdminDashboardService {
             }
         }
 
-        log.info("차트 데이터 조회 - range: {}, startDate: {}, endDate: {}", range, startDate, endDate);
-
         // 2. 매출/주문 트렌드 데이터 조회
         List<com.back.domain.dashboard.artist.dto.DailyTrendDto> salesTrends =
                 orderRepository.findDailyTrendsForAdmin(startDate, endDate);
-        
         List<com.back.domain.dashboard.artist.dto.DailyTrendDto> compareSalesTrends =
                 orderRepository.findDailyTrendsForAdmin(compareStartDate, compareEndDate);
-
-        log.info("매출/주문 트렌드 조회 완료 - {} 건", salesTrends.size());
 
         // 3. 사용자 증가 트렌드 데이터 조회
         List<com.back.domain.dashboard.admin.dto.DailyUserGrowthDto> userGrowthTrends =
                 userRepository.findDailyUserGrowth(startDate, endDate);
-        
         List<com.back.domain.dashboard.admin.dto.DailyUserGrowthDto> compareUserGrowthTrends =
                 userRepository.findDailyUserGrowth(compareStartDate, compareEndDate);
-        
         List<com.back.domain.dashboard.admin.dto.DailyUserGrowthDto> artistGrowthTrends =
                 userRepository.findDailyArtistGrowth(startDate, endDate);
-        
         List<com.back.domain.dashboard.admin.dto.DailyUserGrowthDto> compareArtistGrowthTrends =
                 userRepository.findDailyArtistGrowth(compareStartDate, compareEndDate);
-
-        log.info("사용자/작가 증가 트렌드 조회 완료 - 사용자: {} 건, 작가: {} 건", 
-                userGrowthTrends.size(), artistGrowthTrends.size());
 
         // 4. 매출 트렌드 차트 데이터 생성
         List<AdminOverviewResponse.DataPoint> salesData = salesTrends.stream()
                 .map(d -> new AdminOverviewResponse.DataPoint(d.date().toString(), d.salesAmount()))
                 .toList();
-        
         List<AdminOverviewResponse.DataPoint> orderData = salesTrends.stream()
                 .map(d -> new AdminOverviewResponse.DataPoint(d.date().toString(), d.orderCount()))
                 .toList();
 
-        // 총합 계산
         long totalSales = salesTrends.stream().mapToLong(com.back.domain.dashboard.artist.dto.DailyTrendDto::salesAmount).sum();
         long totalOrders = salesTrends.stream().mapToLong(com.back.domain.dashboard.artist.dto.DailyTrendDto::orderCount).sum();
-        
         long compareTotalSales = compareSalesTrends.stream().mapToLong(com.back.domain.dashboard.artist.dto.DailyTrendDto::salesAmount).sum();
         long compareTotalOrders = compareSalesTrends.stream().mapToLong(com.back.domain.dashboard.artist.dto.DailyTrendDto::orderCount).sum();
 
-        // 변화량 계산
         AdminOverviewResponse.DeltaInfo salesDelta = calculateDelta(totalSales, compareTotalSales);
         AdminOverviewResponse.DeltaInfo orderDelta = calculateDelta(totalOrders, compareTotalOrders);
-
-        log.info("매출 트렌드 - 총 매출: {}, 총 주문: {}, 매출 증감: {}%, 주문 증감: {}%", 
-                totalSales, totalOrders, salesDelta.rate(), orderDelta.rate());
 
         AdminOverviewResponse.SalesTrend salesTrend = new AdminOverviewResponse.SalesTrend(
                 new AdminOverviewResponse.SalesSeries(salesData, orderData),
@@ -262,29 +215,24 @@ public class AdminDashboardServiceImpl implements AdminDashboardService {
         List<AdminOverviewResponse.DataPoint> userData = userGrowthTrends.stream()
                 .map(d -> new AdminOverviewResponse.DataPoint(d.date().toString(), d.userCount()))
                 .toList();
-        
         List<AdminOverviewResponse.DataPoint> artistData = artistGrowthTrends.stream()
                 .map(d -> new AdminOverviewResponse.DataPoint(d.date().toString(), d.userCount()))
                 .toList();
 
         long totalNewUsers = userGrowthTrends.stream().mapToLong(com.back.domain.dashboard.admin.dto.DailyUserGrowthDto::userCount).sum();
         long totalNewArtists = artistGrowthTrends.stream().mapToLong(com.back.domain.dashboard.admin.dto.DailyUserGrowthDto::userCount).sum();
-        
         long compareTotalNewUsers = compareUserGrowthTrends.stream().mapToLong(com.back.domain.dashboard.admin.dto.DailyUserGrowthDto::userCount).sum();
         long compareTotalNewArtists = compareArtistGrowthTrends.stream().mapToLong(com.back.domain.dashboard.admin.dto.DailyUserGrowthDto::userCount).sum();
 
         AdminOverviewResponse.DeltaInfo userDelta = calculateDelta(totalNewUsers, compareTotalNewUsers);
         AdminOverviewResponse.DeltaInfo artistDelta = calculateDelta(totalNewArtists, compareTotalNewArtists);
 
-        log.info("사용자 증가 트렌드 - 신규 사용자: {}, 신규 작가: {}, 사용자 증감: {}%, 작가 증감: {}%", 
-                totalNewUsers, totalNewArtists, userDelta.rate(), artistDelta.rate());
-
         AdminOverviewResponse.UserGrowth userGrowth = new AdminOverviewResponse.UserGrowth(
                 new AdminOverviewResponse.UserSeries(userData, artistData),
                 new AdminOverviewResponse.UserDelta(userDelta, artistDelta)
         );
 
-        // 6. 카테고리 분포 (기존 코드 유지)
+        // 6. 카테고리 분포
         long totalProducts = productRepository.count();
         AdminOverviewResponse.CategoryDistribution categoryDist = calculateCategoryDistribution((int) totalProducts);
 
@@ -316,23 +264,15 @@ public class AdminDashboardServiceImpl implements AdminDashboardService {
 
     @Override
     public AdminProductResponse getProducts(AdminProductSearchRequest request) {
-        // JWT 토큰에서 관리자 정보 추출 및 권한 검증
         CustomUserDetails adminUser = validateAdminAuthentication();
 
-        log.info("관리자 상품 목록 조회 - userId: {}, role: {}, page: {}, size: {}, keyword: {}, sellingStatus: {}, categoryId: {}, artistId: {}",
-                adminUser.getUserId(), adminUser.getCurrentRole(), request.page(), request.size(),
-                request.keyword(), request.sellingStatus(), request.categoryId(), request.artistId());
-
-        // 페이징 및 정렬 설정
         Pageable pageable = buildPageable(request.page(), request.size(), request.sort(), request.order(), this::mapProductSortField);
 
-        // 실제 DB에서 상품 조회 (논리 삭제된 상품 제외)
         Page<Product> productPage = productRepository.findAll(
                 buildProductSpecification(request),
                 pageable
         );
 
-        // Entity → DTO 변환
         List<AdminProductResponse.Product> products = productPage.getContent().stream()
                 .map(this::convertToProductDto)
                 .toList();
@@ -386,7 +326,7 @@ public class AdminDashboardServiceImpl implements AdminDashboardService {
     }
 
     /**
-     * 상품 검색 조건 빌더 - Request DTO 활용
+     * 상품 검색 조건 빌더
      */
     private org.springframework.data.jpa.domain.Specification<Product> buildProductSpecification(
             AdminProductSearchRequest request) {
@@ -394,53 +334,41 @@ public class AdminDashboardServiceImpl implements AdminDashboardService {
         return (root, query, criteriaBuilder) -> {
             List<jakarta.persistence.criteria.Predicate> predicates = new ArrayList<>();
 
-            // 논리 삭제된 상품 제외
             predicates.add(criteriaBuilder.isFalse(root.get("isDeleted")));
 
-            // 키워드 검색 (상품명, 브랜드명, 작가명, UUID)
             if (request.keyword() != null && !request.keyword().isBlank()) {
                 String likePattern = "%" + request.keyword() + "%";
 
                 List<jakarta.persistence.criteria.Predicate> keywordPredicates = new ArrayList<>();
-                keywordPredicates.add(criteriaBuilder.like(root.get("name"), likePattern)); // 상품명
-                keywordPredicates.add(criteriaBuilder.like(root.get("brandName"), likePattern)); // 브랜드명
-                keywordPredicates.add(criteriaBuilder.like(root.get("user").get("name"), likePattern)); // 작가명
+                keywordPredicates.add(criteriaBuilder.like(root.get("name"), likePattern));
+                keywordPredicates.add(criteriaBuilder.like(root.get("brandName"), likePattern));
+                keywordPredicates.add(criteriaBuilder.like(root.get("user").get("name"), likePattern));
 
-                // UUID로 검색 (상품번호는 UUID)
                 try {
                     java.util.UUID uuid = java.util.UUID.fromString(request.keyword());
                     keywordPredicates.add(criteriaBuilder.equal(root.get("productUuid"), uuid));
-                } catch (IllegalArgumentException e) {
-                    // UUID 형식이 아니면 UUID 검색 제외
-                }
+                } catch (IllegalArgumentException ignored) {}
 
-                // 숫자인 경우 ID로도 검색 (레거시 지원)
                 try {
                     Long id = Long.parseLong(request.keyword());
                     keywordPredicates.add(criteriaBuilder.equal(root.get("id"), id));
-                } catch (NumberFormatException e) {
-                    // 숫자가 아니면 ID 검색 제외
-                }
+                } catch (NumberFormatException ignored) {}
 
                 predicates.add(criteriaBuilder.or(keywordPredicates.toArray(new jakarta.persistence.criteria.Predicate[0])));
             }
 
-            // 판매 상태 필터
             if (request.sellingStatus() != null && !request.sellingStatus().isBlank()) {
                 predicates.add(criteriaBuilder.equal(root.get("sellingStatus"), SellingStatus.valueOf(request.sellingStatus())));
             }
 
-            // 카테고리 필터
             if (request.categoryId() != null) {
                 predicates.add(criteriaBuilder.equal(root.get("category").get("id"), request.categoryId()));
             }
 
-            // 작가 필터
             if (request.artistId() != null) {
                 predicates.add(criteriaBuilder.equal(root.get("user").get("id"), request.artistId()));
             }
 
-            // 등록일 기간 필터
             if (request.startDate() != null && !request.startDate().isBlank()) {
                 LocalDate start = LocalDate.parse(request.startDate());
                 predicates.add(criteriaBuilder.greaterThanOrEqualTo(root.get("createDate"), start.atStartOfDay()));
@@ -470,23 +398,15 @@ public class AdminDashboardServiceImpl implements AdminDashboardService {
 
     @Override
     public AdminUserResponse getUsers(AdminUserSearchRequest request) {
-        // JWT 토큰에서 관리자 정보 추출 및 권한 검증
         CustomUserDetails adminUser = validateAdminAuthentication();
 
-        log.info("관리자 사용자 목록 조회 - userId: {}, role: {}, page: {}, size: {}, keyword: {}, userRole: {}, accountStatus: {}, grade: {}, artistId: {}",
-                adminUser.getUserId(), adminUser.getCurrentRole(), request.page(), request.size(),
-                request.keyword(), request.role(), request.accountStatus(), request.grade(), request.artistId());
-
-        // 페이징 및 정렬 설정
         Pageable pageable = buildPageable(request.page(), request.size(), request.sort(), request.order(), this::mapUserSortField);
 
-        // 실제 DB에서 사용자 조회
         Page<User> userPage = userRepository.findAll(
                 buildUserSpecification(request),
                 pageable
         );
 
-        // Entity → DTO 변환
         List<AdminUserResponse.User> users = userPage.getContent().stream()
                 .map(this::convertToUserDto)
                 .toList();
@@ -506,15 +426,12 @@ public class AdminDashboardServiceImpl implements AdminDashboardService {
      * User Entity → DTO 변환
      */
     private AdminUserResponse.User convertToUserDto(User user) {
-        // 작가명 (작가인 경우만)
         String artistName = user.isArtist() ? user.getName() : null;
-
-        // 수수료율 (작가인 경우만, 현재는 기본값 0% - TODO: User 엔티티에 필드 추가 시 수정)
         Integer commissionRate = user.isArtist() ? 0 : null;
 
         return new AdminUserResponse.User(
                 user.getId(),
-                user.getEmail() != null ? user.getEmail() : "N/A", // OAuth 사용자는 email이 null일 수 있음
+                user.getEmail() != null ? user.getEmail() : "N/A",
                 user.getName(),
                 artistName,
                 commissionRate,
@@ -525,7 +442,7 @@ public class AdminDashboardServiceImpl implements AdminDashboardService {
     }
 
     /**
-     * 사용자 검색 조건 빌더 - Request DTO 활용
+     * 사용자 검색 조건 빌더
      */
     private org.springframework.data.jpa.domain.Specification<User> buildUserSpecification(
             AdminUserSearchRequest request) {
@@ -533,14 +450,12 @@ public class AdminDashboardServiceImpl implements AdminDashboardService {
         return (root, query, criteriaBuilder) -> {
             List<jakarta.persistence.criteria.Predicate> predicates = new ArrayList<>();
 
-            // 키워드 검색 (회원ID=email, 작가명만)
             if (request.keyword() != null && !request.keyword().isBlank()) {
                 String likePattern = "%" + request.keyword() + "%";
 
                 List<jakarta.persistence.criteria.Predicate> keywordPredicates = new ArrayList<>();
-                keywordPredicates.add(criteriaBuilder.like(root.get("email"), likePattern)); // 회원ID (email)
+                keywordPredicates.add(criteriaBuilder.like(root.get("email"), likePattern));
 
-                // 작가인 경우 작가명으로 검색
                 jakarta.persistence.criteria.Predicate isArtist = criteriaBuilder.equal(root.get("role"), Role.ARTIST);
                 jakarta.persistence.criteria.Predicate artistNameMatch = criteriaBuilder.like(root.get("name"), likePattern);
                 keywordPredicates.add(criteriaBuilder.and(isArtist, artistNameMatch));
@@ -548,28 +463,23 @@ public class AdminDashboardServiceImpl implements AdminDashboardService {
                 predicates.add(criteriaBuilder.or(keywordPredicates.toArray(new jakarta.persistence.criteria.Predicate[0])));
             }
 
-            // 역할 필터
             if (request.role() != null && !request.role().isBlank()) {
                 predicates.add(criteriaBuilder.equal(root.get("role"), Role.valueOf(request.role())));
             }
 
-            // 계정 상태 필터
             if (request.accountStatus() != null && !request.accountStatus().isBlank()) {
                 predicates.add(criteriaBuilder.equal(root.get("status"), Status.valueOf(request.accountStatus())));
             }
 
-            // 등급 필터
             if (request.grade() != null && !request.grade().isBlank()) {
                 predicates.add(criteriaBuilder.equal(root.get("grade"), com.back.domain.user.entity.Grade.valueOf(request.grade())));
             }
 
-            // 작가 ID 필터
             if (request.artistId() != null) {
                 predicates.add(criteriaBuilder.equal(root.get("id"), request.artistId()));
                 predicates.add(criteriaBuilder.equal(root.get("role"), Role.ARTIST));
             }
 
-            // 가입일 기간 필터
             if (request.joinedStartDate() != null && !request.joinedStartDate().isBlank()) {
                 LocalDate start = LocalDate.parse(request.joinedStartDate());
                 predicates.add(criteriaBuilder.greaterThanOrEqualTo(root.get("createDate"), start.atStartOfDay()));
@@ -601,29 +511,19 @@ public class AdminDashboardServiceImpl implements AdminDashboardService {
 
     @Override
     public AdminSettlementResponse getSettlements(AdminSettlementRequest request) {
-        // JWT 토큰에서 관리자 정보 추출 및 권한 검증
         CustomUserDetails adminUser = validateAdminAuthentication();
 
-        // 연도 기본값 설정 (현재 연도)
         Integer year = request.year() != null ? request.year() : Year.now().getValue();
         Integer month = request.month();
 
-        log.info("관리자 매출/정산 조회 - userId: {}, role: {}, year: {}, month: {}, granularity: {}, timezone: {}",
-                adminUser.getUserId(), adminUser.getCurrentRole(), year, month, request.granularity(), request.timezone());
-
-        // 조회 범위
         AdminSettlementResponse.Scope scope = new AdminSettlementResponse.Scope(year, month);
 
         // 1. DB에서 실제 매출/정산 데이터 조회
         List<MonthlySettlementDto> settlements;
         if (month != null) {
-            // 일별 집계
             settlements = orderRepository.findDailySettlements(year, month);
-            log.info("일별 정산 데이터 조회 완료 - {}년 {}월, {} 건", year, month, settlements.size());
         } else {
-            // 월별 집계
             settlements = orderRepository.findMonthlySettlements(year);
-            log.info("월별 정산 데이터 조회 완료 - {}년, {} 건", year, settlements.size());
         }
 
         // 2. 요약 정보 계산
@@ -633,12 +533,10 @@ public class AdminDashboardServiceImpl implements AdminDashboardService {
         long netIncome = (long) (totalAmount * 0.1);
 
         AdminSettlementResponse.Summary summary = new AdminSettlementResponse.Summary(
-                totalAmount,   // 총 매출액
-                artistPayout,  // 총 작가 정산금 (90%)
-                netIncome      // 총 순수익 (10%)
+                totalAmount,
+                artistPayout,
+                netIncome
         );
-
-        log.info("정산 요약 - 총 매출: {}, 작가 정산금: {}, 순수익: {}", totalAmount, artistPayout, netIncome);
 
         // 3. 차트 데이터 및 테이블 데이터 생성
         List<AdminSettlementResponse.DataPoint> grossSalesData = new ArrayList<>();
@@ -646,14 +544,12 @@ public class AdminDashboardServiceImpl implements AdminDashboardService {
         List<AdminSettlementResponse.DataPoint> netIncomeData = new ArrayList<>();
         List<AdminSettlementResponse.TableRow> tableData = new ArrayList<>();
 
-        // DB 조회 결과를 Map으로 변환 (날짜 -> 데이터)
         Map<LocalDate, MonthlySettlementDto> settlementMap = new HashMap<>();
         for (MonthlySettlementDto dto : settlements) {
             settlementMap.put(dto.date(), dto);
         }
 
         if (month != null) {
-            // 일별 집계 - 해당 월의 모든 일자 생성
             LocalDate startDate = LocalDate.of(year, month, 1);
             int daysInMonth = startDate.lengthOfMonth();
             
@@ -665,7 +561,6 @@ public class AdminDashboardServiceImpl implements AdminDashboardService {
                 addSettlementDataPoint(settlement, grossSalesData, artistPayoutData, netIncomeData, tableData);
             }
         } else {
-            // 월별 집계 - 해당 연도의 모든 월 생성
             for (int m = 1; m <= 12; m++) {
                 LocalDate currentDate = LocalDate.of(year, m, 1);
                 MonthlySettlementDto settlement = settlementMap.getOrDefault(currentDate,
@@ -675,7 +570,6 @@ public class AdminDashboardServiceImpl implements AdminDashboardService {
             }
         }
 
-        // 4. 차트 데이터 통합
         AdminSettlementResponse.Chart chart = new AdminSettlementResponse.Chart(
                 new AdminSettlementResponse.Series(grossSalesData, artistPayoutData, netIncomeData)
         );
@@ -686,8 +580,7 @@ public class AdminDashboardServiceImpl implements AdminDashboardService {
     }
 
     /**
-     * 정산 데이터 포인트 생성 헬퍼 메서드
-     * MonthlySettlementDto를 차트 및 테이블 데이터로 변환
+     * 정산 데이터 포인트 생성
      */
     private void addSettlementDataPoint(MonthlySettlementDto settlement,
                                        List<AdminSettlementResponse.DataPoint> grossSalesData,
@@ -695,10 +588,10 @@ public class AdminDashboardServiceImpl implements AdminDashboardService {
                                        List<AdminSettlementResponse.DataPoint> netIncomeData,
                                        List<AdminSettlementResponse.TableRow> tableData) {
         
-        String bucketStart = settlement.date().toString(); // yyyy-MM-dd 형식
+        String bucketStart = settlement.date().toString();
         long grossSales = settlement.totalAmount();
-        long artistPayout = settlement.getArtistPayout();  // 90%
-        long netIncome = settlement.getNetIncome();        // 10%
+        long artistPayout = settlement.getArtistPayout();
+        long netIncome = settlement.getNetIncome();
 
         grossSalesData.add(new AdminSettlementResponse.DataPoint(bucketStart, grossSales));
         artistPayoutData.add(new AdminSettlementResponse.DataPoint(bucketStart, artistPayout));
@@ -708,23 +601,15 @@ public class AdminDashboardServiceImpl implements AdminDashboardService {
 
     @Override
     public AdminFundingResponse getFundings(AdminFundingSearchRequest request) {
-        // JWT 토큰에서 관리자 정보 추출 및 권한 검증
         CustomUserDetails adminUser = validateAdminAuthentication();
 
-        log.info("관리자 펀딩 목록 조회 - userId: {}, role: {}, page: {}, size: {}, keyword: {}, status: {}, artistId: {}",
-                adminUser.getUserId(), adminUser.getCurrentRole(), request.page(), request.size(),
-                request.keyword(), request.status(), request.artistId());
-
-        // 페이징 및 정렬 설정
         Pageable pageable = buildPageable(request.page(), request.size(), request.sort(), request.order(), this::mapFundingSortField);
 
-        // 실제 DB에서 펀딩 조회
         Page<Funding> fundingPage = fundingRepository.findAll(
                 buildFundingSpecification(request),
                 pageable
         );
 
-        // Entity → DTO 변환
         List<AdminFundingResponse.Funding> fundings = fundingPage.getContent().stream()
                 .map(this::convertToFundingDto)
                 .toList();
@@ -744,12 +629,10 @@ public class AdminDashboardServiceImpl implements AdminDashboardService {
      * Funding Entity → DTO 변환
      */
     private AdminFundingResponse.Funding convertToFundingDto(Funding funding) {
-        // 달성률 계산
         int achievementRate = funding.getTargetAmount() > 0
                 ? (int) ((funding.getCollectedAmount() * 100) / funding.getTargetAmount())
                 : 0;
 
-        // 남은 일수 계산
         long remainingDays = java.time.temporal.ChronoUnit.DAYS.between(
                 LocalDateTime.now(),
                 funding.getEndDate()
@@ -765,7 +648,6 @@ public class AdminDashboardServiceImpl implements AdminDashboardService {
                         funding.getUser().getEmail() != null ? funding.getUser().getEmail() : "N/A",
                         funding.getUser().getName()
                 ),
-                // TODO: Funding에 Category 연동 후 수정 (현재 주석 처리됨)
                 new AdminFundingResponse.Category(1L, "미분류"),
                 funding.getStatus().name(),
                 funding.getTargetAmount(),
@@ -785,7 +667,7 @@ public class AdminDashboardServiceImpl implements AdminDashboardService {
     }
 
     /**
-     * 펀딩 검색 조건 빌더 - Request DTO 활용
+     * 펀딩 검색 조건 빌더
      */
     private org.springframework.data.jpa.domain.Specification<Funding> buildFundingSpecification(
             AdminFundingSearchRequest request) {
@@ -793,40 +675,29 @@ public class AdminDashboardServiceImpl implements AdminDashboardService {
         return (root, query, criteriaBuilder) -> {
             List<jakarta.persistence.criteria.Predicate> predicates = new ArrayList<>();
 
-            // 키워드 검색 (제목, 작가명, 작가ID)
             if (request.keyword() != null && !request.keyword().isBlank()) {
                 String likePattern = "%" + request.keyword() + "%";
 
                 List<jakarta.persistence.criteria.Predicate> keywordPredicates = new ArrayList<>();
-                keywordPredicates.add(criteriaBuilder.like(root.get("title"), likePattern)); // 제목
-                keywordPredicates.add(criteriaBuilder.like(root.get("user").get("name"), likePattern)); // 작가명
+                keywordPredicates.add(criteriaBuilder.like(root.get("title"), likePattern));
+                keywordPredicates.add(criteriaBuilder.like(root.get("user").get("name"), likePattern));
 
-                // 숫자인 경우 작가ID로도 검색
                 try {
                     Long id = Long.parseLong(request.keyword());
                     keywordPredicates.add(criteriaBuilder.equal(root.get("user").get("id"), id));
-                } catch (NumberFormatException e) {
-                    // 숫자가 아니면 ID 검색 제외
-                }
+                } catch (NumberFormatException ignored) {}
 
                 predicates.add(criteriaBuilder.or(keywordPredicates.toArray(new jakarta.persistence.criteria.Predicate[0])));
             }
 
-            // 펀딩 상태 필터
             if (request.status() != null && !request.status().isBlank()) {
                 predicates.add(criteriaBuilder.equal(root.get("status"), FundingStatus.valueOf(request.status())));
             }
 
-            // 작가 필터
             if (request.artistId() != null) {
                 predicates.add(criteriaBuilder.equal(root.get("user").get("id"), request.artistId()));
             }
 
-            // 달성률 필터 - 애플리케이션 레벨에서 처리하는 것이 더 안전
-            // JPA Criteria에서 복잡한 계산식은 타입 문제가 발생할 수 있음
-            // TODO: 필요시 네이티브 쿼리나 JPQL로 대체
-
-            // 등록일 기간 필터
             if (request.registeredFrom() != null && !request.registeredFrom().isBlank()) {
                 LocalDate start = LocalDate.parse(request.registeredFrom());
                 predicates.add(criteriaBuilder.greaterThanOrEqualTo(root.get("createDate"), start.atStartOfDay()));
@@ -836,7 +707,6 @@ public class AdminDashboardServiceImpl implements AdminDashboardService {
                 predicates.add(criteriaBuilder.lessThanOrEqualTo(root.get("createDate"), end.atTime(23, 59, 59)));
             }
 
-            // 마감일 기간 필터
             if (request.dueFrom() != null && !request.dueFrom().isBlank()) {
                 LocalDate start = LocalDate.parse(request.dueFrom());
                 predicates.add(criteriaBuilder.greaterThanOrEqualTo(root.get("endDate"), start.atStartOfDay()));
@@ -870,18 +740,11 @@ public class AdminDashboardServiceImpl implements AdminDashboardService {
 
     @Override
     public AdminArtistApplicationResponse getArtistApplications(AdminArtistApplicationSearchRequest request) {
-        // JWT 토큰에서 관리자 정보 추출 및 권한 검증
         CustomUserDetails adminUser = validateAdminAuthentication();
 
-        log.info("관리자 입점 신청 목록 조회 - userId: {}, role: {}, page: {}, size: {}, keyword: {}, status: {}",
-                adminUser.getUserId(), adminUser.getCurrentRole(), request.page(), request.size(),
-                request.keyword(), request.status());
-
-        // 페이징 및 정렬 설정
         Pageable pageable = buildPageable(request.page(), request.size(), request.sort(), request.order(),
-                sort -> "createDate"); // 기본 정렬은 신청일
+                sort -> "createDate");
 
-        // 실제 DB에서 입점 신청 조회
         Page<ArtistApplication> applicationPage;
 
         if (request.status() != null && !request.status().isBlank()) {
@@ -899,7 +762,6 @@ public class AdminDashboardServiceImpl implements AdminDashboardService {
             }
         }
 
-        // 요약 정보 계산
         long totalApplications = artistApplicationRepository.count();
         long pending = artistApplicationRepository.countByStatus(ApplicationStatus.PENDING);
         long approved = artistApplicationRepository.countByStatus(ApplicationStatus.APPROVED);
@@ -912,7 +774,6 @@ public class AdminDashboardServiceImpl implements AdminDashboardService {
                 (int) rejected
         );
 
-        // Entity → DTO 변환
         List<AdminArtistApplicationResponse.Application> applications = applicationPage.getContent().stream()
                 .map(this::convertToApplicationDto)
                 .toList();
@@ -1016,17 +877,11 @@ public class AdminDashboardServiceImpl implements AdminDashboardService {
 
     @Override
     public AdminArtistApplicationDetailResponse getArtistApplicationDetail(Long applicationId) {
-        // JWT 토큰에서 관리자 정보 추출 및 권한 검증
         CustomUserDetails adminUser = validateAdminAuthentication();
 
-        log.info("관리자 입점 신청 상세 조회 - userId: {}, role: {}, applicationId: {}",
-                adminUser.getUserId(), adminUser.getCurrentRole(), applicationId);
-
-        // 실제 DB에서 입점 신청 상세 조회
         ArtistApplication application = artistApplicationRepository.findById(applicationId)
                 .orElseThrow(() -> new IllegalArgumentException("입점 신청을 찾을 수 없습니다. ID: " + applicationId));
 
-        // 작가 정보
         AdminArtistApplicationDetailResponse.Artist artist = new AdminArtistApplicationDetailResponse.Artist(
                 application.getUser().getId(),
                 application.getUser().getEmail() != null ? application.getUser().getEmail() : "N/A",
@@ -1034,13 +889,11 @@ public class AdminDashboardServiceImpl implements AdminDashboardService {
                 application.getUser().getProfileImageUrl()
         );
 
-        // 연락처 정보
         AdminArtistApplicationDetailResponse.Contact contact = new AdminArtistApplicationDetailResponse.Contact(
                 application.getEmail(),
                 application.getPhone()
         );
 
-        // 사업자 정보
         String fullAddress = application.getBusinessAddress();
         if (application.getBusinessAddressDetail() != null) {
             fullAddress += " " + application.getBusinessAddressDetail();
@@ -1052,7 +905,6 @@ public class AdminDashboardServiceImpl implements AdminDashboardService {
                 fullAddress
         );
 
-        // 프로필 정보
         List<String> mainCategories = application.getMainProducts() != null
                 ? List.of(application.getMainProducts().split(","))
                 : List.of();
@@ -1062,7 +914,6 @@ public class AdminDashboardServiceImpl implements AdminDashboardService {
             snsList.add(new AdminArtistApplicationDetailResponse.SnsInfo("SNS", application.getSnsAccount()));
         }
 
-        // TODO: 포트폴리오 파일은 ArtistDocument 연동 후 구현
         List<AdminArtistApplicationDetailResponse.PortfolioFile> portfolioFiles = List.of();
 
         AdminArtistApplicationDetailResponse.Profile profile = new AdminArtistApplicationDetailResponse.Profile(
@@ -1071,16 +922,14 @@ public class AdminDashboardServiceImpl implements AdminDashboardService {
                 portfolioFiles
         );
 
-        // 검토 정보
         AdminArtistApplicationDetailResponse.Review review = new AdminArtistApplicationDetailResponse.Review(
-                null, // 신청자 메모는 현재 없음
+                null,
                 new AdminArtistApplicationDetailResponse.Verifications(
-                        application.getBusinessNumber() != null, // 사업자 정보 있으면 검증됨으로 간주
-                        application.getPhone() != null // 연락처 있으면 검증됨으로 간주
+                        application.getBusinessNumber() != null,
+                        application.getPhone() != null
                 )
         );
 
-        // 결정 정보
         AdminArtistApplicationDetailResponse.Decision decision = new AdminArtistApplicationDetailResponse.Decision(
                 application.getStatus().name(),
                 application.getRejectionReason(),
@@ -1088,10 +937,9 @@ public class AdminDashboardServiceImpl implements AdminDashboardService {
                 application.getReviewedByName()
         );
 
-        // 권한 정보
         AdminArtistApplicationDetailResponse.Permissions permissions = new AdminArtistApplicationDetailResponse.Permissions(
-                application.isPending(), // 대기중일 때만 승인 가능
-                application.isPending()  // 대기중일 때만 거절 가능
+                application.isPending(),
+                application.isPending()
         );
 
         return new AdminArtistApplicationDetailResponse(
