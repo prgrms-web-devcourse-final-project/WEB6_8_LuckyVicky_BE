@@ -5,6 +5,9 @@ import com.back.domain.product.product.entity.Product;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
+
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
@@ -30,4 +33,14 @@ public interface ProductRepository extends JpaRepository<Product, Long>, Product
 
     // 판매 종료일이 오늘 이전인 상품 조회
     List<Product> findBySellingEndDateBefore(LocalDateTime dateTime);
+
+    @Query("SELECT p FROM Product p " +
+            "WHERE p.createDate BETWEEN :fromDate AND :toDate " +
+            "AND p.isDeleted = false " +
+            "AND p.displayStatus = com.back.domain.product.product.entity.DisplayStatus.DISPLAYING " +
+            "ORDER BY p.createDate DESC")
+    List<Product> findRecentProducts(@Param("fromDate") LocalDateTime fromDate,
+                                     @Param("toDate") LocalDateTime toDate);
+
+
 }
