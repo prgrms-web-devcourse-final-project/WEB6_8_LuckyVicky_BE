@@ -12,6 +12,7 @@ import com.back.domain.order.order.repository.OrderRepository;
 import com.back.domain.order.orderItem.entity.OrderItem;
 import com.back.domain.order.orderItem.repository.OrderItemRepository;
 import com.back.domain.product.product.entity.Product;
+import com.back.domain.product.product.entity.SellingStatus;
 import com.back.domain.product.product.repository.ProductRepository;
 import com.back.domain.user.entity.User;
 import lombok.RequiredArgsConstructor;
@@ -51,6 +52,11 @@ public class OrderService {
             
             // 재고 감소
             product.setStock(currentStock - orderItem.getQuantity());
+            
+            // 품절 처리 (재고가 0이 되면 자동으로 품절 상태로 변경)
+            if (product.getStock() == 0) {
+                product.setSellingStatus(SellingStatus.SOLD_OUT);
+            }
             
             // 재고 부족 알림 (재고가 5개 이하이고 0개 초과일 때)
             if (product.getStock() <= 5 && product.getStock() > 0) {
@@ -350,6 +356,11 @@ public class OrderService {
             Product product = orderItem.getProduct();
             int restoredStock = product.getStock() + orderItem.getQuantity();
             product.setStock(restoredStock);
+            
+            // 품절 해제 (품절 상태였다면 판매중으로 변경)
+            if (product.getSellingStatus() == SellingStatus.SOLD_OUT) {
+                product.setSellingStatus(SellingStatus.SELLING);
+            }
         });
     }
 
