@@ -11,6 +11,8 @@ import com.back.domain.funding.entity.FundingOption;
 import com.back.domain.funding.entity.FundingStatus;
 import com.back.domain.funding.repository.FundingContributionRepository;
 import com.back.domain.funding.repository.FundingRepository;
+import com.back.domain.product.category.entity.Category;
+import com.back.domain.product.category.repository.CategoryRepository;
 import com.back.domain.user.entity.User;
 import com.back.domain.user.repository.UserRepository;
 import org.junit.jupiter.api.BeforeEach;
@@ -61,6 +63,9 @@ class DashboardServiceImplTest {
     @Autowired
     private org.springframework.context.ApplicationContext applicationContext;
 
+    @Autowired
+    private CategoryRepository categoryRepository;
+
     private User testBuyer;
     private User testArtist;
     private Funding activeFunding;
@@ -104,11 +109,18 @@ class DashboardServiceImplTest {
                 .sortOrder(1)
                 .build();
 
+        // 테스트 카테고리 생성 (funding에 필수)
+        Category category = categoryRepository.findById((1L))
+                .orElseGet(() -> categoryRepository.save(
+                        Category.builder().categoryName("테스트 카테고리").build()
+                ));
+
         // 진행중인 펀딩 생성 (옵션 포함)
         activeFunding = Funding.builder()
                 .user(testArtist)
                 .title("진행중인 펀딩")
                 .description("테스트 펀딩입니다")
+                .category(category)
                 .imageUrl("https://example.com/image1.jpg")
                 .targetAmount(1000000L)
                 .collectedAmount(500000L)
@@ -125,6 +137,7 @@ class DashboardServiceImplTest {
                 .user(testArtist)
                 .title("종료된 펀딩")
                 .description("테스트 펀딩입니다")
+                .category(category)
                 .imageUrl("https://example.com/image2.jpg")
                 .targetAmount(500000L)
                 .collectedAmount(600000L)

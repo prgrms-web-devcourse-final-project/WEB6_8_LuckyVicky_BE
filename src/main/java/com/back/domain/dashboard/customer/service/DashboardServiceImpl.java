@@ -643,8 +643,9 @@ public class DashboardServiceImpl implements DashboardService {
      */
     private String mapFundingStatus(FundingStatus status) {
         return switch (status) {
-            case OPEN -> "ACTIVE";
-            case CLOSED, SUCCESS, FAILED, CANCELED -> "ENDED";
+            case PENDING, APPROVED -> "UPCOMING";
+            case  OPEN -> "ACTIVE";
+            case CLOSED, SUCCESS, FAILED, CANCELED, REJECTED -> "ENDED";
         };
     }
 
@@ -653,6 +654,9 @@ public class DashboardServiceImpl implements DashboardService {
      */
     private String mapFundingStatusText(FundingStatus status) {
         return switch (status) {
+            case PENDING -> "심사중";
+            case APPROVED -> "승인됨";
+            case REJECTED -> "심사거절";
             case OPEN -> "진행중";
             case CLOSED -> "종료";
             case SUCCESS -> "성공";

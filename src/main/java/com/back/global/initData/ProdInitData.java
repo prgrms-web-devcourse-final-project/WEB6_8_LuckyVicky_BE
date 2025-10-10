@@ -61,10 +61,12 @@ public class ProdInitData {
         // 2. 작가 계정 생성
         createArtistAccount();
 
+        // 3. 일반 사용자 계정 생성
+        createUserAccount();
 
         log.info("========================================");
         log.info("===== 프로덕션 환경 초기 데이터 생성 완료 =====");
-        log.info("총 생성된 계정: 2개 (관리자 1개, 작가 1개)");
+        log.info("총 생성된 계정: 3개 (관리자 1개, 작가 1개, 일반 사용자 1개)");
         log.info("========================================");
     }
 
@@ -142,6 +144,31 @@ public class ProdInitData {
         userRepository.save(artist);
         artistApplicationRepository.save(application);
         log.info("✓ 작가 신청서 승인 완료 및 작가 권한 부여 완료");
+    }
+
+    /**
+     * 일반 사용자 계정 생성
+     */
+    private void createUserAccount() {
+        log.info(">>> 일반 사용자 계정 생성 중...");
+
+        String email = "user@user.com";
+        String password = "user1234!";
+        String name = "일반사용자";
+        String phone = "010-2222-2222";
+
+        // 이미 계정이 존재하는지 확인
+        if (userRepository.existsByEmail(email)) {
+            log.warn("일반 사용자 계정이 이미 존재합니다: {}", email);
+            return;
+        }
+
+        // User 생성
+        String encodedPassword = passwordEncoder.encode(password);
+        User user = User.createLocalUser(email, encodedPassword, name, phone);
+
+        userRepository.save(user);
+        log.info("✓ 일반 사용자 계정 생성 완료: {} ({})", name, email);
     }
 
 }
