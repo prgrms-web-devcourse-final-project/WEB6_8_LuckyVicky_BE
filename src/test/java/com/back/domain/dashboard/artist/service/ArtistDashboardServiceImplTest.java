@@ -261,6 +261,7 @@ class ArtistDashboardServiceImplTest {
 
         Funding funding = Funding.builder()
                 .user(testArtist)
+                .category(testCategory)  // 카테고리 추가
                 .title("테스트 펀딩")
                 .description("테스트 펀딩입니다")
                 .imageUrl("https://example.com/image.jpg")
