@@ -7,6 +7,8 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
+import java.util.List;
+
 public interface FundingContributionRepository extends JpaRepository<FundingContribution, Long> {
 
     @Query("""
@@ -22,6 +24,16 @@ public interface FundingContributionRepository extends JpaRepository<FundingCont
            where fc.funding.id = :fundingId
            """)
     Long countDistinctParticipantsByFundingId(Long fundingId);
+
+    /**
+     * 특정 펀딩에 참여한 모든 사용자 조회 (알림 발송용)
+     */
+    @Query("""
+           select distinct fc.buyer
+           from FundingContribution fc
+           where fc.funding.id = :fundingId
+           """)
+    List<com.back.domain.user.entity.User> findAllParticipantsByFundingId(@Param("fundingId") Long fundingId);
     
     /**
      * 고객 대시보드용 - 사용자가 참여한 펀딩 목록 조회 (검색 + 필터링)

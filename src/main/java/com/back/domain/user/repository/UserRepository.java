@@ -34,6 +34,12 @@ public interface UserRepository extends JpaRepository<User, Long>, JpaSpecificat
     boolean existsByEmailAndProvider(String email, Provider provider);
 
     /**
+     * 관리자 계정 조회 (알림 발송용)
+     */
+    @org.springframework.data.jpa.repository.Query("SELECT u FROM User u WHERE u.role = com.back.domain.user.entity.Role.ADMIN OR u.role = com.back.domain.user.entity.Role.ROOT")
+    java.util.List<User> findAllAdmins();
+
+    /**
      * 관리자 대시보드 - 일별 사용자 증가 트렌드 조회
      */
     @org.springframework.data.jpa.repository.Query("SELECT new com.back.domain.dashboard.admin.dto.DailyUserGrowthDto(" +

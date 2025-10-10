@@ -8,7 +8,7 @@ import org.springframework.data.jpa.repository.config.EnableJpaAuditing;
 
 /**
  * JPA 설정 클래스
- * 
+ *
  * @EnableJpaAuditing: BaseEntity의 @CreatedDate, @LastModifiedDate 활성화
  * JPAQueryFactory Bean 등록: QueryDSL 사용을 위한 필수 Bean
  */
