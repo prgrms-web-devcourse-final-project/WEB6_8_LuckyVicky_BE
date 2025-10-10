@@ -30,16 +30,16 @@ public class ProdInitData {
     private final PasswordEncoder passwordEncoder;
     private final ArtistApplicationRepository artistApplicationRepository;
 
-    @Value("${init.admin.email}")
+    @Value("${INIT_ADMIN_EMAIL}")
     private String adminEmail;
 
-    @Value("${init.admin.password}")
+    @Value("${INIT_ADMIN_PASSWORD}")
     private String adminPassword;
 
-    @Value("${init.artist.email}")
+    @Value("${INIT_ARTIST_EMAIL}")
     private String artistEmail;
 
-    @Value("${init.artist.password}")
+    @Value("${INIT_ARTIST_PASSWORD}")
     private String artistPassword;
 
     @Bean
