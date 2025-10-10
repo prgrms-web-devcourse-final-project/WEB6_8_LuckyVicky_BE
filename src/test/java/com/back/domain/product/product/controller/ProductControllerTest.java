@@ -254,7 +254,7 @@ class ProductControllerTest {
                         .build()
         );
 
-        artistProfileRepository.save(
+        com.back.domain.artist.entity.ArtistProfile artistProfile = artistProfileRepository.save(
                 com.back.domain.artist.entity.ArtistProfile.builder()
                         .user(artistUser)
                         .artistApplication(artistApplication)
@@ -287,7 +287,7 @@ class ProductControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.resultCode").value("200"))
                 .andExpect(jsonPath("$.data.artistName").value("테스트작가"))
-                .andExpect(jsonPath("$.data.artistPageUrl").value(containsString("/artist/" + artistUser.getId())))
+                .andExpect(jsonPath("$.data.artistPageUrl").value(containsString("/forest/" + artistProfile.getId())))
                 .andExpect(jsonPath("$.data.approvedDate").isString())
                 .andExpect(jsonPath("$.data.profileImageUrl").exists())
                 .andExpect(jsonPath("$.data.description").exists());
