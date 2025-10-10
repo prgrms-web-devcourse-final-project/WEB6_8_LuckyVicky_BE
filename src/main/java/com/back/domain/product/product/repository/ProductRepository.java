@@ -5,7 +5,7 @@ import com.back.domain.product.product.entity.Product;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
-
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -24,4 +24,10 @@ public interface ProductRepository extends JpaRepository<Product, Long>, Product
      * 작가의 상품 목록 조회 (삭제되지 않은 상품만)
      */
     List<Product> findByUserIdAndIsDeletedFalse(Long userId, Pageable pageable);
+
+    // 판매 시작일이 오늘 이후인 상품 조회
+    List<Product> findBySellingStartDateAfter(LocalDateTime dateTime);
+
+    // 판매 종료일이 오늘 이전인 상품 조회
+    List<Product> findBySellingEndDateBefore(LocalDateTime dateTime);
 }
