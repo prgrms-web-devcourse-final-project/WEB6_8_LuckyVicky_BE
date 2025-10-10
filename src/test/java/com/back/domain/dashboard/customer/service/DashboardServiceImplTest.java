@@ -1,7 +1,9 @@
 package com.back.domain.dashboard.customer.service;
 
 
+import com.back.domain.dashboard.customer.dto.request.ArtistApplicationSearchRequest;
 import com.back.domain.dashboard.customer.dto.request.FundingSearchRequest;
+import com.back.domain.dashboard.customer.dto.response.ArtistApplicationResponse;
 import com.back.domain.dashboard.customer.dto.response.FundingResponse;
 import com.back.domain.funding.entity.Funding;
 import com.back.domain.funding.entity.FundingContribution;
@@ -52,6 +54,9 @@ class DashboardServiceImplTest {
 
     @Autowired
     private com.back.domain.product.product.repository.ProductRepository productRepository;
+
+    @Autowired
+    private com.back.domain.artist.repository.ArtistApplicationRepository artistApplicationRepository;
 
     @Autowired
     private org.springframework.context.ApplicationContext applicationContext;
@@ -532,4 +537,134 @@ class DashboardServiceImplTest {
      *    - FundingResponse.SummaryDto에서 배송 필드 주석 해제
      *    - (선택) Participation에 DeliveryInfo 필드 추가 시 검증 로직 추가
      */
+
+    // ==================== ArtistApplication 작가 신청 내역 조회 테스트 ====================
+
+    @Test
+    @DisplayName("작가 신청 내역 조회 - 실제 DB 데이터 검증")
+    void getArtistApplications_ReturnsRealData() {
+        // Given
+        com.back.domain.artist.entity.ArtistApplication pendingApplication =
+                com.back.domain.artist.entity.ArtistApplication.builder()
+                        .user(testBuyer)
+                        .ownerName("홍길동")
+                        .email("test@example.com")
+                        .phone("010-1234-5678")
+                        .artistName("아티스트1")
+                        .businessNumber("123-45-67890")
+                        .businessAddress("서울시")
+                        .businessAddressDetail("강남구")
+                        .businessZipCode("12345")
+                        .telecomSalesNumber("2024-서울-0001")
+                        .build();
+        artistApplicationRepository.save(pendingApplication);
+
+        ArtistApplicationSearchRequest request = new ArtistApplicationSearchRequest(
+                0, 10, null, null, null, null, null
+        );
+
+        // When
+        ArtistApplicationResponse.List result =
+                dashboardService.getArtistApplications(testBuyer.getId(), request);
+
+        // Then
+        assertAll(
+                () -> assertThat(result).isNotNull(),
+                () -> assertThat(result.getSummary()).isNull(),  // 통계 없음
+                () -> assertThat(result.getContent()).hasSize(1),
+                () -> assertThat(result.getContent().get(0).artistName()).isEqualTo("아티스트1")
+        );
+    }
+
+    @Test
+    @DisplayName("작가 신청 내역 조회 - CANCELLED 상태 텍스트 매핑")
+    void getArtistApplications_MapsCancelledStatus() {
+        // Given
+        com.back.domain.artist.entity.ArtistApplication application =
+                com.back.domain.artist.entity.ArtistApplication.builder()
+                        .user(testBuyer)
+                        .ownerName("홍길동")
+                        .email("test@example.com")
+                        .phone("010-1234-5678")
+                        .artistName("아티스트2")
+                        .businessNumber("123-45-67890")
+                        .businessAddress("서울시")
+                        .businessAddressDetail("강남구")
+                        .businessZipCode("12345")
+                        .telecomSalesNumber("2024-서울-0002")
+                        .build();
+        artistApplicationRepository.save(application);
+        
+        // 취소 처리
+        application.cancel();
+
+        ArtistApplicationSearchRequest request = new ArtistApplicationSearchRequest(
+                0, 10, null, null, null, null, null
+        );
+
+        // When
+        ArtistApplicationResponse.List result =
+                dashboardService.getArtistApplications(testBuyer.getId(), request);
+
+        // Then
+        ArtistApplicationResponse.Summary summary = result.getContent().get(0);
+        assertAll(
+                () -> assertThat(summary.status()).isEqualTo("CANCELLED"),
+                () -> assertThat(summary.statusText()).isEqualTo("취소"),
+                () -> assertThat(summary.permissions().canEdit()).isFalse(),
+                () -> assertThat(summary.permissions().canCancel()).isFalse()
+        );
+    }
+
+    @Test
+    @DisplayName("작가 신청 내역 조회 - 상태별 필터링 (PENDING)")
+    void getArtistApplications_FiltersByPendingStatus() {
+        // Given
+        com.back.domain.artist.entity.ArtistApplication pendingApp =
+                com.back.domain.artist.entity.ArtistApplication.builder()
+                        .user(testBuyer)
+                        .ownerName("홍길동")
+                        .email("test@example.com")
+                        .phone("010-1234-5678")
+                        .artistName("작가A")
+                        .businessNumber("123-45-67890")
+                        .businessAddress("서울시")
+                        .businessAddressDetail("강남구")
+                        .businessZipCode("12345")
+                        .telecomSalesNumber("2024-서울-0001")
+                        .build();
+        artistApplicationRepository.save(pendingApp);
+
+        com.back.domain.artist.entity.ArtistApplication cancelledApp =
+                com.back.domain.artist.entity.ArtistApplication.builder()
+                        .user(testBuyer)
+                        .ownerName("홍길동")
+                        .email("test@example.com")
+                        .phone("010-1234-5678")
+                        .artistName("작가B")
+                        .businessNumber("123-45-67891")
+                        .businessAddress("서울시")
+                        .businessAddressDetail("강남구")
+                        .businessZipCode("12345")
+                        .telecomSalesNumber("2024-서울-0002")
+                        .build();
+        artistApplicationRepository.save(cancelledApp);
+        cancelledApp.cancel();
+
+        ArtistApplicationSearchRequest request = new ArtistApplicationSearchRequest(
+                0, 10, "PENDING", null, null, null, null
+        );
+
+        // When
+        ArtistApplicationResponse.List result =
+                dashboardService.getArtistApplications(testBuyer.getId(), request);
+
+        // Then
+        assertAll(
+                () -> assertThat(result.getContent()).hasSize(1),
+                () -> assertThat(result.getContent().get(0).status()).isEqualTo("PENDING"),
+                () -> assertThat(result.getContent().get(0).artistName()).isEqualTo("작가A")
+        );
+    }
 }
+

@@ -459,5 +459,100 @@ public class ArtistApplicationServiceTest {
         }
     }
 
+    @Nested
+    @DisplayName("작가 신청 취소 테스트")
+    class CancelApplicationTest {
+
+        @Test
+        @DisplayName("PENDING 상태의 신청서 취소 성공")
+        void cancelApplication_Success() {
+            // given
+            ArtistApplication application = ArtistApplication.builder()
+                    .user(testUser)
+                    .ownerName("홍길동")
+                    .email("artist@test.com")
+                    .phone("010-1234-5678")
+                    .artistName("아티스트홍")
+                    .businessNumber("123-45-67890")
+                    .businessAddress("서울시 강남구")
+                    .businessAddressDetail("테헤란로 123")
+                    .businessZipCode("12345")
+                    .telecomSalesNumber("2024-서울강남-00001")
+                    .build();
+            ReflectionTestUtils.setField(application, "id", 1L);
+
+            given(artistApplicationRepository.findById(1L)).willReturn(Optional.of(application));
+
+            // when
+            artistApplicationService.cancelApplication(1L, 1L);
+
+            // then
+            assertThat(application.getStatus()).isEqualTo(ApplicationStatus.CANCELLED);
+            assertThat(application.isCancelled()).isTrue();
+            verify(artistApplicationRepository).findById(1L);
+        }
+
+        @Test
+        @DisplayName("다른 사람의 신청서 취소 실패")
+        void cancelApplication_Forbidden() {
+            // given
+            User otherUser = User.createLocalUser(
+                    "other@test.com",
+                    "encodedPassword",
+                    "다른사용자",
+                    "010-9999-9999"
+            );
+            ReflectionTestUtils.setField(otherUser, "id", 2L);
+
+            ArtistApplication application = ArtistApplication.builder()
+                    .user(otherUser)
+                    .ownerName("다른사람")
+                    .email("other@test.com")
+                    .phone("010-9999-9999")
+                    .artistName("다른작가")
+                    .businessNumber("123-45-67890")
+                    .businessAddress("서울시 강남구")
+                    .businessAddressDetail("테헤란로 123")
+                    .businessZipCode("12345")
+                    .telecomSalesNumber("2024-서울강남-00001")
+                    .build();
+            ReflectionTestUtils.setField(application, "id", 1L);
+
+            given(artistApplicationRepository.findById(1L)).willReturn(Optional.of(application));
+
+            // when & then
+            assertThatThrownBy(() -> artistApplicationService.cancelApplication(1L, 1L))
+                    .isInstanceOf(ServiceException.class)
+                    .hasFieldOrPropertyWithValue("resultCode", "403");
+        }
+
+        @Test
+        @DisplayName("APPROVED 상태의 신청서 취소 실패")
+        void cancelApplication_AlreadyApproved() {
+            // given
+            ArtistApplication application = ArtistApplication.builder()
+                    .user(testUser)
+                    .ownerName("홍길동")
+                    .email("artist@test.com")
+                    .phone("010-1234-5678")
+                    .artistName("아티스트홍")
+                    .businessNumber("123-45-67890")
+                    .businessAddress("서울시 강남구")
+                    .businessAddressDetail("테헤란로 123")
+                    .businessZipCode("12345")
+                    .telecomSalesNumber("2024-서울강남-00001")
+                    .build();
+            ReflectionTestUtils.setField(application, "id", 1L);
+            
+            application.approve(999L, "관리자");
+            given(artistApplicationRepository.findById(1L)).willReturn(Optional.of(application));
+
+            // when & then
+            assertThatThrownBy(() -> artistApplicationService.cancelApplication(1L, 1L))
+                    .isInstanceOf(ServiceException.class)
+                    .hasFieldOrPropertyWithValue("resultCode", "400");
+        }
+    }
+
 
 }
