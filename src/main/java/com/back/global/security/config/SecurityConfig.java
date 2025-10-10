@@ -66,13 +66,13 @@ public class SecurityConfig {
                         .requestMatchers("/api/artist/profile/**", "/api/artist/list").permitAll()
 
                         // 공지사항 조회 - 로그인 없이 접근 허용
-                        .requestMatchers(HttpMethod.GET, "/api/notices", "/api/notices/**").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/support/notices", "/api/support/notices/**").permitAll()
                         // 공지사항 생성, 수정, 삭제 - ADMIN, ROOT만 접근 가능
-                        .requestMatchers("/api/notices", "/api/notices/**").hasAnyRole("ADMIN", "ROOT")
+                        .requestMatchers("/api/support/notices", "/api/support/notices/**").hasAnyRole("ADMIN", "ROOT")
                         // FAQ 조회 - 로그인 없이 접근 허용
-                        .requestMatchers(HttpMethod.GET, "/api/faqs", "/api/faqs/**").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/support/faqs", "/api/support/faqs/**").permitAll()
                         // FAQ 생성, 수정, 삭제 - ADMIN, ROOT만 접근 가능
-                        .requestMatchers("/api/faqs", "/api/faqs/**").hasAnyRole("ADMIN", "ROOT")
+                        .requestMatchers("/api/support/faqs", "/api/support/faqs/**").hasAnyRole("ADMIN", "ROOT")
 
                         // 공개 API
                         .requestMatchers("/public/**").permitAll()
