@@ -29,7 +29,7 @@ import static org.junit.jupiter.api.Assertions.assertAll;
 /**
  * DashboardServiceImpl 테스트
  * 핵심 비즈니스 로직과 데이터 일관성에 집중
- * 2025.10.02 수정 - JWT 표준 패턴 적용에 따른 테스트 수정
+ * 2025.10.10 수정 - 작가 신청 내역 조회 테스트 추가
  */
 @SpringBootTest
 @ActiveProfiles("test")

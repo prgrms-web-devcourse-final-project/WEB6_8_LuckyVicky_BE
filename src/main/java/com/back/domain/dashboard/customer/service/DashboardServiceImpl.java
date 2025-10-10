@@ -28,6 +28,7 @@ import java.util.stream.Collectors;
  * 고객용 대시보드 서비스 구현체
  * 2025.10.02 수정 - JWT 표준 패턴 적용, Request DTO 활용
  * 2025.10.03 수정 - 주문일자 포맷팅 추가
+ * 2025.10.08 수정 - 작가 신청 내역 조회 추가
  */
 @Service
 @RequiredArgsConstructor
