@@ -321,4 +321,11 @@ public class User extends BaseEntity {
         }
     }
 
+    /**
+     * OAuth 사용자의 추가 정보 입력 필요 여부 확인
+     */
+    public boolean needsAdditionalInfo() {
+        return isOAuthUser() && (this.phone == null || this.phone.isBlank());
+    }
+
 }

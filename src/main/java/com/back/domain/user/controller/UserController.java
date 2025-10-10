@@ -1,5 +1,6 @@
 package com.back.domain.user.controller;
 
+import com.back.domain.user.dto.request.UpdateOAuthUserInfoRequest;
 import com.back.domain.user.dto.request.UpdateUserInfoRequest;
 import com.back.domain.user.dto.response.UserProfileResponse;
 import com.back.domain.user.service.UserService;
@@ -55,6 +56,27 @@ public class UserController {
 
         return ResponseEntity.ok(
                 RsData.of("200", "사용자 정보 수정 성공", response)
+        );
+    }
+
+    /**
+     * OAuth 사용자 전화번호 입력
+     */
+    @PatchMapping("/me/oauth-info")
+    @Operation(summary = "OAuth 전화번호 입력",
+            description = "소셜 로그인 사용자가 전화번호를 입력합니다. (최초 1회)")
+    public ResponseEntity<RsData<UserProfileResponse>> updateOAuthAdditionalInfo(
+            @AuthenticationPrincipal CustomUserDetails userDetails,
+            @Valid @RequestBody UpdateOAuthUserInfoRequest request) {
+
+        log.info("OAuth 전화번호 입력 - userId: {}, phone: {}",
+                userDetails.getUserId(), request.phone());
+
+        UserProfileResponse response = userService.updateOAuthAdditionalInfo(
+                userDetails.getUserId(), request);
+
+        return ResponseEntity.ok(
+                RsData.of("200", "전화번호 입력 완료", response)
         );
     }
 

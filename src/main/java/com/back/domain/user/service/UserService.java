@@ -1,5 +1,6 @@
 package com.back.domain.user.service;
 
+import com.back.domain.user.dto.request.UpdateOAuthUserInfoRequest;
 import com.back.domain.user.dto.request.UpdateUserInfoRequest;
 import com.back.domain.user.dto.response.UserProfileResponse;
 import com.back.domain.user.entity.Grade;
@@ -99,6 +100,41 @@ public class UserService {
         }
 
         log.info("사용자 정보 수정 완료 - userId: {}, nickname: {}", userId, request.name());
+
+        return UserProfileResponse.from(user);
+    }
+
+    /**
+     * OAuth 사용자 추가 정보 입력 (전화번호)
+     */
+    @Transactional
+    public UserProfileResponse updateOAuthAdditionalInfo(Long userId, UpdateOAuthUserInfoRequest request) {
+        User user = getUserById(userId);
+
+        // 1. OAuth 사용자만 가능
+        if (!user.isOAuthUser()) {
+            throw new ServiceException("400", "소셜 로그인 사용자만 이용할 수 있습니다.");
+        }
+
+        // 2. 이미 전화번호가 있으면 수정 불가 (최초 1회만)
+        if (user.getPhone() != null && !user.getPhone().isBlank()) {
+            throw new ServiceException("400", "이미 전화번호를 등록하셨습니다.");
+        }
+
+        // 3. 전화번호 중복 체크
+        if (userRepository.existsByPhone(request.phone())) {
+            throw new ServiceException("409", "이미 사용 중인 전화번호입니다.");
+        }
+
+        // 4. 전화번호 업데이트
+        user.updateProfile(
+                null,              // name 변경 안 함
+                request.phone(),   // phone만 업데이트
+                null, null, null,  // 주소 변경 안 함
+                null               // 프로필 이미지 변경 안 함
+        );
+
+        log.info("OAuth 전화번호 입력 완료 - userId: {}, phone: {}", userId, request.phone());
 
         return UserProfileResponse.from(user);
     }
