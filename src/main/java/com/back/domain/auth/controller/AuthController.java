@@ -23,6 +23,7 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.http.ResponseCookie;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
 @Slf4j
@@ -177,6 +178,22 @@ public class AuthController {
                 .body(RsData.of("200", "토큰 재발급 성공", response));
     }
 
+    /**
+     * 현재 로그인한 사용자 정보 조회
+     */
+    @GetMapping("/me")
+    @Operation(summary = "현재 사용자 정보 조회", description = "로그인한 사용자의 정보를 조회합니다. 소셜 로그인 후 추가 정보 필요 여부를 확인할 수 있습니다.")
+    public ResponseEntity<RsData<AuthResponse>> getCurrentUser(
+            @AuthenticationPrincipal CustomUserDetails userDetails
+    ) {
+        log.info("현재 사용자 정보 조회 - userId: {}", userDetails.getUserId());
+
+        AuthResponse response = authService.getCurrentUser(userDetails.getUserId());
+
+        return ResponseEntity.ok(
+                RsData.of("200", "사용자 정보 조회 성공", response)
+        );
+    }
 
     /**
      * 쿠키 생성 헬퍼 메서드

@@ -18,7 +18,8 @@ import org.springframework.transaction.annotation.Transactional;
 
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultHandlers.print;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 @ActiveProfiles("test")
 @SpringBootTest
@@ -333,4 +334,132 @@ public class UserControllerTest {
         resultActions.andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.msg").exists());
     }
+
+    @Test
+    @WithUserDetails("oauth@user.com")  // OAuth 사용자로 테스트 (전화번호 없음)
+    @DisplayName("16. OAuth 전화번호 입력 - 성공")
+    void t16() throws Exception {
+        // when
+        ResultActions resultActions = mvc.perform(patch("/api/users/me/oauth-info")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                            {
+                              "phone": "010-5432-1878"
+                            }
+                            """))
+                .andDo(print());
+
+        // then
+        resultActions.andExpect(status().isOk())
+                .andExpect(jsonPath("$.resultCode").value("200"))
+                .andExpect(jsonPath("$.msg").value("전화번호 입력 완료"))
+                .andExpect(jsonPath("$.data.phone").value("010-5432-1878"));
+    }
+
+    @Test
+    @WithUserDetails("oauth@user.com")
+    @DisplayName("17. OAuth 전화번호 입력 - 실패 (이미 등록됨)")
+    void t17() throws Exception {
+        // given - 먼저 전화번호 입력
+        mvc.perform(patch("/api/users/me/oauth-info")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                    {
+                      "phone": "010-1111-2222"
+                    }
+                    """));
+
+        // when - 다시 입력 시도
+        ResultActions resultActions = mvc.perform(patch("/api/users/me/oauth-info")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                            {
+                              "phone": "010-3333-4444"
+                            }
+                            """))
+                .andDo(print());
+
+        // then
+        resultActions.andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.msg").value("이미 전화번호를 등록하셨습니다."));
+    }
+
+    @Test
+    @WithUserDetails("user1@user.com")  // 일반 로컬 사용자
+    @DisplayName("18. OAuth 전화번호 입력 - 실패 (OAuth 사용자 아님)")
+    void t18() throws Exception {
+        // when
+        ResultActions resultActions = mvc.perform(patch("/api/users/me/oauth-info")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                            {
+                              "phone": "010-5555-6666"
+                            }
+                            """))
+                .andDo(print());
+
+        // then
+        resultActions.andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.msg").value("소셜 로그인 사용자만 이용할 수 있습니다."));
+    }
+
+    @Test
+    @WithUserDetails("oauth@user.com")
+    @DisplayName("19. OAuth 전화번호 입력 - 실패 (전화번호 형식 오류)")
+    void t19() throws Exception {
+        // when
+        ResultActions resultActions = mvc.perform(patch("/api/users/me/oauth-info")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                            {
+                              "phone": "01012345678"
+                            }
+                            """))
+                .andDo(print());
+
+        // then
+        resultActions.andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.msg").value("phone: 전화번호는 010-1234-5678 형식이어야 합니다."));
+    }
+
+    @Test
+    @WithUserDetails("oauth@user.com")
+    @DisplayName("20. OAuth 전화번호 입력 - 실패 (전화번호 중복)")
+    void t20() throws Exception {
+        // given - 다른 사용자의 전화번호
+        User existingUser = userRepository.findByEmail("user1@user.com").orElseThrow();
+        String existingPhone = existingUser.getPhone();
+
+        // when
+        ResultActions resultActions = mvc.perform(patch("/api/users/me/oauth-info")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                            {
+                              "phone": "%s"
+                            }
+                            """.formatted(existingPhone)))
+                .andDo(print());
+
+        // then
+        resultActions.andExpect(status().isConflict())
+                .andExpect(jsonPath("$.msg").value("이미 사용 중인 전화번호입니다."));
+    }
+
+    @Test
+    @DisplayName("21. OAuth 전화번호 입력 - 실패 (미인증)")
+    void t21() throws Exception {
+        // when
+        ResultActions resultActions = mvc.perform(patch("/api/users/me/oauth-info")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                            {
+                              "phone": "010-7777-8888"
+                            }
+                            """))
+                .andDo(print());
+
+        // then
+        resultActions.andExpect(status().isUnauthorized());
+    }
+
 }
