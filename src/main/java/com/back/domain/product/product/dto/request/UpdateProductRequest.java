@@ -47,11 +47,11 @@ public record UpdateProductRequest(
         @Min(value = 0, message = "추가 배송비는 최소 0 이상이어야 합니다.")
         int additionalShippingCharge,
 
-        @Schema(description = "배송비 유형(FREE|CONDITIONAL_FREE|PAID)", example = "CONDITIONAL_FREE")
+        @Schema(description = "배송비 유형 [ FREE(무료배송) | CONDITIONAL_FREE(조건부 무료배송) | PAID(유료배송) ]", example = "CONDITIONAL_FREE")
         @NotBlank(message = "배송비 유형은 필수입니다.")
         String deliveryType,
 
-        @Schema(description = "조건부 무료 기준 금액(null 가능)", example = "30000")
+        @Schema(description = "조건부 무료 기준 금액 (null 가능)", example = "30000")
         Integer conditionalFreeAmount,
 
         @Schema(description = "재고 수량", example = "100")
@@ -62,12 +62,10 @@ public record UpdateProductRequest(
         @NotBlank(message = "상품 상세 설명은 필수입니다.")
         String description,
 
-        @Schema(description = "판매 상태(BEFORE_SELLING|SELLING|SOLD_OUT|END_OF_SALE)", example = "SELLING")
-        @NotBlank(message = "판매 상태는 필수입니다.")
+        @Schema(description = "판매 상태 [ BEFORE_SELLING(판매 전) | SELLING(판매 중) | SOLD_OUT(품절) | END_OF_SALE(판매 종료) ] (null이면 기본값 SELLING)", example = "SELLING")
         String sellingStatus,
 
-        @Schema(description = "전시 상태(BEFORE_DISPLAY|DISPLAYING|END_OF_DISPLAY)", example = "DISPLAYING")
-        @NotBlank(message = "전시 상태는 필수입니다.")
+        @Schema(description = "전시 상태 [ BEFORE_DISPLAY(전시 전) | DISPLAYING(전시 중) | END_OF_DISPLAY(전시 종료) ] (null이면 기본값 DISPLAYING)", example = "DISPLAYING")
         String displayStatus,
 
         @Schema(description = "최소 구매 수량", example = "1")
@@ -86,21 +84,21 @@ public record UpdateProductRequest(
         @NotNull(message = "재입고 여부는 필수입니다.")
         Boolean isRestock,
 
-        @Schema(description = "판매 시작일(null 가능)", example = "2025-10-01")
+        @Schema(description = "판매 시작일 (null 가능)", example = "2025-10-01")
         LocalDate sellingStartDate,
 
-        @Schema(description = "판매 종료일(null 가능)", example = "2025-12-01")
+        @Schema(description = "판매 종료일 (null 가능)", example = "2025-12-01")
         LocalDate sellingEndDate,
 
         @Schema(description = "태그 ID 목록", example = "[1,2,3]")
         @NotEmpty(message = "스타일 태그는 최소 1개 이상이어야 합니다.")
         List<Long> tags,
 
-        @Schema(description = "옵션 목록(null 가능)")
+        @Schema(description = "옵션 목록 (null 가능)")
         @Valid
         List<Option> options,
 
-        @Schema(description = "추가 상품 목록(null 가능)")
+        @Schema(description = "추가 상품 목록 (null 가능)")
         @Valid
         List<AdditionalProduct> additionalProducts,
 
