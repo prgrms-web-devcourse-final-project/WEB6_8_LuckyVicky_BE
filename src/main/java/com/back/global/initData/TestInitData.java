@@ -106,6 +106,11 @@ public class TestInitData {
         // 0) 작성자 조회
         User user1 = userRepository.findByEmail("user1@user.com").orElseThrow();
 
+        Category category = categoryRepository.findById((1L))
+                .orElseGet(() -> categoryRepository.save(
+                        Category.builder().categoryName("테스트 카테고리").build()
+                ));
+
         LocalDateTime now = LocalDateTime.now();
 
         // 1. 펀딩 1
@@ -113,6 +118,7 @@ public class TestInitData {
                 user1,
                 "펀딩 1 입니다.",
                 "펀딩 1이요~~",
+                category,
                 "www.example.com",
                 1_000_000L,
                 now.plusDays(5),
@@ -131,6 +137,7 @@ public class TestInitData {
                 user1,
                 "신규 앨범 제작",
                 "새로운 앨범을 만듭니다",
+                category,
                 "image1.jpg",
                 1_000_000L,
                 now.plusDays(5),
@@ -146,6 +153,7 @@ public class TestInitData {
                 user1,
                 "한정판 포토북",
                 "프리미엄 포토북",
+                category,
                 "image2.jpg",
                 500_000L,
                 now.plusDays(3),
@@ -161,6 +169,7 @@ public class TestInitData {
                 user1,
                 "프리미엄 굿즈",
                 "한정판 굿즈",
+                category,
                 "image3.jpg",
                 2_000_000L,
                 now.plusDays(1),
