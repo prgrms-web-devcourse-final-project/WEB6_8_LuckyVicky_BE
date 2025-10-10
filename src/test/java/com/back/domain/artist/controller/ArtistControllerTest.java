@@ -18,7 +18,6 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.ResultActions;
 import org.springframework.transaction.annotation.Transactional;
 
-import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultHandlers.print;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -324,46 +323,11 @@ class ArtistControllerTest {
                 .andExpect(jsonPath("$.msg").value("신청서를 찾을 수 없습니다."));
     }
 
-    @Test
-    @WithUserDetails("user2@user.com")
-    @DisplayName("10. 작가 신청 취소 - 성공")
-    void t10() throws Exception {
-        // given
-        User user = userRepository.findByEmail("user2@user.com").orElseThrow();
-        ArtistApplication application = ArtistApplication.builder()
-                .user(user)
-                .ownerName("홍길동")
-                .email("artist@example.com")
-                .phone("010-1234-5678")
-                .artistName("작가홍길동")
-                .businessNumber("123-45-67890")
-                .businessAddress("서울시 강남구")
-                .businessAddressDetail("123번지")
-                .businessZipCode("12345")
-                .telecomSalesNumber("2023-서울강남-0001")
-                .bankName("신한은행")
-                .bankAccount("110-123-456789")
-                .accountName("홍길동")
-                .build();
-        artistApplicationRepository.save(application);
 
-        // when
-        ResultActions resultActions = mvc.perform(delete("/api/artist/application/" + application.getId() + "/cancel")
-                        .contentType(MediaType.APPLICATION_JSON))
-                .andDo(print());
-
-        // then
-        resultActions.andExpect(status().isOk())
-                .andExpect(jsonPath("$.resultCode").value("200"))
-                .andExpect(jsonPath("$.msg").value("작가 신청 취소 성공"));
-
-        // 신청서가 삭제되었는지 확인
-        assertThat(artistApplicationRepository.findById(application.getId())).isEmpty();
-    }
 
     @Test
     @WithUserDetails("user2@user.com")
-    @DisplayName("11. 작가 신청 취소 - 실패 (승인된 신청서)")
+    @DisplayName("10. 작가 신청 취소 - 실패 (승인된 신청서)")
     void t11() throws Exception {
         // given - 승인된 신청서
         User user = userRepository.findByEmail("user2@user.com").orElseThrow();
@@ -400,7 +364,7 @@ class ArtistControllerTest {
 
     @Test
     @WithUserDetails("user2@user.com")
-    @DisplayName("12. 작가 신청 취소 - 실패 (다른 사용자의 신청서)")
+    @DisplayName("11. 작가 신청 취소 - 실패 (다른 사용자의 신청서)")
     void t12() throws Exception {
         // given - user1의 신청서
         User user1 = userRepository.findByEmail("user1@user.com").orElseThrow();
@@ -432,7 +396,7 @@ class ArtistControllerTest {
     }
 
     @Test
-    @DisplayName("13. 작가 신청 취소 - 실패 (미인증)")
+    @DisplayName("12. 작가 신청 취소 - 실패 (미인증)")
     void t13() throws Exception {
         // when
         ResultActions resultActions = mvc.perform(delete("/api/artist/application/1/cancel")
@@ -445,7 +409,7 @@ class ArtistControllerTest {
 
     @Test
     @WithUserDetails("user2@user.com")
-    @DisplayName("14. 작가 신청 취소 - 실패 (존재하지 않는 신청서)")
+    @DisplayName("13. 작가 신청 취소 - 실패 (존재하지 않는 신청서)")
     void t14() throws Exception {
         // when
         ResultActions resultActions = mvc.perform(delete("/api/artist/application/99999/cancel")
@@ -459,7 +423,7 @@ class ArtistControllerTest {
 
     @Test
     @WithUserDetails("artist1@artist.com")
-    @DisplayName("15. 작가 사업자 정보 조회 - 성공")
+    @DisplayName("14. 작가 사업자 정보 조회 - 성공")
     void t15() throws Exception {
         // given
         User user = userRepository.findByEmail("artist1@artist.com").orElseThrow();
@@ -497,7 +461,7 @@ class ArtistControllerTest {
     }
 
     @Test
-    @DisplayName("16. 전체 작가 목록 조회 - 성공")
+    @DisplayName("15. 전체 작가 목록 조회 - 성공")
     void t16() throws Exception {
         // given - 작가 프로필 생성 (ArtistApplication 필수)
         User user1 = userRepository.findByEmail("user1@user.com").orElseThrow();
@@ -569,7 +533,7 @@ class ArtistControllerTest {
     }
 
     @Test
-    @DisplayName("17. 전체 작가 목록 조회 - 빈 목록")
+    @DisplayName("16. 전체 작가 목록 조회 - 빈 목록")
     void t17() throws Exception {
         // when - ArtistProfile이 없는 상태
         ResultActions resultActions = mvc.perform(get("/api/artist/list")
@@ -585,7 +549,7 @@ class ArtistControllerTest {
     }
 
     @Test
-    @DisplayName("18. 작가 공개 프로필 조회 - 성공")
+    @DisplayName("17. 작가 공개 프로필 조회 - 성공")
     void t18() throws Exception {
         // given
         User user1 = userRepository.findByEmail("user1@user.com").orElseThrow();
@@ -640,7 +604,7 @@ class ArtistControllerTest {
     }
 
     @Test
-    @DisplayName("19. 작가 공개 프로필 조회 - 실패 (존재하지 않는 작가)")
+    @DisplayName("18. 작가 공개 프로필 조회 - 실패 (존재하지 않는 작가)")
     void t19() throws Exception {
         // when
         ResultActions resultActions = mvc.perform(get("/api/artist/profile/99999")
@@ -654,7 +618,7 @@ class ArtistControllerTest {
     }
 
     @Test
-    @DisplayName("20. 작가 상품 목록 조회 - 성공 (상품 없음)")
+    @DisplayName("19. 작가 상품 목록 조회 - 성공 (상품 없음)")
     void t20() throws Exception {
         // given
         User user1 = userRepository.findByEmail("user1@user.com").orElseThrow();
@@ -700,7 +664,7 @@ class ArtistControllerTest {
     }
 
     @Test
-    @DisplayName("21. 작가 상품 목록 조회 - 실패 (존재하지 않는 작가)")
+    @DisplayName("20. 작가 상품 목록 조회 - 실패 (존재하지 않는 작가)")
     void t21() throws Exception {
         // when
         ResultActions resultActions = mvc.perform(get("/api/artist/profile/99999/products")

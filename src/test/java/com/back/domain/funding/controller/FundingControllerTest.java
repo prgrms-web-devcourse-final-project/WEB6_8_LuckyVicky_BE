@@ -38,7 +38,7 @@ public class FundingControllerTest {
 
     @Test
     @WithUserDetails("user1@user.com")
-    @DisplayName("1. 펀딩 생성")
+    @DisplayName("펀딩 생성")
     void t1() throws Exception {
         ResultActions resultActions = mvc.perform(post("/api/fundings")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -46,6 +46,7 @@ public class FundingControllerTest {
                                 {
                                   "title": "테스트 펀딩",
                                   "description": "테스트 펀딩 설명",
+                                  "categoryId": 1,
                                   "imageUrl": "http://example.com/image.jpg",
                                   "targetAmount": 1000000,
                                   "startDate": "2025-11-20 00:00:00",
@@ -72,6 +73,7 @@ public class FundingControllerTest {
         resultActions.andExpect(status().isCreated())
                 .andExpect(jsonPath("$.data.title").value("테스트 펀딩"))
                 .andExpect(jsonPath("$.data.description").value("테스트 펀딩 설명"))
+                .andExpect(jsonPath("$.data.categoryName").value("테스트 카테고리"))
                 .andExpect(jsonPath("$.data.imageUrl").value("http://example.com/image.jpg"))
                 .andExpect(jsonPath("$.data.targetAmount").value(1000000))
                 .andExpect(jsonPath("$.data.startDate").value("2025-11-20 00:00:00"))
@@ -88,7 +90,7 @@ public class FundingControllerTest {
 
     @Test
     @WithUserDetails("user2@user.com")
-    @DisplayName("2. 펀딩 생성 실패 - 권한 없음")
+    @DisplayName("펀딩 생성 실패 - 권한 없음")
     void t2() throws Exception {
         ResultActions resultActions = mvc.perform(post("/api/fundings")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -96,6 +98,7 @@ public class FundingControllerTest {
                                 {
                                   "title": "테스트 펀딩",
                                   "description": "테스트 펀딩 설명",
+                                    "categoryId": 1,
                                   "imageUrl": "http://example.com/image.jpg",
                                   "targetAmount": 1000000,
                                   "startDate": "2025-10-01 00:00:00",
@@ -125,13 +128,14 @@ public class FundingControllerTest {
 
     @Test
     @WithUserDetails("user1@user.com")
-    @DisplayName("3. 펀딩 생성 실패 - 제목 누락")
+    @DisplayName("펀딩 생성 실패 - 제목 누락")
     void t3() throws Exception {
         ResultActions resultActions = mvc.perform(post("/api/fundings")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
                                 {
                                   "description": "테스트 펀딩 설명",
+                                  "categoryId": 1,
                                   "imageUrl": "http://example.com/image.jpg",
                                   "targetAmount": 1000000,
                                   "startDate": "2025-10-01 00:00:00",
@@ -161,7 +165,7 @@ public class FundingControllerTest {
 
     @Test
     @WithUserDetails("user1@user.com")
-    @DisplayName("4. 펀딩 생성 실패 - 옵션 누락")
+    @DisplayName("펀딩 생성 실패 - 옵션 누락")
     void t4() throws Exception {
         ResultActions resultActions = mvc.perform(post("/api/fundings")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -169,6 +173,7 @@ public class FundingControllerTest {
                                 {
                                   "title": "테스트 펀딩",
                                   "description": "테스트 펀딩 설명",
+                                  "categoryId": 1,
                                   "imageUrl": "http://example.com/image.jpg",
                                   "targetAmount": 1000000,
                                   "startDate": "2025-10-01 00:00:00",
@@ -184,7 +189,7 @@ public class FundingControllerTest {
 
     @Test
     @WithUserDetails("user1@user.com")
-    @DisplayName("5. 펀딩 생성 실패 - 옵션 이름 누락")
+    @DisplayName("펀딩 생성 실패 - 옵션 이름 누락")
     void t5() throws Exception {
         ResultActions resultActions = mvc.perform(post("/api/fundings")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -192,6 +197,7 @@ public class FundingControllerTest {
                                 {
                                   "title": "테스트 펀딩",
                                     "description": "테스트 펀딩 설명",
+                                    "categoryId": 1,
                                     "imageUrl": "http://example.com/image.jpg",
                                     "targetAmount": 1000000,
                                     "startDate": "2025-10-01 00:00:00",
@@ -220,7 +226,7 @@ public class FundingControllerTest {
 
     @Test
     @WithUserDetails("user1@user.com")
-    @DisplayName("6. 펀딩 생성 실패 - 목표 금액 0원 이하")
+    @DisplayName("펀딩 생성 실패 - 목표 금액 0원 이하")
     void t6() throws Exception {
         ResultActions resultActions = mvc.perform(post("/api/fundings")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -228,6 +234,7 @@ public class FundingControllerTest {
                                 {
                                   "title": "테스트 펀딩",
                                     "description": "테스트 펀딩 설명",
+                                    "categoryId": 1,
                                     "imageUrl": "http://example.com/image.jpg",
                                     "targetAmount": 0,
                                     "startDate": "2025-10-01 00:00:00",
@@ -257,7 +264,7 @@ public class FundingControllerTest {
 
     @Test
     @WithUserDetails("user1@user.com")
-    @DisplayName("7. 펀딩 생성 실패 - 종료일이 시작일 이전")
+    @DisplayName("펀딩 생성 실패 - 종료일이 시작일 이전")
     void t7() throws Exception {
         ResultActions resultActions = mvc.perform(post("/api/fundings")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -265,6 +272,7 @@ public class FundingControllerTest {
                                 {
                                   "title": "테스트 펀딩",
                                     "description": "테스트 펀딩 설명",
+                                    "categoryId": 1,
                                     "imageUrl": "http://example.com/image.jpg",
                                     "targetAmount": 1000000,
                                     "startDate": "2025-12-31 23:59:59",
@@ -293,7 +301,7 @@ public class FundingControllerTest {
     }
 
     @Test
-    @DisplayName("8. 펀딩 조회")
+    @DisplayName("펀딩 조회")
     void t8() throws Exception {
         Long id = 1L;
 
@@ -308,6 +316,7 @@ public class FundingControllerTest {
                 .andExpect(jsonPath("$.data.id").value(1))
                 .andExpect(jsonPath("$.data.title").value("펀딩 1 입니다."))
                 .andExpect(jsonPath("$.data.description").value("펀딩 1이요~~"))
+                .andExpect(jsonPath("$.data.categoryName").value("테스트 카테고리"))
                 .andExpect(jsonPath("$.data.imageUrl").value("www.example.com"))
                 .andExpect(jsonPath("$.data.targetAmount").value(1_000_000))
                 .andExpect(jsonPath("$.data.startDate").exists())
@@ -479,6 +488,7 @@ public class FundingControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.content[0].id").exists())
                 .andExpect(jsonPath("$.data.content[0].title").exists())
+                .andExpect(jsonPath("$.data.content[0].categoryName").exists())
                 .andExpect(jsonPath("$.data.content[0].imageUrl").exists())
                 .andExpect(jsonPath("$.data.content[0].authorName").exists())
                 .andExpect(jsonPath("$.data.content[0].targetAmount").exists())
@@ -590,7 +600,7 @@ public class FundingControllerTest {
 
     @Test
     @WithUserDetails("user1@user.com")
-    @DisplayName("1. 펀딩 수정 성공 - 제목/이미지/종료일/옵션 수정+추가")
+    @DisplayName("펀딩 수정 성공 - 제목/이미지/종료일/옵션 수정+추가")
     void t32() throws Exception {
         ResultActions ra = mvc.perform(patch("/api/fundings/1")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -621,7 +631,7 @@ public class FundingControllerTest {
 
     @Test
     @WithUserDetails("user1@user.com")
-    @DisplayName("3. 펀딩 수정 실패 - 종료일이 기존 종료일보다 이전")
+    @DisplayName("펀딩 수정 실패 - 종료일이 기존 종료일보다 이전")
     void t33() throws Exception {
 
         ResultActions ra = mvc.perform(patch("/api/fundings/1")
@@ -637,7 +647,7 @@ public class FundingControllerTest {
 
     @Test
     @WithUserDetails("user1@user.com")
-    @DisplayName("4. 펀딩 수정 실패 - 목표 금액이 0 이하")
+    @DisplayName("펀딩 수정 실패 - 목표 금액이 0 이하")
     void t34() throws Exception {
         ResultActions ra = mvc.perform(patch("/api/fundings/1")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -652,7 +662,7 @@ public class FundingControllerTest {
 
 //    @Test
 //    @WithUserDetails("user1@user.com")
-//    @DisplayName("5. 펀딩 수정 실패 - 참여자 존재 시 목표 금액 변경 불가")
+//    @DisplayName("펀딩 수정 실패 - 참여자 존재 시 목표 금액 변경 불가")
 //    void t35() throws Exception {
 //        // 준비: 참여자 존재 상태로 만들기 (도메인 메서드 사용)
 //        activeFunding.increaseParticipantCount(1);
@@ -671,7 +681,7 @@ public class FundingControllerTest {
 
     @Test
     @WithUserDetails("user1@user.com")
-    @DisplayName("6. 펀딩 수정 실패 - 존재하지 않는 옵션 ID")
+    @DisplayName("펀딩 수정 실패 - 존재하지 않는 옵션 ID")
     void t36() throws Exception {
         long invalidOptionId = 9_999_999L;
 
@@ -692,7 +702,7 @@ public class FundingControllerTest {
 
     @Test
     @WithUserDetails("user1@user.com")
-    @DisplayName("7. 펀딩 수정 실패 - 종료된 펀딩은 종료일 수정 불가")
+    @DisplayName("펀딩 수정 실패 - 종료된 펀딩은 종료일 수정 불가")
     void t38() throws Exception {
         Funding funding = fundingRepository.findById(1L).orElseThrow();
         funding.close();
@@ -707,5 +717,16 @@ public class FundingControllerTest {
 
         ra.andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.msg").value("진행 중인 펀딩만 종료일을 수정할 수 있습니다."));
+    }
+
+    @Test
+    @WithUserDetails("user1@user.com")
+    @DisplayName("펀딩 삭제")
+    void t39() throws Exception {
+        ResultActions ra = mvc.perform(delete("/api/fundings/1"))
+                .andDo(print());
+
+        ra.andExpect(status().isOk())
+                .andExpect(jsonPath("$.msg").value("펀딩이 삭제되었습니다."));
     }
 }

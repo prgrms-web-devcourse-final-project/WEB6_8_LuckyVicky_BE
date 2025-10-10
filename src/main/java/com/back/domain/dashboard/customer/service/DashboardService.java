@@ -45,14 +45,6 @@ public interface DashboardService {
     FundingResponse.List getFundingParticipations(Long userId, FundingSearchRequest request);
 
     /**
-     * 교환/반품 신청 모달 상품 정보 조회
-     * @param userId 사용자 ID
-     * @param orderId 주문 ID
-     * @return 주문 상품 정보 (Summary만 포함, Form과 Permission은 null)
-     */
-    ReturnResponse.FormData getReturnFormData(Long userId, Long orderId);
-
-    /**
      * 캐시 정보 조회
      */
     CashResponse.Balance getCashBalance(Long userId);

@@ -1,9 +1,12 @@
 package com.back.domain.funding.entity;
 
+import com.back.domain.product.category.entity.Category;
 import com.back.domain.user.entity.User;
 import com.back.global.jpa.entity.BaseEntity;
 import jakarta.persistence.*;
 import lombok.*;
+import org.hibernate.annotations.SQLDelete;
+import org.hibernate.annotations.Where;
 
 import java.time.LocalDateTime;
 import java.util.ArrayList;
@@ -18,6 +21,8 @@ import java.util.List;
 @Table(name = "fundings", indexes = {
         @Index(name = "idx_funding_status_enddate", columnList = "status, end_date")
 })
+@SQLDelete(sql = "UPDATE fundings SET is_deleted = true, deleted_at = NOW() WHERE id = ?")
+@Where(clause = "is_deleted = false")
 public class Funding extends BaseEntity {
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
@@ -32,9 +37,9 @@ public class Funding extends BaseEntity {
 
     private String imageUrl;
 
-//    @ManyToOne(fetch = FetchType.LAZY, optional = false)
-//    @JoinColumn(name = "category_id", nullable = false)
-//    private Category category; // parent == null 인 상위 카테고리만 사용
+    @ManyToOne(fetch = FetchType.LAZY, optional = false)
+    @JoinColumn(name = "category_id", nullable = false)
+    private Category category; // parent == null 인 상위 카테고리만 사용
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 20)
@@ -57,6 +62,12 @@ public class Funding extends BaseEntity {
     @Column(nullable = false)
     @Builder.Default
     private int participantCount = 0;
+
+    @Column(nullable = false)
+    @Builder.Default
+    private Boolean isDeleted = false;
+
+    private LocalDateTime deletedAt;
 
     // ========== 컬렉션 ==========
 
@@ -85,7 +96,7 @@ public class Funding extends BaseEntity {
             User user,
             String title,
             String description,
-//            Category category,
+            Category category,
             String imageUrl,
             long targetAmount,
             LocalDateTime startDate,
@@ -100,7 +111,7 @@ public class Funding extends BaseEntity {
                 .title(title)
                 .description(description)
                 .imageUrl(imageUrl)
-//                .category(category)
+                .category(category)
                 .targetAmount(targetAmount)
                 .startDate(startDate)
                 .endDate(endDate)
@@ -168,7 +179,24 @@ public class Funding extends BaseEntity {
         if (this.status == FundingStatus.SUCCESS || this.status == FundingStatus.FAILED) {
             throw new IllegalStateException("이미 완료된 펀딩은 취소할 수 없습니다.");
         }
+        if (this.isDeleted) {
+            throw new IllegalStateException("삭제된 펀딩은 취소할 수 없습니다.");
+        }
         this.status = FundingStatus.CANCELED;
+    }
+
+    public void delete() {
+        if (this.status != FundingStatus.OPEN && this.status != FundingStatus.PENDING) {
+            throw new IllegalStateException("진행 중이거나 심사 중인 펀딩만 삭제할 수 있습니다.");
+        }
+        if (this.participantCount > 0) {
+            throw new IllegalStateException("참여자가 있는 펀딩은 삭제할 수 없습니다.");
+        }
+        if (this.collectedAmount > 0) {
+            throw new IllegalStateException("금액이 모인 펀딩은 삭제할 수 없습니다.");
+        }
+        this.isDeleted = true;
+        this.deletedAt = LocalDateTime.now();
     }
 
     // ========== 옵션 관리 ==========

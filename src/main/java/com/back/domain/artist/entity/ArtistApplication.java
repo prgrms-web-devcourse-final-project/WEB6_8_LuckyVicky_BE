@@ -137,6 +137,15 @@ public class ArtistApplication extends BaseEntity {
         this.rejectionReason = rejectionReason;
     }
 
+    /**
+     * 신청서 취소 (사용자가 취소)
+     */
+    public void cancel() {
+        validateCanChangeStatus();
+        this.status = ApplicationStatus.CANCELLED;
+        this.reviewedAt = LocalDateTime.now();
+    }
+
 
     // ==== 상태 검증 메서드들 ==== //
 
@@ -150,6 +159,10 @@ public class ArtistApplication extends BaseEntity {
 
     public boolean isRejected() {
         return ApplicationStatus.REJECTED.equals(this.status);
+    }
+
+    public boolean isCancelled() {
+        return ApplicationStatus.CANCELLED.equals(this.status);
     }
 
     private void validateCanChangeStatus() {

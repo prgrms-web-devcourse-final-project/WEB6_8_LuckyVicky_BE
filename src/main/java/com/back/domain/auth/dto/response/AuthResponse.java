@@ -16,7 +16,10 @@ public record AuthResponse(
         // 로그인 가능한 역할 목록
         List<Role> availableRoles,
 
-        Long accessTokenExpiresIn
+        Long accessTokenExpiresIn,
+
+        // 추가 정보 필요 여부 (소셜로그인 사용자)
+        boolean needsAdditionalInfo
 ) {
 
     // 로그인 성공 응답용 정적 팩토리 메서드
@@ -27,7 +30,8 @@ public record AuthResponse(
             String email,
             Role selectedRole,
             List<Role> availableRoles,
-            Long accessTokenExpiresIn
+            Long accessTokenExpiresIn,
+            boolean needsAdditionalInfo
     ) {
         return new AuthResponse(
                 accessToken,
@@ -36,7 +40,8 @@ public record AuthResponse(
                 email,
                 selectedRole,
                 availableRoles,
-                accessTokenExpiresIn
+                accessTokenExpiresIn,
+                needsAdditionalInfo
         );
     }
 
@@ -48,7 +53,8 @@ public record AuthResponse(
             String email,
             Role selectedRole,
             List<Role> availableRoles,
-            Long accessTokenExpiresIn
+            Long accessTokenExpiresIn,
+            boolean needsAdditionalInfo
     ) {
         return new AuthResponse(
                 accessToken,
@@ -57,7 +63,8 @@ public record AuthResponse(
                 email,
                 selectedRole,
                 availableRoles,
-                accessTokenExpiresIn
+                accessTokenExpiresIn,
+                needsAdditionalInfo
         );
     }
 }

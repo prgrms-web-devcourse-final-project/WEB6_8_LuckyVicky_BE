@@ -13,7 +13,7 @@ public record FundingDetailResponse(
         String title, // 펀딩 제목
         String description, // 펀딩 설명
         String imageUrl, // 펀딩 이미지 URL
-//        String categoryName, // 카테고리 이름
+        String categoryName, // 카테고리 이름
         long targetAmount, // 목표 금액
         long currentAmount, // 현재 모인 금액
         int participants, // 참여자 수
@@ -33,14 +33,15 @@ public record FundingDetailResponse(
                                  long currentAmount,
                                  int participants,
                                  int remainingDays,
-                                 double progress)
+                                 double progress,
+                                 String artistDescription)
             {
         this(
                 funding.getId(),
                 funding.getTitle(),
                 funding.getDescription(),
                 funding.getImageUrl(),
-//                funding.getCategory().getCategoryName(),
+                funding.getCategory().getCategoryName(),
                 funding.getTargetAmount(),
                 currentAmount,
                 participants,
@@ -49,7 +50,7 @@ public record FundingDetailResponse(
                 remainingDays,
                 progress,
                 funding.getStatus(),
-                AuthorDto.from(funding.getUser()),
+                AuthorDto.from(funding.getUser(), artistDescription),
                 funding.getOptions().stream().map(FundingOptionDto::new).collect(Collectors.toList()),
                 funding.getNews().stream().map(FundingNewsDto::new).collect(Collectors.toList()),
                 funding.getCommunities().stream().map(FundingCommunityDto::new).collect(Collectors.toList())
@@ -57,9 +58,9 @@ public record FundingDetailResponse(
     }
 
     // 작성자 DTO
-    public record AuthorDto(Long id, String name, String profileImageUrl, String introduction) {
-        public static AuthorDto from(User user) {
-            return new AuthorDto(user.getId(), user.getName(), user.getProfileImageUrl(), null);
+    public record AuthorDto(Long id, String name, String profileImageUrl, String artistDescription) {
+        public static AuthorDto from(User user, String artistDescription) {
+            return new AuthorDto(user.getId(), user.getName(), user.getProfileImageUrl(), artistDescription);
         }
     }
 

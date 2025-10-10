@@ -6,7 +6,7 @@ public record FundingCardDto(
         Long id,              // 펀딩 ID
         String title,         // 펀딩 제목
         String imageUrl,      // 썸네일 이미지
-//        String categoryName,  // 카테고리 이름
+        String categoryName,  // 카테고리 이름
         String authorName,    // 작성자명
         long targetAmount,    // 목표 금액
         long currentAmount,   // 현재 금액
@@ -18,7 +18,7 @@ public record FundingCardDto(
                 funding.getId(),
                 funding.getTitle(),
                 funding.getImageUrl(),
-//                funding.getCategory().getName(),
+                funding.getCategory().getCategoryName(),
                 funding.getUser().getName(),
                 funding.getTargetAmount(),
                 currentAmount,

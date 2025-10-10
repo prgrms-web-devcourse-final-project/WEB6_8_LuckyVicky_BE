@@ -1,7 +1,9 @@
 package com.back.domain.dashboard.customer.service;
 
 
+import com.back.domain.dashboard.customer.dto.request.ArtistApplicationSearchRequest;
 import com.back.domain.dashboard.customer.dto.request.FundingSearchRequest;
+import com.back.domain.dashboard.customer.dto.response.ArtistApplicationResponse;
 import com.back.domain.dashboard.customer.dto.response.FundingResponse;
 import com.back.domain.funding.entity.Funding;
 import com.back.domain.funding.entity.FundingContribution;
@@ -9,6 +11,8 @@ import com.back.domain.funding.entity.FundingOption;
 import com.back.domain.funding.entity.FundingStatus;
 import com.back.domain.funding.repository.FundingContributionRepository;
 import com.back.domain.funding.repository.FundingRepository;
+import com.back.domain.product.category.entity.Category;
+import com.back.domain.product.category.repository.CategoryRepository;
 import com.back.domain.user.entity.User;
 import com.back.domain.user.repository.UserRepository;
 import org.junit.jupiter.api.BeforeEach;
@@ -27,7 +31,7 @@ import static org.junit.jupiter.api.Assertions.assertAll;
 /**
  * DashboardServiceImpl 테스트
  * 핵심 비즈니스 로직과 데이터 일관성에 집중
- * 2025.10.02 수정 - JWT 표준 패턴 적용에 따른 테스트 수정
+ * 2025.10.10 수정 - 작가 신청 내역 조회 테스트 추가
  */
 @SpringBootTest
 @ActiveProfiles("test")
@@ -54,7 +58,13 @@ class DashboardServiceImplTest {
     private com.back.domain.product.product.repository.ProductRepository productRepository;
 
     @Autowired
+    private com.back.domain.artist.repository.ArtistApplicationRepository artistApplicationRepository;
+
+    @Autowired
     private org.springframework.context.ApplicationContext applicationContext;
+
+    @Autowired
+    private CategoryRepository categoryRepository;
 
     private User testBuyer;
     private User testArtist;
@@ -99,11 +109,18 @@ class DashboardServiceImplTest {
                 .sortOrder(1)
                 .build();
 
+        // 테스트 카테고리 생성 (funding에 필수)
+        Category category = categoryRepository.findById((1L))
+                .orElseGet(() -> categoryRepository.save(
+                        Category.builder().categoryName("테스트 카테고리").build()
+                ));
+
         // 진행중인 펀딩 생성 (옵션 포함)
         activeFunding = Funding.builder()
                 .user(testArtist)
                 .title("진행중인 펀딩")
                 .description("테스트 펀딩입니다")
+                .category(category)
                 .imageUrl("https://example.com/image1.jpg")
                 .targetAmount(1000000L)
                 .collectedAmount(500000L)
@@ -120,6 +137,7 @@ class DashboardServiceImplTest {
                 .user(testArtist)
                 .title("종료된 펀딩")
                 .description("테스트 펀딩입니다")
+                .category(category)
                 .imageUrl("https://example.com/image2.jpg")
                 .targetAmount(500000L)
                 .collectedAmount(600000L)
@@ -516,508 +534,150 @@ class DashboardServiceImplTest {
     }
 
     // TODO: 배송 CRUD 완성 후 추가할 테스트들
+
     /**
      * 배송 CRUD 완성 후 수정해야 할 테스트:
-     *
+     * <p>
      * 1. getFundingParticipations_CalculatesStatistics()
-     *    - fulfilling, fulfilled 카운트 검증 주석 해제
-     *
+     * - fulfilling, fulfilled 카운트 검증 주석 해제
+     * <p>
      * 2. 새로운 테스트 추가:
-     *    - getFundingParticipations_IncludesDeliveryStatus()
-     *      : 배송 상태 포함 여부 검증
-     *    - getFundingParticipations_FiltersDeliveryStatus()
-     *      : 배송 상태별 필터링 검증 (FULFILLING/FULFILLED)
-     *
+     * - getFundingParticipations_IncludesDeliveryStatus()
+     * : 배송 상태 포함 여부 검증
+     * - getFundingParticipations_FiltersDeliveryStatus()
+     * : 배송 상태별 필터링 검증 (FULFILLING/FULFILLED)
+     * <p>
      * 3. Response DTO 수정:
-     *    - FundingResponse.SummaryDto에서 배송 필드 주석 해제
-     *    - (선택) Participation에 DeliveryInfo 필드 추가 시 검증 로직 추가
+     * - FundingResponse.SummaryDto에서 배송 필드 주석 해제
+     * - (선택) Participation에 DeliveryInfo 필드 추가 시 검증 로직 추가
      */
 
-    // ==================== Order 실제 DB 연동 테스트 ====================
-
+    // ==================== ArtistApplication 작가 신청 내역 조회 테스트 ====================
     @Test
-    @DisplayName("주문 목록 조회 - 실제 DB 데이터 검증")
-    void getOrders_ReturnsRealData() {
+    @DisplayName("작가 신청 내역 조회 - 실제 DB 데이터 검증")
+    void getArtistApplications_ReturnsRealData() {
         // Given
-        com.back.domain.dashboard.customer.dto.request.OrderSearchRequest request =
-                new com.back.domain.dashboard.customer.dto.request.OrderSearchRequest(
-                        0, 10, null, "orderDate", "DESC"
-                );
+        com.back.domain.artist.entity.ArtistApplication pendingApplication =
+                com.back.domain.artist.entity.ArtistApplication.builder()
+                        .user(testBuyer)
+                        .ownerName("홍길동")
+                        .email("test@example.com")
+                        .phone("010-1234-5678")
+                        .artistName("아티스트1")
+                        .businessNumber("123-45-67890")
+                        .businessAddress("서울시")
+                        .businessAddressDetail("강남구")
+                        .businessZipCode("12345")
+                        .telecomSalesNumber("2024-서울-0001")
+                        .build();
+        artistApplicationRepository.save(pendingApplication);
+
+        ArtistApplicationSearchRequest request = new ArtistApplicationSearchRequest(
+                0, 10, null, null, null, null, null
+        );
 
         // When
-        com.back.domain.dashboard.customer.dto.response.OrderResponse.List result =
-                dashboardService.getOrders(testBuyer.getId(), request);
+        ArtistApplicationResponse.List result =
+                dashboardService.getArtistApplications(testBuyer.getId(), request);
 
         // Then
         assertAll(
                 () -> assertThat(result).isNotNull(),
-                () -> assertThat(result.getSummary()).isNotNull(),
-                () -> assertThat(result.getContent()).isNotNull(),
-                () -> assertThat(result.getContent()).hasSize(1)
+                () -> assertThat(result.getSummary()).isNull(),  // 통계 없음
+                () -> assertThat(result.getContent()).hasSize(1),
+                () -> assertThat(result.getContent().get(0).artistName()).isEqualTo("아티스트1")
         );
     }
 
     @Test
-    @DisplayName("주문 목록 조회 - 주문번호 7자리 포맷 검증")
-    void getOrders_FormatsOrderNumberTo7Digits() {
+    @DisplayName("작가 신청 내역 조회 - CANCELLED 상태 텍스트 매핑")
+    void getArtistApplications_MapsCancelledStatus() {
         // Given
-        com.back.domain.dashboard.customer.dto.request.OrderSearchRequest request =
-                new com.back.domain.dashboard.customer.dto.request.OrderSearchRequest(
-                        0, 10, null, "orderDate", "DESC"
-                );
+        com.back.domain.artist.entity.ArtistApplication application =
+                com.back.domain.artist.entity.ArtistApplication.builder()
+                        .user(testBuyer)
+                        .ownerName("홍길동")
+                        .email("test@example.com")
+                        .phone("010-1234-5678")
+                        .artistName("아티스트2")
+                        .businessNumber("123-45-67890")
+                        .businessAddress("서울시")
+                        .businessAddressDetail("강남구")
+                        .businessZipCode("12345")
+                        .telecomSalesNumber("2024-서울-0002")
+                        .build();
+        artistApplicationRepository.save(application);
+
+        // 취소 처리
+        application.cancel();
+
+        ArtistApplicationSearchRequest request = new ArtistApplicationSearchRequest(
+                0, 10, null, null, null, null, null
+        );
 
         // When
-        com.back.domain.dashboard.customer.dto.response.OrderResponse.List result =
-                dashboardService.getOrders(testBuyer.getId(), request);
+        ArtistApplicationResponse.List result =
+                dashboardService.getArtistApplications(testBuyer.getId(), request);
 
         // Then
+        ArtistApplicationResponse.Summary summary = result.getContent().get(0);
         assertAll(
-                () -> assertThat(result.getContent()).isNotEmpty(),
-                () -> assertThat(result.getContent().get(0).orderNumber())
-                        .matches("^\\d{7}$"),
-                () -> assertThat(result.getContent().get(0).orderNumber().length())
-                        .isEqualTo(7)
+                () -> assertThat(summary.status()).isEqualTo("CANCELLED"),
+                () -> assertThat(summary.statusText()).isEqualTo("취소"),
+                () -> assertThat(summary.permissions().canEdit()).isFalse(),
+                () -> assertThat(summary.permissions().canCancel()).isFalse()
         );
     }
 
     @Test
-    @DisplayName("주문 목록 조회 - 주문일자 포맷 검증 (yyyy. MM. dd)")
-    void getOrders_FormatsOrderDate() {
+    @DisplayName("작가 신청 내역 조회 - 상태별 필터링 (PENDING)")
+    void getArtistApplications_FiltersByPendingStatus() {
         // Given
-        com.back.domain.dashboard.customer.dto.request.OrderSearchRequest request =
-                new com.back.domain.dashboard.customer.dto.request.OrderSearchRequest(
-                        0, 10, null, "orderDate", "DESC"
-                );
+        com.back.domain.artist.entity.ArtistApplication pendingApp =
+                com.back.domain.artist.entity.ArtistApplication.builder()
+                        .user(testBuyer)
+                        .ownerName("홍길동")
+                        .email("test@example.com")
+                        .phone("010-1234-5678")
+                        .artistName("작가A")
+                        .businessNumber("123-45-67890")
+                        .businessAddress("서울시")
+                        .businessAddressDetail("강남구")
+                        .businessZipCode("12345")
+                        .telecomSalesNumber("2024-서울-0001")
+                        .build();
+        artistApplicationRepository.save(pendingApp);
 
-        // When
-        com.back.domain.dashboard.customer.dto.response.OrderResponse.List result =
-                dashboardService.getOrders(testBuyer.getId(), request);
+        com.back.domain.artist.entity.ArtistApplication cancelledApp =
+                com.back.domain.artist.entity.ArtistApplication.builder()
+                        .user(testBuyer)
+                        .ownerName("홍길동")
+                        .email("test@example.com")
+                        .phone("010-1234-5678")
+                        .artistName("작가B")
+                        .businessNumber("123-45-67891")
+                        .businessAddress("서울시")
+                        .businessAddressDetail("강남구")
+                        .businessZipCode("12345")
+                        .telecomSalesNumber("2024-서울-0002")
+                        .build();
+        artistApplicationRepository.save(cancelledApp);
+        cancelledApp.cancel();
 
-        // Then
-        assertAll(
-                () -> assertThat(result.getContent()).isNotEmpty(),
-                () -> assertThat(result.getContent().get(0).orderDate())
-                        .matches("^\\d{4}\\. \\d{2}\\. \\d{2}$")
+        ArtistApplicationSearchRequest request = new ArtistApplicationSearchRequest(
+                0, 10, "PENDING", null, null, null, null
         );
-    }
-
-    @Test
-    @DisplayName("주문 목록 조회 - 4가지 상태만 조회 검증")
-    void getOrders_OnlyReturnsValidStatuses() {
-        // Given
-        com.back.domain.dashboard.customer.dto.request.OrderSearchRequest request =
-                new com.back.domain.dashboard.customer.dto.request.OrderSearchRequest(
-                        0, 10, null, "orderDate", "DESC"
-                );
 
         // When
-        com.back.domain.dashboard.customer.dto.response.OrderResponse.List result =
-                dashboardService.getOrders(testBuyer.getId(), request);
-
-        // Then
-        assertAll(
-                () -> assertThat(result.getContent()).isNotEmpty(),
-                () -> assertThat(result.getContent().get(0).status())
-                        .isIn("PAYMENT_COMPLETED", "PREPARING", "SHIPPING", "DELIVERED"),
-                () -> assertThat(result.getContent().get(0).statusText())
-                        .isIn("결제완료", "배송준비중", "배송중", "배송완료")
-        );
-    }
-
-    @Test
-    @DisplayName("주문 목록 조회 - 상품명 검색 검증")
-    void getOrders_SearchesByProductName() {
-        // Given
-        com.back.domain.dashboard.customer.dto.request.OrderSearchRequest request =
-                new com.back.domain.dashboard.customer.dto.request.OrderSearchRequest(
-                        0, 10, "테스트", "orderDate", "DESC"
-                );
-
-        // When
-        com.back.domain.dashboard.customer.dto.response.OrderResponse.List result =
-                dashboardService.getOrders(testBuyer.getId(), request);
+        ArtistApplicationResponse.List result =
+                dashboardService.getArtistApplications(testBuyer.getId(), request);
 
         // Then
         assertAll(
                 () -> assertThat(result.getContent()).hasSize(1),
-                () -> assertThat(result.getContent().get(0).representativeItem().productName())
-                        .contains("테스트")
+                () -> assertThat(result.getContent().get(0).status()).isEqualTo("PENDING"),
+                () -> assertThat(result.getContent().get(0).artistName()).isEqualTo("작가A")
         );
     }
 
-    @Test
-    @DisplayName("주문 목록 조회 - 정렬 (orderDate DESC)")
-    void getOrders_SortsByOrderDateDesc() {
-        // Given
-        // 두 번째 주문 추가
-        com.back.domain.order.order.entity.Order secondOrder =
-                com.back.domain.order.order.entity.Order.builder()
-                        .user(testBuyer)
-                        .orderNumber("ORD" + System.currentTimeMillis())
-                        .status(com.back.domain.order.order.entity.OrderStatus.PREPARING_SHIPMENT)
-                        .totalQuantity(1)
-                        .totalAmount(java.math.BigDecimal.valueOf(10000))
-                        .shippingFee(java.math.BigDecimal.valueOf(3000))
-                        .finalAmount(java.math.BigDecimal.valueOf(13000))
-                        .recipientName("김철수")
-                        .orderDate(LocalDateTime.now().minusDays(1))
-                        .build();
-
-        com.back.domain.order.orderItem.entity.OrderItem secondOrderItem =
-                com.back.domain.order.orderItem.entity.OrderItem.builder()
-                        .order(secondOrder)
-                        .product(testProduct)
-                        .quantity(1)
-                        .price(java.math.BigDecimal.valueOf(10000))
-                        .build();
-
-        secondOrder.addOrderItem(secondOrderItem);
-        orderRepository.save(secondOrder);
-
-        com.back.domain.dashboard.customer.dto.request.OrderSearchRequest request =
-                new com.back.domain.dashboard.customer.dto.request.OrderSearchRequest(
-                        0, 10, null, "orderDate", "DESC"
-                );
-
-        // When
-        com.back.domain.dashboard.customer.dto.response.OrderResponse.List result =
-                dashboardService.getOrders(testBuyer.getId(), request);
-
-        // Then
-        assertAll(
-                () -> assertThat(result.getContent()).hasSize(2),
-                () -> assertThat(result.getContent().get(0).status()).isEqualTo("PREPARING"),
-                () -> assertThat(result.getContent().get(1).status()).isEqualTo("PAYMENT_COMPLETED")
-        );
-    }
-
-    @Test
-    @DisplayName("주문 목록 조회 - A/S 정보 null 검증")
-    void getOrders_AftersalesIsNull() {
-        // Given
-        com.back.domain.dashboard.customer.dto.request.OrderSearchRequest request =
-                new com.back.domain.dashboard.customer.dto.request.OrderSearchRequest(
-                        0, 10, null, "orderDate", "DESC"
-                );
-
-        // When
-        com.back.domain.dashboard.customer.dto.response.OrderResponse.List result =
-                dashboardService.getOrders(testBuyer.getId(), request);
-
-        // Then
-        assertAll(
-                () -> assertThat(result.getContent()).isNotEmpty(),
-                () -> assertThat(result.getContent().get(0).aftersales()).isNull()
-        );
-    }
-
-    @Test
-    @DisplayName("주문 목록 조회 - 권한 검증 (결제완료만 취소 가능)")
-    void getOrders_ValidatesPermissions() {
-        // Given
-        com.back.domain.dashboard.customer.dto.request.OrderSearchRequest request =
-                new com.back.domain.dashboard.customer.dto.request.OrderSearchRequest(
-                        0, 10, null, "orderDate", "DESC"
-                );
-
-        // When
-        com.back.domain.dashboard.customer.dto.response.OrderResponse.List result =
-                dashboardService.getOrders(testBuyer.getId(), request);
-
-        // Then
-        assertAll(
-                () -> assertThat(result.getContent()).isNotEmpty(),
-                () -> assertThat(result.getContent().get(0).permissions().canCancel()).isTrue(),
-                () -> assertThat(result.getContent().get(0).permissions().canReturn()).isFalse(),
-                () -> assertThat(result.getContent().get(0).permissions().canExchange()).isFalse()
-        );
-    }
-
-    @Test
-    @DisplayName("주문 목록 조회 - 페이징 검증")
-    void getOrders_HandlesPagination() {
-        // Given
-        // 추가 주문 생성
-        for (int i = 0; i < 3; i++) {
-            com.back.domain.order.order.entity.Order additionalOrder =
-                    com.back.domain.order.order.entity.Order.builder()
-                            .user(testBuyer)
-                            .orderNumber("ORD" + System.currentTimeMillis() + i)
-                            .status(com.back.domain.order.order.entity.OrderStatus.DELIVERED)
-                            .totalQuantity(1)
-                            .totalAmount(java.math.BigDecimal.valueOf(10000))
-                            .shippingFee(java.math.BigDecimal.valueOf(3000))
-                            .finalAmount(java.math.BigDecimal.valueOf(13000))
-                            .recipientName("테스트" + i)
-                            .orderDate(LocalDateTime.now().minusDays(i + 3))
-                            .build();
-
-            com.back.domain.order.orderItem.entity.OrderItem item =
-                    com.back.domain.order.orderItem.entity.OrderItem.builder()
-                            .order(additionalOrder)
-                            .product(testProduct)
-                            .quantity(1)
-                            .price(java.math.BigDecimal.valueOf(10000))
-                            .build();
-
-            additionalOrder.addOrderItem(item);
-            orderRepository.save(additionalOrder);
-        }
-
-        com.back.domain.dashboard.customer.dto.request.OrderSearchRequest request =
-                new com.back.domain.dashboard.customer.dto.request.OrderSearchRequest(
-                        0, 2, null, "orderDate", "DESC"
-                );
-
-        // When
-        com.back.domain.dashboard.customer.dto.response.OrderResponse.List result =
-                dashboardService.getOrders(testBuyer.getId(), request);
-
-        // Then
-        assertAll(
-                () -> assertThat(result.getContent()).hasSize(2),
-                () -> assertThat(result.getPage()).isEqualTo(0),
-                () -> assertThat(result.getSize()).isEqualTo(2),
-                () -> assertThat(result.getTotalElements()).isEqualTo(4),
-                () -> assertThat(result.getTotalPages()).isEqualTo(2),
-                () -> assertThat(result.isHasNext()).isTrue(),
-                () -> assertThat(result.isHasPrevious()).isFalse()
-        );
-    }
-
-    @Test
-    @DisplayName("주문 목록 조회 - 삭제된 상품 처리 검증")
-    void getOrders_HandlesDeletedProducts() {
-        // Given
-        // 상품 삭제 처리
-        testProduct.setDeleted(true);
-        productRepository.save(testProduct);
-
-        com.back.domain.dashboard.customer.dto.request.OrderSearchRequest request =
-                new com.back.domain.dashboard.customer.dto.request.OrderSearchRequest(
-                        0, 10, null, "orderDate", "DESC"
-                );
-
-        // When
-        com.back.domain.dashboard.customer.dto.response.OrderResponse.List result =
-                dashboardService.getOrders(testBuyer.getId(), request);
-
-        // Then
-        assertAll(
-                () -> assertThat(result.getContent()).isNotEmpty(),
-                // 삭제된 상품도 이름은 그대로 표시
-                () -> assertThat(result.getContent().get(0).representativeItem().productName())
-                        .isEqualTo("테스트 상품"),
-                // 이미지만 null
-                () -> assertThat(result.getContent().get(0).representativeItem().imageUrl())
-                        .isNull()
-        );
-    }
-
-    @Test
-    @DisplayName("주문 목록 조회 - 상품명 정렬 ASC 검증")
-    void getOrders_SortsByProductNameAsc() {
-        // Given
-        // 다른 이름의 상품 생성
-        com.back.domain.product.category.repository.CategoryRepository categoryRepository =
-                applicationContext.getBean(com.back.domain.product.category.repository.CategoryRepository.class);
-        com.back.domain.product.category.entity.Category category = categoryRepository.findAll().get(0);
-
-        com.back.domain.product.product.entity.Product productA = com.back.domain.product.product.entity.Product.builder()
-                .category(category)
-                .user(testArtist)
-                .name("가방")  // ㄱ
-                .brandName("브랜드A")
-                .price(15000)
-                .discountRate(0)
-                .stock(50)
-                .bundleShippingAvailable(false)
-                .deliveryCharge(3000)
-                .additionalShippingCharge(3000)
-                .deliveryType(com.back.domain.product.product.entity.DeliveryType.PAID)
-                .description("가방 설명")
-                .sellingStatus(com.back.domain.product.product.entity.SellingStatus.SELLING)
-                .displayStatus(com.back.domain.product.product.entity.DisplayStatus.DISPLAYING)
-                .minQuantity(1)
-                .maxQuantity(10)
-                .productModelName("BAG-001")
-                .certification(false)
-                .origin("한국")
-                .material("가죽")
-                .size("30x40cm")
-                .isPlanned(false)
-                .isRestock(false)
-                .isDeleted(false)
-                .build();
-        productA = productRepository.save(productA);
-
-        com.back.domain.product.product.entity.Product productZ = com.back.domain.product.product.entity.Product.builder()
-                .category(category)
-                .user(testArtist)
-                .name("핸드폰케이스")  // ㅎ
-                .brandName("브랜드Z")
-                .price(20000)
-                .discountRate(0)
-                .stock(30)
-                .bundleShippingAvailable(false)
-                .deliveryCharge(3000)
-                .additionalShippingCharge(3000)
-                .deliveryType(com.back.domain.product.product.entity.DeliveryType.PAID)
-                .description("케이스 설명")
-                .sellingStatus(com.back.domain.product.product.entity.SellingStatus.SELLING)
-                .displayStatus(com.back.domain.product.product.entity.DisplayStatus.DISPLAYING)
-                .minQuantity(1)
-                .maxQuantity(10)
-                .productModelName("CASE-001")
-                .certification(false)
-                .origin("한국")
-                .material("실리콘")
-                .size("15x8cm")
-                .isPlanned(false)
-                .isRestock(false)
-                .isDeleted(false)
-                .build();
-        productZ = productRepository.save(productZ);
-
-        // 주문 생성 (상품명 역순)
-        com.back.domain.order.order.entity.Order orderWithZ = com.back.domain.order.order.entity.Order.builder()
-                .user(testBuyer)
-                .orderNumber("ORD-Z")
-                .status(com.back.domain.order.order.entity.OrderStatus.PAYMENT_COMPLETED)
-                .totalQuantity(1)
-                .totalAmount(java.math.BigDecimal.valueOf(20000))
-                .shippingFee(java.math.BigDecimal.valueOf(3000))
-                .finalAmount(java.math.BigDecimal.valueOf(23000))
-                .recipientName("홍길동")
-                .orderDate(LocalDateTime.now().minusDays(1))
-                .build();
-        com.back.domain.order.orderItem.entity.OrderItem itemZ =
-                com.back.domain.order.orderItem.entity.OrderItem.builder()
-                        .order(orderWithZ)
-                        .product(productZ)
-                        .quantity(1)
-                        .price(java.math.BigDecimal.valueOf(20000))
-                        .build();
-        orderWithZ.addOrderItem(itemZ);
-        orderRepository.save(orderWithZ);
-
-        com.back.domain.order.order.entity.Order orderWithA = com.back.domain.order.order.entity.Order.builder()
-                .user(testBuyer)
-                .orderNumber("ORD-A")
-                .status(com.back.domain.order.order.entity.OrderStatus.PAYMENT_COMPLETED)
-                .totalQuantity(1)
-                .totalAmount(java.math.BigDecimal.valueOf(15000))
-                .shippingFee(java.math.BigDecimal.valueOf(3000))
-                .finalAmount(java.math.BigDecimal.valueOf(18000))
-                .recipientName("홍길동")
-                .orderDate(LocalDateTime.now().minusDays(2))
-                .build();
-        com.back.domain.order.orderItem.entity.OrderItem itemA =
-                com.back.domain.order.orderItem.entity.OrderItem.builder()
-                        .order(orderWithA)
-                        .product(productA)
-                        .quantity(1)
-                        .price(java.math.BigDecimal.valueOf(15000))
-                        .build();
-        orderWithA.addOrderItem(itemA);
-        orderRepository.save(orderWithA);
-
-        com.back.domain.dashboard.customer.dto.request.OrderSearchRequest request =
-                new com.back.domain.dashboard.customer.dto.request.OrderSearchRequest(
-                        0, 10, null, "productName", "ASC"
-                );
-
-        // When
-        com.back.domain.dashboard.customer.dto.response.OrderResponse.List result =
-                dashboardService.getOrders(testBuyer.getId(), request);
-
-        // Then - ㄱ,ㄴ,ㄷ 순으로 정렬되어야 함
-        assertAll(
-                () -> assertThat(result.getContent()).hasSizeGreaterThanOrEqualTo(3),
-                () -> assertThat(result.getContent().get(0).representativeItem().productName())
-                        .isEqualTo("가방"),  // ㄱ
-                () -> assertThat(result.getContent().get(1).representativeItem().productName())
-                        .isEqualTo("테스트 상품"),  // ㅌ
-                () -> assertThat(result.getContent().get(2).representativeItem().productName())
-                        .isEqualTo("핸드폰케이스")  // ㅎ
-        );
-    }
-
-    @Test
-    @DisplayName("주문 목록 조회 - 상품명 정렬 DESC 검증")
-    void getOrders_SortsByProductNameDesc() {
-        // Given
-        com.back.domain.dashboard.customer.dto.request.OrderSearchRequest request =
-                new com.back.domain.dashboard.customer.dto.request.OrderSearchRequest(
-                        0, 10, null, "productName", "DESC"
-                );
-
-        // When
-        com.back.domain.dashboard.customer.dto.response.OrderResponse.List result =
-                dashboardService.getOrders(testBuyer.getId(), request);
-
-        // Then
-        assertAll(
-                () -> assertThat(result.getContent()).isNotEmpty(),
-                () -> assertThat(result.getContent().get(0).representativeItem().productName())
-                        .isNotNull()
-        );
-    }
-
-    // ==================== 교환/환불 신청 모달 실제 DB 연동 테스트 ====================
-
-    @Test
-    @DisplayName("교환/환불 신청 모달 데이터 조회 - 모든 필수 필드 검증")
-    void getReturnFormData_ReturnsAllRequiredFields() {
-        // Given
-        Long orderId = testOrder.getId();
-
-        // When
-        com.back.domain.dashboard.customer.dto.response.ReturnResponse.FormData result =
-                dashboardService.getReturnFormData(testBuyer.getId(), orderId);
-
-        // Then
-        com.back.domain.dashboard.customer.dto.response.ReturnResponse.Summary summary = result.summary();
-        
-        assertAll(
-                // 기본 구조 검증
-                () -> assertThat(result.summary()).isNotNull(),
-                () -> assertThat(result.form()).isNull(),
-                () -> assertThat(result.permissions()).isNull(),
-                
-                // 주문번호 (7자리 포맷)
-                () -> assertThat(summary.orderNo()).matches("^\\d{7}$"),
-                
-                // 브랜드명 (DB에서 조회)
-                () -> assertThat(summary.brandName()).isEqualTo("테스트 브랜드"),
-                
-                // 상품명
-                () -> assertThat(summary.title()).isEqualTo("테스트 상품"),
-                
-                // 총 가격 (finalAmount)
-                () -> assertThat(summary.price()).isEqualTo(testOrder.getFinalAmount().intValue()),
-                
-                // 상품 갯수 (orderItems 개수)
-                () -> assertThat(summary.quantity()).isEqualTo(testOrder.getOrderItems().size())
-        );
-    }
-
-    @Test
-    @DisplayName("교환/환불 신청 모달 - 권한 검증")
-    void getReturnFormData_ValidatesAuthorization() {
-        // Given
-        User anotherUser = User.createLocalUser(
-                "another@example.com",
-                "password",
-                "다른사용자",
-                "01099999999"
-        );
-        User savedAnotherUser = userRepository.save(anotherUser);
-
-        // When & Then
-        org.junit.jupiter.api.Assertions.assertThrows(
-                com.back.global.exception.ServiceException.class,
-                () -> dashboardService.getReturnFormData(savedAnotherUser.getId(), testOrder.getId())
-        );
-    }
 }

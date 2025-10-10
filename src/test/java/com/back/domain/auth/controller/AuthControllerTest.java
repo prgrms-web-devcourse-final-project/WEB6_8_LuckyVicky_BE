@@ -180,7 +180,7 @@ class AuthControllerTest {
 
             AuthResponse mockResponse = new AuthResponse(
                     "accessToken", "refreshToken", 1L, "test@example.com",
-                    Role.USER, List.of(Role.USER), 1800L
+                    Role.USER, List.of(Role.USER), 1800L, false
             );
 
             given(authService.login(any(LoginRequest.class))).willReturn(mockResponse);
@@ -211,7 +211,7 @@ class AuthControllerTest {
 
             AuthResponse mockResponse = new AuthResponse(
                     "accessToken", "refreshToken", 1L, "test@example.com",
-                    Role.USER, List.of(Role.USER), 1800L
+                    Role.USER, List.of(Role.USER), 1800L, false
             );
 
             given(authService.login(any(LoginRequest.class))).willReturn(mockResponse);
@@ -242,7 +242,7 @@ class AuthControllerTest {
 
                 AuthResponse mockResponse = new AuthResponse(
                         "accessToken", "refreshToken", 1L, "test@example.com",
-                        role, List.of(role), 1800L
+                        role, List.of(role), 1800L, false
                 );
 
                 given(authService.login(any(LoginRequest.class))).willReturn(mockResponse);
@@ -273,7 +273,7 @@ class AuthControllerTest {
 
             AuthResponse mockResponse = new AuthResponse(
                     "accessToken123", "refreshToken456", 1L, "test@example.com",
-                    Role.USER, List.of(Role.USER), 1800L
+                    Role.USER, List.of(Role.USER), 1800L, false
             );
 
             given(authService.login(any(LoginRequest.class))).willReturn(mockResponse);
@@ -299,7 +299,7 @@ class AuthControllerTest {
 
             AuthResponse mockResponse = new AuthResponse(
                     "accessToken", "refreshToken", 1L, "admin@example.com",
-                    Role.ADMIN, List.of(Role.USER, Role.ARTIST, Role.ADMIN), 1800L
+                    Role.ADMIN, List.of(Role.USER, Role.ARTIST, Role.ADMIN), 1800L, false
             );
 
             given(authService.login(any(LoginRequest.class))).willReturn(mockResponse);
@@ -326,7 +326,7 @@ class AuthControllerTest {
             Long expectedExpiration = 3600L; // 1시간
             AuthResponse mockResponse = new AuthResponse(
                     "accessToken", "refreshToken", 1L, "test@example.com",
-                    Role.USER, List.of(Role.USER), expectedExpiration
+                    Role.USER, List.of(Role.USER), expectedExpiration, false
             );
 
             given(authService.login(any(LoginRequest.class))).willReturn(mockResponse);
@@ -689,7 +689,7 @@ class AuthControllerTest {
 
             AuthResponse mockResponse = new AuthResponse(
                     "newAccessToken", "newRefreshToken", 1L, "test@example.com",
-                    Role.USER, List.of(Role.USER), 1800L
+                    Role.USER, List.of(Role.USER), 1800L, false
             );
             given(authService.refreshToken(request)).willReturn(mockResponse);
 
@@ -721,7 +721,7 @@ class AuthControllerTest {
                 TokenRefreshRequest request = new TokenRefreshRequest(tokens[i]);
                 AuthResponse mockResponse = new AuthResponse(
                         "accessToken" + i, "refreshToken" + i, (long) (i + 1),
-                        "user" + i + "@example.com", Role.USER, List.of(Role.USER), 1800L
+                        "user" + i + "@example.com", Role.USER, List.of(Role.USER), 1800L, false
                 );
                 given(authService.refreshToken(request)).willReturn(mockResponse);
 
@@ -745,7 +745,7 @@ class AuthControllerTest {
             TokenRefreshRequest request = new TokenRefreshRequest("validRefreshToken");
             AuthResponse mockResponse = new AuthResponse(
                     "newAccessToken123", "newRefreshToken456", 1L, "test@example.com",
-                    Role.USER, List.of(Role.USER), 1800L
+                    Role.USER, List.of(Role.USER), 1800L, false
             );
             given(authService.refreshToken(request)).willReturn(mockResponse);
 
@@ -765,7 +765,7 @@ class AuthControllerTest {
             TokenRefreshRequest request = new TokenRefreshRequest("refreshTokenWithRoleChange");
             AuthResponse mockResponse = new AuthResponse(
                     "newAccessToken", "newRefreshToken", 1L, "admin@example.com",
-                    Role.ADMIN, List.of(Role.USER, Role.ADMIN), 1800L
+                    Role.ADMIN, List.of(Role.USER, Role.ADMIN), 1800L, false
             );
             given(authService.refreshToken(request)).willReturn(mockResponse);
 
@@ -786,7 +786,7 @@ class AuthControllerTest {
             Long newExpirationTime = 3600L; // 1시간
             AuthResponse mockResponse = new AuthResponse(
                     "newAccessToken", "newRefreshToken", 1L, "test@example.com",
-                    Role.USER, List.of(Role.USER), newExpirationTime
+                    Role.USER, List.of(Role.USER), newExpirationTime, false
             );
             given(authService.refreshToken(request)).willReturn(mockResponse);
 
@@ -805,11 +805,11 @@ class AuthControllerTest {
             TokenRefreshRequest request = new TokenRefreshRequest("sameRefreshToken");
             AuthResponse mockResponse1 = new AuthResponse(
                     "accessToken1", "refreshToken1", 1L, "test@example.com",
-                    Role.USER, List.of(Role.USER), 1800L
+                    Role.USER, List.of(Role.USER), 1800L, false
             );
             AuthResponse mockResponse2 = new AuthResponse(
                     "accessToken2", "refreshToken2", 1L, "test@example.com",
-                    Role.USER, List.of(Role.USER), 1800L
+                    Role.USER, List.of(Role.USER), 1800L, false
             );
             given(authService.refreshToken(request))
                     .willReturn(mockResponse1)
@@ -832,7 +832,7 @@ class AuthControllerTest {
             TokenRefreshRequest request = new TokenRefreshRequest("userTokenToRefresh");
             AuthResponse mockResponse = new AuthResponse(
                     "newAccessToken", "newRefreshToken", 42L, "consistent@example.com",
-                    Role.ARTIST, List.of(Role.USER, Role.ARTIST), 1800L
+                    Role.ARTIST, List.of(Role.USER, Role.ARTIST), 1800L, false
             );
             given(authService.refreshToken(request)).willReturn(mockResponse);
 

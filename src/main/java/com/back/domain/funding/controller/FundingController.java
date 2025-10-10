@@ -103,4 +103,14 @@ public class FundingController {
         FundingDetailResponse updatedFunding = fundingService.getFunding(id);
         return ResponseEntity.ok(new RsData<>("200", "펀딩이 수정되었습니다.", updatedFunding));
     }
+
+    @DeleteMapping("/{id}")
+    @Operation(summary = "펀딩 삭제", description = "펀딩을 삭제합니다. 심사 중이거나 승인된 상태에서만 삭제할 수 있습니다.")
+    @PreAuthorize("hasAuthority('ROLE_ARTIST') or hasAuthority('ROLE_ADMIN') or hasAuthority('ROLE_ROOT')")
+    public ResponseEntity<RsData<Void>> deleteFunding(
+            @PathVariable @Positive Long id,
+            @AuthenticationPrincipal(expression = "username") String userEmail) {
+        fundingService.deleteFunding(id, userEmail);
+        return ResponseEntity.ok(new RsData<>("200", "펀딩이 삭제되었습니다.", null));
+    }
 }

@@ -28,6 +28,7 @@ import java.util.stream.Collectors;
  * 고객용 대시보드 서비스 구현체
  * 2025.10.02 수정 - JWT 표준 패턴 적용, Request DTO 활용
  * 2025.10.03 수정 - 주문일자 포맷팅 추가
+ * 2025.10.08 수정 - 작가 신청 내역 조회 추가
  */
 @Service
 @RequiredArgsConstructor
@@ -38,9 +39,11 @@ public class DashboardServiceImpl implements DashboardService {
     private final FundingContributionRepository fundingContributionRepository;
     private final UserRepository userRepository;
     private final com.back.domain.order.order.repository.OrderRepository orderRepository;
+    private final com.back.domain.artist.repository.ArtistApplicationRepository artistApplicationRepository;
 
     private static final DateTimeFormatter ORDER_DATE_FORMATTER = DateTimeFormatter.ofPattern("yyyy. MM. dd");
     private static final DateTimeFormatter FUNDING_DATE_FORMATTER = DateTimeFormatter.ofPattern("yyyy. MM. dd");
+    private static final DateTimeFormatter APPLICATION_DATE_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd");
 
     @Override
     public AccountResponse.Settings getAccountSettings(Long userId, String include) {
@@ -82,27 +85,93 @@ public class DashboardServiceImpl implements DashboardService {
 
     @Override
     public ArtistApplicationResponse.List getArtistApplications(Long userId, ArtistApplicationSearchRequest request) {
-        // TODO: 실제 데이터베이스 조회 로직 구현
-        log.debug("작가 신청 내역 조회 - userId: {}, request: {}", userId, request);
+        log.info("작가 신청 내역 조회 - userId: {}, page: {}, size: {}, status: {}",
+                userId, request.page(), request.size(), request.status());
 
-        ArtistApplicationResponse.SummaryDto summary =
-                new ArtistApplicationResponse.SummaryDto(2, 0, 1, 1);
+        // 1. 사용자 존재 여부 확인
+        if (!userRepository.existsById(userId)) {
+            throw new ServiceException("USER_NOT_FOUND", "사용자를 찾을 수 없습니다.");
+        }
 
-        List<ArtistApplicationResponse.Summary> content = Arrays.asList(
-                new ArtistApplicationResponse.Summary(
-                        1L, "작가지원자", "2025-09-19", "PENDING", "대기중",
-                        new ArtistApplicationResponse.Permission(true, false, true),
-                        LocalDateTime.now()),
-                new ArtistApplicationResponse.Summary(
-                        2L, "승인작가", "2025-09-18", "APPROVED", "승인",
-                        new ArtistApplicationResponse.Permission(false, false, false),
-                        LocalDateTime.now().minusDays(1))
-        );
+        // 2. 실제 DB에서 작가 신청 내역 조회
+        List<com.back.domain.artist.entity.ArtistApplication> applications =
+                artistApplicationRepository.findByUserIdOrderByCreateDateDesc(userId);
+
+        // 3. 상태별 필터링 (status 파라미터가 있는 경우)
+        if (request.status() != null && !request.status().isBlank()) {
+            try {
+                com.back.domain.artist.entity.ApplicationStatus filterStatus =
+                        com.back.domain.artist.entity.ApplicationStatus.valueOf(request.status());
+                applications = applications.stream()
+                        .filter(app -> app.getStatus() == filterStatus)
+                        .toList();
+            } catch (IllegalArgumentException e) {
+                log.warn("잘못된 상태 값: {}", request.status());
+            }
+        }
+
+        // 4. 페이징 처리
+        long total = applications.size();
+        int start = request.page() * request.size();
+        int end = Math.min(start + request.size(), applications.size());
+        List<com.back.domain.artist.entity.ArtistApplication> pagedApplications =
+                applications.subList(start, Math.min(end, applications.size()));
+
+        // 5. DTO 변환
+        List<ArtistApplicationResponse.Summary> content = pagedApplications.stream()
+                .map(this::convertToApplicationSummary)
+                .toList();
+
+        // 6. 페이징 정보 계산
+        int totalPages = (int) Math.ceil((double) total / request.size());
+        boolean hasNext = request.page() < totalPages - 1;
+        boolean hasPrevious = request.page() > 0;
 
         return new ArtistApplicationResponse.List(
-                summary, content,
+                null,  // summary는 필요없음 (Figma 디자인에 없음)
+                content,
                 request.page(), request.size(),
-                2, 1, false, false);
+                total, totalPages,
+                hasNext, hasPrevious);
+    }
+
+    /**
+     * ArtistApplication 엔티티를 Summary DTO로 변환
+     */
+    private ArtistApplicationResponse.Summary convertToApplicationSummary(
+            com.back.domain.artist.entity.ArtistApplication application) {
+
+        String statusText = mapApplicationStatusText(application.getStatus());
+
+        // 권한 정보: PENDING 상태일 때만 수정/취소 가능
+        ArtistApplicationResponse.Permission permissions =
+                new ArtistApplicationResponse.Permission(
+                        application.isPending(),  // canEdit
+                        application.isPending(),  // canCancel
+                        application.isRejected()  // canAppeal (거절된 경우만 이의제기 가능)
+                );
+
+        return new ArtistApplicationResponse.Summary(
+                application.getId(),
+                application.getArtistName(),
+                application.getCreateDate().format(APPLICATION_DATE_FORMATTER),
+                application.getStatus().name(),
+                statusText,
+                permissions,
+                application.getModifyDate() != null ? application.getModifyDate() : application.getCreateDate()
+        );
+    }
+
+    /**
+     * ApplicationStatus를 한글 텍스트로 매핑
+     */
+    private String mapApplicationStatusText(com.back.domain.artist.entity.ApplicationStatus status) {
+        return switch (status) {
+            case PENDING -> "대기중";
+            case APPROVED -> "승인";
+            case REJECTED -> "거절";
+            case CANCELLED -> "취소";
+        };
     }
 
     @Override
@@ -574,8 +643,9 @@ public class DashboardServiceImpl implements DashboardService {
      */
     private String mapFundingStatus(FundingStatus status) {
         return switch (status) {
-            case OPEN -> "ACTIVE";
-            case CLOSED, SUCCESS, FAILED, CANCELED -> "ENDED";
+            case PENDING, APPROVED -> "UPCOMING";
+            case  OPEN -> "ACTIVE";
+            case CLOSED, SUCCESS, FAILED, CANCELED, REJECTED -> "ENDED";
         };
     }
 
@@ -584,49 +654,15 @@ public class DashboardServiceImpl implements DashboardService {
      */
     private String mapFundingStatusText(FundingStatus status) {
         return switch (status) {
+            case PENDING -> "심사중";
+            case APPROVED -> "승인됨";
+            case REJECTED -> "심사거절";
             case OPEN -> "진행중";
             case CLOSED -> "종료";
             case SUCCESS -> "성공";
             case FAILED -> "실패";
             case CANCELED -> "취소";
         };
-    }
-
-    @Override
-    public ReturnResponse.FormData getReturnFormData(Long userId, Long orderId) {
-        log.debug("교환/반품 신청 모달 상품 정보 조회 - userId: {}, orderId: {}", userId, orderId);
-
-        // 1. 주문 조회 (OrderItem, Product, ProductImage 함께 조회)
-        com.back.domain.order.order.entity.Order order = orderRepository.findOrdersWithDetailsById(List.of(orderId))
-                .stream()
-                .findFirst()
-                .orElseThrow(() -> new ServiceException("ORDER_NOT_FOUND", "주문을 찾을 수 없습니다."));
-
-        // 2. 본인 확인
-        if (!order.getUser().getId().equals(userId)) {
-            throw new ServiceException("FORBIDDEN", "해당 주문에 대한 권한이 없습니다.");
-        }
-
-        // 3. 첫 번째 주문 상품 정보 조회 (대표 상품)
-        com.back.domain.order.orderItem.entity.OrderItem firstOrderItem =
-                order.getOrderItems().stream()
-                        .findFirst()
-                        .orElseThrow(() -> new ServiceException("ORDER_ITEM_NOT_FOUND", "주문 상품 정보를 찾을 수 없습니다."));
-
-        com.back.domain.product.product.entity.Product product = firstOrderItem.getProduct();
-
-        // 4. Summary 생성 (상품 정보만 반환)
-        ReturnResponse.Summary summary = new ReturnResponse.Summary(
-                String.format("%07d", order.getId()),       // 주문번호 (7자리)
-                product.getBrandName(),                      // 브랜드명
-                product.getName(),                           // 상품명
-                order.getFinalAmount().intValue(),           // 총 가격 (배송비 포함)
-                order.getOrderItems().size(),                // 상품 갯수
-                getProductThumbnailUrl(product)             // 썸네일
-        );
-
-        // 5. Form과 Permission은 null (프론트에서 사용자 입력으로 처리)
-        return new ReturnResponse.FormData(summary, null, null);
     }
 
     @Override
