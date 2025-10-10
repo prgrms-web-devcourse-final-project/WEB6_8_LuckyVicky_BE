@@ -65,6 +65,11 @@ public class SecurityConfig {
                         // 작가 공개 정보 조회
                         .requestMatchers("/api/artist/profile/**", "/api/artist/list").permitAll()
 
+                        // 공지사항 조회 - 로그인 없이 접근 허용
+                        .requestMatchers(HttpMethod.GET, "/api/notices", "/api/notices/**").permitAll()
+                        // 공지사항 생성, 수정, 삭제 - ADMIN, ROOT만 접근 가능
+                        .requestMatchers("/api/notices", "/api/notices/**").hasAnyRole("ADMIN", "ROOT")
+
                         // 공개 API
                         .requestMatchers("/public/**").permitAll()
 
