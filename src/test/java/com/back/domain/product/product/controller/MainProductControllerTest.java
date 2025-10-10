@@ -60,7 +60,7 @@ public class MainProductControllerTest {
     }
 
     @Test
-    @DisplayName("메인페이지에서 신상품 조회 - 최신순 정렬, DisplayStatus DISPLAYING인 것만 조회")
+    @DisplayName("메인페이지에서 신상품 조회")
     void getNewProducts_Success() throws Exception {
         // 최근 14일 이내 상품 생성
         createProduct("상품1", LocalDateTime.now().minusDays(10));
@@ -119,4 +119,104 @@ public class MainProductControllerTest {
 
         return productRepository.save(product);
     }
+    @Test
+    @DisplayName("메인페이지에서 할인중 상품 조회")
+    void getOnSaleProducts_Success() throws Exception {
+        createProductWithDiscount("상품A", 10); // 할인 10%
+        createProductWithDiscount("상품B", 0);  // 할인 0%, 조회 제외
+
+        mockMvc.perform(get("/api/products/onsale"))
+                .andDo(print())
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data", hasSize(1)))
+                .andExpect(jsonPath("$.data[0].name").value("상품A"));
+    }
+
+    @Test
+    @DisplayName("메인페이지에서 품절 임박 상품 조회")
+    void getLowStockProducts_Success() throws Exception {
+        createProductWithStock("상품C", 3); // 재고 3
+        createProductWithStock("상품D", 10); // 조회 제외
+
+        mockMvc.perform(get("/api/products/low-stock"))
+                .andDo(print())
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data", hasSize(1)))
+                .andExpect(jsonPath("$.data[0].name").value("상품C"));
+    }
+
+    @Test
+    @DisplayName("메인페이지에서 재입고 상품 조회")
+    void getRestockProducts_Success() throws Exception {
+        createProductWithRestock("상품E", true);
+        createProductWithRestock("상품F", false); // 조회 제외
+
+        mockMvc.perform(get("/api/products/restock"))
+                .andDo(print())
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data", hasSize(1)))
+                .andExpect(jsonPath("$.data[0].name").value("상품E"));
+    }
+
+    @Test
+    @DisplayName("메인페이지에서 기획 상품 조회")
+    void getPlannedProducts_Success() throws Exception {
+        createProductWithPlanned("상품G", true);
+        createProductWithPlanned("상품H", false); // 조회 제외
+
+        mockMvc.perform(get("/api/products/planned"))
+                .andDo(print())
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data", hasSize(1)))
+                .andExpect(jsonPath("$.data[0].name").value("상품G"));
+    }
+
+    @Test
+    @DisplayName("메인페이지에서 오픈 예정 상품 조회")
+    void getUpcomingProducts_Success() throws Exception {
+        LocalDateTime tomorrow = LocalDateTime.now().plusDays(1);
+        LocalDateTime yesterday = LocalDateTime.now().minusDays(1);
+
+        createProductWithSellingStartDate("상품I", tomorrow);
+        createProductWithSellingStartDate("상품J", yesterday); // 조회 제외
+
+        mockMvc.perform(get("/api/products/upcoming"))
+                .andDo(print())
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data", hasSize(1)))
+                .andExpect(jsonPath("$.data[0].name").value("상품I"));
+    }
+
+// ------------------------- Helper Methods -------------------------
+
+    private Product createProductWithDiscount(String name, int discountRate) throws Exception {
+        Product product = createProduct(name, LocalDateTime.now());
+        product.setDiscountRate(discountRate);
+        return productRepository.save(product);
+    }
+
+    private Product createProductWithStock(String name, int stock) throws Exception {
+        Product product = createProduct(name, LocalDateTime.now());
+        product.setStock(stock);
+        return productRepository.save(product);
+    }
+
+    private Product createProductWithRestock(String name, boolean isRestock) throws Exception {
+        Product product = createProduct(name, LocalDateTime.now());
+        product.setRestock(isRestock);
+        return productRepository.save(product);
+    }
+
+    private Product createProductWithPlanned(String name, boolean isPlanned) throws Exception {
+        Product product = createProduct(name, LocalDateTime.now());
+        product.setPlanned(isPlanned);
+        return productRepository.save(product);
+    }
+
+    private Product createProductWithSellingStartDate(String name, LocalDateTime date) throws Exception {
+        Product product = createProduct(name, LocalDateTime.now());
+        product.setSellingStartDate(date);
+        return productRepository.save(product);
+    }
+
 }

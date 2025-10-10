@@ -139,17 +139,52 @@ public class ProductService {
         );
     }
 
-    /** 메인페이지 상품 조회 - 신상품 */
+    /** 메인페이지 - 신상품 조회 */
     @Transactional(readOnly = true)
     public List<ProductListResponse.ProductInfo> getAllNewProducts() {
         LocalDateTime now = LocalDateTime.now();
         LocalDateTime fromDate = now.minusDays(14); // 최근 14일
 
         List<Product> allProducts = productRepository.findRecentProducts(fromDate, now);
+        if (allProducts.isEmpty()) throw new ServiceException("404", "신상품이 존재하지 않습니다.");
 
-        return allProducts.stream()
-                .map(this::toProductInfo)
-                .toList();
+        return allProducts.stream().map(this::toProductInfo).toList();
+    }
+
+    /** 메인페이지 - 할인중 상품 */
+    public List<ProductListResponse.ProductInfo> getOnSaleProducts() {
+        List<Product> products = productRepository.findOnSaleProducts();
+        if (products.isEmpty()) throw new ServiceException("404", "할인중인 상품이 존재하지 않습니다.");
+        return products.stream().map(this::toProductInfo).toList();
+    }
+
+    /** 메인페이지 - 품절 임박 상품 */
+    public List<ProductListResponse.ProductInfo> getLowStockProducts() {
+        List<Product> products = productRepository.findLowStockProducts();
+        if (products.isEmpty()) throw new ServiceException("404", "품절 임박 상품이 존재하지 않습니다.");
+        return products.stream().map(this::toProductInfo).toList();
+    }
+
+    /** 메인페이지 - 재입고 상품 */
+    public List<ProductListResponse.ProductInfo> getRestockProducts() {
+        List<Product> products = productRepository.findRestockProducts();
+        if (products.isEmpty()) throw new ServiceException("404", "재입고 상품이 존재하지 않습니다.");
+        return products.stream().map(this::toProductInfo).toList();
+    }
+
+    /** 메인페이지 - 기획 상품 */
+    public List<ProductListResponse.ProductInfo> getPlannedProducts() {
+        List<Product> products = productRepository.findPlannedProducts();
+        if (products.isEmpty()) throw new ServiceException("404", "기획 상품이 존재하지 않습니다.");
+        return products.stream().map(this::toProductInfo).toList();
+    }
+
+    /** 메인페이지 - 오픈 예정 상품 */
+    public List<ProductListResponse.ProductInfo> getUpcomingProducts() {
+        LocalDateTime today = LocalDateTime.now();
+        List<Product> products = productRepository.findUpcomingProducts(today);
+        if (products.isEmpty()) throw new ServiceException("404", "오픈 예정 상품이 존재하지 않습니다.");
+        return products.stream().map(this::toProductInfo).toList();
     }
 
     /** 상품 수정 */
