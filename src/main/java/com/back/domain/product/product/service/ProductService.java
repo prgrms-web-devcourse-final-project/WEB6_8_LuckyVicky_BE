@@ -1,6 +1,8 @@
 package com.back.domain.product.product.service;
 
 import com.back.domain.artist.dto.response.ArtistBusinessInfoResponse;
+import com.back.domain.artist.entity.ArtistProfile;
+import com.back.domain.artist.repository.ArtistProfileRepository;
 import com.back.domain.artist.service.ArtistApplicationService;
 import com.back.domain.product.category.entity.Category;
 import com.back.domain.product.category.repository.CategoryRepository;
@@ -8,6 +10,7 @@ import com.back.domain.product.product.dto.request.BaseAdditionalProduct;
 import com.back.domain.product.product.dto.request.BaseOption;
 import com.back.domain.product.product.dto.request.CreateProductRequest;
 import com.back.domain.product.product.dto.request.UpdateProductRequest;
+import com.back.domain.product.product.dto.response.ProductArtistInfoResponse;
 import com.back.domain.product.product.dto.response.ProductDetailResponse;
 import com.back.domain.product.product.dto.response.ProductListResponse;
 import com.back.domain.product.product.dto.response.ShareLinkResponse;
@@ -25,7 +28,6 @@ import com.back.global.s3.S3FileRequest;
 import com.back.global.s3.S3Service;
 import com.back.global.s3.S3ValidationService;
 import com.back.global.security.auth.CustomUserDetails;
-import jakarta.persistence.EntityManager;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -33,6 +35,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.format.DateTimeFormatter;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -48,7 +51,8 @@ public class ProductService {
     private final S3ValidationService s3ValidationService;
     private final S3Service s3Service;
     private final ArtistApplicationService artistApplicationService;
-    private final EntityManager entityManager;
+    private final ArtistProfileRepository artistProfileRepository;
+
 
     @Value("${app.frontend-url:https://mori-mori.store}")
     private String frontendUrl;
@@ -111,6 +115,27 @@ public class ProductService {
         ArtistBusinessInfoResponse businessInfo = artistApplicationService.getBusinessInfo(product.getUser().getId());
         // 상품 + 작가 사업자 정보 DTO 반환
         return toProductDetailResponse(product, businessInfo);
+    }
+
+    /** 상품 상세 - 작가 정보 조회 */
+    @Transactional(readOnly = true)
+    public ProductArtistInfoResponse getArtistInfoByProduct(UUID productUuid) {
+        Product product = getProductOrThrow(productUuid);
+        ArtistProfile profile = artistProfileRepository.findByUserId(product.getUser().getId())
+                .orElseThrow(() -> new ServiceException("404", "작가 프로필이 없습니다."));
+
+        String approvedDate = profile.getArtistApplication().getCreateDate()
+                .format(DateTimeFormatter.ofPattern("yyyy.MM.dd"));// 작가 승인일을 yyyy.MM.dd 형식의 문자열로 변환
+        String artistPageUrl = frontendUrl + "/forest/" + profile.getId(); // 작가 페이지 url
+
+        return new ProductArtistInfoResponse(
+                profile.getArtistName(), 
+                profile.getFollowerCount(),
+                approvedDate,
+                profile.getProfileImageUrl(),
+                artistPageUrl,
+                profile.getDescription()
+        );
     }
 
 
