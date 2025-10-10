@@ -69,6 +69,10 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.GET, "/api/notices", "/api/notices/**").permitAll()
                         // 공지사항 생성, 수정, 삭제 - ADMIN, ROOT만 접근 가능
                         .requestMatchers("/api/notices", "/api/notices/**").hasAnyRole("ADMIN", "ROOT")
+                        // FAQ 조회 - 로그인 없이 접근 허용
+                        .requestMatchers(HttpMethod.GET, "/api/faqs", "/api/faqs/**").permitAll()
+                        // FAQ 생성, 수정, 삭제 - ADMIN, ROOT만 접근 가능
+                        .requestMatchers("/api/faqs", "/api/faqs/**").hasAnyRole("ADMIN", "ROOT")
 
                         // 공개 API
                         .requestMatchers("/public/**").permitAll()
