@@ -1,17 +1,19 @@
 package com.back.domain.artist.controller;
 
 import com.back.domain.artist.dto.request.ArtistApplicationRequest;
-import com.back.domain.artist.dto.response.ArtistApplicationResponse;
-import com.back.domain.artist.dto.response.ArtistApplicationSimpleResponse;
-import com.back.domain.artist.dto.response.ArtistBusinessInfoResponse;
+import com.back.domain.artist.dto.response.*;
 import com.back.domain.artist.service.ArtistApplicationService;
+import com.back.domain.artist.service.ArtistPublicService;
 import com.back.global.rsData.RsData;
 import com.back.global.security.auth.CustomUserDetails;
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
@@ -26,6 +28,84 @@ import java.util.List;
 public class ArtistController {
 
     private final ArtistApplicationService artistApplicationService;
+    private final ArtistPublicService artistPublicService;
+
+    // ========================================
+    // 공개 API
+    // ========================================
+
+    /**
+     * 전체 작가 목록 조회
+     */
+    @GetMapping("/list")
+    @Operation(
+            summary = "전체 작가 목록 조회",
+            description = "등록된 모든 작가의 ID와 이름을 조회합니다."
+    )
+    public ResponseEntity<RsData<List<ArtistListResponse>>> getArtistList() {
+
+        log.info("작가 목록 조회");
+
+        List<ArtistListResponse> response = artistPublicService.getArtistList();
+
+        return ResponseEntity.ok(
+                RsData.of("200", "작가 목록 조회 성공", response)
+        );
+    }
+
+    /**
+     * 작가 공개 프로필 상세 조회
+     */
+    @GetMapping("/profile/{artistId}")
+    @Operation(
+            summary = "작가 공개 프로필 상세 조회",
+            description = "작가의 공개 프로필 상세 정보를 조회합니다."
+    )
+    public ResponseEntity<RsData<ArtistPublicProfileResponse>> getArtistPublicProfile(
+            @Parameter(description = "작가 ID", example = "42", required = true)
+            @PathVariable Long artistId) {
+
+        log.info("작가 공개 프로필 조회 - artistId: {}", artistId);
+
+        ArtistPublicProfileResponse response = artistPublicService.getPublicProfile(artistId);
+
+        return ResponseEntity.ok(
+                RsData.of("200", "작가 프로필 조회 성공", response)
+        );
+    }
+
+    /**
+     * 작가의 상품 목록 조회
+     */
+    @GetMapping("/profile/{artistId}/products")
+    @Operation(
+            summary = "작가의 상품 목록 조회",
+            description = "특정 작가가 등록한 모든 상품을 조회합니다."
+    )
+    public ResponseEntity<RsData<List<ArtistProductResponse>>> getArtistProducts(
+            @Parameter(description = "작가 ID", example = "42", required = true)
+            @PathVariable Long artistId,
+
+            @Parameter(description = "페이지 번호 (1부터 시작)", example = "1")
+            @RequestParam(defaultValue = "1") int page,
+
+            @Parameter(description = "페이지 크기", example = "12")
+            @RequestParam(defaultValue = "12") int size) {
+
+        log.info("작가 상품 목록 조회 - artistId: {}, page: {}, size: {}", artistId, page, size);
+
+        Pageable pageable = PageRequest.of(page - 1, size);
+        List<ArtistProductResponse> response = artistPublicService.getArtistProducts(artistId, pageable);
+
+        return ResponseEntity.ok(
+                RsData.of("200", "작가 상품 목록 조회 성공", response)
+        );
+    }
+
+
+    // ========================================
+    // 인증 필요 API
+    // ========================================
 
     /**
      * 작가 신청

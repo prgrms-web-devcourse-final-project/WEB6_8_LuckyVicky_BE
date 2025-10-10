@@ -49,21 +49,35 @@ public class MoriCashBalance extends BaseEntity {
     }
 
     /**
+     * 초기 잔액 생성 팩토리 메서드
+     */
+    public static MoriCashBalance createInitialBalance(User user) {
+        return MoriCashBalance.builder()
+                .user(user)
+                .totalBalance(0)
+                .availableBalance(0)
+                .frozenBalance(0)
+                .totalCharged(0)
+                .totalUsed(0)
+                .build();
+    }
+
+    /**
      * 캐시 충전
      */
-    public void charge(Integer amount) {
+    public void addBalance(Integer amount) {
+        if (amount < 0) throw new IllegalArgumentException("충전 금액은 양수여야 합니다.");
         this.totalBalance += amount;
         this.availableBalance += amount;
         this.totalCharged += amount;
     }
 
     /**
-     * 캐시 사용
+     * 캐시 사용 (상품 구매 등)
      */
-    public void use(Integer amount) {
-        if (this.availableBalance < amount) {
-            throw new IllegalStateException("사용 가능한 캐시가 부족합니다.");
-        }
+    public void deductBalance(Integer amount) {
+        if (amount < 0) throw new IllegalArgumentException("사용 금액은 양수여야 합니다.");
+        if (this.availableBalance < amount) throw new IllegalStateException("사용 가능한 캐시가 부족합니다.");
         this.totalBalance -= amount;
         this.availableBalance -= amount;
         this.totalUsed += amount;
@@ -72,34 +86,40 @@ public class MoriCashBalance extends BaseEntity {
     /**
      * 캐시 동결 (환불 대기 등)
      */
-    public void freeze(Integer amount) {
-        if (this.availableBalance < amount) {
-            throw new IllegalStateException("동결할 수 있는 캐시가 부족합니다.");
-        }
+    public void freezeBalance(Integer amount) {
+        if (amount < 0) throw new IllegalArgumentException("동결 금액은 양수여야 합니다.");
+        if (this.availableBalance < amount) throw new IllegalStateException("동결할 캐시가 부족합니다.");
         this.availableBalance -= amount;
         this.frozenBalance += amount;
     }
 
     /**
-     * 캐시 동결 해제
+     * 동결 해제 (환불 완료 또는 취소)
      */
-    public void unfreeze(Integer amount) {
-        if (this.frozenBalance < amount) {
-            throw new IllegalStateException("동결된 캐시가 부족합니다.");
-        }
-        this.frozenBalance -= amount;
+    public void unfreezeBalance(Integer amount) {
+        if (amount < 0) throw new IllegalArgumentException("해제 금액은 양수여야 합니다.");
+        if (this.frozenBalance < amount) throw new IllegalStateException("동결된 캐시가 부족합니다.");
         this.availableBalance += amount;
+        this.frozenBalance -= amount;
     }
 
     /**
-     * 동결된 캐시 환불
+     * 동결된 캐시 차감 (환불 처리 완료 후)
      */
-    public void refundFromFrozen(Integer amount) {
-        if (this.frozenBalance < amount) {
-            throw new IllegalStateException("환불할 수 있는 동결 캐시가 부족합니다.");
-        }
-        this.frozenBalance -= amount;
+    public void deductFrozenBalance(Integer amount) {
+        if (amount < 0) throw new IllegalArgumentException("차감 금액은 양수여야 합니다.");
+        if (this.frozenBalance < amount) throw new IllegalStateException("동결된 캐시가 부족합니다.");
         this.totalBalance -= amount;
+        this.frozenBalance -= amount;
+    }
+
+    /**
+     * 캐시 환불 (사용자에게 캐시 복원)
+     */
+    public void restoreBalance(Integer amount) {
+        if (amount < 0) throw new IllegalArgumentException("복원 금액은 양수여야 합니다.");
+        this.totalBalance += amount;
+        this.availableBalance += amount;
     }
 
     /**

@@ -38,7 +38,7 @@ public class NotificationController {
     @GetMapping
     public RsData<PageResponse<NotificationResponse>> getNotifications(
             @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "20") int size
+            @RequestParam(defaultValue = "10") int size
     ) {
         User user = rq.getUser();
         Pageable pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "createDate"));

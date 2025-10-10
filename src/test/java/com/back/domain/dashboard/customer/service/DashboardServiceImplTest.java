@@ -666,5 +666,62 @@ class DashboardServiceImplTest {
                 () -> assertThat(result.getContent().get(0).artistName()).isEqualTo("작가A")
         );
     }
+
+    // ==================== 교환/환불 신청 모달 실제 DB 연동 테스트 ====================
+
+    @Test
+    @DisplayName("교환/환불 신청 모달 데이터 조회 - 모든 필수 필드 검증")
+    void getReturnFormData_ReturnsAllRequiredFields() {
+        // Given
+        Long orderId = testOrder.getId();
+
+        // When
+        com.back.domain.dashboard.customer.dto.response.ReturnResponse.FormData result =
+                dashboardService.getReturnFormData(testBuyer.getId(), orderId);
+
+        // Then
+        com.back.domain.dashboard.customer.dto.response.ReturnResponse.Summary summary = result.summary();
+        
+        assertAll(
+                // 기본 구조 검증
+                () -> assertThat(result.summary()).isNotNull(),
+                () -> assertThat(result.form()).isNull(),
+                () -> assertThat(result.permissions()).isNull(),
+                
+                // 주문번호 (7자리 포맷)
+                () -> assertThat(summary.orderNo()).matches("^\\d{7}$"),
+                
+                // 브랜드명 (DB에서 조회)
+                () -> assertThat(summary.brandName()).isEqualTo("테스트 브랜드"),
+                
+                // 상품명
+                () -> assertThat(summary.title()).isEqualTo("테스트 상품"),
+                
+                // 총 가격 (finalAmount)
+                () -> assertThat(summary.price()).isEqualTo(testOrder.getFinalAmount().intValue()),
+                
+                // 상품 갯수 (orderItems 개수)
+                () -> assertThat(summary.quantity()).isEqualTo(testOrder.getOrderItems().size())
+        );
+    }
+
+    @Test
+    @DisplayName("교환/환불 신청 모달 - 권한 검증")
+    void getReturnFormData_ValidatesAuthorization() {
+        // Given
+        User anotherUser = User.createLocalUser(
+                "another@example.com",
+                "password",
+                "다른사용자",
+                "01099999999"
+        );
+        User savedAnotherUser = userRepository.save(anotherUser);
+
+        // When & Then
+        org.junit.jupiter.api.Assertions.assertThrows(
+                com.back.global.exception.ServiceException.class,
+                () -> dashboardService.getReturnFormData(savedAnotherUser.getId(), testOrder.getId())
+        );
+    }
 }
 

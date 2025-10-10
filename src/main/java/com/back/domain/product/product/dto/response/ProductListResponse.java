@@ -3,7 +3,9 @@ package com.back.domain.product.product.dto.response;
 import java.util.List;
 import java.util.UUID;
 
-// 상품 목록 조회 응답 DTO
+/**
+ * 상품 목록 조회 응답 DTO
+ */
 public record ProductListResponse(
         int page, // 현재 페이지 번호 (1부터 시작)
         int size,   // 한 페이지에 보여줄 상품 수

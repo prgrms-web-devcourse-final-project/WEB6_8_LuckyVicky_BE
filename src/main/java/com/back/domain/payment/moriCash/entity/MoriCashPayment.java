@@ -17,10 +17,6 @@ import java.time.LocalDateTime;
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class MoriCashPayment extends BaseEntity {
 
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
-
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "order_id", nullable = false)
     private Order order;
@@ -75,6 +71,7 @@ public class MoriCashPayment extends BaseEntity {
     @Builder
     private MoriCashPayment(Order order, User user, Integer totalPrice,
                           Integer usedMoriCash, String refundId, Integer refundPrice,
+                          MoriCashPaymentStatus status,
                           TransactionType transactionType, String description, Integer balanceAfter) {
         this.order = order;
         this.user = user;
@@ -82,10 +79,10 @@ public class MoriCashPayment extends BaseEntity {
         this.usedMoriCash = usedMoriCash;
         this.refundId = refundId;
         this.refundPrice = refundPrice;
+        this.status = status != null ? status : MoriCashPaymentStatus.PENDING;
         this.transactionType = transactionType;
         this.description = description;
         this.balanceAfter = balanceAfter;
-        this.status = MoriCashPaymentStatus.PENDING;
     }
 
     /**
@@ -117,9 +114,19 @@ public class MoriCashPayment extends BaseEntity {
     /**
      * 환불 처리 (모리캐시 복원)
      */
-    public void processRefund(Integer refundAmount, String refundId) {
+    public void processRefund(String refundId, Integer refundAmount) {
         this.refundPrice = refundAmount;
         this.refundId = refundId;
+    }
+
+    /**
+     * 환불 취소 처리
+     */
+    public void cancelRefund(String cancellationReason) {
+        this.refundPrice = null;
+        this.refundId = null;
+        this.cancellationReason = cancellationReason;
+        this.cancelledAt = LocalDateTime.now();
     }
 
     /**

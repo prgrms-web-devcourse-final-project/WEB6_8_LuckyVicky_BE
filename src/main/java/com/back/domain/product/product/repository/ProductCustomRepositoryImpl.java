@@ -4,11 +4,13 @@ import com.back.domain.product.category.entity.Category;
 import com.back.domain.product.category.repository.CategoryRepository;
 import com.back.domain.product.product.dto.response.ProductListResponse;
 import com.back.domain.product.product.dto.response.ProductListResponse.ProductInfo;
+import com.back.domain.product.product.entity.DisplayStatus;
 import com.back.domain.product.product.entity.QProduct;
 import com.back.domain.product.product.entity.QProductImage;
 import com.back.global.s3.FileType;
 import com.querydsl.core.BooleanBuilder;
 import com.querydsl.core.types.Projections;
+import com.querydsl.core.types.dsl.Expressions;
 import com.querydsl.jpa.impl.JPAQueryFactory;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Pageable;
@@ -46,6 +48,9 @@ public class ProductCustomRepositoryImpl implements ProductCustomRepository {
 
         // 동적 조건을 누적해서 where절에 적용
         BooleanBuilder builder = new BooleanBuilder();
+
+        // 전시중인 상품만 조회
+        builder.and(p.displayStatus.eq(DisplayStatus.DISPLAYING));
 
         // 카테고리 필터
         if (categoryId != null) {
@@ -86,7 +91,7 @@ public class ProductCustomRepositoryImpl implements ProductCustomRepository {
                         p.price, // 가격
                         p.discountRate,// 할인율
                         p.price.subtract(p.price.multiply(p.discountRate).divide(100)), // 할인된 최종 가격
-                        null // rating: 리뷰 연동 전이라서 일단 null로 함.
+                        Expressions.nullExpression(Double.class) // rating: 리뷰 연동 전이라서 일단 null로 함.
                 ))
                 .from(p)
                 .leftJoin(p.images, img) // left join

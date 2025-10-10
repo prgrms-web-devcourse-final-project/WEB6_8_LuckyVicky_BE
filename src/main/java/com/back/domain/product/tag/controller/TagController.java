@@ -73,8 +73,8 @@ public class TagController {
                                               "resultCode": "200",
                                               "msg": "태그가 등록되었습니다.",
                                               "data": {
-                                                "id": 4,
-                                                "tagName": "귀염"
+                                                "id": 2,
+                                                "tagName": "심플"
                                               }
                                             }
                                             """
@@ -124,7 +124,7 @@ public class TagController {
                                               "msg": "태그가 수정되었습니다.",
                                               "data": {
                                                 "id": 2,
-                                                "tagName": "동양풍"
+                                                "tagName": "심플"
                                               }
                                             }
                                             """

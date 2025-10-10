@@ -1,6 +1,8 @@
 package com.back.domain.product.product.controller;
 
 import com.back.domain.product.product.dto.request.CreateProductRequest;
+import com.back.domain.product.product.dto.request.UpdateProductRequest;
+import com.back.domain.product.product.dto.response.ProductDetailResponse;
 import com.back.domain.product.product.dto.response.ProductListResponse;
 import com.back.domain.product.product.dto.response.ShareLinkResponse;
 import com.back.domain.product.product.entity.ProductImage;
@@ -37,6 +39,7 @@ public class ProductController {
     private final ProductService productService;
     private final S3Service s3Service;
 
+    /** 상품 등록 */
     @PostMapping
     @Operation(
             summary = "상품 등록",
@@ -98,7 +101,7 @@ public class ProductController {
         return ResponseEntity.ok(RsData.of("200", "상품이 성공적으로 등록되었습니다.", productUuid));
     }
 
-
+    /** 상품 이미지 업로드 */
     @PostMapping("/images")
     @Operation(
             summary = "상품 이미지 업로드",
@@ -190,7 +193,7 @@ public class ProductController {
         return ResponseEntity.ok(RsData.of("200","이미지 업로드 성공",uploaded));
     }
 
-
+    /** 상품 이미지(파일) 다운로드 */
     @GetMapping("/images/download/{productUuid}")
     @Operation(
             summary = "상품 문서 다운로드 (테스트용)",
@@ -255,6 +258,7 @@ public class ProductController {
                 .body(fileBytes); // 실제 파일 바이트
     }
 
+    /** 상품 목록 조회 */
     @GetMapping
     @Operation(
             summary = "상품 목록 조회",
@@ -329,6 +333,237 @@ public class ProductController {
         );
         return ResponseEntity.ok(RsData.of("200", "상품 목록 조회 성공", products));
     }
+
+    /** 상품 상세 조회 */
+    @GetMapping("/{productUuid}")
+    @Operation(
+            summary = "상품 상세 조회",
+            description = "상품 UUID를 기반으로 상세 정보를 조회합니다.",
+            responses = {
+                    @ApiResponse(
+                            responseCode = "200",
+                            description = "상품 상세 조회 성공",
+                            content = @Content(
+                                    mediaType = "application/json",
+                                    schema = @Schema(
+                                            example = """
+                                                {
+                                                  "resultCode": "200",
+                                                  "msg": "상품 상세 조회 성공",
+                                                  "data": {
+                                                    "productUuid": "550e8400-e29b-41d4-a716-446655440000",
+                                                    "artistName": "김작가",
+                                                    "brandName": "문구브랜드",
+                                                    "name": "벚꽃 키링",
+                                                    "averageRating": 4.6,
+                                                    "reviewCount": 42,
+                                                    "price": 10000,
+                                                    "discountRate": 10,
+                                                    "discountPrice": 9000,
+                                                    "bundleShippingAvailable": true,
+                                                    "deliveryCharge": 3000,
+                                                    "deliveryType": "CONDITIONAL_FREE",
+                                                    "conditionalFreeAmount": 30000,
+                                                    "additionalShippingCharge": 5000,
+                                                    "options": [
+                                                      {"optionName": "색상-핑크", "optionStock": 50, "optionAdditionalPrice": 0},
+                                                      {"optionName": "색상-화이트", "optionStock": 30, "optionAdditionalPrice": 500}
+                                                    ],
+                                                    "additionalProducts": [
+                                                      {"name": "포장지 추가", "stock": 100, "price": 1000}
+                                                    ],
+                                                    "images": [
+                                                      {"fileUrl": "https://s3.mori-mori.store/images/cherry_keyring_1.jpg", "fileType": "MAIN"},
+                                                      {"fileUrl": "https://s3.mori-mori.store/images/cherry_keyring_2.jpg", "fileType": "ADDITIONAL"}
+                                                    ],
+                                                    "essentialInfo": {
+                                                      "productModelName": "MM-CHERRY-24",
+                                                      "certification": true,
+                                                      "origin": "대한민국",
+                                                      "material": "면 100%",
+                                                      "size": "12x30x5cm",
+                                                      "businessName": "김작가문구",
+                                                      "businessNumber": "123-45-67890",
+                                                      "ownerName": "김작가",
+                                                      "asManager": "김작가/010-1234-5678",
+                                                      "email": "kim@example.com",
+                                                      "businessAddress": "서울특별시 강남구",
+                                                      "telecomSalesNumber": "2023-서울강남-0001"
+                                                    },
+                                                    "stock": 100,
+                                                    "description": "<p>벚꽃 키링 상세정보 및 사용 방법...</p>",
+                                                    "minQuantity": 1,
+                                                    "maxQuantity": 5,
+                                                    "sellingStatus": "SELLING",
+                                                    "displayStatus": "DISPLAYING",
+                                                    "isPlanned": false,
+                                                    "isRestock": true,
+                                                    "tags": [
+                                                      {"id": 1, "name": "벚꽃"},
+                                                      {"id": 2, "name": "키링"},
+                                                      {"id": 3, "name": "한정판"}
+                                                    ]
+                                                  }
+                                                }
+                                                """
+                                    )
+                            )
+                    ),
+                    @ApiResponse(
+                            responseCode = "404",
+                            description = "존재하지 않는 상품",
+                            content = @Content(
+                                    mediaType = "application/json",
+                                    schema = @Schema(
+                                            example = """
+                                                {
+                                                  "resultCode": "404",
+                                                  "msg": "존재하지 않는 상품입니다.",
+                                                  "data": null
+                                                }
+                                                """
+                                    )
+                            )
+                    )
+            }
+    )
+    public ResponseEntity<RsData<ProductDetailResponse>> getProductDetail(
+            @PathVariable UUID productUuid) {
+        ProductDetailResponse response = productService.getProductDetail(productUuid);
+        return ResponseEntity.ok(RsData.of("200", "상품 상세 조회 성공", response));
+    }
+
+
+    /** 상품 수정 */
+    @PutMapping("/{productUuid}")
+    @Operation(
+            summary = "상품 수정",
+            responses = {
+                    @ApiResponse(
+                            responseCode = "200",
+                            description = "상품 수정 성공",
+                            content = @Content(
+                                    mediaType = "application/json",
+                                    schema = @Schema(
+                                            example = """
+                                                {
+                                                  "resultCode": "200",
+                                                  "msg": "상품이 성공적으로 수정되었습니다.",
+                                                  "data": "4d9f5d8a-9f39-4f79-b18b-7a9b3adcb45c"
+                                                }
+                                                """
+                                    )
+                            )
+                    ),
+                    @ApiResponse(
+                            responseCode = "400",
+                            description = "잘못된 요청 (Validation 실패, 존재하지 않는 카테고리/태그 등)",
+                            content = @Content(
+                                    mediaType = "application/json",
+                                    schema = @Schema(
+                                            example = """
+                                                {
+                                                  "resultCode": "400",
+                                                  "msg": "최대 구매 수량은 최소 구매 수량보다 작을 수 없습니다.",
+                                                  "data": null
+                                                }
+                                                """
+                                    )
+                            )
+                    ),
+                    @ApiResponse(
+                            responseCode = "403",
+                            description = "권한 없음",
+                            content = @Content(
+                                    mediaType = "application/json",
+                                    schema = @Schema(
+                                            example = """
+                                                {
+                                                  "resultCode": "403",
+                                                  "msg": "본인이 등록한 상품만 수정 가능합니다.",
+                                                  "data": null
+                                                }
+                                                """
+                                    )
+                            )
+                    )
+            }
+    )
+    public ResponseEntity<RsData<UUID>> updateProduct(
+            @PathVariable UUID productUuid,
+            @Valid @RequestBody UpdateProductRequest request,
+            @AuthenticationPrincipal CustomUserDetails customUserDetails) {
+        UUID updatedProductUuid = productService.updateProduct(productUuid, request, customUserDetails);
+        return ResponseEntity.ok(RsData.of("200", "상품이 성공적으로 수정되었습니다.", updatedProductUuid));
+    }
+
+    /** 상품 삭제(논리삭제) */
+    @DeleteMapping("/{productUuid}")
+    @Operation(
+            summary = "상품 삭제",
+            description = "관리자(ADMIN/ROOT) 또는 상품을 등록한 작가 본인만 삭제 가능하며, 논리삭제 처리됩니다.",
+            responses = {
+                    @ApiResponse(
+                            responseCode = "200",
+                            description = "상품 삭제 성공",
+                            content = @Content(
+                                    mediaType = "application/json",
+                                    schema = @Schema(
+                                            example = """
+                                                {
+                                                  "resultCode": "200",
+                                                  "msg": "상품이 삭제되었습니다.",
+                                                  "data": "550e8400-e29b-41d4-a716-446655440000"
+                                                }
+                                                """
+                                    )
+                            )
+                    ),
+                    @ApiResponse(
+                            responseCode = "403",
+                            description = "권한 없음",
+                            content = @Content(
+                                    mediaType = "application/json",
+                                    schema = @Schema(
+                                            example = """
+                                                {
+                                                  "resultCode": "403",
+                                                  "msg": "상품 삭제 권한이 없습니다.",
+                                                  "data": null
+                                                }
+                                                """
+                                    )
+                            )
+                    ),
+                    @ApiResponse(
+                            responseCode = "404",
+                            description = "상품 없음",
+                            content = @Content(
+                                    mediaType = "application/json",
+                                    schema = @Schema(
+                                            example = """
+                                                {
+                                                  "resultCode": "404",
+                                                  "msg": "존재하지 않는 상품입니다.",
+                                                  "data": null
+                                                }
+                                                """
+                                    )
+                            )
+                    )
+            }
+    )
+    public ResponseEntity<RsData<UUID>> deleteProduct(
+            @Parameter(description = "삭제할 상품 UUID", example = "550e8400-e29b-41d4-a716-446655440000", required = true)
+            @PathVariable UUID productUuid,
+
+            @Parameter(hidden = true)
+            @AuthenticationPrincipal CustomUserDetails customUserDetails) {
+
+        productService.deleteProduct(productUuid, customUserDetails);
+        return ResponseEntity.ok(RsData.of("200", "상품이 삭제되었습니다.", productUuid));
+    }
+
 
     /**
      * 상품 공유 링크 생성 (UTM 파라미터 포함)
