@@ -2,6 +2,7 @@ package com.back.domain.product.product.controller;
 
 import com.back.domain.artist.entity.ArtistApplication;
 import com.back.domain.artist.repository.ArtistApplicationRepository;
+import com.back.domain.artist.repository.ArtistProfileRepository;
 import com.back.domain.product.category.entity.Category;
 import com.back.domain.product.category.repository.CategoryRepository;
 import com.back.domain.product.product.dto.request.CreateProductRequest;
@@ -67,6 +68,8 @@ class ProductControllerTest {
     private TagRepository tagRepository;
     @Autowired
     private ArtistApplicationRepository artistApplicationRepository;
+    @Autowired
+    private ArtistProfileRepository artistProfileRepository;
     @Autowired
     private EntityManager em;
 
@@ -224,6 +227,103 @@ class ProductControllerTest {
                 .andExpect(jsonPath("$.resultCode").value("404"))
                 .andExpect(jsonPath("$.msg").value("존재하지 않는 상품입니다. UUID: " + nonExistentUuid));
     }
+
+    // ==================== 상품 상세 - 작가 정보 조회 ====================
+
+    @Test
+    @DisplayName("상품 UUID로 작가 정보를 성공적으로 조회한다")
+    void getArtistInfoByProduct_Success() throws Exception {
+        // Given
+        // ArtistApplication 및 ArtistProfile 세팅
+        ArtistApplication artistApplication = artistApplicationRepository.save(
+                ArtistApplication.builder()
+                        .user(artistUser)
+                        .artistName("테스트작가")
+                        .ownerName("테스트대표")
+                        .email("test@test.com")
+                        .phone("010-0000-0000")
+                        .mainProducts("도자기, 그림")
+                        .snsAccount("instagram.com/testartist")
+                        .businessAddress("서울시 강남구")
+                        .businessAddressDetail("123-45")
+                        .businessZipCode("06123")
+                        .managerPhone("010-1234-5678")
+                        .bankName("국민은행")
+                        .bankAccount("123456-78-90123")
+                        .accountName("테스트대표")
+                        .build()
+        );
+
+        artistProfileRepository.save(
+                com.back.domain.artist.entity.ArtistProfile.builder()
+                        .user(artistUser)
+                        .artistApplication(artistApplication)
+                        .artistName(artistApplication.getArtistName())
+                        .mainProducts(artistApplication.getMainProducts())
+                        .snsAccount(artistApplication.getSnsAccount())
+                        .businessAddress(artistApplication.getBusinessAddress())
+                        .businessAddressDetail(artistApplication.getBusinessAddressDetail())
+                        .businessZipCode(artistApplication.getBusinessZipCode())
+                        .managerPhone(artistApplication.getManagerPhone())
+                        .bankName(artistApplication.getBankName())
+                        .bankAccount(artistApplication.getBankAccount())
+                        .accountName(artistApplication.getAccountName())
+                        .description("테스트 작가 소개")
+                        .profileImageUrl("https://example.com/artist_profile.jpg")
+                        .build()
+        );
+
+        // product 저장
+        Product product = productRepository.save(createSampleProduct(artistUser, category, List.of(tag1, tag2)));
+        UUID productUuid = product.getProductUuid();
+
+        // When
+        ResultActions resultActions = mockMvc.perform(
+                get("/api/products/{productUuid}/artist", productUuid)
+        ).andDo(print());
+
+        // Then
+        resultActions
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.resultCode").value("200"))
+                .andExpect(jsonPath("$.data.artistName").value("테스트작가"))
+                .andExpect(jsonPath("$.data.artistPageUrl").value(containsString("/artist/" + artistUser.getId())))
+                .andExpect(jsonPath("$.data.approvedDate").isString())
+                .andExpect(jsonPath("$.data.profileImageUrl").exists())
+                .andExpect(jsonPath("$.data.description").exists());
+    }
+
+    @Test
+    @DisplayName("상품은 존재하지만 작가 프로필이 없는 경우 404 에러가 발생한다")
+    void getArtistInfoByProduct_Fail_ArtistProfileNotFound() throws Exception {
+        // Given
+        // ArtistApplication만 저장하고 ArtistProfile은 저장하지 않음
+        artistApplicationRepository.save(
+                ArtistApplication.builder()
+                        .user(artistUser)
+                        .artistName("테스트작가")
+                        .ownerName("테스트대표")
+                        .email("test@test.com")
+                        .phone("010-0000-0000")
+                        .build()
+        );
+
+        // product 저장 (artistUser와 연결)
+        Product product = productRepository.save(createSampleProduct(artistUser, category, List.of(tag1, tag2)));
+        UUID productUuid = product.getProductUuid();
+
+        // When
+        ResultActions resultActions = mockMvc.perform(
+                get("/api/products/{productUuid}/artist", productUuid)
+        ).andDo(print());
+
+        // Then
+        resultActions
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.resultCode").value("404"))
+                .andExpect(jsonPath("$.msg").value("작가 프로필이 없습니다."));
+    }
+
 
     // ==================== 상품 목록 조회 (Read) ====================
 
