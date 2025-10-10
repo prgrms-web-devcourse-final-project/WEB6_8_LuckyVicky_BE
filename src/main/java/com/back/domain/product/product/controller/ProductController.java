@@ -2,6 +2,7 @@ package com.back.domain.product.product.controller;
 
 import com.back.domain.product.product.dto.request.CreateProductRequest;
 import com.back.domain.product.product.dto.request.UpdateProductRequest;
+import com.back.domain.product.product.dto.response.ProductArtistInfoResponse;
 import com.back.domain.product.product.dto.response.ProductDetailResponse;
 import com.back.domain.product.product.dto.response.ProductListResponse;
 import com.back.domain.product.product.dto.response.ShareLinkResponse;
@@ -431,6 +432,60 @@ public class ProductController {
             @PathVariable UUID productUuid) {
         ProductDetailResponse response = productService.getProductDetail(productUuid);
         return ResponseEntity.ok(RsData.of("200", "상품 상세 조회 성공", response));
+    }
+
+    /** 상품 상세 - 작가 정보 조회 */
+    @GetMapping("/{productUuid}/artist")
+    @Operation(
+            summary = "상품 상세 - 작가 정보 조회",
+            description = "상품 UUID를 기반으로 해당 상품의 작가 정보를 조회합니다.",
+            responses = {
+                    @ApiResponse(
+                            responseCode = "200",
+                            description = "작가 정보 조회 성공",
+                            content = @Content(
+                                    mediaType = "application/json",
+                                    schema = @Schema(
+                                            example = """
+                                                {
+                                                  "resultCode": "200",
+                                                  "msg": "작가 정보 조회 성공",
+                                                  "data": {
+                                                    "artistName": "김작가",
+                                                    "followerCount": 350,
+                                                    "approvedDate": "2025.10.10",
+                                                    "profileImageUrl": "https://bucket.s3.amazonaws.com/artist-profile/uuid.png",
+                                                    "artistPageUrl": "https://www.mori-mori.store/artist/42",
+                                                    "description": "작가 소개 텍스트..."
+                                                  }
+                                                }
+                                                """
+                                    )
+                            )
+                    ),
+                    @ApiResponse(
+                            responseCode = "404",
+                            description = "작가 프로필이 존재하지 않음",
+                            content = @Content(
+                                    mediaType = "application/json",
+                                    schema = @Schema(
+                                            example = """
+                                                {
+                                                  "resultCode": "404",
+                                                  "msg": "작가 프로필이 없습니다.",
+                                                  "data": null
+                                                }
+                                                """
+                                    )
+                            )
+                    )
+            }
+    )
+    public ResponseEntity<RsData<ProductArtistInfoResponse>> getArtistInfoByProduct(
+            @Parameter(description = "상품 UUID", example = "550e8400-e29b-41d4-a716-446655440000", required = true)
+            @PathVariable UUID productUuid) {
+        ProductArtistInfoResponse response = productService.getArtistInfoByProduct(productUuid);
+        return ResponseEntity.ok(RsData.of("200", "작가 정보 조회 성공", response));
     }
 
 
