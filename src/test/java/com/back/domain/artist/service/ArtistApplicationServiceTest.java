@@ -550,7 +550,11 @@ public class ArtistApplicationServiceTest {
             // when & then
             assertThatThrownBy(() -> artistApplicationService.cancelApplication(1L, 1L))
                     .isInstanceOf(ServiceException.class)
-                    .hasFieldOrPropertyWithValue("resultCode", "400");
+                    .satisfies(ex -> {
+                        ServiceException serviceEx = (ServiceException) ex;
+                        assertThat(serviceEx.getResultCode()).isEqualTo("400");
+                        assertThat(serviceEx.getMsg()).contains("심사 대기 중인 신청서만 취소할 수 있습니다");
+                    });
         }
     }
 
