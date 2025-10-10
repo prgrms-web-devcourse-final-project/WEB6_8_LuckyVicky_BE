@@ -1262,6 +1262,9 @@ public class ArtistDashboardServiceImpl implements ArtistDashboardService {
      */
     private String convertFundingStatusToKorean(FundingStatus status) {
         return switch (status) {
+            case PENDING -> "심사중";
+            case APPROVED -> "승인됨";
+            case REJECTED -> "거절됨";
             case OPEN -> "진행중";
             case CLOSED -> "마감";
             case SUCCESS -> "성공";
