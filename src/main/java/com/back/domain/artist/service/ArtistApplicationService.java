@@ -109,7 +109,7 @@ public class ArtistApplicationService {
     }
 
     /**
-     * 작가 신청 취소 (삭제)
+     * 작가 신청 취소 (상태 변경)
      */
     @Transactional
     public void cancelApplication(Long userId, Long applicationId) {
@@ -119,8 +119,8 @@ public class ArtistApplicationService {
         // 2. 취소 가능한 상태인지 확인
         validateCancellable(application);
 
-        // 3. 신청서 삭제
-        artistApplicationRepository.delete(application);
+        // 3. 신청서 상태를 취소로 변경
+        application.cancel();
 
         log.info("작가 신청 취소 완료: userId={}, applicationId={}", userId, applicationId);
     }
