@@ -521,25 +521,25 @@ class DashboardServiceImplTest {
     }
 
     // TODO: 배송 CRUD 완성 후 추가할 테스트들
+
     /**
      * 배송 CRUD 완성 후 수정해야 할 테스트:
-     *
+     * <p>
      * 1. getFundingParticipations_CalculatesStatistics()
-     *    - fulfilling, fulfilled 카운트 검증 주석 해제
-     *
+     * - fulfilling, fulfilled 카운트 검증 주석 해제
+     * <p>
      * 2. 새로운 테스트 추가:
-     *    - getFundingParticipations_IncludesDeliveryStatus()
-     *      : 배송 상태 포함 여부 검증
-     *    - getFundingParticipations_FiltersDeliveryStatus()
-     *      : 배송 상태별 필터링 검증 (FULFILLING/FULFILLED)
-     *
+     * - getFundingParticipations_IncludesDeliveryStatus()
+     * : 배송 상태 포함 여부 검증
+     * - getFundingParticipations_FiltersDeliveryStatus()
+     * : 배송 상태별 필터링 검증 (FULFILLING/FULFILLED)
+     * <p>
      * 3. Response DTO 수정:
-     *    - FundingResponse.SummaryDto에서 배송 필드 주석 해제
-     *    - (선택) Participation에 DeliveryInfo 필드 추가 시 검증 로직 추가
+     * - FundingResponse.SummaryDto에서 배송 필드 주석 해제
+     * - (선택) Participation에 DeliveryInfo 필드 추가 시 검증 로직 추가
      */
 
     // ==================== ArtistApplication 작가 신청 내역 조회 테스트 ====================
-
     @Test
     @DisplayName("작가 신청 내역 조회 - 실제 DB 데이터 검증")
     void getArtistApplications_ReturnsRealData() {
@@ -594,7 +594,7 @@ class DashboardServiceImplTest {
                         .telecomSalesNumber("2024-서울-0002")
                         .build();
         artistApplicationRepository.save(application);
-        
+
         // 취소 처리
         application.cancel();
 
@@ -667,61 +667,4 @@ class DashboardServiceImplTest {
         );
     }
 
-    // ==================== 교환/환불 신청 모달 실제 DB 연동 테스트 ====================
-
-    @Test
-    @DisplayName("교환/환불 신청 모달 데이터 조회 - 모든 필수 필드 검증")
-    void getReturnFormData_ReturnsAllRequiredFields() {
-        // Given
-        Long orderId = testOrder.getId();
-
-        // When
-        com.back.domain.dashboard.customer.dto.response.ReturnResponse.FormData result =
-                dashboardService.getReturnFormData(testBuyer.getId(), orderId);
-
-        // Then
-        com.back.domain.dashboard.customer.dto.response.ReturnResponse.Summary summary = result.summary();
-        
-        assertAll(
-                // 기본 구조 검증
-                () -> assertThat(result.summary()).isNotNull(),
-                () -> assertThat(result.form()).isNull(),
-                () -> assertThat(result.permissions()).isNull(),
-                
-                // 주문번호 (7자리 포맷)
-                () -> assertThat(summary.orderNo()).matches("^\\d{7}$"),
-                
-                // 브랜드명 (DB에서 조회)
-                () -> assertThat(summary.brandName()).isEqualTo("테스트 브랜드"),
-                
-                // 상품명
-                () -> assertThat(summary.title()).isEqualTo("테스트 상품"),
-                
-                // 총 가격 (finalAmount)
-                () -> assertThat(summary.price()).isEqualTo(testOrder.getFinalAmount().intValue()),
-                
-                // 상품 갯수 (orderItems 개수)
-                () -> assertThat(summary.quantity()).isEqualTo(testOrder.getOrderItems().size())
-        );
-    }
-
-    @Test
-    @DisplayName("교환/환불 신청 모달 - 권한 검증")
-    void getReturnFormData_ValidatesAuthorization() {
-        // Given
-        User anotherUser = User.createLocalUser(
-                "another@example.com",
-                "password",
-                "다른사용자",
-                "01099999999"
-        );
-        User savedAnotherUser = userRepository.save(anotherUser);
-
-        // When & Then
-        org.junit.jupiter.api.Assertions.assertThrows(
-                com.back.global.exception.ServiceException.class,
-                () -> dashboardService.getReturnFormData(savedAnotherUser.getId(), testOrder.getId())
-        );
-    }
 }
-

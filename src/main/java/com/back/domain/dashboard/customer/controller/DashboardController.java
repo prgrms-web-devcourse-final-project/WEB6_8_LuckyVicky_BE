@@ -36,7 +36,7 @@ import org.springframework.web.bind.annotation.*;
 @RequestMapping("/api/dashboard")
 @RequiredArgsConstructor
 @Slf4j
-@Tag(name = "CustomerDashboardController", description = "고객용 대시보드 컨트롤러")
+@Tag(name = "고객용 대시보드", description = "고객용 대시보드 컨트롤러")
 public class DashboardController {
 
     private final DashboardService dashboardService;

@@ -25,7 +25,7 @@ import org.springframework.web.bind.annotation.*;
  * 정산금이 입금되었습니다 (settlement 도메인 구현 후)
  * 정산 요청 (settlement 도메인 구현 후)
  */
-@Tag(name = "Notification", description = "알림 API")
+@Tag(name = "알림 기능", description = "알림 API")
 @RestController
 @RequiredArgsConstructor
 @RequestMapping("/api/notifications")
