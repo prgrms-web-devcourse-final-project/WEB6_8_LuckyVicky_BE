@@ -40,7 +40,7 @@ import org.springframework.web.bind.annotation.*;
 @RequestMapping("/api/dashboard/admin")
 @RequiredArgsConstructor
 @Slf4j
-@Tag(name = "AdminDashboardController", description = "관리자 대시보드 컨트롤러")
+@Tag(name = "관리자용 대시보드", description = "관리자 대시보드 컨트롤러")
 public class AdminDashboardController {
 
     private final AdminDashboardService adminDashboardService;

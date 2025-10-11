@@ -10,6 +10,7 @@ import com.back.domain.product.category.entity.Category;
 import com.back.domain.product.category.repository.CategoryRepository;
 import com.back.domain.product.tag.entity.Tag;
 import com.back.domain.product.tag.repository.TagRepository;
+import com.back.domain.user.entity.Provider;
 import com.back.domain.user.entity.Role;
 import com.back.domain.user.entity.User;
 import com.back.domain.user.repository.UserRepository;
@@ -64,6 +65,7 @@ public class TestInitData {
 
         createUser("artist1@artist.com", "1234qwer!", "작가1", "010-2111-1111", Role.ARTIST);
         createUser("admin1@admin.com", "1234qwer!", "관리자1", "010-3111-1111", Role.ADMIN);
+        createOAuthUser("oauth@user.com", "OAuth테스트유저", Provider.GOOGLE, "google-test-id-123");
     }
 
     private void safeSignup(String email, String password, String passwordConfirm, String name, String phone) {
@@ -106,6 +108,11 @@ public class TestInitData {
         // 0) 작성자 조회
         User user1 = userRepository.findByEmail("user1@user.com").orElseThrow();
 
+        Category category = categoryRepository.findById((1L))
+                .orElseGet(() -> categoryRepository.save(
+                        Category.builder().categoryName("테스트 카테고리").build()
+                ));
+
         LocalDateTime now = LocalDateTime.now();
 
         // 1. 펀딩 1
@@ -113,6 +120,7 @@ public class TestInitData {
                 user1,
                 "펀딩 1 입니다.",
                 "펀딩 1이요~~",
+                category,
                 "www.example.com",
                 1_000_000L,
                 now.plusDays(5),
@@ -131,6 +139,7 @@ public class TestInitData {
                 user1,
                 "신규 앨범 제작",
                 "새로운 앨범을 만듭니다",
+                category,
                 "image1.jpg",
                 1_000_000L,
                 now.plusDays(5),
@@ -146,6 +155,7 @@ public class TestInitData {
                 user1,
                 "한정판 포토북",
                 "프리미엄 포토북",
+                category,
                 "image2.jpg",
                 500_000L,
                 now.plusDays(3),
@@ -161,6 +171,7 @@ public class TestInitData {
                 user1,
                 "프리미엄 굿즈",
                 "한정판 굿즈",
+                category,
                 "image3.jpg",
                 2_000_000L,
                 now.plusDays(1),
@@ -255,5 +266,17 @@ public class TestInitData {
                     log.info("하위 카테고리 생성: {} (부모: {})", categoryName, parent.getCategoryName());
                     return saved;
                 });
+    }
+
+    // OAuth 테스트 사용자 생성
+    private void createOAuthUser(String email, String name, Provider provider, String providerId) {
+        if (userRepository.existsByEmail(email)) {
+            log.debug("OAuth 사용자 이미 존재: {}", email);
+            return;
+        }
+
+        User oauthUser = User.createOAuthUser(email, name, provider, providerId);
+        userRepository.save(oauthUser);
+        log.info("OAuth 테스트 사용자 생성: email={}, provider={}", email, provider);
     }
 }

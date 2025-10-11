@@ -13,6 +13,7 @@ import com.back.domain.order.refund.repository.RefundItemRepository;
 import com.back.domain.order.refund.repository.RefundRepository;
 import com.back.domain.order.refund.util.RefundConverter;
 import com.back.domain.product.product.entity.Product;
+import com.back.domain.product.product.entity.SellingStatus;
 import com.back.domain.user.entity.User;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -173,6 +174,13 @@ public class RefundService extends BaseOrderActionService<Refund, RefundResponse
             Product product = refundItem.getOrderItem().getProduct();
             int restoredStock = product.getStock() + refundItem.getQuantity();
             product.setStock(restoredStock);
+            
+            // 품절 해제 (품절 상태였다면 판매중으로 변경)
+            if (product.getSellingStatus() == SellingStatus.SOLD_OUT) {
+                product.setSellingStatus(SellingStatus.SELLING);
+                log.info("품절 해제 - 상품: {}", product.getName());
+            }
+            
             log.info("재고 복원 - 상품: {}, 복원 수량: {}, 복원 후 재고: {}", 
                     product.getName(), refundItem.getQuantity(), restoredStock);
         });

@@ -1,5 +1,7 @@
 package com.back.domain.funding.service;
 
+import com.back.domain.artist.entity.ArtistProfile;
+import com.back.domain.artist.repository.ArtistProfileRepository;
 import com.back.domain.funding.dto.request.FundingCreateRequest;
 import com.back.domain.funding.dto.request.FundingUpdateRequest;
 import com.back.domain.funding.dto.response.FundingCardDto;
@@ -7,7 +9,9 @@ import com.back.domain.funding.dto.response.FundingDetailResponse;
 import com.back.domain.funding.entity.Funding;
 import com.back.domain.funding.entity.FundingOption;
 import com.back.domain.funding.entity.FundingStatus;
-import com.back.domain.funding.repository.*;
+import com.back.domain.funding.repository.FundingContributionRepository;
+import com.back.domain.funding.repository.FundingRepository;
+import com.back.domain.product.category.entity.Category;
 import com.back.domain.product.category.repository.CategoryRepository;
 import com.back.domain.user.entity.User;
 import com.back.domain.user.repository.UserRepository;
@@ -19,8 +23,10 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -34,11 +40,11 @@ import java.util.Set;
 public class FundingService {
 
     private final FundingRepository fundingRepository;
-    private final FundingOptionRepository fundingOptionRepository;
     private final UserRepository userRepository;
     private final CategoryRepository categoryRepository;
     private final S3ValidationService s3ValidationService;
     private final FundingContributionRepository fundingContributionRepository;
+    private final ArtistProfileRepository artistProfileRepository;
 
     @Transactional
     public Funding createFunding(FundingCreateRequest req, String userEmail) {
@@ -46,8 +52,8 @@ public class FundingService {
         User user = userRepository.findByEmail(userEmail)
                 .orElseThrow(() -> new ServiceException("403", "존재하지 않는 사용자입니다."));
 
-//        Category category = categoryRepository.findById(req.categoryId())
-//                .orElseThrow(() -> new ResponseStatusException(HttpStatus.BAD_REQUEST, "존재하지 않는 카테고리입니다."));
+        Category category = categoryRepository.findById(req.categoryId())
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.BAD_REQUEST, "존재하지 않는 카테고리입니다."));
 
         List<FundingOption> optionEntities = req.options().stream()
                 .map(o -> FundingOption.create(o.name(), o.price(), o.stock(), o.sortOrder()))
@@ -58,12 +64,12 @@ public class FundingService {
                 user,
                 req.title(),
                 req.description(),
-//                category,
+                category,
                 req.imageUrl(),
                 req.targetAmount(),
                 req.startDate(),
                 req.endDate(),
-                FundingStatus.OPEN,
+                FundingStatus.PENDING,
                 optionEntities
         );
 
@@ -74,6 +80,12 @@ public class FundingService {
     public FundingDetailResponse getFunding(Long id) {
         Funding funding = fundingRepository.findById(id)
                 .orElseThrow(() -> new ServiceException("404", "존재하지 않는 펀딩입니다."));
+
+        String artistDescription = artistProfileRepository
+                .findByUserId(funding.getUser().getId())
+                .map(ArtistProfile::getDescription)
+                .orElse(null);
+
 
         // 누적 모금액, 참여자 수
         long currentAmount = nz(fundingContributionRepository.sumContributedAmountByFundingId(id));
@@ -98,12 +110,15 @@ public class FundingService {
                 currentAmount,
                 participants,
                 remainingDays,
-                progress
+                progress,
+                artistDescription
         );
     }
 
     // null을 0L로 변환
-    private long nz(Long v) { return v == null ? 0L : v; }
+    private long nz(Long v) {
+        return v == null ? 0L : v;
+    }
 
     @Transactional(readOnly = true)
     public Page<FundingCardDto> getFundingList(
@@ -212,5 +227,15 @@ public class FundingService {
                 funding.addOption(newOption);
             }
         }
+    }
+
+    @Transactional
+    public void deleteFunding(Long fundingId, String userEmail) {
+        Funding funding = fundingRepository.findById(fundingId)
+                .orElseThrow(() -> new ServiceException("404", "존재하지 않는 펀딩입니다."));
+        if (!funding.getUser().getEmail().equals(userEmail)) {
+            throw new ServiceException("403", "권한이 없습니다.");
+        }
+        funding.delete();
     }
 }

@@ -153,3 +153,11 @@ google:
   analytics:
     property-id: properties/1223286596
     credentials-path: classpath:ga4-service-account.json
+
+# 결제 PG 설정 (PortOne + 토스페이먼츠)
+payment:
+  portone:
+    imp-key: ${PORTONE_IMP_KEY:test-imp-key}
+    imp-secret: ${PORTONE_IMP_SECRET:test-imp-secret}
+  toss:
+    api-url: ${TOSS_API_URL:https://api.tosspayments.com/v1}

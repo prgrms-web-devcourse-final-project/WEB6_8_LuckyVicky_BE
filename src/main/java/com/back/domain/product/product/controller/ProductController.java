@@ -455,7 +455,7 @@ public class ProductController {
                                                     "followerCount": 350,
                                                     "approvedDate": "2025.10.10",
                                                     "profileImageUrl": "https://bucket.s3.amazonaws.com/artist-profile/uuid.png",
-                                                    "artistPageUrl": "https://www.mori-mori.store/artist/42",
+                                                    "artistPageUrl": "https://www.mori-mori.store/forest/42",
                                                     "description": "작가 소개 텍스트..."
                                                   }
                                                 }

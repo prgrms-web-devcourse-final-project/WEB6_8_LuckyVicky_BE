@@ -4,6 +4,9 @@ import com.back.domain.funding.entity.Funding;
 import com.back.domain.funding.entity.FundingStatus;
 import com.back.domain.funding.repository.FundingContributionRepository;
 import com.back.domain.funding.repository.FundingRepository;
+import com.back.domain.notification.entity.NotificationType;
+import com.back.domain.notification.service.NotificationService;
+import com.back.domain.user.entity.User;
 import com.back.global.exception.ServiceException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -20,6 +23,7 @@ public class FundingStatusService {
 
     private final FundingRepository fundingRepository;
     private final FundingContributionRepository fundingContributionRepository;
+    private final NotificationService notificationService;
 
     public Funding getByIdOrThrow(Long id) {
         return fundingRepository.findById(id)
@@ -184,6 +188,10 @@ public class FundingStatusService {
             log.info("펀딩 성공: ID={}, 목표={}원, 달성={}원, 달성률={}%",
                     funding.getId(), funding.getTargetAmount(), actualAmount,
                     String.format("%.2f", achievementRate));
+            
+            // 알림 발송 - 펀딩 성공
+            sendFundingSuccessNotifications(funding);
+            
             return FinalizeStatus.SUCCESS;
 
         } else {
@@ -191,7 +199,59 @@ public class FundingStatusService {
             log.info("펀딩 실패: ID={}, 목표={}원, 달성={}원, 달성률={}%",
                     funding.getId(), funding.getTargetAmount(), actualAmount,
                     String.format("%.2f", achievementRate));
+            
+            // 알림 발송 - 펀딩 실패
+            sendFundingFailedNotifications(funding);
+            
             return FinalizeStatus.FAILED;
+        }
+    }
+    
+    /**
+     * 펀딩 성공 알림 발송
+     */
+    private void sendFundingSuccessNotifications(Funding funding) {
+        // 작가에게 알림
+        notificationService.sendNotification(
+            funding.getUser(),
+            NotificationType.FUNDING_SUCCESS_SELLER,
+            "펀딩이 목표 금액을 달성했습니다. 펀딩: " + funding.getTitle(),
+            "/artist/fundings/" + funding.getId()
+        );
+        
+        // 참여자들에게 알림
+        List<User> participants = fundingContributionRepository.findAllParticipantsByFundingId(funding.getId());
+        for (User participant : participants) {
+            notificationService.sendNotification(
+                participant,
+                NotificationType.FUNDING_SUCCESS,
+                "참여한 펀딩이 성공했습니다. 펀딩: " + funding.getTitle(),
+                "/mypage/fundings/" + funding.getId()
+            );
+        }
+    }
+    
+    /**
+     * 펀딩 실패 알림 발송
+     */
+    private void sendFundingFailedNotifications(Funding funding) {
+        // 작가에게 알림
+        notificationService.sendNotification(
+            funding.getUser(),
+            NotificationType.FUNDING_FAILED_SELLER,
+            "펀딩이 목표 금액 미달로 종료되었습니다. 펀딩: " + funding.getTitle(),
+            "/artist/fundings/" + funding.getId()
+        );
+        
+        // 참여자들에게 알림
+        List<User> participants = fundingContributionRepository.findAllParticipantsByFundingId(funding.getId());
+        for (User participant : participants) {
+            notificationService.sendNotification(
+                participant,
+                NotificationType.FUNDING_FAILED,
+                "참여한 펀딩이 목표 금액 미달로 종료되었습니다. 펀딩: " + funding.getTitle(),
+                "/mypage/fundings/" + funding.getId()
+            );
         }
     }
 
