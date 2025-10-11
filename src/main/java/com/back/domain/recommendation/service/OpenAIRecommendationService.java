@@ -51,7 +51,7 @@ public class OpenAIRecommendationService {
     }
     
     /**
-     * LLM을 사용한 추천 이유 생성
+     * LLM을 사용한 추천 이유 생성 (OpenAI 우선, 실패 시 fallback)
      */
     public String generateRecommendationReason(
             Product product,
@@ -60,6 +60,7 @@ public class OpenAIRecommendationService {
     ) {
         // OpenAI 비활성화 시 기본 로직 사용
         if (!isEnabled || openAIClient == null) {
+            log.debug("OpenAI 비활성화 상태, 기본 로직 사용");
             return generateFallbackReason(product, userPreferences);
         }
         
@@ -83,19 +84,19 @@ public class OpenAIRecommendationService {
                 .orElse("");
             
             if (response.isBlank()) {
-                log.warn("OpenAI 응답이 비어있음, 기본 로직 사용");
+                log.warn("⚠️ OpenAI 응답이 비어있음, 기본 로직 사용");
                 return generateFallbackReason(product, userPreferences);
             }
             
-            log.debug("✨ OpenAI 추천 이유 생성: {}", response);
+            log.info("✨ GPT 추천 이유 생성 성공: {}", response);
             return response.trim();
             
         } catch (Exception e) {
-            // Rate Limit 에러는 로그만 남기고 조용히 기본 로직 사용
-            if (e.getMessage().contains("429") || e.getMessage().contains("Rate limit")) {
-                log.debug("OpenAI Rate Limit 도달, 기본 로직 사용");
+            // Rate Limit 포함 모든 에러 처리
+            if (e.getMessage() != null && e.getMessage().contains("429")) {
+                log.debug("⏱️ OpenAI Rate Limit, 기본 로직 사용");
             } else {
-                log.error("OpenAI API 호출 실패, 기본 로직 사용: {}", e.getMessage());
+                log.warn("⚠️ OpenAI API 호출 실패, 기본 로직 사용: {}", e.getMessage());
             }
             return generateFallbackReason(product, userPreferences);
         }

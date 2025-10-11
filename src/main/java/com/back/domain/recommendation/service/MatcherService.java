@@ -28,6 +28,7 @@ public class MatcherService {
     
     /**
      * 상품 리스트에 대해 매칭 스코어 계산 후 정렬
+     * 상위 3개 상품만 GPT 적용 (프론트 요구사항)
      */
     public List<RecommendedItem> scoreAndRank(
             List<Product> products,
@@ -37,14 +38,15 @@ public class MatcherService {
         log.info("매칭 스코어 계산 시작 - 후보 상품: {}개, 선호 태그: {}개", 
                 products.size(), preferences.size());
         
+        // 최종 추천 개수
+        final int FINAL_RECOMMENDATION_COUNT = 3;
+        
         List<ScoredProduct> scored = new ArrayList<>();
         
-        // OpenAI는 상위 3개 상품에만 사용 (성능 최적화)
-        int openAICount = 0;
-        final int MAX_OPENAI_CALLS = 3; // 분당 Rate Limit 고려
-        
+        // Step 1: 먼저 모든 상품의 점수를 빠르게 계산 (GPT 없이)
+        log.info("1단계: 모든 상품 점수 계산 중...");
         for (Product product : products) {
-            // 1. 태그 점수 계산
+            // 태그 점수 계산
             double tagScore = product.getProductTags().stream()
                     .map(mapping -> {
                         String tagName = mapping.getTag().getName();
@@ -52,14 +54,12 @@ public class MatcherService {
                     })
                     .reduce(0.0, Double::sum);
             
-            // 2. 스펙 점수 계산 (Phase 2)
+            // 스펙 점수 계산 (Phase 2)
             double specScore = 0.0;
-            // TODO: Product에 specs 필드 추가 후 구현
-            // if (specPrefs != null && !specPrefs.isEmpty()) { ... }
             
             double totalScore = tagScore + specScore;
             
-            // 3. 매칭된 태그 목록
+            // 매칭된 태그 목록
             List<MatchedTag> matchedTags = product.getProductTags().stream()
                     .map(mapping -> mapping.getTag().getName())
                     .filter(preferences::containsKey)
@@ -67,46 +67,60 @@ public class MatcherService {
                     .sorted(Comparator.comparingDouble(MatchedTag::yourScore).reversed())
                     .toList();
             
-            // 4. 추천 이유 생성 (OpenAI는 상위 N개 상품에만 사용)
-            String reason;
-            if (openAICount < MAX_OPENAI_CALLS) {
-                try {
-                    // Phase 2: LLM 기반 추천 이유
-                    reason = openAIService.generateRecommendationReason(
-                        product, 
-                        preferences, 
-                        totalScore
-                    );
-                    openAICount++;
-                } catch (Exception e) {
-                    log.debug("OpenAI 추천 이유 생성 실패, 기본 로직 사용: {}", e.getMessage());
-                    reason = buildReason(matchedTags);
-                }
-            } else {
-                reason = buildReason(matchedTags);
-            }
-            
-            scored.add(new ScoredProduct(product, totalScore, matchedTags, reason));
+            scored.add(new ScoredProduct(product, totalScore, matchedTags, null)); // reason은 나중에
         }
         
-        // 점수 내림차순 정렬
+        // Step 2: 점수 내림차순 정렬
         scored.sort(Comparator.comparingDouble(ScoredProduct::score).reversed());
+        log.info("2단계: 점수 정렬 완료 - 최고 점수: {}", 
+                scored.isEmpty() ? 0 : scored.get(0).score());
         
-        // RecommendedItem으로 변환 (rank 추가)
-        List<RecommendedItem> result = new ArrayList<>();
-        for (int i = 0; i < scored.size(); i++) {
+        // Step 3: 상위 3개만 GPT 추천 이유 생성
+        log.info("3단계: 상위 {}개만 GPT 추천 이유 생성 시작", FINAL_RECOMMENDATION_COUNT);
+        List<ScoredProduct> finalScored = new ArrayList<>();
+        
+        for (int i = 0; i < Math.min(FINAL_RECOMMENDATION_COUNT, scored.size()); i++) {
             ScoredProduct sp = scored.get(i);
+            String reason;
+            
+            try {
+                log.debug("GPT 호출 {}/{} - 상품: {}", i + 1, FINAL_RECOMMENDATION_COUNT, sp.product().getName());
+                reason = openAIService.generateRecommendationReason(
+                    sp.product(), 
+                    preferences, 
+                    sp.score()
+                );
+                
+                // Rate Limit 방지 딜레이 (마지막 호출 제외)
+                if (i < FINAL_RECOMMENDATION_COUNT - 1) {
+                    Thread.sleep(350); // 0.35초
+                }
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                log.warn("⚠️ GPT 호출 대기 중 인터럽트 발생");
+                reason = buildReason(sp.matchedTags());
+            } catch (Exception e) {
+                log.warn("⚠️ OpenAI 추천 이유 생성 실패, 기본 로직 사용: {}", e.getMessage());
+                reason = buildReason(sp.matchedTags());
+            }
+            
+            finalScored.add(new ScoredProduct(sp.product(), sp.score(), sp.matchedTags(), reason));
+        }
+        
+        // Step 4: RecommendedItem으로 변환
+        List<RecommendedItem> result = new ArrayList<>();
+        for (int i = 0; i < finalScored.size(); i++) {
+            ScoredProduct sp = finalScored.get(i);
             result.add(new RecommendedItem(
                     i + 1,
-                    round2(sp.score),
-                    toProductInfo(sp.product),
-                    sp.matchedTags,
-                    sp.reason
+                    round2(sp.score()),
+                    toProductInfo(sp.product()),
+                    sp.matchedTags(),
+                    sp.reason()
             ));
         }
         
-        log.info("매칭 스코어 계산 완료 - 최고 점수: {}", 
-                result.isEmpty() ? 0 : result.getFirst().matchScore());
+        log.info("✅ 매칭 스코어 계산 완료 - 최종 {}개 추천", result.size());
         
         return result;
     }
