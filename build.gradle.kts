@@ -67,6 +67,9 @@ dependencies {
     // Redis
     implementation("org.springframework.boot:spring-boot-starter-data-redis")
     implementation("org.springframework.session:spring-session-data-redis")
+    
+    // OpenAI Java SDK (Spring Boot Starter)
+    implementation("com.openai:openai-java-spring-boot-starter:4.3.0")
 }
 
 tasks.withType<Test> {

@@ -13,6 +13,14 @@ import java.util.UUID;
 
 public interface ProductRepository extends JpaRepository<Product, Long>, ProductCustomRepository, JpaSpecificationExecutor<Product> {
     Optional<Product> findByProductUuid(UUID productUuid);
+    
+    @org.springframework.data.jpa.repository.Query("SELECT p FROM Product p " +
+            "LEFT JOIN FETCH p.productTags pt " +
+            "LEFT JOIN FETCH pt.tag " +
+            "LEFT JOIN FETCH p.images " +
+            "WHERE p.productUuid = :productUuid")
+    Optional<Product> findByProductUuidWithTags(@org.springframework.data.repository.query.Param("productUuid") UUID productUuid);
+    
     boolean existsByCategoryId(Long categoryId); // category_id 필드값이 해당 categoryId인 상품이 하나라도 존재하는지 체크
     
     /**
