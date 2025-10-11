@@ -30,6 +30,7 @@ import java.util.stream.Collectors;
 public class S3Service {
 
     private final S3Client s3Client;
+    private final S3Service self;
 
     @Value("${cloud.aws.s3.bucket}")
     private String bucketName;
@@ -54,7 +55,7 @@ public class S3Service {
                 throw new ServiceException("400", "파일 타입이 null일 수 없습니다.");
             }
 
-            futures.add(uploadFileAsync(file, folder, type));
+            futures.add(self.uploadFileAsync(file, folder, type));
         }
 
         return futures.stream()
@@ -67,7 +68,7 @@ public class S3Service {
     /**
      *  파일 업로드 시 비동기 처리 담당
      */
-    @Async
+    @Async("s3UploadExecutor")
     public CompletableFuture<List<UploadResultResponse>> uploadFileAsync(MultipartFile file, String folder, FileType type) {
         try {
             return CompletableFuture.completedFuture(uploadFile(file, folder, type));
@@ -167,8 +168,8 @@ public class S3Service {
 
         public static FileCategory fromExtension(String extension) {
             String ext = extension.toLowerCase();
-            if (List.of("jpg","jpeg","png","gif","bmp","webp").contains(ext)) return IMAGE;
-            if (List.of("pdf","doc","docx","xls","xlsx","ppt","pptx","hwp").contains(ext)) return DOCUMENT;
+            if (List.of("jpg","jpeg","png","gif","bmp","webp","tiff","tif","svg","heic","heif","ico").contains(ext)) return IMAGE;
+            if (List.of("pdf","doc","docx","xls","xlsx","ppt","pptx","hwp","txt","md","csv","odt","ods","odp","rtf").contains(ext)) return DOCUMENT;
             return OTHER;
         }
     }
