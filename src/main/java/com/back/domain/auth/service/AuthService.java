@@ -97,7 +97,8 @@ public class AuthService {
                 user.getEmail(),
                 request.selectedRole(),
                 user.getAvailableLoginRoles(),
-                accessTokenExpiration / 1000
+                accessTokenExpiration / 1000,
+                user.needsAdditionalInfo() // 소셜로그인 사용자 추가 정보 필요 여부
         );
     }
 
@@ -143,7 +144,8 @@ public class AuthService {
                 user.getEmail(),
                 userToken.getLoginRole(),
                 user.getAvailableLoginRoles(),
-                accessTokenExpiration / 1000
+                accessTokenExpiration / 1000,
+                user.needsAdditionalInfo() // 소셜로그인 사용자 추가 정보 필요 여부
         );
     }
 
@@ -279,5 +281,33 @@ public class AuthService {
         }
 
         return userToken;
+    }
+
+    /**
+     * 현재 로그인한 사용자 정보 조회
+     */
+    @Transactional(readOnly = true)
+    public AuthResponse getCurrentUser(Long userId) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new ServiceException("404", "사용자를 찾을 수 없습니다."));
+
+        // 현재 활성화된 토큰 조회 (가장 최근 토큰 하나만)
+        UserToken userToken = userTokenRepository
+                .findFirstByUserIdAndIsActiveTrueOrderByCreateDateDesc(userId)
+                .orElseThrow(() -> new ServiceException("401", "유효한 토큰이 없습니다."));
+
+        log.info("현재 사용자 정보 조회: userId={}, needsAdditionalInfo={}",
+                userId, user.needsAdditionalInfo());
+
+        return AuthResponse.loginSuccess(
+                null,  // accessToken은 이미 쿠키에 있으므로 null
+                null,  // refreshToken도 이미 쿠키에 있으므로 null
+                user.getId(),
+                user.getEmail(),
+                userToken.getLoginRole(),
+                user.getAvailableLoginRoles(),
+                accessTokenExpiration / 1000,
+                user.needsAdditionalInfo()
+        );
     }
 }

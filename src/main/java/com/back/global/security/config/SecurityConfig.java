@@ -66,13 +66,13 @@ public class SecurityConfig {
                         .requestMatchers("/api/artist/profile/**", "/api/artist/list").permitAll()
 
                         // 공지사항 조회 - 로그인 없이 접근 허용
-                        .requestMatchers(HttpMethod.GET, "/api/notices", "/api/notices/**").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/support/notices", "/api/support/notices/**").permitAll()
                         // 공지사항 생성, 수정, 삭제 - ADMIN, ROOT만 접근 가능
-                        .requestMatchers("/api/notices", "/api/notices/**").hasAnyRole("ADMIN", "ROOT")
+                        .requestMatchers("/api/support/notices", "/api/support/notices/**").hasAnyRole("ADMIN", "ROOT")
                         // FAQ 조회 - 로그인 없이 접근 허용
-                        .requestMatchers(HttpMethod.GET, "/api/faqs", "/api/faqs/**").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/support/faqs", "/api/support/faqs/**").permitAll()
                         // FAQ 생성, 수정, 삭제 - ADMIN, ROOT만 접근 가능
-                        .requestMatchers("/api/faqs", "/api/faqs/**").hasAnyRole("ADMIN", "ROOT")
+                        .requestMatchers("/api/support/faqs", "/api/support/faqs/**").hasAnyRole("ADMIN", "ROOT")
 
                         // 공개 API
                         .requestMatchers("/public/**").permitAll()
@@ -82,6 +82,7 @@ public class SecurityConfig {
 
                         // 상품,카테고리,태그 조회 / 상품 파일 다운로드(테스트용) / 상품 상세 조회 / 상품 상세-작가 정보 조회  - 로그인 없이 접근 허용
                         .requestMatchers(HttpMethod.GET, "/api/products", "/api/categories/**","/api/tag/**", "/api/products/images/download/{productUuid}","/api/products/{productUuid}","/api/products/{productUuid}/artist").permitAll()
+
                         // 상품 등록, 수정, 삭제 / 상품 이미지 업로드 / 작가 사업자 정보 조회 - ARTIST, ADMIN, ROOT만 접근 가능
                         .requestMatchers("/api/products", "/api/products/*", "/api/artist/business-info").hasAnyRole("ARTIST", "ADMIN", "ROOT")
                         // 카테고리,태그 등록, 수정, 삭제 - ADMIN, ROOT만 접근 가능

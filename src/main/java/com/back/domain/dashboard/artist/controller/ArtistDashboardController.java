@@ -42,7 +42,7 @@ import org.springframework.web.bind.annotation.*;
 @RequestMapping("/api/dashboard/artist")
 @RequiredArgsConstructor
 @Slf4j
-@Tag(name = "ArtistDashboardController", description = "작가 대시보드 컨트롤러")
+@Tag(name = "작가용 대시보드", description = "작가 대시보드 컨트롤러")
 public class ArtistDashboardController {
 
     private final ArtistDashboardService artistDashboardService;

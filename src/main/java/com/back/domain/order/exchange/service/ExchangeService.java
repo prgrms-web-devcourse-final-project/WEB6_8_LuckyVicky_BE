@@ -13,6 +13,7 @@ import com.back.domain.order.exchange.repository.ExchangeItemRepository;
 import com.back.domain.order.exchange.repository.ExchangeRepository;
 import com.back.domain.order.exchange.util.ExchangeConverter;
 import com.back.domain.product.product.entity.Product;
+import com.back.domain.product.product.entity.SellingStatus;
 import com.back.domain.user.entity.User;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -180,6 +181,13 @@ public class ExchangeService extends BaseOrderActionService<Exchange, ExchangeRe
             Product product = exchangeItem.getOrderItem().getProduct();
             int restoredStock = product.getStock() + exchangeItem.getQuantity();
             product.setStock(restoredStock);
+            
+            // 품절 해제 (품절 상태였다면 판매중으로 변경)
+            if (product.getSellingStatus() == SellingStatus.SOLD_OUT) {
+                product.setSellingStatus(SellingStatus.SELLING);
+                log.info("품절 해제 - 상품: {}", product.getName());
+            }
+            
             log.info("반품 상품 재고 복원 - 상품: {}, 복원 수량: {}, 복원 후 재고: {}", 
                     product.getName(), exchangeItem.getQuantity(), restoredStock);
         });
@@ -196,6 +204,13 @@ public class ExchangeService extends BaseOrderActionService<Exchange, ExchangeRe
                 throw new IllegalArgumentException("교환할 상품의 재고가 부족합니다. (상품: " + product.getName() + ", 현재 재고: " + product.getStock() + ")");
             }
             product.setStock(newStock);
+            
+            // 품절 처리 (재고가 0이 되면 자동으로 품절 상태로 변경)
+            if (newStock == 0) {
+                product.setSellingStatus(SellingStatus.SOLD_OUT);
+                log.info("품절 처리 - 상품: {}", product.getName());
+            }
+            
             log.info("새 상품 재고 감소 - 상품: {}, 감소 수량: {}, 감소 후 재고: {}", 
                     product.getName(), exchangeItem.getQuantity(), newStock);
         });

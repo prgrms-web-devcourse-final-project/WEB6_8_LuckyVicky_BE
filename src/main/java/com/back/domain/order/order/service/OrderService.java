@@ -2,6 +2,8 @@ package com.back.domain.order.order.service;
 
 import com.back.domain.cart.entity.Cart;
 import com.back.domain.cart.repository.CartRepository;
+import com.back.domain.notification.entity.NotificationType;
+import com.back.domain.notification.service.NotificationService;
 import com.back.domain.order.order.dto.request.*;
 import com.back.domain.order.order.dto.response.OrderResponseDto;
 import com.back.domain.order.order.entity.Order;
@@ -10,6 +12,7 @@ import com.back.domain.order.order.repository.OrderRepository;
 import com.back.domain.order.orderItem.entity.OrderItem;
 import com.back.domain.order.orderItem.repository.OrderItemRepository;
 import com.back.domain.product.product.entity.Product;
+import com.back.domain.product.product.entity.SellingStatus;
 import com.back.domain.product.product.repository.ProductRepository;
 import com.back.domain.user.entity.User;
 import lombok.RequiredArgsConstructor;
@@ -32,6 +35,7 @@ public class OrderService {
     private final OrderItemRepository orderItemRepository;
     private final ProductRepository productRepository;
     private final CartRepository cartRepository;
+    private final NotificationService notificationService;
 
     /**
      * 주문 생성
@@ -41,7 +45,31 @@ public class OrderService {
         // 1. 주문상품 생성
         List<OrderItem> orderItems = createOrderItems(requestDto.orderItems());
         
-        // 2. 주문 생성 (엔티티에서 처리)
+        // 2. 재고 감소 및 재고 부족 알림 발송
+        for (OrderItem orderItem : orderItems) {
+            Product product = orderItem.getProduct();
+            int currentStock = product.getStock();
+            
+            // 재고 감소
+            product.setStock(currentStock - orderItem.getQuantity());
+            
+            // 품절 처리 (재고가 0이 되면 자동으로 품절 상태로 변경)
+            if (product.getStock() == 0) {
+                product.setSellingStatus(SellingStatus.SOLD_OUT);
+            }
+            
+            // 재고 부족 알림 (재고가 5개 이하이고 0개 초과일 때)
+            if (product.getStock() <= 5 && product.getStock() > 0) {
+                notificationService.sendNotification(
+                    product.getUser(),
+                    NotificationType.LOW_STOCK,
+                    product.getName() + "의 재고가 부족합니다. (남은 재고: " + product.getStock() + "개)",
+                    "/artist/products/" + product.getProductUuid()
+                );
+            }
+        }
+        
+        // 3. 주문 생성 (엔티티에서 처리)
         Order order = Order.createOrder(
                 user, 
                 orderItems,
@@ -54,11 +82,33 @@ public class OrderService {
                 requestDto.paymentMethod()
         );
         
-        // 3. 주문 저장
+        // 4. 주문 저장
         Order savedOrder = orderRepository.save(order);
         
-        // 4. 장바구니에서 제거 (선택된 상품들)
+        // 5. 장바구니에서 제거 (선택된 상품들)
         removeFromCart(user, requestDto.orderItems());
+        
+        // 6. 알림 발송 - 사용자: 주문 확정
+        notificationService.sendNotification(
+            user,
+            NotificationType.ORDER_CONFIRMED,
+            "주문이 확정되었습니다. 주문번호: " + savedOrder.getOrderNumber(),
+            "/mypage/orders/" + savedOrder.getId()
+        );
+        
+        // 7. 알림 발송 - 작가: 새로운 주문 (각 상품의 작가에게)
+        orderItems.stream()
+            .map(OrderItem::getProduct)
+            .map(Product::getUser)
+            .distinct()
+            .forEach(artist -> {
+                notificationService.sendNotification(
+                    artist,
+                    NotificationType.NEW_ORDER,
+                    "새로운 주문이 들어왔습니다. 주문번호: " + savedOrder.getOrderNumber(),
+                    "/artist/orders/" + savedOrder.getId()
+                );
+            });
         
         return convertToOrderResponseDto(savedOrder);
     }
@@ -112,6 +162,28 @@ public class OrderService {
         // 취소 실행
         order.cancel();
         orderRepository.save(order);
+        
+        // 알림 발송 - 사용자: 주문 취소
+        notificationService.sendNotification(
+            user,
+            NotificationType.ORDER_CANCELLED,
+            "주문이 취소되었습니다. 주문번호: " + order.getOrderNumber(),
+            "/mypage/orders/" + order.getId()
+        );
+        
+        // 알림 발송 - 작가: 주문 취소 (각 상품의 작가에게)
+        order.getOrderItems().stream()
+            .map(OrderItem::getProduct)
+            .map(Product::getUser)
+            .distinct()
+            .forEach(artist -> {
+                notificationService.sendNotification(
+                    artist,
+                    NotificationType.ORDER_CANCELLED_SELLER,
+                    "주문이 취소되었습니다. 주문번호: " + order.getOrderNumber(),
+                    "/artist/orders/" + order.getId()
+                );
+            });
     }
 
     /**
@@ -139,6 +211,8 @@ public class OrderService {
         // 환불 신청 상태 변경
         order.changeStatus(OrderStatus.REFUND_REQUESTED);
         orderRepository.save(order);
+        
+        // 알림 발송은 환불 완료 시에만 발송 (관리자 승인 후)
     }
 
     /**
@@ -196,8 +270,48 @@ public class OrderService {
         Order order = orderRepository.findById(orderId)
                 .orElseThrow(() -> new IllegalArgumentException("주문을 찾을 수 없습니다."));
         
+        OrderStatus oldStatus = order.getStatus();
         order.changeStatus(requestDto.status());
         orderRepository.save(order);
+        
+        // 알림 발송 - 상태별 처리
+        User customer = order.getUser();
+        
+        switch (requestDto.status()) {
+            case SHIPPING:
+                // 배송 시작 알림
+                notificationService.sendNotification(
+                    customer,
+                    NotificationType.SHIPPING_STARTED,
+                    "상품이 발송되었습니다. 주문번호: " + order.getOrderNumber(),
+                    "/mypage/orders/" + order.getId()
+                );
+                break;
+                
+            case DELIVERED:
+                // 배송 완료 알림
+                notificationService.sendNotification(
+                    customer,
+                    NotificationType.DELIVERY_COMPLETED,
+                    "배송이 완료되었습니다. 주문번호: " + order.getOrderNumber(),
+                    "/mypage/orders/" + order.getId()
+                );
+                break;
+                
+            case REFUND_COMPLETED:
+                // 환불 완료 알림
+                notificationService.sendNotification(
+                    customer,
+                    NotificationType.REFUND_COMPLETED,
+                    "환불이 완료되었습니다. 주문번호: " + order.getOrderNumber(),
+                    "/mypage/orders/" + order.getId()
+                );
+                break;
+                
+            default:
+                // 다른 상태 변경은 알림 없음
+                break;
+        }
     }
 
     // ==================== Private Methods ====================
@@ -242,6 +356,11 @@ public class OrderService {
             Product product = orderItem.getProduct();
             int restoredStock = product.getStock() + orderItem.getQuantity();
             product.setStock(restoredStock);
+            
+            // 품절 해제 (품절 상태였다면 판매중으로 변경)
+            if (product.getSellingStatus() == SellingStatus.SOLD_OUT) {
+                product.setSellingStatus(SellingStatus.SELLING);
+            }
         });
     }
 

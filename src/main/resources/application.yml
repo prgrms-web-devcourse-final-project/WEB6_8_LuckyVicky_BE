@@ -157,3 +157,10 @@ google:
 # OpenAI 설정
 openai:
   api-key: ${OPENAI_API_KEY:}
+# 결제 PG 설정 (PortOne + 토스페이먼츠)
+payment:
+  portone:
+    imp-key: ${PORTONE_IMP_KEY:test-imp-key}
+    imp-secret: ${PORTONE_IMP_SECRET:test-imp-secret}
+  toss:
+    api-url: ${TOSS_API_URL:https://api.tosspayments.com/v1}

@@ -36,7 +36,7 @@ import org.springframework.web.bind.annotation.*;
 @RequestMapping("/api/dashboard")
 @RequiredArgsConstructor
 @Slf4j
-@Tag(name = "CustomerDashboardController", description = "고객용 대시보드 컨트롤러")
+@Tag(name = "고객용 대시보드", description = "고객용 대시보드 컨트롤러")
 public class DashboardController {
 
     private final DashboardService dashboardService;
@@ -170,24 +170,6 @@ public class DashboardController {
         return ResponseEntity.ok(RsData.ok("참여한 펀딩 목록 조회 성공", response));
     }
 
-    /**
-     * 교환/반품 신청 모달 상품 정보 조회
-     */
-    @GetMapping("/returns/orders/{orderId}/form-data")
-    @Operation(summary = "교환/반품 신청 모달 상품 정보 조회", description = "교환/반품 신청 시 필요한 주문 상품 정보를 조회합니다")
-    public ResponseEntity<RsData<ReturnResponse.FormData>> getReturnFormData(
-            @AuthenticationPrincipal CustomUserDetails userDetails,
-            @PathVariable
-            @Min(value = 1, message = "주문 ID는 1 이상이어야 합니다")
-            Long orderId) {
-
-        log.info("교환/반품 신청 모달 상품 정보 조회 - userId: {}, orderId: {}",
-                userDetails.getUserId(), orderId);
-
-        ReturnResponse.FormData response = dashboardService.getReturnFormData(
-                userDetails.getUserId(), orderId);
-        return ResponseEntity.ok(RsData.ok("교환/반품 신청 모달 상품 정보 조회 성공", response));
-    }
 
     /**
      * 캐시 정보 조회
