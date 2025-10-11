@@ -138,9 +138,9 @@ public class AdminDashboardServiceImpl implements AdminDashboardService {
         LocalDateTime startDate;
         LocalDateTime compareStartDate;
         LocalDateTime compareEndDate;
-        
+
         String range = request.range() != null ? request.range() : "1M";
-        
+
         switch (range) {
             case "1M" -> {
                 startDate = endDate.minusMonths(1);
@@ -552,12 +552,12 @@ public class AdminDashboardServiceImpl implements AdminDashboardService {
         if (month != null) {
             LocalDate startDate = LocalDate.of(year, month, 1);
             int daysInMonth = startDate.lengthOfMonth();
-            
+
             for (int day = 1; day <= daysInMonth; day++) {
                 LocalDate currentDate = LocalDate.of(year, month, day);
-                MonthlySettlementDto settlement = settlementMap.getOrDefault(currentDate, 
+                MonthlySettlementDto settlement = settlementMap.getOrDefault(currentDate,
                         new MonthlySettlementDto(currentDate, 0L));
-                
+
                 addSettlementDataPoint(settlement, grossSalesData, artistPayoutData, netIncomeData, tableData);
             }
         } else {
@@ -565,7 +565,7 @@ public class AdminDashboardServiceImpl implements AdminDashboardService {
                 LocalDate currentDate = LocalDate.of(year, m, 1);
                 MonthlySettlementDto settlement = settlementMap.getOrDefault(currentDate,
                         new MonthlySettlementDto(currentDate, 0L));
-                
+
                 addSettlementDataPoint(settlement, grossSalesData, artistPayoutData, netIncomeData, tableData);
             }
         }
@@ -588,6 +588,7 @@ public class AdminDashboardServiceImpl implements AdminDashboardService {
                                        List<AdminSettlementResponse.DataPoint> netIncomeData,
                                        List<AdminSettlementResponse.TableRow> tableData) {
         
+
         String bucketStart = settlement.date().toString();
         long grossSales = settlement.totalAmount();
         long artistPayout = settlement.getArtistPayout();
