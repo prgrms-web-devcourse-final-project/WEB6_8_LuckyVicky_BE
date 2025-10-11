@@ -35,6 +35,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
 import java.util.stream.Collectors;
@@ -138,6 +139,53 @@ public class ProductService {
         );
     }
 
+    /** 메인페이지 - 신상품 조회 */
+    @Transactional(readOnly = true)
+    public List<ProductListResponse.ProductInfo> getAllNewProducts() {
+        LocalDateTime now = LocalDateTime.now();
+        LocalDateTime fromDate = now.minusDays(14); // 최근 14일
+
+        List<Product> allProducts = productRepository.findRecentProducts(fromDate, now);
+        if (allProducts.isEmpty()) throw new ServiceException("404", "신상품이 존재하지 않습니다.");
+
+        return allProducts.stream().map(this::toProductInfo).toList();
+    }
+
+    /** 메인페이지 - 할인중 상품 */
+    public List<ProductListResponse.ProductInfo> getOnSaleProducts() {
+        List<Product> products = productRepository.findOnSaleProducts();
+        if (products.isEmpty()) throw new ServiceException("404", "할인중인 상품이 존재하지 않습니다.");
+        return products.stream().map(this::toProductInfo).toList();
+    }
+
+    /** 메인페이지 - 품절 임박 상품 */
+    public List<ProductListResponse.ProductInfo> getLowStockProducts() {
+        List<Product> products = productRepository.findLowStockProducts();
+        if (products.isEmpty()) throw new ServiceException("404", "품절 임박 상품이 존재하지 않습니다.");
+        return products.stream().map(this::toProductInfo).toList();
+    }
+
+    /** 메인페이지 - 재입고 상품 */
+    public List<ProductListResponse.ProductInfo> getRestockProducts() {
+        List<Product> products = productRepository.findRestockProducts();
+        if (products.isEmpty()) throw new ServiceException("404", "재입고 상품이 존재하지 않습니다.");
+        return products.stream().map(this::toProductInfo).toList();
+    }
+
+    /** 메인페이지 - 기획 상품 */
+    public List<ProductListResponse.ProductInfo> getPlannedProducts() {
+        List<Product> products = productRepository.findPlannedProducts();
+        if (products.isEmpty()) throw new ServiceException("404", "기획 상품이 존재하지 않습니다.");
+        return products.stream().map(this::toProductInfo).toList();
+    }
+
+    /** 메인페이지 - 오픈 예정 상품 */
+    public List<ProductListResponse.ProductInfo> getUpcomingProducts() {
+        LocalDateTime today = LocalDateTime.now();
+        List<Product> products = productRepository.findUpcomingProducts(today);
+        if (products.isEmpty()) throw new ServiceException("404", "오픈 예정 상품이 존재하지 않습니다.");
+        return products.stream().map(this::toProductInfo).toList();
+    }
 
     /** 상품 수정 */
     @Transactional
@@ -339,7 +387,7 @@ public class ProductService {
     }
 
 
-    /** Builder 패턴  */
+    /** DTO -> 엔티티 */
     // Product 생성
     private Product buildProductFromRequest(CreateProductRequest request, User user, Category category) {
         return Product.builder()
@@ -372,6 +420,7 @@ public class ProductService {
                 .isDeleted(false) // 논리삭제 여부(db에서 삭제는 안하고, 삭제처리만 된 것)
                 .build();
     }
+
     // Product 수정
     private void updateProductFromRequest(Product product, UpdateProductRequest request, Category category){
         // 이전 재고 저장
@@ -410,6 +459,8 @@ public class ProductService {
         }
 
     }
+
+    /** 엔티티 -> DTO  */
     // 상품 상세 조회
     private ProductDetailResponse toProductDetailResponse(Product product, ArtistBusinessInfoResponse businessInfo) {
         // 상품 필수 정보 DTO 생성
@@ -458,6 +509,25 @@ public class ProductService {
                 mapTags(product.getProductTags())
         );
     }
+
+    // 메인페이지 주제별 상품 목록 조회를 위해 Product엔티티 → ProductInfo DTO
+    private ProductListResponse.ProductInfo toProductInfo(Product product) {
+        return new ProductListResponse.ProductInfo(
+                product.getProductUuid(),
+                product.getImages().stream()
+                        .filter(img -> img.getFileType() == FileType.THUMBNAIL)
+                        .findFirst()
+                        .map(ProductImage::getFileUrl)
+                        .orElse(""),
+                product.getBrandName(),
+                product.getName(),
+                product.getPrice(),
+                product.getDiscountRate(),
+                product.getDiscountPrice(),
+                product.getAverageRating()
+        );
+    }
+
 
 
     /** 옵션, 추가상품, 태그, 이미지 메서드  */
