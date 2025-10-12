@@ -22,7 +22,7 @@ RUN gradle build -x test --no-daemon
 FROM container-registry.oracle.com/graalvm/jdk:21
 
 # curl 설치 (헬스 체크용)
-RUN apt-get update && apt-get install -y curl && rm -rf /var/lib/apt/lists/*
+RUN yum update -y && yum install -y curl && yum clean all
 
 # 작업 디렉토리 설정
 WORKDIR /app
