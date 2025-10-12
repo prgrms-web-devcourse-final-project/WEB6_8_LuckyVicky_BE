@@ -70,6 +70,9 @@ dependencies {
     
     // OpenAI Java SDK (Spring Boot Starter)
     implementation("com.openai:openai-java-spring-boot-starter:4.3.0")
+    //Elasticsearch
+    implementation ("org.springframework.boot:spring-boot-starter-data-elasticsearch")
+
 }
 
 tasks.withType<Test> {
