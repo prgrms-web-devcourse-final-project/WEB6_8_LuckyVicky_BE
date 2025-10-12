@@ -1,9 +1,9 @@
 package com.back.global.s3;
 
 import com.back.global.exception.ServiceException;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
@@ -26,13 +26,18 @@ import java.util.stream.Collectors;
 
 @Slf4j
 @Service
-@RequiredArgsConstructor
 public class S3Service {
 
     private final S3Client s3Client;
+    private final S3Service self;
 
     @Value("${cloud.aws.s3.bucket}")
     private String bucketName;
+
+    public S3Service(S3Client s3Client, @Lazy S3Service self) {
+        this.s3Client = s3Client;
+        this.self = self;
+    }
 
     /**
      * s3에 파일 업로드 처리 메서드
@@ -54,7 +59,7 @@ public class S3Service {
                 throw new ServiceException("400", "파일 타입이 null일 수 없습니다.");
             }
 
-            futures.add(uploadFileAsync(file, folder, type));
+            futures.add(self.uploadFileAsync(file, folder, type));
         }
 
         return futures.stream()
@@ -67,7 +72,7 @@ public class S3Service {
     /**
      *  파일 업로드 시 비동기 처리 담당
      */
-    @Async
+    @Async("s3UploadExecutor")
     public CompletableFuture<List<UploadResultResponse>> uploadFileAsync(MultipartFile file, String folder, FileType type) {
         try {
             return CompletableFuture.completedFuture(uploadFile(file, folder, type));
@@ -167,8 +172,8 @@ public class S3Service {
 
         public static FileCategory fromExtension(String extension) {
             String ext = extension.toLowerCase();
-            if (List.of("jpg","jpeg","png","gif","bmp","webp").contains(ext)) return IMAGE;
-            if (List.of("pdf","doc","docx","xls","xlsx","ppt","pptx","hwp").contains(ext)) return DOCUMENT;
+            if (List.of("jpg","jpeg","png","gif","bmp","webp","tiff","tif","svg","heic","heif","ico").contains(ext)) return IMAGE;
+            if (List.of("pdf","doc","docx","xls","xlsx","ppt","pptx","hwp","txt","md","csv","odt","ods","odp","rtf").contains(ext)) return DOCUMENT;
             return OTHER;
         }
     }
@@ -203,6 +208,42 @@ public class S3Service {
         } catch (Exception e) {
             log.error("S3 파일 삭제 실패. key: {}", key, e);
             throw new ServiceException("500", "S3 파일 삭제 실패: " + key);
+        }
+    }
+
+    /**
+     * 파일들을 S3에 업로드하고 URL 목록만 반환하는 메서드
+     */
+    public List<DescriptionImageUploadResponse> uploadFilesAndGetUrls(List<MultipartFile> files, String folder) {
+        if (files == null || files.isEmpty()) {
+            throw new ServiceException("400", "업로드할 파일이 없습니다.");
+        }
+
+        return files.stream()
+                .map(file -> uploadFileAndGetUrl(file, folder))
+                .collect(Collectors.toList());
+    }
+
+    private DescriptionImageUploadResponse uploadFileAndGetUrl(MultipartFile file, String folder) {
+        try {
+            String originalFilename = file.getOriginalFilename();
+            if (originalFilename == null || originalFilename.isBlank()) {
+                throw new ServiceException("400", "파일 이름이 없습니다.");
+            }
+
+            String extension = originalFilename.substring(originalFilename.lastIndexOf('.') + 1).toLowerCase();
+            String contentType = file.getContentType() != null ? file.getContentType() : "application/octet-stream";
+
+            String s3Key = folder + "/" + UUID.randomUUID() + "." + extension;
+
+            putS3Object(file.getBytes(), s3Key, contentType);
+
+            String url = s3Client.utilities().getUrl(b -> b.bucket(bucketName).key(s3Key)).toString();
+
+            return new DescriptionImageUploadResponse(url);
+        } catch (IOException e) {
+            log.error("파일 처리 실패: {}", file.getOriginalFilename(), e);
+            throw new ServiceException("500", "파일 처리 실패: " + file.getOriginalFilename());
         }
     }
 }

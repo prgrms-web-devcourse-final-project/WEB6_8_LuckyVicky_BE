@@ -13,6 +13,8 @@ import com.back.domain.payment.moriCash.repository.MoriCashPaymentRepository;
 import com.back.domain.user.entity.User;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -129,5 +131,14 @@ public class MoriCashPaymentService {
         }
 
         return MoriCashPaymentResponseDto.from(payment);
+    }
+
+    /**
+     * 사용자별 모리캐시 결제 내역 조회
+     */
+    @Transactional(readOnly = true)
+    public Page<MoriCashPaymentResponseDto> getPayments(User user, Pageable pageable) {
+        Page<MoriCashPayment> payments = moriCashPaymentRepository.findByUser(user, pageable);
+        return payments.map(MoriCashPaymentResponseDto::from);
     }
 }

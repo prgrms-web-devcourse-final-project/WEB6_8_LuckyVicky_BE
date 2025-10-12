@@ -23,7 +23,6 @@ public class ProductSellingStatusScheduler {
     // 매일 한국 시간 기준 오전 10시 10분에 실행 (이후 실제 서비스 운영한다면 매일 00:00시에 실행되도록 수정)
     @Scheduled(cron = "0 10 10 * * *", zone = "Asia/Seoul")
     public void updateSellingStatus() {
-        // 한국 시간 기준 오늘 날짜 0시
         LocalDateTime todayStartKST = LocalDate.now(ZoneId.of("Asia/Seoul")).atStartOfDay();
         log.info("[판매 상태 스케줄러] 실행 - 오늘 날짜(KST): {}", todayStartKST.toLocalDate());
 

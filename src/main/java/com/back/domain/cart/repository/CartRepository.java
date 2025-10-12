@@ -15,32 +15,35 @@ import java.util.Optional;
 @Repository
 public interface CartRepository extends JpaRepository<Cart, Long> {
 
-    List<Cart> findByUser(User user);
-
-    List<Cart> findByUserAndCartType(User user, Cart.CartType cartType);
-
-    Optional<Cart> findByUserAndProduct(User user, Product product);
-
+    /**
+     * 사용자와 상품, 장바구니 타입으로 조회
+     */
     Optional<Cart> findByUserAndProductAndCartType(User user, Product product, Cart.CartType cartType);
 
-    void deleteByUserAndProduct(User user, Product product);
-
+    /**
+     * 사용자의 모든 장바구니 삭제
+     */
     int deleteByUser(User user);
 
+    /**
+     * 사용자의 특정 타입 장바구니 삭제
+     */
     int deleteByUserAndCartType(User user, Cart.CartType cartType);
 
-    @Query("SELECT c FROM Cart c JOIN FETCH c.product p WHERE c.user = :user AND c.cartType = :cartType")
-    List<Cart> findByUserAndCartTypeWithProduct(@Param("user") User user, @Param("cartType") Cart.CartType cartType);
-
+    /**
+     * 사용자의 장바구니 조회 (상품 정보 포함, N+1 문제 해결)
+     */
     @Query("SELECT c FROM Cart c JOIN FETCH c.product p WHERE c.user = :user")
     List<Cart> findByUserWithProduct(@Param("user") User user);
 
+    /**
+     * 선택된 장바구니 아이템 조회
+     */
     List<Cart> findByUserAndIsSelectedTrue(User user);
-
-    @Modifying
-    @Query("DELETE FROM Cart c WHERE c.user = :user AND c.product.id IN :productIds")
-    void deleteByUserAndProductIdIn(@Param("user") User user, @Param("productIds") List<Long> productIds);
     
+    /**
+     * 주문 완료 후 장바구니에서 제거 (UUID 기반)
+     */
     @Modifying
     @Query("DELETE FROM Cart c WHERE c.user = :user AND c.product.productUuid IN :productUuids")
     void deleteByUserAndProductUuidIn(@Param("user") User user, @Param("productUuids") List<java.util.UUID> productUuids);

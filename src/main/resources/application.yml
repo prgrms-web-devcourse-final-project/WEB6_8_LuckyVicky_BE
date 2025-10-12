@@ -160,4 +160,5 @@ payment:
     imp-key: ${PORTONE_IMP_KEY:test-imp-key}
     imp-secret: ${PORTONE_IMP_SECRET:test-imp-secret}
   toss:
-    api-url: ${TOSS_API_URL:https://api.tosspayments.com/v1}
+    api-url: ${TOSS_API_URL:https://api.tosspayments.com/v2}
+    webhook-secret: ${TOSS_WEBHOOK_SECRET:test-webhook-secret}
