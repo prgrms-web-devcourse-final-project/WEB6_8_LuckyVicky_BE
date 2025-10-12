@@ -21,6 +21,7 @@ public class CashChargeResponseDto {
 
     private Long transactionId; // 거래 ID
     private Long userId; // 사용자 ID
+    private String orderId; // 주문 ID (토스 결제창에 전달용, format: CHARGE_{transactionId})
     private Integer amount; // 충전 금액
     private CashTransactionStatus status; // 거래 상태
     private String paymentMethod; // 결제 수단
@@ -35,6 +36,7 @@ public class CashChargeResponseDto {
         return CashChargeResponseDto.builder()
                 .transactionId(transaction.getId())
                 .userId(transaction.getUser().getId())
+                .orderId("CHARGE_" + transaction.getId()) // Webhook용 orderId 생성
                 .amount(transaction.getAmount())
                 .status(transaction.getStatus())
                 .paymentMethod(transaction.getPgProvider())
