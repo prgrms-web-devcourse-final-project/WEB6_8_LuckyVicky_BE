@@ -22,6 +22,7 @@ import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
+import org.springframework.security.web.util.matcher.RegexRequestMatcher;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
@@ -73,6 +74,14 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.GET, "/api/support/faqs", "/api/support/faqs/**").permitAll()
                         // FAQ 생성, 수정, 삭제 - ADMIN, ROOT만 접근 가능
                         .requestMatchers("/api/support/faqs", "/api/support/faqs/**").hasAnyRole("ADMIN", "ROOT")
+                        // 공개 문의 목록 조회 - 로그인 없이 접근 허용
+                        .requestMatchers(HttpMethod.GET, "/api/support/inquiries/public").permitAll()
+                        // 문의 상세 조회 - 로그인 없이 접근 허용 (숫자 ID만 매칭)
+                        .requestMatchers(new RegexRequestMatcher("/api/support/inquiries/\\d+", "GET")).permitAll()
+                        // 관리자 전용 API
+                        .requestMatchers("/api/support/inquiries/admin/**").hasRole("ADMIN")
+                        // 나머지 문의 API - 인증만 체크
+                        .requestMatchers("/api/support/inquiries/**").authenticated()
 
                         // 공개 API
                         .requestMatchers("/public/**").permitAll()
