@@ -11,6 +11,8 @@ import com.back.domain.payment.moriCash.repository.MoriCashPaymentRepository;
 import com.back.domain.user.entity.User;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -113,5 +115,19 @@ public class MoriCashRefundService {
                 .orElseThrow(() -> new IllegalArgumentException("모리캐시 잔액 정보를 찾을 수 없습니다."));
 
         return MoriCashRefundResponseDto.from(payment, balance.getTotalBalance());
+    }
+
+    /**
+     * 사용자별 모리캐시 환불 내역 조회
+     */
+    @Transactional(readOnly = true)
+    public Page<MoriCashRefundResponseDto> getRefunds(User user, Pageable pageable) {
+        Page<MoriCashPayment> payments = moriCashPaymentRepository.findByUserAndRefundIdIsNotNull(user, pageable);
+        
+        // 현재 잔액 조회
+        MoriCashBalance balance = moriCashBalanceRepository.findByUser(user)
+                .orElseThrow(() -> new IllegalArgumentException("모리캐시 잔액 정보를 찾을 수 없습니다."));
+        
+        return payments.map(payment -> MoriCashRefundResponseDto.from(payment, balance.getTotalBalance()));
     }
 }

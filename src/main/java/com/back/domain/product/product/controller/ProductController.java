@@ -12,6 +12,7 @@ import com.back.global.rsData.RsData;
 import com.back.global.s3.FileType;
 import com.back.global.s3.S3Service;
 import com.back.global.s3.UploadResultResponse;
+import com.back.global.s3.DescriptionImageUploadResponse;
 import com.back.global.security.auth.CustomUserDetails;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -192,6 +193,75 @@ public class ProductController {
             @RequestParam List<FileType> types) {
         List<UploadResultResponse> uploaded = s3Service.uploadFiles(files,"product-images", types);
         return ResponseEntity.ok(RsData.of("200","이미지 업로드 성공",uploaded));
+    }
+
+    /** 상품 정보에서 이미지 업로드 */
+    @PostMapping("/description-images")
+    @Operation(
+            summary = "상품 정보에서 이미지 업로드",
+            description = "상품 정보에 사용될 이미지를 업로드하고 URL 목록을 반환합니다.",
+            requestBody = @io.swagger.v3.oas.annotations.parameters.RequestBody(
+                    description = "업로드할 파일 리스트",
+                    required = true,
+                    content = @io.swagger.v3.oas.annotations.media.Content(
+                            mediaType = "multipart/form-data"
+                    )
+            ),
+            responses = {
+                    @ApiResponse(
+                            responseCode = "200",
+                            description = "이미지 업로드 성공",
+                            content = @Content(
+                                    mediaType = "application/json",
+                                    schema = @Schema(
+                                            example = """
+                                                    {
+                                                      "resultCode": "200",
+                                                      "msg": "이미지 업로드 성공",
+                                                      "data": [
+                                                        {
+                                                          "fileUrl": "https://bucket.s3.amazonaws.com/product-images/uuid1.png"
+                                                        },
+                                                        {
+                                                          "fileUrl": "https://bucket.s3.amazonaws.com/product-images/uuid2.png"
+                                                        }
+                                                      ]
+                                                    }
+                                                    """
+                                    )
+                            )
+                    )
+            }
+    )
+    public ResponseEntity<RsData<List<DescriptionImageUploadResponse>>> uploadDescriptionImages(
+            @RequestPart List<MultipartFile> files) {
+        List<DescriptionImageUploadResponse> response = s3Service.uploadFilesAndGetUrls(files, "product-images");
+        return ResponseEntity.ok(RsData.of("200", "이미지 업로드 성공", response));
+    }
+
+    /** 상품 이미지 개별 삭제 (S3) */
+    @DeleteMapping("/images")
+    @Operation(
+            summary = "S3 상품 이미지 개별 삭제",
+            description = "s3Key를 사용하여 S3에 업로드된 상품 이미지를 삭제합니다. 상품 등록/수정 중 사용자가 업로드한 이미지를 다시 삭제할 때 사용됩니다.",
+            responses = {
+                    @ApiResponse(
+                            responseCode = "200",
+                            description = "파일 삭제 성공",
+                            content = @Content(mediaType = "application/json", schema = @Schema(example = """
+                                    {
+                                      "resultCode": "200",
+                                      "msg": "파일이 성공적으로 삭제되었습니다.",
+                                      "data": "product-images/uuid1.png"
+                                    }
+                                    """))
+                    )
+            }
+    )
+    public ResponseEntity<RsData<String>> deleteProductImage(
+            @Parameter(description = "삭제할 파일의 s3Key", required = true) @RequestParam String s3Key) {
+        s3Service.deleteFile(s3Key);
+        return ResponseEntity.ok(RsData.of("200", "파일이 성공적으로 삭제되었습니다.", s3Key));
     }
 
     /** 상품 이미지(파일) 다운로드 */

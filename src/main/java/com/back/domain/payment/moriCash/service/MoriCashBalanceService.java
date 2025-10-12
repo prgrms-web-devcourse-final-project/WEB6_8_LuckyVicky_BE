@@ -1,12 +1,16 @@
 package com.back.domain.payment.moriCash.service;
 
 import com.back.domain.payment.moriCash.dto.response.MoriCashBalanceResponseDto;
+import com.back.domain.payment.moriCash.dto.response.MoriCashPaymentResponseDto;
 import com.back.domain.payment.moriCash.entity.MoriCashBalance;
+import com.back.domain.payment.moriCash.entity.MoriCashPayment;
 import com.back.domain.payment.moriCash.repository.MoriCashBalanceRepository;
 import com.back.domain.payment.moriCash.repository.MoriCashPaymentRepository;
 import com.back.domain.user.entity.User;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -65,5 +69,15 @@ public class MoriCashBalanceService {
     public MoriCashBalanceResponseDto getBalanceWithHistory(User user) {
         // 기본 잔액 정보 + 최근 거래 내역 포함
         return getBalance(user);
+    }
+
+    /**
+     * 모리캐시 거래 내역 조회 (페이징)
+     */
+    public Page<MoriCashPaymentResponseDto> getHistory(User user, Pageable pageable) {
+        log.info("모리캐시 거래 내역 조회 - 사용자: {}", user.getId());
+        
+        Page<MoriCashPayment> payments = moriCashPaymentRepository.findByUser(user, pageable);
+        return payments.map(MoriCashPaymentResponseDto::from);
     }
 }
