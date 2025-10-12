@@ -176,10 +176,9 @@ public class TestInitData {
                 2_000_000L,
                 now.plusDays(1),
                 now.plusDays(40),
-                FundingStatus.OPEN,
+                FundingStatus.PENDING,
                 List.of(FundingOption.create("프리미엄 세트", 80_000L, 30, 1))
         );
-        f3.increaseParticipantCount(10);
         fundingRepository.save(f3);
     }
 
