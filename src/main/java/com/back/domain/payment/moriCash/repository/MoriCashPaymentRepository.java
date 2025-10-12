@@ -27,6 +27,16 @@ public interface MoriCashPaymentRepository extends JpaRepository<MoriCashPayment
     Page<MoriCashPayment> findByUserOrderByCreateDateDesc(User user, Pageable pageable);
 
     /**
+     * 사용자별 모리캐시 결제 조회 (페이징, 정렬 지정 가능)
+     */
+    Page<MoriCashPayment> findByUser(User user, Pageable pageable);
+
+    /**
+     * 사용자별 환불 내역 조회 (refundId가 null이 아닌 것만)
+     */
+    Page<MoriCashPayment> findByUserAndRefundIdIsNotNull(User user, Pageable pageable);
+
+    /**
      * 결제 상태별 조회 (페이징)
      */
     Page<MoriCashPayment> findByStatusOrderByCreateDateDesc(MoriCashPaymentStatus status, Pageable pageable);

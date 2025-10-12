@@ -1,6 +1,7 @@
 package com.back.domain.order.order.service;
 
 import com.back.domain.cart.repository.CartRepository;
+import com.back.domain.notification.service.NotificationService;
 import com.back.domain.order.order.dto.request.OrderCancelRequestDto;
 import com.back.domain.order.order.dto.request.OrderExchangeRequestDto;
 import com.back.domain.order.order.dto.request.OrderRefundRequestDto;
@@ -47,6 +48,7 @@ class OrderServiceTest {
     @Mock private OrderItemRepository orderItemRepository;
     @Mock private ProductRepository productRepository;
     @Mock private CartRepository cartRepository;
+    @Mock private NotificationService notificationService;
 
     @InjectMocks private OrderService orderService;
 
@@ -234,9 +236,9 @@ class OrderServiceTest {
                 .isDeleted(false)
                 .productUuid(productUuid)
                 .build();
-        // initialize images list to avoid NPE in thumbnail resolver
-        java.util.ArrayList<com.back.domain.product.product.entity.ProductImage> images = new java.util.ArrayList<>();
-        ReflectionTestUtils.setField(product, "images", images);
+        // 썸네일 조회 시 NPE 방지를 위해 images 리스트 초기화
+        java.util.ArrayList<com.back.domain.product.product.entity.ProductImage> imageList = new java.util.ArrayList<>();
+        ReflectionTestUtils.setField(product, "images", imageList);
         ReflectionTestUtils.setField(product, "id", id);
         return product;
     }
