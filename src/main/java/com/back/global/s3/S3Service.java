@@ -206,4 +206,40 @@ public class S3Service {
             throw new ServiceException("500", "S3 파일 삭제 실패: " + key);
         }
     }
+
+    /**
+     * 파일들을 S3에 업로드하고 URL 목록만 반환하는 메서드
+     */
+    public List<DescriptionImageUploadResponse> uploadFilesAndGetUrls(List<MultipartFile> files, String folder) {
+        if (files == null || files.isEmpty()) {
+            throw new ServiceException("400", "업로드할 파일이 없습니다.");
+        }
+
+        return files.stream()
+                .map(file -> uploadFileAndGetUrl(file, folder))
+                .collect(Collectors.toList());
+    }
+
+    private DescriptionImageUploadResponse uploadFileAndGetUrl(MultipartFile file, String folder) {
+        try {
+            String originalFilename = file.getOriginalFilename();
+            if (originalFilename == null || originalFilename.isBlank()) {
+                throw new ServiceException("400", "파일 이름이 없습니다.");
+            }
+
+            String extension = originalFilename.substring(originalFilename.lastIndexOf('.') + 1).toLowerCase();
+            String contentType = file.getContentType() != null ? file.getContentType() : "application/octet-stream";
+
+            String s3Key = folder + "/" + UUID.randomUUID() + "." + extension;
+
+            putS3Object(file.getBytes(), s3Key, contentType);
+
+            String url = s3Client.utilities().getUrl(b -> b.bucket(bucketName).key(s3Key)).toString();
+
+            return new DescriptionImageUploadResponse(url);
+        } catch (IOException e) {
+            log.error("파일 처리 실패: {}", file.getOriginalFilename(), e);
+            throw new ServiceException("500", "파일 처리 실패: " + file.getOriginalFilename());
+        }
+    }
 }
