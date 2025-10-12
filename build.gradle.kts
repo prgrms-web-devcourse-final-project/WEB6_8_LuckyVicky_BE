@@ -67,6 +67,9 @@ dependencies {
     // Redis
     implementation("org.springframework.boot:spring-boot-starter-data-redis")
     implementation("org.springframework.session:spring-session-data-redis")
+    //Elasticsearch
+    implementation ("org.springframework.boot:spring-boot-starter-data-elasticsearch")
+
 }
 
 tasks.withType<Test> {
