@@ -1,9 +1,9 @@
 package com.back.global.s3;
 
 import com.back.global.exception.ServiceException;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
@@ -26,7 +26,6 @@ import java.util.stream.Collectors;
 
 @Slf4j
 @Service
-@RequiredArgsConstructor
 public class S3Service {
 
     private final S3Client s3Client;
@@ -34,6 +33,11 @@ public class S3Service {
 
     @Value("${cloud.aws.s3.bucket}")
     private String bucketName;
+
+    public S3Service(S3Client s3Client, @Lazy S3Service self) {
+        this.s3Client = s3Client;
+        this.self = self;
+    }
 
     /**
      * s3에 파일 업로드 처리 메서드
