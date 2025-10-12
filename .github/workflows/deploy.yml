@@ -243,10 +243,10 @@ jobs:
               --restart unless-stopped \
               --network "${NET}" \
               -e TZ=Asia/Seoul \
-              -e SPRING_DATA_REDIS_HOST=redis_1 \
-              -e SPRING_DATA_REDIS_PORT=6379 \
-              -e SPRING_DATA_REDIS_PASSWORD=${PASSWORD_1:-} \
-              -e SPRING_DATA_ELASTICSEARCH_CLIENT_ENDPOINTS=elasticsearch_1:9200 \
+              -e REDIS_HOST=redis_1 \
+              -e REDIS_PORT=6379 \
+              -e REDIS_PASSWORD=${PASSWORD_1:-} \
+              -e ELASTICSEARCH_HOST=elasticsearch_1:9200 \
               -e SPRING_DATA_ELASTICSEARCH_USERNAME=elastic \
               -e SPRING_DATA_ELASTICSEARCH_PASSWORD=${PASSWORD_1:-} \
               "${IMAGE}"
