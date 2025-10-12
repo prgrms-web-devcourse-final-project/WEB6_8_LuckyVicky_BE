@@ -53,3 +53,10 @@ terraform.tfstate
 terraform.tfstate.backup
 .terraform.tfstate.lock.info
 secrets.tf
+
+## Runtime data ##
+npm_data/
+redis_data/
+*.log
+*.rdb
+*.sqlite

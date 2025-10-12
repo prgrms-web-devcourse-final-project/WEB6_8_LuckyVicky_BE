@@ -723,7 +723,7 @@ public class FundingControllerTest {
     @WithUserDetails("user1@user.com")
     @DisplayName("펀딩 삭제")
     void t39() throws Exception {
-        ResultActions ra = mvc.perform(delete("/api/fundings/1"))
+        ResultActions ra = mvc.perform(delete("/api/fundings/4"))
                 .andDo(print());
 
         ra.andExpect(status().isOk())

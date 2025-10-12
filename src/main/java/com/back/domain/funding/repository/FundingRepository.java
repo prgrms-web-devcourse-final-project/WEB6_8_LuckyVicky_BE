@@ -53,6 +53,27 @@ public interface FundingRepository extends JpaRepository<Funding, Long>, JpaSpec
             Pageable pageable
     );
 
+    // 시작일이 도래한 승인된 펀딩 카운트
+    @Query("SELECT COUNT(f) FROM Funding f " +
+            "WHERE f.status = :status AND f.startDate <= :now")
+    long countByStatusAndStartDateBefore(
+            @Param("status") FundingStatus status,
+            @Param("now") LocalDateTime now
+    );
+
+    // 승인된 펀딩 일괄 오픈
+    @Modifying
+    @Transactional
+    @Query("UPDATE Funding f SET f.status = 'OPEN' " +
+            "WHERE f.status = 'APPROVED' AND f.startDate <= :now")
+    int bulkOpenApprovedFundings(@Param("now") LocalDateTime now);
+
+    // 시작일이 도래한 승인된 펀딩 조회 (정합성 체크용)
+    List<Funding> findByStatusAndStartDateBefore(
+            FundingStatus status,
+            LocalDateTime startDate
+    );
+
     // 종료일이 지난 펀딩 조회
     @Query("SELECT COUNT(f) FROM Funding f " +
             "WHERE f.status = :status AND f.endDate < :now")

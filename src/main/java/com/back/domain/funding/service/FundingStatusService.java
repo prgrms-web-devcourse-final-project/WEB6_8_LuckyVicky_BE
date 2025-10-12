@@ -8,6 +8,7 @@ import com.back.domain.notification.entity.NotificationType;
 import com.back.domain.notification.service.NotificationService;
 import com.back.domain.user.entity.User;
 import com.back.global.exception.ServiceException;
+import com.back.global.rq.Rq;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -24,42 +25,72 @@ public class FundingStatusService {
     private final FundingRepository fundingRepository;
     private final FundingContributionRepository fundingContributionRepository;
     private final NotificationService notificationService;
+    private final Rq rq;
 
     public Funding getByIdOrThrow(Long id) {
         return fundingRepository.findById(id)
                 .orElseThrow(() -> new ServiceException("404", "존재하지 않는 펀딩입니다."));
     }
 
-    private void validateOwnership(Funding funding, String userEmail) {
-        if (!funding.getUser().getEmail().equals(userEmail)) {
+    private void requireOwnerOrAdmin(Funding funding) {
+        Long ownerId = funding.getUser().getId();
+        if (!(rq.isAdmin() || rq.isSameUser(ownerId))) {
             throw new ServiceException("403", "권한이 없습니다.");
         }
     }
 
+    // 펀딩 승인
+    @Transactional
+    public void approveFunding(Long fundingId) {
+        Funding funding = getByIdOrThrow(fundingId);
+        rq.requireAdmin();
+        try {
+            funding.approve();
+        } catch (IllegalStateException e) {
+            throw new ServiceException("400", e.getMessage());
+        }
+    }
+
+    // 펀딩 거절
+    @Transactional
+    public void rejectFunding(Long fundingId) {
+        Funding funding = getByIdOrThrow(fundingId);
+        rq.requireAdmin();
+        try {
+            funding.reject();
+        } catch (IllegalStateException e) {
+            throw new ServiceException("400", e.getMessage());
+        }
+    }
+
+
     // 펀딩 종료
     @Transactional
     public void closeFunding(Long fundingId, String userEmail) {
+        rq.requireLogin();
         Funding funding = getByIdOrThrow(fundingId);
-        validateOwnership(funding, userEmail);
-
-        if (funding.getStatus() != FundingStatus.OPEN) {
-            throw new ServiceException("400", "펀딩이 진행 중 상태가 아닙니다.");
+        requireOwnerOrAdmin(funding);
+        try {
+            funding.close();
+        } catch (IllegalStateException e) {
+            throw new ServiceException("400", e.getMessage());
         }
-        funding.close();
     }
 
     // 펀딩 취소
     @Transactional
     public void cancelFunding(Long fundingId, String userEmail) {
+        rq.requireLogin();
         Funding funding = getByIdOrThrow(fundingId);
-        validateOwnership(funding, userEmail);
-
-        if (funding.getStatus() != FundingStatus.OPEN) {
-            throw new ServiceException("400", "펀딩이 진행 중 상태가 아닙니다.");
+        requireOwnerOrAdmin(funding);
+        try {
+            funding.cancel();
+        } catch (IllegalStateException e) {
+            throw new ServiceException("400", e.getMessage());
         }
-        funding.cancel();
     }
 
+    // 만료된 모든 OPEN 펀딩을 CLOSED로 변경
     @Transactional
     public int closeExpiredFundings() {
         LocalDateTime now = LocalDateTime.now();
@@ -159,7 +190,6 @@ public class FundingStatusService {
     }
 
     // 펀딩 최종 처리 핵심 로직 (CLOSED -> SUCCESS/FAILED)
-
     private FinalizeStatus processFinalizeLogic(Funding funding) {
         // 상태 체크
         if (funding.getStatus() != FundingStatus.CLOSED) {
@@ -176,9 +206,8 @@ public class FundingStatusService {
                 .countDistinctParticipantsByFundingId(funding.getId());
         int actualParticipants = participantCount != null ? participantCount.intValue() : 0;
 
-        // 펀딩 엔티티 업데이트
-        funding.increaseCollectedAmount(actualAmount - funding.getCollectedAmount());
-        funding.increaseParticipantCount(actualParticipants - funding.getParticipantCount());
+        // 펀딩 통계 동기화
+        funding.syncStats(actualAmount, actualParticipants);
 
         // 목표 금액 달성 여부에 따라 상태 변경
         double achievementRate = (actualAmount * 100.0) / funding.getTargetAmount();
@@ -188,10 +217,10 @@ public class FundingStatusService {
             log.info("펀딩 성공: ID={}, 목표={}원, 달성={}원, 달성률={}%",
                     funding.getId(), funding.getTargetAmount(), actualAmount,
                     String.format("%.2f", achievementRate));
-            
+
             // 알림 발송 - 펀딩 성공
             sendFundingSuccessNotifications(funding);
-            
+
             return FinalizeStatus.SUCCESS;
 
         } else {
@@ -199,58 +228,58 @@ public class FundingStatusService {
             log.info("펀딩 실패: ID={}, 목표={}원, 달성={}원, 달성률={}%",
                     funding.getId(), funding.getTargetAmount(), actualAmount,
                     String.format("%.2f", achievementRate));
-            
+
             // 알림 발송 - 펀딩 실패
             sendFundingFailedNotifications(funding);
-            
+
             return FinalizeStatus.FAILED;
         }
     }
-    
+
     /**
      * 펀딩 성공 알림 발송
      */
     private void sendFundingSuccessNotifications(Funding funding) {
         // 작가에게 알림
         notificationService.sendNotification(
-            funding.getUser(),
-            NotificationType.FUNDING_SUCCESS_SELLER,
-            "펀딩이 목표 금액을 달성했습니다. 펀딩: " + funding.getTitle(),
-            "/artist/fundings/" + funding.getId()
+                funding.getUser(),
+                NotificationType.FUNDING_SUCCESS_SELLER,
+                "펀딩이 목표 금액을 달성했습니다. 펀딩: " + funding.getTitle(),
+                "/artist/fundings/" + funding.getId()
         );
-        
+
         // 참여자들에게 알림
         List<User> participants = fundingContributionRepository.findAllParticipantsByFundingId(funding.getId());
         for (User participant : participants) {
             notificationService.sendNotification(
-                participant,
-                NotificationType.FUNDING_SUCCESS,
-                "참여한 펀딩이 성공했습니다. 펀딩: " + funding.getTitle(),
-                "/mypage/fundings/" + funding.getId()
+                    participant,
+                    NotificationType.FUNDING_SUCCESS,
+                    "참여한 펀딩이 성공했습니다. 펀딩: " + funding.getTitle(),
+                    "/mypage/fundings/" + funding.getId()
             );
         }
     }
-    
+
     /**
      * 펀딩 실패 알림 발송
      */
     private void sendFundingFailedNotifications(Funding funding) {
         // 작가에게 알림
         notificationService.sendNotification(
-            funding.getUser(),
-            NotificationType.FUNDING_FAILED_SELLER,
-            "펀딩이 목표 금액 미달로 종료되었습니다. 펀딩: " + funding.getTitle(),
-            "/artist/fundings/" + funding.getId()
+                funding.getUser(),
+                NotificationType.FUNDING_FAILED_SELLER,
+                "펀딩이 목표 금액 미달로 종료되었습니다. 펀딩: " + funding.getTitle(),
+                "/artist/fundings/" + funding.getId()
         );
-        
+
         // 참여자들에게 알림
         List<User> participants = fundingContributionRepository.findAllParticipantsByFundingId(funding.getId());
         for (User participant : participants) {
             notificationService.sendNotification(
-                participant,
-                NotificationType.FUNDING_FAILED,
-                "참여한 펀딩이 목표 금액 미달로 종료되었습니다. 펀딩: " + funding.getTitle(),
-                "/mypage/fundings/" + funding.getId()
+                    participant,
+                    NotificationType.FUNDING_FAILED,
+                    "참여한 펀딩이 목표 금액 미달로 종료되었습니다. 펀딩: " + funding.getTitle(),
+                    "/mypage/fundings/" + funding.getId()
             );
         }
     }
@@ -304,5 +333,54 @@ public class FundingStatusService {
         public int totalFinalized() {
             return successCount + failedCount + errorCount;
         }
+    }
+
+    // 승인된 펀딩 open 처리
+    @Transactional
+    public int openApprovedFundings() {
+        LocalDateTime now = LocalDateTime.now();
+
+        // COUNT로 먼저 확인
+        long approvedCount = fundingRepository
+                .countByStatusAndStartDateBefore(FundingStatus.APPROVED, now);
+
+        if (approvedCount == 0) {
+            log.debug("[자동 오픈] 오픈할 펀딩 없음");
+            return 0;
+        }
+
+        log.info("[자동 오픈] 오픈 대상 펀딩 {}건 발견", approvedCount);
+
+        // 배치 업데이트로 한 번에 처리
+        int opened = fundingRepository.bulkOpenApprovedFundings(now);
+
+        log.info("[자동 오픈] 완료 - 처리: {}건", opened);
+
+        return opened;
+    }
+
+    // 누락된 펀딩 체크 및 처리 (정합성 체크)
+    @Transactional
+    public int checkAndOpenMissedFundings() {
+        LocalDateTime now = LocalDateTime.now();
+
+        List<Funding> missedFundings = fundingRepository
+                .findByStatusAndStartDateBefore(FundingStatus.APPROVED, now);
+
+        if (missedFundings.isEmpty()) {
+            log.info("[정합성 체크] 모든 승인 펀딩 상태 정상");
+            return 0;
+        }
+
+        log.warn("[정합성 체크] 누락된 승인 펀딩 {}건 발견", missedFundings.size());
+
+        int opened = 0;
+        for (Funding funding : missedFundings) {
+            funding.open();
+            opened++;
+            log.info("[정합성 체크] 누락 펀딩 오픈: ID={}, 시작일={}",
+                    funding.getId(), funding.getStartDate());
+        }
+        return opened;
     }
 }

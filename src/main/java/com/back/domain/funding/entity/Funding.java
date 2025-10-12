@@ -151,6 +151,16 @@ public class Funding extends BaseEntity {
 
     // ========== 상태 변경 ==========
 
+    public void open() {
+        if (this.status != FundingStatus.APPROVED) {
+            throw new IllegalStateException("승인된 펀딩만 오픈할 수 있습니다.");
+        }
+        if (LocalDateTime.now().isBefore(this.startDate)) {
+            throw new IllegalStateException("시작일이 도래하지 않았습니다.");
+        }
+        this.status = FundingStatus.OPEN;
+    }
+
     public void close() {
         if (this.status != FundingStatus.OPEN) {
             throw new IllegalStateException("진행 중인 펀딩만 종료할 수 있습니다.");
@@ -176,18 +186,15 @@ public class Funding extends BaseEntity {
     }
 
     public void cancel() {
-        if (this.status == FundingStatus.SUCCESS || this.status == FundingStatus.FAILED) {
+        if (this.status == FundingStatus.SUCCESS || this.status == FundingStatus.FAILED || this.status == FundingStatus.CLOSED) {
             throw new IllegalStateException("이미 완료된 펀딩은 취소할 수 없습니다.");
-        }
-        if (this.isDeleted) {
-            throw new IllegalStateException("삭제된 펀딩은 취소할 수 없습니다.");
         }
         this.status = FundingStatus.CANCELED;
     }
 
     public void delete() {
-        if (this.status != FundingStatus.OPEN && this.status != FundingStatus.PENDING) {
-            throw new IllegalStateException("진행 중이거나 심사 중인 펀딩만 삭제할 수 있습니다.");
+        if (this.status != FundingStatus.PENDING && this.status != FundingStatus.REJECTED && this.status != FundingStatus.CANCELED) {
+            throw new IllegalStateException("심사 중, 거절됨, 취소된 펀딩만 삭제할 수 있습니다.");
         }
         if (this.participantCount > 0) {
             throw new IllegalStateException("참여자가 있는 펀딩은 삭제할 수 없습니다.");
@@ -197,6 +204,20 @@ public class Funding extends BaseEntity {
         }
         this.isDeleted = true;
         this.deletedAt = LocalDateTime.now();
+    }
+
+    public void approve() {
+        if (this.status != FundingStatus.PENDING) {
+            throw new IllegalStateException("심사 중 상태가 아닙니다.");
+        }
+        this.status = FundingStatus.APPROVED;
+    }
+
+    public void reject() {
+        if (this.status != FundingStatus.PENDING) {
+            throw new IllegalStateException("심사 중 상태가 아닙니다.");
+        }
+        this.status = FundingStatus.REJECTED;
     }
 
     // ========== 옵션 관리 ==========
@@ -233,6 +254,14 @@ public class Funding extends BaseEntity {
             throw new IllegalArgumentException("증가 수는 0보다 커야 합니다.");
         }
         this.participantCount += delta;
+    }
+
+    public void syncStats(long amount, int participants) {
+        if (amount < 0 || participants < 0) {
+            throw new IllegalArgumentException("통계 값은 음수일 수 없습니다.");
+        }
+        this.collectedAmount = amount;
+        this.participantCount = participants;
     }
 
     // ========== 조회 메서드 ==========
@@ -296,7 +325,7 @@ public class Funding extends BaseEntity {
         if (startDate.isBefore(LocalDateTime.now())) {
             throw new IllegalArgumentException("시작일은 현재 시각 이후여야 합니다.");
         }
-        if (endDate.isBefore(startDate)) {
+        if (endDate.isBefore(startDate) || endDate.isEqual(startDate)) {
             throw new IllegalArgumentException("종료일은 시작일 이후여야 합니다.");
         }
     }
