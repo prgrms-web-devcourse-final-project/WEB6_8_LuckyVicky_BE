@@ -71,13 +71,13 @@ public class CashResponse {
             /** 카테고리 (UI 표시용) */
             String category,
             /** 충전 금액 */
-            int amount,
-            /** 적립 포인트 */
-            int bonusPoint,
-            /** 결제 수단 코드 */
-            String method,
+            int chargeAmount,
+            /** 사용 금액 */
+            int useAmount,
+            /** 거래 후 잔액 */
+            int balanceAfter,
             /** 결제 수단 텍스트 */
-            String methodText,
+            String paymentMethod,
             /** 상태 */
             String status,
             /** 링크 정보 (선택적) */
