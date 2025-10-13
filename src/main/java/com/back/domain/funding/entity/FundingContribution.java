@@ -19,16 +19,13 @@ public class FundingContribution extends BaseEntity {
     private Funding funding;
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
-    private FundingOption option;
-
-    @ManyToOne(fetch = FetchType.LAZY, optional = false)
     private User buyer;
 
     @Column(nullable = false)
     private int quantity;
 
     @Column(nullable = false)
-    private long unitPrice;
+    private long price;
 
     @Column(nullable = false)
     private long totalAmount;
@@ -36,16 +33,13 @@ public class FundingContribution extends BaseEntity {
     @Column(nullable = false)
     private LocalDateTime paidAt;
 
-    public static FundingContribution create(Funding funding, FundingOption option, int qty, User buyer, LocalDateTime paidAt) {
-        long unit = option.getPrice();
-        long total = unit * qty;
+    public static FundingContribution create(Funding funding, int qty, User buyer, long price, LocalDateTime paidAt) {
+
         return FundingContribution.builder()
                 .funding(funding)
-                .option(option)
                 .buyer(buyer)
                 .quantity(qty)
-                .unitPrice(unit)
-                .totalAmount(total)
+                .price(price)
                 .paidAt(paidAt)
                 .build();
     }

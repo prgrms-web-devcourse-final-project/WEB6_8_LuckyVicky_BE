@@ -68,11 +68,11 @@ public class FundingController {
                     example = "키링")
             @RequestParam(required = false) String keyword,
 
-            @Parameter(description = "[필터링] 최소 옵션 가격 (원 단위)",
+            @Parameter(description = "[필터링] 최소 가격 (원 단위)",
                     example = "10000")
             @RequestParam(required = false) Long minPrice,
 
-            @Parameter(description = "[필터링] 최대 옵션 가격 (원 단위)",
+            @Parameter(description = "[필터링] 최대 가격 (원 단위)",
                     example = "50000")
             @RequestParam(required = false) Long maxPrice,
 
@@ -105,7 +105,7 @@ public class FundingController {
     }
 
     @DeleteMapping("/{id}")
-    @Operation(summary = "펀딩 삭제", description = "펀딩을 삭제합니다. 심사 중이거나 승인된 상태에서만 삭제할 수 있습니다.")
+    @Operation(summary = "펀딩 삭제", description = "펀딩을 삭제합니다. 심사 중이거나 거절, 취소 상태에서만 삭제할 수 있습니다.")
     @PreAuthorize("hasAuthority('ROLE_ARTIST') or hasAuthority('ROLE_ADMIN') or hasAuthority('ROLE_ROOT')")
     public ResponseEntity<RsData<Void>> deleteFunding(
             @PathVariable @Positive Long id,

@@ -40,14 +40,8 @@ public class FundingCustomRepositoryImpl implements FundingCustomRepository {
         // LEFT JOIN FETCH로 N+1 방지
         funding.fetch("user", JoinType.LEFT);
 
-        // 가격 필터링을 위한 옵션 조인 (fetch가 아닌 일반 join)
-        Join<Object, Object> optionJoin = null;
-        if (minPrice != null || maxPrice != null) {
-            optionJoin = funding.join("options", JoinType.INNER);
-        }
-
         // WHERE 조건 생성
-        List<Predicate> predicates = buildPredicates(cb, funding, optionJoin, statuses, keyword, minPrice, maxPrice);
+        List<Predicate> predicates = buildPredicates(cb, funding, statuses, keyword, minPrice, maxPrice);
         query.where(predicates.toArray(new Predicate[0]));
 
         // 정렬 적용
@@ -75,7 +69,6 @@ public class FundingCustomRepositoryImpl implements FundingCustomRepository {
     private List<Predicate> buildPredicates(
             CriteriaBuilder cb,
             Root<Funding> funding,
-            Join<Object, Object> optionJoin,
             Set<FundingStatus> statuses,
             String keyword,
             Long minPrice,
@@ -96,14 +89,12 @@ public class FundingCustomRepositoryImpl implements FundingCustomRepository {
             ));
         }
 
-        // 옵션 가격 범위 필터
-        if (optionJoin != null) {
-            if (minPrice != null) {
-                predicates.add(cb.greaterThanOrEqualTo(optionJoin.get("price"), minPrice));
-            }
-            if (maxPrice != null) {
-                predicates.add(cb.lessThanOrEqualTo(optionJoin.get("price"), maxPrice));
-            }
+        // 가격 범위 필터 (Funding 엔티티의 price 필드 사용)
+        if (minPrice != null) {
+            predicates.add(cb.greaterThanOrEqualTo(funding.get("price"), minPrice));
+        }
+        if (maxPrice != null) {
+            predicates.add(cb.lessThanOrEqualTo(funding.get("price"), maxPrice));
         }
 
         return predicates;
@@ -141,14 +132,8 @@ public class FundingCustomRepositoryImpl implements FundingCustomRepository {
         CriteriaQuery<Long> countQuery = cb.createQuery(Long.class);
         Root<Funding> funding = countQuery.from(Funding.class);
 
-        // 가격 필터링을 위한 옵션 조인
-        Join<Object, Object> optionJoin = null;
-        if (minPrice != null || maxPrice != null) {
-            optionJoin = funding.join("options", JoinType.INNER);
-        }
-
         // WHERE 조건 동일하게 적용
-        List<Predicate> predicates = buildPredicates(cb, funding, optionJoin, statuses, keyword, minPrice, maxPrice);
+        List<Predicate> predicates = buildPredicates(cb, funding, statuses, keyword, minPrice, maxPrice);
         countQuery.select(cb.count(funding));
         countQuery.where(predicates.toArray(new Predicate[0]));
 

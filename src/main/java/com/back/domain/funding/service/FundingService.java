@@ -7,7 +7,6 @@ import com.back.domain.funding.dto.request.FundingUpdateRequest;
 import com.back.domain.funding.dto.response.FundingCardDto;
 import com.back.domain.funding.dto.response.FundingDetailResponse;
 import com.back.domain.funding.entity.Funding;
-import com.back.domain.funding.entity.FundingOption;
 import com.back.domain.funding.entity.FundingStatus;
 import com.back.domain.funding.repository.FundingContributionRepository;
 import com.back.domain.funding.repository.FundingRepository;
@@ -31,7 +30,6 @@ import org.springframework.web.server.ResponseStatusException;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
-import java.util.List;
 import java.util.Set;
 
 @Slf4j
@@ -55,10 +53,6 @@ public class FundingService {
         Category category = categoryRepository.findById(req.categoryId())
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.BAD_REQUEST, "존재하지 않는 카테고리입니다."));
 
-        List<FundingOption> optionEntities = req.options().stream()
-                .map(o -> FundingOption.create(o.name(), o.price(), o.stock(), o.sortOrder()))
-                .toList();
-
         // 엔티티 정적 팩토리로 생성(도메인 규칙 검증 포함)
         Funding funding = Funding.create(
                 user,
@@ -67,10 +61,11 @@ public class FundingService {
                 category,
                 req.imageUrl(),
                 req.targetAmount(),
+                req.price(),
+                req.stock(),
                 req.startDate(),
                 req.endDate(),
-                FundingStatus.PENDING,
-                optionEntities
+                FundingStatus.PENDING
         );
 
         return fundingRepository.save(funding);
@@ -190,6 +185,22 @@ public class FundingService {
             }
         }
 
+        if (req.price() != null) {
+            try {
+                funding.updatePrice(req.price());
+            } catch (IllegalStateException e) {
+                throw new ServiceException("400", e.getMessage());
+            }
+        }
+
+        if (req.stock() != null) {
+            try {
+                funding.updateStock(req.stock());
+            } catch (IllegalArgumentException e) {
+                throw new ServiceException("400", e.getMessage());
+            }
+        }
+
         if (req.endDate() != null) {
             try {
                 funding.updateEndDate(req.endDate());
@@ -198,35 +209,6 @@ public class FundingService {
             }
         }
 
-        if (req.options() != null && !req.options().isEmpty()) {
-            updateOptions(funding, req.options());
-        }
-    }
-
-    private void updateOptions(Funding funding, List<FundingUpdateRequest.FundingOptionRequest> optionRequests) {
-        for (FundingUpdateRequest.FundingOptionRequest optionReq : optionRequests) {
-
-            // 기존 옵션 수정
-            if (optionReq.id() != null) {
-                funding.updateOption(
-                        optionReq.id(),
-                        optionReq.name(),
-                        optionReq.price(),
-                        optionReq.stock(),
-                        optionReq.sortOrder()
-                );
-            }
-            // 신규 옵션 추가
-            else {
-                FundingOption newOption = FundingOption.create(
-                        optionReq.name(),
-                        optionReq.price(),
-                        optionReq.stock(),
-                        optionReq.sortOrder() != null ? optionReq.sortOrder() : 999
-                );
-                funding.addOption(newOption);
-            }
-        }
     }
 
     @Transactional
