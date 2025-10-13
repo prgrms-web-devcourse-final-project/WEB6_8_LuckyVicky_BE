@@ -1,9 +1,11 @@
 package com.back.domain.auth.controller;
 
 import com.back.domain.auth.dto.request.LoginRequest;
+import com.back.domain.auth.dto.request.PasswordResetRequest;
 import com.back.domain.auth.dto.request.SignUpRequest;
 import com.back.domain.auth.dto.request.TokenRefreshRequest;
 import com.back.domain.auth.dto.response.AuthResponse;
+import com.back.domain.auth.dto.response.PasswordResetResponse;
 import com.back.domain.auth.dto.response.SignUpResponse;
 import com.back.domain.auth.service.AuthService;
 import com.back.domain.user.entity.Role;
@@ -193,6 +195,21 @@ public class AuthController {
         return ResponseEntity.ok(
                 RsData.of("200", "사용자 정보 조회 성공", response)
         );
+    }
+
+    /**
+     * 비밀번호 찾기 - 임시 비밀번호 발급
+     */
+    @Operation(
+            summary = "비밀번호 찾기",
+            description = "등록된 이메일로 임시 비밀번호를 발송합니다. 소셜 로그인 사용자는 이용할 수 없습니다."
+    )
+    @PostMapping("/password/reset")
+    public ResponseEntity<PasswordResetResponse> resetPassword(
+            @Valid @RequestBody PasswordResetRequest request) {
+
+        PasswordResetResponse response = authService.resetPassword(request);
+        return ResponseEntity.ok(response);
     }
 
     /**
