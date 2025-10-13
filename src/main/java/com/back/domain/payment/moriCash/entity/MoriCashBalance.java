@@ -37,6 +37,16 @@ public class MoriCashBalance extends BaseEntity {
     @Column(name = "total_used", nullable = false)
     private Integer totalUsed = 0; // 총 사용 금액
 
+    // 작가 정산 통계 필드 추가
+    @Column(name = "total_settlement_sales", nullable = false)
+    private Integer totalSettlementSales = 0; // 총 정산 매출 (누적)
+
+    @Column(name = "total_settlement_commission", nullable = false)
+    private Integer totalSettlementCommission = 0; // 총 정산 수수료 (누적)
+
+    @Column(name = "total_settlement_net_income", nullable = false)
+    private Integer totalSettlementNetIncome = 0; // 총 정산 순수익 (누적)
+
     @Builder
     private MoriCashBalance(User user, Integer totalBalance, Integer availableBalance, 
                           Integer frozenBalance, Integer totalCharged, Integer totalUsed) {
@@ -46,6 +56,9 @@ public class MoriCashBalance extends BaseEntity {
         this.frozenBalance = frozenBalance != null ? frozenBalance : 0;
         this.totalCharged = totalCharged != null ? totalCharged : 0;
         this.totalUsed = totalUsed != null ? totalUsed : 0;
+        this.totalSettlementSales = 0;
+        this.totalSettlementCommission = 0;
+        this.totalSettlementNetIncome = 0;
     }
 
     /**
@@ -141,5 +154,24 @@ public class MoriCashBalance extends BaseEntity {
      */
     public void syncBalance() {
         this.totalBalance = this.availableBalance + this.frozenBalance;
+    }
+
+    /**
+     * 환전 요청 시 모리캐시 차감 및 정산 통계 업데이트 (작가 전용)
+     */
+    public void processSettlement(Integer amount, Integer commission, Integer netAmount) {
+        if (amount < 0) throw new IllegalArgumentException("환전 금액은 양수여야 합니다.");
+        if (this.availableBalance < amount) {
+            throw new IllegalStateException("환전 가능한 모리캐시가 부족합니다.");
+        }
+
+        // 모리캐시 차감
+        this.totalBalance -= amount;
+        this.availableBalance -= amount;
+
+        // 정산 통계 업데이트
+        this.totalSettlementSales += amount;
+        this.totalSettlementCommission += commission;
+        this.totalSettlementNetIncome += netAmount;
     }
 }
