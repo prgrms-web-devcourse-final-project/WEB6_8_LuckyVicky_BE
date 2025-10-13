@@ -14,9 +14,15 @@ public record CartResponseDto(
     String productImageUrl, // 상품 이미지 URL
     Integer price, // 상품 가격
     Integer quantity, // 수량
-    String optionInfo, // 옵션 정보
+    String optionInfo, // 옵션 정보 (일반 상품용)
     Boolean isSelected, // 선택 여부 (체크마크)
-    String cartType, // 장바구니 타입
+    String cartType, // 장바구니 타입 (NORMAL, FUNDING)
+    
+    // 펀딩 전용 필드
+    String fundingId, // 펀딩 고유 ID
+    Integer fundingPrice, // 펀딩 단일 가격
+    Integer fundingStock, // 펀딩 단일 재고
+    
     LocalDateTime createdAt // 생성일시
 ) {
     /**
@@ -35,6 +41,12 @@ public record CartResponseDto(
                 cart.getOptionInfo(),
                 cart.isSelected(),
                 cart.getCartType().name(),
+                
+                // 펀딩 전용 필드
+                cart.getFundingId(),
+                cart.getFundingPrice(),
+                cart.getFundingStock(),
+                
                 cart.getCreateDate()
         );
     }

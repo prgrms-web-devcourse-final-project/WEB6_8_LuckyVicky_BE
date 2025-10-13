@@ -94,10 +94,56 @@ public class CartController {
     }
 
     @GetMapping("/selected")
-    @Operation(summary = "선택된 장바구니 아이템 조회", description = "선택된 장바구니 아이템들만 조회합니다.")
-    public ResponseEntity<RsData<List<CartResponseDto>>> getSelectedCartItems(@AuthenticationPrincipal User user) {
+    @Operation(
+        summary = "선택된 장바구니 아이템 조회", 
+        description = "선택된 장바구니 아이템들을 조회합니다. validateForOrder=true 시 유효한 아이템만 반환합니다."
+    )
+    public ResponseEntity<RsData<List<CartResponseDto>>> getSelectedCartItems(
+            @AuthenticationPrincipal User user,
+            @RequestParam(defaultValue = "false") boolean validateForOrder) {
         
-        List<CartResponseDto> responseDtos = cartService.getSelectedCartItems(user);
-        return ResponseEntity.ok(RsData.of("200", "선택된 장바구니 아이템을 조회했습니다.", responseDtos));
+        List<CartResponseDto> responseDtos = cartService.getSelectedCartItems(user, validateForOrder);
+        String message = validateForOrder ? 
+            "선택 주문 가능한 장바구니 아이템을 조회했습니다." : 
+            "선택된 장바구니 아이템을 조회했습니다.";
+        return ResponseEntity.ok(RsData.of("200", message, responseDtos));
+    }
+
+    @GetMapping("/all")
+    @Operation(
+        summary = "전체 장바구니 아이템 조회", 
+        description = "모든 장바구니 아이템을 조회합니다. validateForOrder=true 시 유효한 아이템만 반환합니다."
+    )
+    public ResponseEntity<RsData<List<CartResponseDto>>> getAllCartItems(
+            @AuthenticationPrincipal User user,
+            @RequestParam(defaultValue = "false") boolean validateForOrder) {
+        
+        List<CartResponseDto> responseDtos = cartService.getAllCartItems(user, validateForOrder);
+        String message = validateForOrder ? 
+            "전체 주문 가능한 장바구니 아이템을 조회했습니다." : 
+            "전체 장바구니 아이템을 조회했습니다.";
+        return ResponseEntity.ok(RsData.of("200", message, responseDtos));
+    }
+
+    @PostMapping("/validate")
+    @Operation(summary = "장바구니 주문 가능 여부 검증", description = "전체 또는 선택된 장바구니 아이템들의 주문 가능 여부를 검증합니다.")
+    public ResponseEntity<RsData<Void>> validateCartItemsForOrder(
+            @AuthenticationPrincipal User user,
+            @RequestParam(defaultValue = "false") boolean isFullOrder) {
+        
+        cartService.validateCartItemsForOrder(user, isFullOrder);
+        String message = isFullOrder ? "전체 주문 가능합니다." : "선택 주문 가능합니다.";
+        return ResponseEntity.ok(RsData.of("200", message));
+    }
+
+    @GetMapping("/total-amount")
+    @Operation(summary = "장바구니 총 금액 계산", description = "전체 또는 선택된 장바구니 아이템들의 총 금액을 계산합니다.")
+    public ResponseEntity<RsData<Integer>> calculateTotalAmount(
+            @AuthenticationPrincipal User user,
+            @RequestParam(defaultValue = "false") boolean isFullOrder) {
+        
+        Integer totalAmount = cartService.calculateTotalAmount(user, isFullOrder);
+        String message = isFullOrder ? "전체 장바구니 총 금액" : "선택된 장바구니 총 금액";
+        return ResponseEntity.ok(RsData.of("200", message, totalAmount));
     }
 }

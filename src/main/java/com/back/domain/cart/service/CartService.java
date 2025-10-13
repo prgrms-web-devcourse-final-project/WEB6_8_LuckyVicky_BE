@@ -17,6 +17,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 @Service
 @RequiredArgsConstructor
@@ -57,13 +58,17 @@ public class CartService {
         }
 
         // 4. 새로운 장바구니 아이템 생성 (중복이 없을 때만)
+        // 펀딩 장바구니일 경우, 펀딩 정보를 requestDto에서 받아서 저장
         Cart newCart = Cart.builder()
                 .user(user)
                 .product(product)
                 .quantity(requestDto.quantity())
-                .optionInfo(requestDto.optionInfo())
+                .optionInfo(cartType == Cart.CartType.NORMAL ? requestDto.optionInfo() : null) // 일반만 옵션 사용
                 .cartType(cartType)
                 .isSelected(true)
+                .fundingId(cartType == Cart.CartType.FUNDING ? requestDto.fundingId() : null)
+                .fundingPrice(cartType == Cart.CartType.FUNDING ? requestDto.fundingPrice() : null)
+                .fundingStock(cartType == Cart.CartType.FUNDING ? requestDto.fundingStock() : null)
                 .build();
 
         Cart savedCart = cartRepository.save(newCart);
@@ -168,13 +173,91 @@ public class CartService {
     }
 
     /**
-     * 선택된 장바구니 아이템들만 조회
+     * 선택된 장바구니 아이템 조회
+     * @param user 사용자
+     * @param validateForOrder 주문용 유효성 검증 여부 (true: 유효한 것만, false: 모두)
      */
-    public List<CartResponseDto> getSelectedCartItems(User user) {
-        List<Cart> selectedCarts = cartRepository.findByUserAndIsSelectedTrue(user);
-        return selectedCarts.stream()
+    public List<CartResponseDto> getSelectedCartItems(User user, boolean validateForOrder) {
+        // N+1 방지를 위해 Fetch Join 사용
+        List<Cart> selectedCarts = cartRepository.findByUserAndIsSelectedTrueWithProduct(user);
+        
+        Stream<Cart> stream = selectedCarts.stream();
+        
+        // 주문용일 때만 유효성 검증
+        if (validateForOrder) {
+            stream = stream.filter(Cart::isValid);
+        }
+        
+        return stream
                 .map(CartResponseDto::from)
                 .collect(Collectors.toList());
+    }
+
+    /**
+     * 전체 장바구니 아이템 조회
+     * @param user 사용자
+     * @param validateForOrder 주문용 유효성 검증 여부 (true: 유효한 것만, false: 모두)
+     */
+    public List<CartResponseDto> getAllCartItems(User user, boolean validateForOrder) {
+        List<Cart> allCarts = cartRepository.findByUserWithProduct(user);
+        
+        Stream<Cart> stream = allCarts.stream();
+        
+        // 주문용일 때만 유효성 검증
+        if (validateForOrder) {
+            stream = stream.filter(Cart::isValid);
+        }
+        
+        return stream
+                .map(CartResponseDto::from)
+                .collect(Collectors.toList());
+    }
+
+    /**
+     * 주문 가능한 장바구니 아이템들 검증
+     */
+    public void validateCartItemsForOrder(User user, boolean isFullOrder) {
+        List<Cart> cartItems = isFullOrder ? 
+            cartRepository.findByUserWithProduct(user) :
+            cartRepository.findByUserAndIsSelectedTrue(user);
+
+        if (cartItems.isEmpty()) {
+            throw new ServiceException("CART_EMPTY", "주문할 장바구니 아이템이 없습니다.");
+        }
+
+        // 각 아이템의 유효성 검증
+        for (Cart cart : cartItems) {
+            if (!cart.isValid()) {
+                String productName = cart.getProduct() != null ? cart.getProduct().getName() : "알 수 없는 상품";
+                throw new ServiceException("CART_INVALID", 
+                    String.format("장바구니 아이템 '%s'이(가) 주문 불가능한 상태입니다.", productName));
+            }
+        }
+
+        // 펀딩 상품과 일반 상품이 섞여있는지 확인
+        boolean hasNormalProducts = cartItems.stream()
+            .anyMatch(cart -> cart.getCartType() == Cart.CartType.NORMAL);
+        boolean hasFundingProducts = cartItems.stream()
+            .anyMatch(cart -> cart.getCartType() == Cart.CartType.FUNDING);
+
+        if (hasNormalProducts && hasFundingProducts) {
+            throw new ServiceException("CART_MIXED_TYPES", 
+                "일반 상품과 펀딩 상품은 함께 주문할 수 없습니다.");
+        }
+    }
+
+    /**
+     * 장바구니 총 금액 계산 (전체/선택)
+     */
+    public Integer calculateTotalAmount(User user, boolean isFullOrder) {
+        List<Cart> cartItems = isFullOrder ? 
+            cartRepository.findByUserWithProduct(user) :
+            cartRepository.findByUserAndIsSelectedTrue(user);
+
+        return cartItems.stream()
+            .filter(Cart::isValid)
+            .mapToInt(Cart::getTotalPrice)
+            .sum();
     }
 
     /**
