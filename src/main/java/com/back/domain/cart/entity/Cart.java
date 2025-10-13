@@ -33,11 +33,16 @@ public class Cart extends BaseEntity {
     @Column(nullable = false)
     private CartType cartType = CartType.NORMAL;
 
-    private String optionInfo;
+    private String optionInfo; // 일반 상품의 경우에만 사용 (JSON 형태)
+    
+    // 펀딩 상품 관련 필드 (펀딩 상품일 때만 사용)
+    private String fundingId; // 펀딩 고유 ID
+    private Integer fundingPrice; // 펀딩 단일 가격 (상품 가격과 동일할 수 있음)
+    private Integer fundingStock; // 펀딩 단일 재고
 
     public enum CartType {
         NORMAL,    // 일반 장바구니
-        FUNDING;    // 펀딩 장바구니
+        FUNDING;   // 펀딩 장바구니
         
         public static CartType fromString(String cartTypeStr) {
             if (cartTypeStr == null) {
@@ -53,13 +58,17 @@ public class Cart extends BaseEntity {
 
     @Builder
     public Cart(User user, Product product, Integer quantity, String optionInfo,
-                CartType cartType, Boolean isSelected) {
+                CartType cartType, Boolean isSelected, String fundingId, 
+                Integer fundingPrice, Integer fundingStock) {
         this.user = user;
         this.product = product;
         this.quantity = quantity != null && quantity > 0 ? quantity : 1;
         this.optionInfo = optionInfo;
         this.cartType = cartType != null ? cartType : CartType.NORMAL;
         this.isSelected = isSelected != null ? isSelected : true;
+        this.fundingId = fundingId;
+        this.fundingPrice = fundingPrice;
+        this.fundingStock = fundingStock;
     }
 
     // ===== 도메인 메서드 =====
@@ -80,6 +89,68 @@ public class Cart extends BaseEntity {
 
     public void changeOptionInfo(String optionInfo) {
         this.optionInfo = optionInfo;
+    }
+
+    // 펀딩 상품 관련 메서드
+    public void updateFundingInfo(String fundingId, Integer fundingPrice, Integer fundingStock) {
+        if (this.cartType != CartType.FUNDING) {
+            throw new IllegalArgumentException("펀딩 장바구니가 아닙니다.");
+        }
+        this.fundingId = fundingId;
+        this.fundingPrice = fundingPrice;
+        this.fundingStock = fundingStock;
+    }
+
+    // 장바구니 타입 확인 메서드
+    public boolean isNormalCart() {
+        return this.cartType == CartType.NORMAL;
+    }
+
+    public boolean isFundingCart() {
+        return this.cartType == CartType.FUNDING;
+    }
+
+    // 유효한 장바구니 아이템인지 확인
+    public boolean isValid() {
+        if (this.product == null) {
+            return false;
+        }
+        
+        // 기본 검증: 상품이 삭제되지 않았고 재고가 있는지
+        if (this.product.isDeleted() || this.product.getStock() <= 0) {
+            return false;
+        }
+        
+        // 수량 검증
+        if (this.quantity <= 0) {
+            return false;
+        }
+        
+        // 펀딩 장바구니의 경우 펀딩 재고 확인
+        if (isFundingCart()) {
+            // fundingStock이 설정되어 있으면 그것을 기준으로, 없으면 product의 stock 사용
+            int availableStock = (this.fundingStock != null) ? this.fundingStock : this.product.getStock();
+            return this.quantity <= availableStock;
+        }
+        
+        // 일반 장바구니의 경우 일반 재고 확인
+        return this.quantity <= this.product.getStock();
+    }
+
+    // 총 가격 계산
+    public int getTotalPrice() {
+        if (this.product == null) {
+            return 0;
+        }
+        
+        int unitPrice;
+        if (isFundingCart() && fundingPrice != null) {
+            unitPrice = fundingPrice;
+        } else {
+            unitPrice = this.product.getDiscountPrice();
+        }
+        
+        return unitPrice * this.quantity;
     }
 
     // ===== 도메인 메서드 (선택 상태 조회) =====
