@@ -474,6 +474,102 @@ class AdminDashboardControllerTest {
                 .andExpect(jsonPath("$.msg").exists());
     }
 
+    @Test
+    @DisplayName("관리자 펀딩 승인 대기 목록 조회 성공 - PENDING 상태만 조회")
+    void getFundingApprovals_Success_OnlyPending() throws Exception {
+        // When & Then
+        mockMvc.perform(get("/api/dashboard/admin/fundings/approvals")
+                        .with(user(adminUserDetails))
+                        .param("page", "0")
+                        .param("size", "20")
+                        .param("sort", "registeredAt")
+                        .param("order", "DESC"))
+                .andDo(print())
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.resultCode").value("200"))
+                .andExpect(jsonPath("$.msg").value("펀딩 승인 대기 목록 조회 성공"))
+                .andExpect(jsonPath("$.data.content").isArray())
+                .andExpect(jsonPath("$.data.page").value(0))
+                .andExpect(jsonPath("$.data.size").value(20));
+    }
+
+    @Test
+    @DisplayName("관리자 펀딩 승인 대기 목록 조회 - 작가명으로 검색")
+    void getFundingApprovals_SearchByArtistName() throws Exception {
+        // When & Then
+        mockMvc.perform(get("/api/dashboard/admin/fundings/approvals")
+                        .with(user(adminUserDetails))
+                        .param("page", "0")
+                        .param("size", "20")
+                        .param("keyword", artistUser.getName())
+                        .param("sort", "registeredAt")
+                        .param("order", "DESC"))
+                .andDo(print())
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.content").isArray());
+    }
+
+    @Test
+    @DisplayName("관리자 펀딩 승인 대기 목록 조회 - 작가 ID로 정렬")
+    void getFundingApprovals_SortByArtistId() throws Exception {
+        // When & Then
+        mockMvc.perform(get("/api/dashboard/admin/fundings/approvals")
+                        .with(user(adminUserDetails))
+                        .param("page", "0")
+                        .param("size", "20")
+                        .param("sort", "artistId")
+                        .param("order", "ASC"))
+                .andDo(print())
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.content").isArray());
+    }
+
+    @Test
+    @DisplayName("관리자 펀딩 승인 대기 목록 조회 - 펀딩 제목으로 정렬")
+    void getFundingApprovals_SortByTitle() throws Exception {
+        // When & Then
+        mockMvc.perform(get("/api/dashboard/admin/fundings/approvals")
+                        .with(user(adminUserDetails))
+                        .param("page", "0")
+                        .param("size", "20")
+                        .param("sort", "title")
+                        .param("order", "ASC"))
+                .andDo(print())
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.content").isArray());
+    }
+
+    @Test
+    @DisplayName("관리자 펀딩 승인 대기 목록 조회 - 특정 작가 필터링")
+    void getFundingApprovals_FilterByArtistId() throws Exception {
+        // When & Then
+        mockMvc.perform(get("/api/dashboard/admin/fundings/approvals")
+                        .with(user(adminUserDetails))
+                        .param("page", "0")
+                        .param("size", "20")
+                        .param("artistId", artistUser.getId().toString())
+                        .param("sort", "registeredAt")
+                        .param("order", "DESC"))
+                .andDo(print())
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.content").isArray());
+    }
+
+    @Test
+    @DisplayName("관리자 펀딩 승인 대기 목록 조회 실패 - 권한 없음")
+    void getFundingApprovals_Fail_NoPermission() throws Exception {
+        // Given - 일반 사용자
+        CustomUserDetails customerDetails = new CustomUserDetails(customerUser, Role.USER);
+
+        // When & Then
+        mockMvc.perform(get("/api/dashboard/admin/fundings/approvals")
+                        .with(user(customerDetails))
+                        .param("page", "0")
+                        .param("size", "20"))
+                .andDo(print())
+                .andExpect(status().isForbidden());
+    }
+
     // ===== 헬퍼 메서드 =====
 
     /**

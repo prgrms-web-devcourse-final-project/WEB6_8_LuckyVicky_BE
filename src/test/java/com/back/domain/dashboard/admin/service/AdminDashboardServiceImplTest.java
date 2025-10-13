@@ -370,6 +370,74 @@ class AdminDashboardServiceImplTest {
         );
     }
 
+    // ========== 펀딩 승인 대기 목록 테스트 ==========
+
+    @Test
+    @DisplayName("펀딩 승인 대기 목록 조회 - 기본 조회")
+    void getFundingApprovals_기본조회() {
+        // Given
+        AdminFundingApprovalSearchRequest request = new AdminFundingApprovalSearchRequest(
+                0, 20, null, null, "registeredAt", "DESC"
+        );
+
+        // When
+        AdminFundingApprovalResponse response = adminDashboardService.getFundingApprovals(request);
+
+        // Then
+        assertAll(
+                () -> assertThat(response.page()).isEqualTo(0),
+                () -> assertThat(response.size()).isEqualTo(20),
+                () -> assertThat(response.totalElements()).isGreaterThanOrEqualTo(0)
+        );
+    }
+
+    @Test
+    @DisplayName("펀딩 승인 대기 목록 조회 - 작가 ID로 정렬")
+    void getFundingApprovals_작가ID정렬() {
+        // Given
+        AdminFundingApprovalSearchRequest request = new AdminFundingApprovalSearchRequest(
+                0, 20, null, null, "artistId", "ASC"
+        );
+
+        // When
+        AdminFundingApprovalResponse response = adminDashboardService.getFundingApprovals(request);
+
+        // Then
+        assertThat(response).isNotNull();
+    }
+
+    @Test
+    @DisplayName("펀딩 승인 대기 목록 조회 - 펀딩 제목으로 정렬")
+    void getFundingApprovals_제목정렬() {
+        // Given
+        AdminFundingApprovalSearchRequest request = new AdminFundingApprovalSearchRequest(
+                0, 20, null, null, "title", "ASC"
+        );
+
+        // When
+        AdminFundingApprovalResponse response = adminDashboardService.getFundingApprovals(request);
+
+        // Then
+        assertThat(response).isNotNull();
+    }
+
+    @Test
+    @DisplayName("펀딩 승인 대기 목록 조회 - 특정 작가 필터링")
+    void getFundingApprovals_작가필터() {
+        // Given
+        AdminFundingApprovalSearchRequest request = new AdminFundingApprovalSearchRequest(
+                0, 20, null, artistUser.getId(), "registeredAt", "DESC"
+        );
+
+        // When
+        AdminFundingApprovalResponse response = adminDashboardService.getFundingApprovals(request);
+
+        // Then
+        response.content().forEach(funding ->
+                assertThat(funding.artist().id()).isEqualTo(artistUser.getId())
+        );
+    }
+
     // ========== 헬퍼 메서드 ==========
 
     private User createAdminUser() {
