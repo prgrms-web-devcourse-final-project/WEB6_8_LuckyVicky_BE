@@ -135,5 +135,8 @@ public interface FundingRepository extends JpaRepository<Funding, Long>, JpaSpec
         AND f.status = 'PENDING'
         """)
     Optional<Funding> findPendingApprovalFundingById(@Param("fundingId") Long fundingId);
+
+    // 관리자 대시보드 - 특정 상태의 펀딩 목록 조회 (최근 생성순)
+    Page<Funding> findByStatusOrderByCreateDateDesc(FundingStatus status, Pageable pageable);
 }
 

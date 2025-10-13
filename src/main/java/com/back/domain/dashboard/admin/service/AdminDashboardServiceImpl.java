@@ -109,6 +109,7 @@ public class AdminDashboardServiceImpl implements AdminDashboardService {
         AdminOverviewResponse.Charts charts = createChartsData(request);
 
         // 5. 승인 대기 알림
+        // 작가 입점 신청 승인 대기 (최근 2건)
         List<ArtistApplication> pendingApplications = artistApplicationRepository
                 .findByStatusOrderByCreateDateDesc(ApplicationStatus.PENDING, PageRequest.of(0, 2))
                 .getContent();
@@ -121,9 +122,25 @@ public class AdminDashboardServiceImpl implements AdminDashboardService {
                 ))
                 .toList();
 
+        // 펀딩 승인 대기 (최근 2건)
+        List<Funding> pendingFundings = fundingRepository
+                .findByStatusOrderByCreateDateDesc(
+                        com.back.domain.funding.entity.FundingStatus.PENDING,
+                        PageRequest.of(0, 2)
+                )
+                .getContent();
+
+        List<AdminOverviewResponse.FundingApproval> fundingApprovals = pendingFundings.stream()
+                .map(funding -> new AdminOverviewResponse.FundingApproval(
+                        funding.getId(),
+                        funding.getTitle(),
+                        funding.getCreateDate()
+                ))
+                .toList();
+
         AdminOverviewResponse.Alerts alerts = new AdminOverviewResponse.Alerts(
                 artistApprovals,
-                List.of()  // 펀딩 승인은 나중에 구현
+                fundingApprovals
         );
 
         return new AdminOverviewResponse(overview, charts, alerts, LocalDateTime.now(), request.timezone());

@@ -131,6 +131,8 @@ class AdminDashboardControllerTest {
                 .andExpect(jsonPath("$.data.overview.userCount.count").value(expectedUserCount))
                 .andExpect(jsonPath("$.data.overview.fundingCount.count").value(expectedFundingCount))
                 .andExpect(jsonPath("$.data.alerts").exists())
+                .andExpect(jsonPath("$.data.alerts.artistApprovalPending").isArray())
+                .andExpect(jsonPath("$.data.alerts.fundingApprovalPending").isArray())
                 .andReturn();
 
         // 추가 검증
