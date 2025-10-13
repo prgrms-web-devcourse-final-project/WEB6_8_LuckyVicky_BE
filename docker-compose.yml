@@ -45,7 +45,7 @@ services:
       - xpack.security.enabled=true
       - xpack.security.transport.ssl.enabled=false
       - xpack.security.http.ssl.enabled=false
-      - ELASTIC_PASSWORD=${REDIS_PASSWORD}
+      - ELASTIC_PASSWORD=${ELASTICSEARCH_PASSWORD}
       - TZ=Asia/Seoul
       - ES_JAVA_OPTS=-Xms512m -Xmx512m
     ports:
@@ -63,8 +63,8 @@ services:
     restart: unless-stopped
     environment:
       - ELASTICSEARCH_HOSTS=http://elasticsearch_1:9200
-      - ELASTICSEARCH_USERNAME=elastic
-      - ELASTICSEARCH_PASSWORD=${REDIS_PASSWORD}
+      - ELASTICSEARCH_USERNAME=mori_user
+      - ELASTICSEARCH_PASSWORD=${ELASTICSEARCH_PASSWORD}
       - TZ=Asia/Seoul
     ports:
       - "5601:5601"
