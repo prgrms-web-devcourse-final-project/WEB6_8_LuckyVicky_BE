@@ -44,7 +44,6 @@ public interface FundingContributionRepository extends JpaRepository<FundingCont
         SELECT fc FROM FundingContribution fc
         JOIN FETCH fc.funding f
         JOIN FETCH f.user u
-        JOIN FETCH fc.option o
         WHERE fc.buyer.id = :userId
         AND (COALESCE(:keyword, '') = '' OR
              LOWER(f.title) LIKE LOWER(CONCAT('%', :keyword, '%')) OR

@@ -7,7 +7,6 @@ import com.back.domain.dashboard.customer.dto.response.ArtistApplicationResponse
 import com.back.domain.dashboard.customer.dto.response.FundingResponse;
 import com.back.domain.funding.entity.Funding;
 import com.back.domain.funding.entity.FundingContribution;
-import com.back.domain.funding.entity.FundingOption;
 import com.back.domain.funding.entity.FundingStatus;
 import com.back.domain.funding.repository.FundingContributionRepository;
 import com.back.domain.funding.repository.FundingRepository;
@@ -104,21 +103,6 @@ class DashboardServiceImplTest {
         testArtist.becomeArtist();
         testArtist = userRepository.save(testArtist);
 
-        // FundingOption 먼저 생성
-        FundingOption activeOption = FundingOption.builder()
-                .name("테스트 리워드 A")
-                .price(25000L)
-                .stock(100)
-                .sortOrder(1)
-                .build();
-
-        FundingOption endedOption = FundingOption.builder()
-                .name("테스트 리워드 B")
-                .price(30000L)
-                .stock(50)
-                .sortOrder(1)
-                .build();
-
         // 테스트 카테고리 생성 (funding에 필수)
         Category category = categoryRepository.findById((1L))
                 .orElseGet(() -> categoryRepository.save(
@@ -139,7 +123,6 @@ class DashboardServiceImplTest {
                 .status(FundingStatus.OPEN)
                 .participantCount(5)
                 .build();
-        activeFunding.attachOption(activeOption);
         activeFunding = fundingRepository.save(activeFunding);
 
         // 종료된 펀딩 생성 (옵션 포함)
@@ -156,20 +139,13 @@ class DashboardServiceImplTest {
                 .status(FundingStatus.SUCCESS)
                 .participantCount(10)
                 .build();
-        endedFunding.attachOption(endedOption);
         endedFunding = fundingRepository.save(endedFunding);
-
-        // 저장된 옵션 가져오기 (cascade로 저장됨)
-        activeOption = activeFunding.getOptions().get(0);
-        endedOption = endedFunding.getOptions().get(0);
 
         // 펀딩 참여 내역 생성 (진행중)
         FundingContribution activeContribution = FundingContribution.builder()
                 .funding(activeFunding)
-                .option(activeOption)
                 .buyer(testBuyer)
                 .quantity(2)
-                .unitPrice(25000L)
                 .totalAmount(50000L)
                 .paidAt(LocalDateTime.now().minusDays(3))
                 .build();
@@ -178,10 +154,8 @@ class DashboardServiceImplTest {
         // 펀딩 참여 내역 생성 (종료)
         FundingContribution endedContribution = FundingContribution.builder()
                 .funding(endedFunding)
-                .option(endedOption)
                 .buyer(testBuyer)
                 .quantity(1)
-                .unitPrice(30000L)
                 .totalAmount(30000L)
                 .paidAt(LocalDateTime.now().minusDays(10))
                 .build();
