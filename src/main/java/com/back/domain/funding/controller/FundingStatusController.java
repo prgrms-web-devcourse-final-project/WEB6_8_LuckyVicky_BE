@@ -19,6 +19,36 @@ public class FundingStatusController {
 
     private final FundingStatusService fundingStatusService;
 
+    @PutMapping({"/{id}/approve"})
+    @PreAuthorize("hasAuthority('ROLE_ADMIN') or hasAuthority('ROLE_ROOT')")
+    @Operation(summary = "펀딩 승인", description = "펀딩 심사중 -> 승인")
+    public ResponseEntity<RsData<?>> approveFunding(
+            @PathVariable @Positive Long id) {
+        fundingStatusService.approveFunding(id);
+        return ResponseEntity.ok(RsData.of("200", "펀딩이 승인되었습니다."));
+    }
+
+    @PutMapping({"/{id}/reject"})
+    @PreAuthorize("hasAuthority('ROLE_ADMIN') or hasAuthority('ROLE_ROOT')")
+    @Operation(summary = "펀딩 거절", description = "펀딩 심사중 -> 거절")
+    public ResponseEntity<RsData<?>> rejectFunding(
+            @PathVariable @Positive Long id) {
+        fundingStatusService.rejectFunding(id);
+        return ResponseEntity.ok(RsData.of("200", "펀딩이 거절되었습니다."));
+    }
+
+    @PutMapping("/open/approved")
+    @PreAuthorize("hasAuthority('ROLE_ADMIN') or hasAuthority('ROLE_ROOT')")
+    @Operation(summary = "승인된 펀딩 자동 오픈",
+            description = "시작일이 도래한 승인된 펀딩을 OPEN 상태로 변경 (관리자 전용)")
+    public ResponseEntity<RsData<?>> openApprovedFundings() {
+        int opened = fundingStatusService.openApprovedFundings();
+
+        String message = String.format("승인된 펀딩 %d건이 오픈되었습니다.", opened);
+
+        return ResponseEntity.ok(RsData.of("200", message));
+    }
+
     @PutMapping("/{id}/close")
     @PreAuthorize("isAuthenticated()")
     @Operation(summary = "펀딩 종료", description = "펀딩 수동 종료")

@@ -13,8 +13,27 @@ public class FundingStatusScheduler {
 
     private final FundingStatusService fundingStatusService;
 
+    // 매시간 정각에 승인된 펀딩 중 시작일이 도래한 펀딩을 OPEN으로 변경
+    @Scheduled(cron = "0 0 * * * *", zone = "Asia/Seoul")
+    public void openApprovedFundings() {
+        long startTime = System.currentTimeMillis();
+
+        int opened = fundingStatusService.openApprovedFundings();
+
+        long duration = System.currentTimeMillis() - startTime;
+
+        if (opened > 0) {
+            log.info("[스케줄러] 펀딩 자동 오픈 완료 - 처리: {}건, 소요: {}ms", opened, duration);
+
+            // 성능 모니터링: 5초 이상 걸리면 경고
+            if (duration > 5000) {
+                log.warn("[성능 경고] 펀딩 오픈 처리 시간 초과: {}ms", duration);
+            }
+        }
+    }
+
     // 매시간 정각에 종료일이 지난 펀딩을 CLOSED로 변경
-    @Scheduled(cron = "0 0 * * * *")
+    @Scheduled(cron = "0 0 * * * *", zone = "Asia/Seoul")
     public void closeExpiredFundings() {
         long startTime = System.currentTimeMillis();
 
@@ -33,7 +52,7 @@ public class FundingStatusScheduler {
     }
 
     // 매시간 5분에 CLOSED 펀딩을 SUCCESS/FAILED로 최종 처리
-    @Scheduled(cron = "0 5 * * * *")
+    @Scheduled(cron = "0 5 * * * *", zone = "Asia/Seoul")
     public void finalizeFundings() {
         long startTime = System.currentTimeMillis();
 
@@ -51,10 +70,14 @@ public class FundingStatusScheduler {
      * 매일 새벽 1시에 정합성 체크 (안전장치)
      * 혹시 놓친 펀딩이 있는지 확인
      */
-    @Scheduled(cron = "0 0 1 * * *")
+    @Scheduled(cron = "0 0 1 * * *", zone = "Asia/Seoul")
     public void dailyStatusCheck() {
         int closed = fundingStatusService.checkAndCloseMissedFundings();
+        int opened = fundingStatusService.checkAndOpenMissedFundings();
 
+        if (opened > 0) {
+            log.warn("[스케줄러] 정합성 체크 - 누락 승인 펀딩 {}건 오픈 완료", opened);
+        }
         if (closed > 0) {
             log.warn("[스케줄러] 정합성 체크 - 누락 펀딩 {}건 처리 완료", closed);
         }
