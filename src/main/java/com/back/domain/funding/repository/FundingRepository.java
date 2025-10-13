@@ -126,5 +126,14 @@ public interface FundingRepository extends JpaRepository<Funding, Long>, JpaSpec
             @Param("order") String order,
             Pageable pageable
     );
+
+    // 관리자 대시보드 - 펀딩 승인 대기 상세 조회 (PENDING 상태 + User + ArtistApplication 조인)
+    @Query("""
+        SELECT f FROM Funding f
+        LEFT JOIN FETCH f.user u
+        WHERE f.id = :fundingId
+        AND f.status = 'PENDING'
+        """)
+    Optional<Funding> findPendingApprovalFundingById(@Param("fundingId") Long fundingId);
 }
 
