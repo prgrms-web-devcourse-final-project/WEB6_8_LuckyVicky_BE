@@ -38,6 +38,7 @@ public interface FundingContributionRepository extends JpaRepository<FundingCont
     /**
      * 고객 대시보드용 - 사용자가 참여한 펀딩 목록 조회 (검색 + 필터링)
      * 정렬은 Pageable에서 처리
+     * 상태 필터링: 8가지 FundingStatus를 직접 필터링
      */
     @Query(value = """
         SELECT fc FROM FundingContribution fc
@@ -49,11 +50,7 @@ public interface FundingContributionRepository extends JpaRepository<FundingCont
              LOWER(f.title) LIKE LOWER(CONCAT('%', :keyword, '%')) OR
              LOWER(u.name) LIKE LOWER(CONCAT('%', :keyword, '%')))
         AND (COALESCE(:status, '') = '' OR
-             (:status = 'ACTIVE' AND f.status = com.back.domain.funding.entity.FundingStatus.OPEN) OR
-             (:status = 'ENDED' AND (f.status = com.back.domain.funding.entity.FundingStatus.CLOSED OR 
-                                      f.status = com.back.domain.funding.entity.FundingStatus.SUCCESS OR 
-                                      f.status = com.back.domain.funding.entity.FundingStatus.FAILED OR 
-                                      f.status = com.back.domain.funding.entity.FundingStatus.CANCELED)))
+             CAST(f.status AS string) = :status)
         """,
         countQuery = """
         SELECT COUNT(fc) FROM FundingContribution fc
@@ -64,11 +61,7 @@ public interface FundingContributionRepository extends JpaRepository<FundingCont
              LOWER(f.title) LIKE LOWER(CONCAT('%', :keyword, '%')) OR
              LOWER(u.name) LIKE LOWER(CONCAT('%', :keyword, '%')))
         AND (COALESCE(:status, '') = '' OR
-             (:status = 'ACTIVE' AND f.status = com.back.domain.funding.entity.FundingStatus.OPEN) OR
-             (:status = 'ENDED' AND (f.status = com.back.domain.funding.entity.FundingStatus.CLOSED OR 
-                                      f.status = com.back.domain.funding.entity.FundingStatus.SUCCESS OR 
-                                      f.status = com.back.domain.funding.entity.FundingStatus.FAILED OR 
-                                      f.status = com.back.domain.funding.entity.FundingStatus.CANCELED)))
+             CAST(f.status AS string) = :status)
         """)
     Page<FundingContribution> findContributionsByBuyerWithFilters(
             @Param("userId") Long userId,

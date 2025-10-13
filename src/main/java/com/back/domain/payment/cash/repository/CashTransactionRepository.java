@@ -61,4 +61,13 @@ public interface CashTransactionRepository extends JpaRepository<CashTransaction
     @Query("SELECT ct FROM CashTransaction ct WHERE ct.transactionType = :transactionType AND ct.status = :status ORDER BY ct.createDate DESC")
     List<CashTransaction> findByTransactionTypeAndStatus(@Param("transactionType") CashTransactionType transactionType, 
                                                          @Param("status") CashTransactionStatus status);
+
+    /**
+     * 사용자별 충전 내역 조회 (COMPLETED만)
+     */
+    @Query("SELECT ct FROM CashTransaction ct WHERE ct.user = :user " +
+           "AND ct.transactionType = 'CHARGING' " +
+           "AND ct.status = 'COMPLETED' " +
+           "ORDER BY ct.completedAt DESC, ct.createDate DESC")
+    List<CashTransaction> findCompletedChargingByUser(@Param("user") User user);
 }
