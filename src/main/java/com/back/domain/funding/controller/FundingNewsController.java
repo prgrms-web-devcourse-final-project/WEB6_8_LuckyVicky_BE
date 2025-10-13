@@ -33,5 +33,17 @@ public class FundingNewsController{
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(new RsData<>("201", "새소식이 등록되었습니다.", newsId));
     }
+
+    @DeleteMapping("/{fundingId}/news/{newsId}")
+    @PreAuthorize("isAuthenticated()")
+    @Operation(summary = "펀딩 새소식 삭제", description = "펀딩 새소식을 삭제")
+    public ResponseEntity<RsData<?>> deleteNews(
+            @PathVariable @Positive Long fundingId,
+            @PathVariable @Positive Long newsId,
+            @AuthenticationPrincipal(expression = "username") String userEmail
+    ) {
+        fundingNewsService.deleteFundingNews(fundingId, newsId, userEmail);
+        return ResponseEntity.ok(new RsData<>("200", "새소식이 삭제되었습니다."));
+    }
 }
 
