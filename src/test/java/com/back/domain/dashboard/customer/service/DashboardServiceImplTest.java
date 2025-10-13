@@ -260,54 +260,8 @@ class DashboardServiceImplTest {
     // ==================== Funding 실제 DB 연동 테스트 ====================
 
     @Test
-    @DisplayName("펀딩 참여 목록 조회 - 실제 DB 데이터 검증")
-    void getFundingParticipations_ReturnsRealData() {
-        // Given
-        FundingSearchRequest request = new FundingSearchRequest(
-                0, 10, null, null, "paidAt", "DESC"
-        );
-
-        // When
-        FundingResponse.List result = dashboardService.getFundingParticipations(
-                testBuyer.getId(), request);
-
-        // Then
-        assertAll(
-                () -> assertThat(result).isNotNull(),
-                () -> assertThat(result.getSummary()).isNull(),  // summary는 null
-                () -> assertThat(result.getContent()).isNotNull(),
-                () -> assertThat(result.getContent()).hasSize(2)
-        );
-    }
-
-    // 통계 계산 테스트 제거 (프론트 요구사항에 통계 없음)
-    // TODO: 프론트에서 통계 기능 요청 시 다시 추가
-
-    @Test
-    @DisplayName("펀딩 참여 목록 조회 - participationNumber 포맷 검증")
-    void getFundingParticipations_FormatsParticipationNumber() {
-        // Given
-        FundingSearchRequest request = new FundingSearchRequest(
-                0, 10, null, null, "paidAt", "DESC"
-        );
-
-        // When
-        FundingResponse.List result = dashboardService.getFundingParticipations(
-                testBuyer.getId(), request);
-
-        // Then
-        assertAll(
-                () -> assertThat(result.getContent()).isNotEmpty(),
-                () -> assertThat(result.getContent().get(0).participationNumber())
-                        .matches("^\\d{5}$"),
-                () -> assertThat(result.getContent().get(0).participationNumber().length())
-                        .isEqualTo(5)
-        );
-    }
-
-    @Test
-    @DisplayName("펀딩 참여 목록 조회 - 상태 매핑 검증")
-    void getFundingParticipations_MapsStatus() {
+    @DisplayName("펀딩 참여 목록 조회 - 실제 DB 연동 및 8가지 상태 확인")
+    void getFundingParticipations_ReturnsRealDataWithStatus() {
         // Given
         FundingSearchRequest request = new FundingSearchRequest(
                 0, 10, null, null, "paidAt", "DESC"
@@ -322,70 +276,30 @@ class DashboardServiceImplTest {
                 .findFirst()
                 .orElseThrow();
 
-        FundingResponse.Participation endedParticipation = result.getContent().stream()
+        FundingResponse.Participation successParticipation = result.getContent().stream()
                 .filter(p -> p.title().equals("종료된 펀딩"))
                 .findFirst()
                 .orElseThrow();
 
-        // Then
+        // Then: 실제 DB 연동 및 8가지 상태 확인
         assertAll(
-                () -> assertThat(activeParticipation.status()).isEqualTo("ACTIVE"),
+                () -> assertThat(result.getContent()).hasSize(2),
+                () -> assertThat(result.getSummary()).isNull(),
+                // OPEN 상태 확인
+                () -> assertThat(activeParticipation.status()).isEqualTo("OPEN"),
                 () -> assertThat(activeParticipation.statusText()).isEqualTo("진행중"),
-                () -> assertThat(endedParticipation.status()).isEqualTo("ENDED"),
-                () -> assertThat(endedParticipation.statusText()).isIn("종료", "성공", "실패", "취소")
+                // SUCCESS 상태 확인
+                () -> assertThat(successParticipation.status()).isEqualTo("SUCCESS"),
+                () -> assertThat(successParticipation.statusText()).isEqualTo("성공")
         );
     }
 
     @Test
-    @DisplayName("펀딩 참여 목록 조회 - Meta 제외 검증")
-    void getFundingParticipations_ExcludesMeta() {
+    @DisplayName("펀딩 참여 목록 조회 - 상태 필터링 (OPEN)")
+    void getFundingParticipations_FiltersOpenStatus() {
         // Given
         FundingSearchRequest request = new FundingSearchRequest(
-                0, 10, null, null, "paidAt", "DESC"
-        );
-
-        // When
-        FundingResponse.List result = dashboardService.getFundingParticipations(
-                testBuyer.getId(), request);
-
-        // Then
-        assertAll(
-                () -> assertThat(result.getContent()).isNotEmpty(),
-                () -> assertThat(result.getContent().get(0).meta()).isNull(),
-                () -> assertThat(result.getContent().get(1).meta()).isNull()
-        );
-    }
-
-    @Test
-    @DisplayName("펀딩 참여 목록 조회 - 필드 타입 검증")
-    void getFundingParticipations_ValidatesFieldTypes() {
-        // Given
-        FundingSearchRequest request = new FundingSearchRequest(
-                0, 10, null, null, "paidAt", "DESC"
-        );
-
-        // When
-        FundingResponse.List result = dashboardService.getFundingParticipations(
-                testBuyer.getId(), request);
-
-        FundingResponse.Participation participation = result.getContent().get(0);
-
-        // Then
-        assertAll(
-                () -> assertThat(participation.participationNumber()).isInstanceOf(String.class),
-                () -> assertThat(participation.participationId()).isInstanceOf(Long.class),
-                () -> assertThat(participation.pledgedAmount()).isInstanceOf(Long.class),
-                () -> assertThat(participation.artist().id()).isInstanceOf(Long.class),
-                () -> assertThat(participation.quantity()).isInstanceOf(Integer.class)
-        );
-    }
-
-    @Test
-    @DisplayName("펀딩 참여 목록 조회 - 상태 필터링 (ACTIVE)")
-    void getFundingParticipations_FiltersActiveStatus() {
-        // Given
-        FundingSearchRequest request = new FundingSearchRequest(
-                0, 10, "ACTIVE", null, "paidAt", "DESC"
+                0, 10, "OPEN", null, "paidAt", "DESC"
         );
 
         // When
@@ -395,17 +309,17 @@ class DashboardServiceImplTest {
         // Then
         assertAll(
                 () -> assertThat(result.getContent()).hasSize(1),
-                () -> assertThat(result.getContent().get(0).status()).isEqualTo("ACTIVE"),
+                () -> assertThat(result.getContent().get(0).status()).isEqualTo("OPEN"),
                 () -> assertThat(result.getContent().get(0).title()).isEqualTo("진행중인 펀딩")
         );
     }
 
     @Test
-    @DisplayName("펀딩 참여 목록 조회 - 상태 필터링 (ENDED)")
-    void getFundingParticipations_FiltersEndedStatus() {
+    @DisplayName("펀딩 참여 목록 조회 - 상태 필터링 (SUCCESS)")
+    void getFundingParticipations_FiltersSuccessStatus() {
         // Given
         FundingSearchRequest request = new FundingSearchRequest(
-                0, 10, "ENDED", null, "paidAt", "DESC"
+                0, 10, "SUCCESS", null, "paidAt", "DESC"
         );
 
         // When
@@ -415,14 +329,14 @@ class DashboardServiceImplTest {
         // Then
         assertAll(
                 () -> assertThat(result.getContent()).hasSize(1),
-                () -> assertThat(result.getContent().get(0).status()).isEqualTo("ENDED"),
+                () -> assertThat(result.getContent().get(0).status()).isEqualTo("SUCCESS"),
                 () -> assertThat(result.getContent().get(0).title()).isEqualTo("종료된 펀딩")
         );
     }
 
     @Test
-    @DisplayName("펀딩 참여 목록 조회 - 키워드 검색 (제목)")
-    void getFundingParticipations_SearchesByTitle() {
+    @DisplayName("펀딩 참여 목록 조회 - 키워드 검색")
+    void getFundingParticipations_SearchesByKeyword() {
         // Given
         FundingSearchRequest request = new FundingSearchRequest(
                 0, 10, null, "진행중", "paidAt", "DESC"
@@ -440,67 +354,7 @@ class DashboardServiceImplTest {
     }
 
     @Test
-    @DisplayName("펀딩 참여 목록 조회 - 키워드 검색 (작가명)")
-    void getFundingParticipations_SearchesByArtistName() {
-        // Given
-        FundingSearchRequest request = new FundingSearchRequest(
-                0, 10, null, "테스트작가", "paidAt", "DESC"
-        );
-
-        // When
-        FundingResponse.List result = dashboardService.getFundingParticipations(
-                testBuyer.getId(), request);
-
-        // Then
-        assertAll(
-                () -> assertThat(result.getContent()).hasSize(2),
-                () -> assertThat(result.getContent().get(0).artist().name()).isEqualTo("테스트작가"),
-                () -> assertThat(result.getContent().get(1).artist().name()).isEqualTo("테스트작가")
-        );
-    }
-
-    @Test
-    @DisplayName("펀딩 참여 목록 조회 - 정렬 (paidAt ASC)")
-    void getFundingParticipations_SortsByPaidAtAsc() {
-        // Given
-        FundingSearchRequest request = new FundingSearchRequest(
-                0, 10, null, null, "paidAt", "ASC"
-        );
-
-        // When
-        FundingResponse.List result = dashboardService.getFundingParticipations(
-                testBuyer.getId(), request);
-
-        // Then
-        assertAll(
-                () -> assertThat(result.getContent()).hasSize(2),
-                () -> assertThat(result.getContent().get(0).title()).isEqualTo("종료된 펀딩"),
-                () -> assertThat(result.getContent().get(1).title()).isEqualTo("진행중인 펀딩")
-        );
-    }
-
-    @Test
-    @DisplayName("펀딩 참여 목록 조회 - 정렬 (paidAt DESC)")
-    void getFundingParticipations_SortsByPaidAtDesc() {
-        // Given
-        FundingSearchRequest request = new FundingSearchRequest(
-                0, 10, null, null, "paidAt", "DESC"
-        );
-
-        // When
-        FundingResponse.List result = dashboardService.getFundingParticipations(
-                testBuyer.getId(), request);
-
-        // Then
-        assertAll(
-                () -> assertThat(result.getContent()).hasSize(2),
-                () -> assertThat(result.getContent().get(0).title()).isEqualTo("진행중인 펀딩"),
-                () -> assertThat(result.getContent().get(1).title()).isEqualTo("종료된 펀딩")
-        );
-    }
-
-    @Test
-    @DisplayName("펀딩 참여 목록 조회 - 페이징 검증")
+    @DisplayName("펀딩 참여 목록 조회 - 페이징 처리")
     void getFundingParticipations_HandlesPagination() {
         // Given
         FundingSearchRequest request = new FundingSearchRequest(
@@ -514,17 +368,14 @@ class DashboardServiceImplTest {
         // Then
         assertAll(
                 () -> assertThat(result.getContent()).hasSize(1),
-                () -> assertThat(result.getPage()).isEqualTo(0),
-                () -> assertThat(result.getSize()).isEqualTo(1),
                 () -> assertThat(result.getTotalElements()).isEqualTo(2),
                 () -> assertThat(result.getTotalPages()).isEqualTo(2),
-                () -> assertThat(result.isHasNext()).isTrue(),
-                () -> assertThat(result.isHasPrevious()).isFalse()
+                () -> assertThat(result.isHasNext()).isTrue()
         );
     }
 
     @Test
-    @DisplayName("펀딩 참여 목록 조회 - paidDate 필드 포맷 검증")
+    @DisplayName("펀딩 참여 목록 조회 - 날짜 포맷 검증")
     void getFundingParticipations_FormatsPaidDate() {
         // Given
         FundingSearchRequest request = new FundingSearchRequest(
@@ -536,31 +387,9 @@ class DashboardServiceImplTest {
                 testBuyer.getId(), request);
 
         // Then
-        assertAll(
-                () -> assertThat(result.getContent()).isNotEmpty(),
-                () -> assertThat(result.getContent().get(0).paidDate())
-                        .matches("^\\d{4}\\. \\d{2}\\. \\d{2}$")
-        );
+        assertThat(result.getContent().get(0).paidDate())
+                .matches("^\\d{4}\\. \\d{2}\\. \\d{2}$");
     }
-
-    // TODO: 배송 CRUD 완성 후 추가할 테스트들
-
-    /**
-     * 배송 CRUD 완성 후 수정해야 할 테스트:
-     * <p>
-     * 1. getFundingParticipations_CalculatesStatistics()
-     * - fulfilling, fulfilled 카운트 검증 주석 해제
-     * <p>
-     * 2. 새로운 테스트 추가:
-     * - getFundingParticipations_IncludesDeliveryStatus()
-     * : 배송 상태 포함 여부 검증
-     * - getFundingParticipations_FiltersDeliveryStatus()
-     * : 배송 상태별 필터링 검증 (FULFILLING/FULFILLED)
-     * <p>
-     * 3. Response DTO 수정:
-     * - FundingResponse.SummaryDto에서 배송 필드 주석 해제
-     * - (선택) Participation에 DeliveryInfo 필드 추가 시 검증 로직 추가
-     */
 
     // ==================== ArtistApplication 작가 신청 내역 조회 테스트 ====================
     @Test

@@ -643,13 +643,10 @@ public class DashboardServiceImpl implements DashboardService {
 
     /**
      * Funding 상태를 프론트엔드용 상태로 매핑
+     * 8가지 상태를 그대로 반환
      */
     private String mapFundingStatus(FundingStatus status) {
-        return switch (status) {
-            case PENDING, APPROVED -> "UPCOMING";
-            case  OPEN -> "ACTIVE";
-            case CLOSED, SUCCESS, FAILED, CANCELED, REJECTED -> "ENDED";
-        };
+        return status.name();
     }
 
     /**
