@@ -260,7 +260,7 @@ jobs:
               sleep "${INTERVAL}"
               ELAPSED=$((ELAPSED + INTERVAL))
             done
-            [[ "${CODE:-000}" == "200" ]] || { echo "❌ ${GREEN} health failed"; docker logs --tail=200 "${GREEN}" || true; exit 1; }
+            [[ "${CODE:-000}" == "200" ]] || { echo "❌ ${GREEN} health failed"; docker logs --tail=200 "${GREEN}" || true; docker rm -f "${GREEN}" || true; exit 1; }
 
             # ---------------------------------------------------------
             # 6) 업스트림 전환 (forward_host/forward_port만 업데이트)
