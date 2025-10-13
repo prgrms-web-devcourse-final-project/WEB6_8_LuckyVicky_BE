@@ -139,4 +139,42 @@ public class FundingCustomRepositoryImpl implements FundingCustomRepository {
 
         return em.createQuery(countQuery).getSingleResult();
     }
+
+    /**
+     * 검색 키워드(펀딩 제목)에 해당하는 펀딩 조회
+     */
+    @Override
+    public List<Funding> searchByTitle(String keyword) {
+        CriteriaBuilder cb = em.getCriteriaBuilder();
+        CriteriaQuery<Funding> query = cb.createQuery(Funding.class);
+        Root<Funding> funding = query.from(Funding.class);
+
+        List<Predicate> predicates = new ArrayList<>();
+
+        // 키워드 검색 로직
+        if (org.springframework.util.StringUtils.hasText(keyword)) {
+            String[] keywords = keyword.trim().toLowerCase().split("\\s+");// 키워드 앞뒤 공백 제거, 소문자 변환, 공백 기준으로 분리
+            List<Predicate> orPredicates = new ArrayList<>();
+            for (String kw : keywords) {
+                orPredicates.add(cb.like(cb.lower(funding.get("title")), "%" + kw + "%")); // LIKE %keyword%
+            }
+            predicates.add(cb.or(orPredicates.toArray(new Predicate[0])));
+        } else {
+            // 키워드가 없으면 빈 리스트 반환
+            return java.util.Collections.emptyList();
+        }
+
+        // 사용자가 볼 수 있는 상태의 펀딩만 검색
+        predicates.add(funding.get("status").in(
+                com.back.domain.funding.entity.FundingStatus.OPEN,
+                com.back.domain.funding.entity.FundingStatus.APPROVED,
+                com.back.domain.funding.entity.FundingStatus.SUCCESS,
+                com.back.domain.funding.entity.FundingStatus.CLOSED
+        ));
+
+        query.where(predicates.toArray(new Predicate[0]));
+        query.distinct(true);
+
+        return em.createQuery(query).getResultList();
+    }
 }
