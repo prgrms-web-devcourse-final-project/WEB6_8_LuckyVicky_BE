@@ -444,7 +444,8 @@ public class AdminDashboardServiceImpl implements AdminDashboardService {
      */
     private AdminUserResponse.User convertToUserDto(User user) {
         String artistName = user.isArtist() ? user.getName() : null;
-        Integer commissionRate = user.isArtist() ? 0 : null;
+        // 작가 유저는 10% 수수료, 일반 유저는 null (화면에서 '-' 표시)
+        Integer commissionRate = user.isArtist() ? 10 : null;
 
         return new AdminUserResponse.User(
                 user.getId(),
