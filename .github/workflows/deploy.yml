@@ -176,6 +176,8 @@ jobs:
             #    - 슬롯 이름은 고정(두 개의 컨테이너 이름)
             #    - blue/green은 "역할"이며 매 배포마다 바뀜
             # ---------------------------------------------------------
+            # EC2 호스트에 .env 파일 생성 (docker-compose가 사용)
+            echo "${{ secrets.DOT_ENV }}" > /app/mori-mori/.env
             source /etc/environment || true   # 시스템 전역 변수(+ 비밀) 주입 시도
             OWNER_LC="${{ github.repository_owner }}"
             OWNER_LC="${OWNER_LC,,}"                                # 소문자 표준화
@@ -243,11 +245,6 @@ jobs:
               --restart unless-stopped \
               --network "${NET}" \
               -e TZ=Asia/Seoul \
-              -e SPRING_DATA_REDIS_HOST=redis_1 \
-              -e SPRING_DATA_REDIS_PASSWORD=${PASSWORD_1:-} \
-              -e SPRING_DATA_ELASTICSEARCH_CLIENT_ENDPOINTS=elasticsearch_1:9200 \
-              -e SPRING_DATA_ELASTICSEARCH_USERNAME=elastic \
-              -e SPRING_DATA_ELASTICSEARCH_PASSWORD=${PASSWORD_1:-} \
               "${IMAGE}"
 
             # ---------------------------------------------------------
