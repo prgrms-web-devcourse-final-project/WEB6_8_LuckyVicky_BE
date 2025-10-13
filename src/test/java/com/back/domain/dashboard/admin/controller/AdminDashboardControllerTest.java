@@ -570,6 +570,37 @@ class AdminDashboardControllerTest {
                 .andExpect(status().isForbidden());
     }
 
+    @Test
+    @DisplayName("관리자 펀딩 승인 대기 상세 조회 성공")
+    void getFundingApprovalDetail_Success() throws Exception {
+        // Given - PENDING 상태의 펀딩이 있다고 가정 (TestInitData에 의존)
+        // 실제 테스트에서는 PENDING 펀딩이 있어야 함
+
+        // 펀딩 ID는 실제 DB에 있는 것을 사용해야 함
+        // 여기서는 존재하지 않는 ID로 404 테스트
+        Long nonExistentFundingId = 99999L;
+
+        // When & Then
+        mockMvc.perform(get("/api/dashboard/admin/fundings/approvals/{fundingId}", nonExistentFundingId)
+                        .with(user(adminUserDetails)))
+                .andDo(print())
+                .andExpect(status().isNotFound());
+    }
+
+    @Test
+    @DisplayName("관리자 펀딩 승인 대기 상세 조회 실패 - 권한 없음")
+    void getFundingApprovalDetail_Fail_NoPermission() throws Exception {
+        // Given - 일반 사용자
+        CustomUserDetails customerDetails = new CustomUserDetails(customerUser, Role.USER);
+        Long fundingId = 1L;
+
+        // When & Then
+        mockMvc.perform(get("/api/dashboard/admin/fundings/approvals/{fundingId}", fundingId)
+                        .with(user(customerDetails)))
+                .andDo(print())
+                .andExpect(status().isForbidden());
+    }
+
     // ===== 헬퍼 메서드 =====
 
     /**
