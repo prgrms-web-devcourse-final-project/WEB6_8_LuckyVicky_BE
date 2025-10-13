@@ -217,4 +217,23 @@ public class AdminDashboardController {
 
         return ResponseEntity.ok(RsData.ok("작가 신청이 거절되었습니다."));
     }
+
+    /**
+     * 관리자 펀딩 승인 대기 목록 조회
+     */
+    @GetMapping("/fundings/approvals")
+    @Operation(summary = "관리자 펀딩 승인 대기 목록 조회",
+            description = "PENDING 상태의 펀딩 목록을 조회합니다. 관리자가 승인(APPROVED)할 수 있습니다.")
+    public ResponseEntity<RsData<AdminFundingApprovalResponse>> getFundingApprovals(
+            @AuthenticationPrincipal CustomUserDetails adminUser,
+            @Valid @ModelAttribute AdminFundingApprovalSearchRequest request) {
+
+        log.info("관리자 펀딩 승인 대기 목록 조회 - adminId: {}, role: {}, page: {}, size: {}, keyword: {}",
+                adminUser.getUserId(), adminUser.getCurrentRole(),
+                request.page(), request.size(), request.keyword());
+
+        AdminFundingApprovalResponse response = adminDashboardService.getFundingApprovals(request);
+
+        return ResponseEntity.ok(RsData.ok("펀딩 승인 대기 목록 조회 성공", response));
+    }
 }

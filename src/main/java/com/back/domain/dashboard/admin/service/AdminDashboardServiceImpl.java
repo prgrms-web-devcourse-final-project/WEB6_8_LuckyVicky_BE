@@ -955,4 +955,86 @@ public class AdminDashboardServiceImpl implements AdminDashboardService {
                 permissions
         );
     }
+
+    @Override
+    public AdminFundingApprovalResponse getFundingApprovals(AdminFundingApprovalSearchRequest request) {
+        CustomUserDetails adminUser = validateAdminAuthentication();
+
+        log.info("관리자 펀딩 승인 대기 목록 조회 - adminId: {}, page: {}, size: {}, keyword: {}",
+                adminUser.getUserId(), request.page(), request.size(), request.keyword());
+
+        // Pageable 생성
+        Pageable pageable = buildPageable(
+                request.page(),
+                request.size(),
+                request.sort(),
+                request.order(),
+                this::mapFundingApprovalSortField
+        );
+
+        // PENDING 상태 펀딩 조회
+        Page<Funding> fundingPage = fundingRepository.findPendingApprovalFundings(
+                request.keyword(),
+                request.artistId(),
+                request.sort(),
+                request.order(),
+                pageable
+        );
+
+        // Entity → DTO 변환
+        List<AdminFundingApprovalResponse.FundingApproval> content = fundingPage.getContent().stream()
+                .map(this::convertToFundingApprovalDto)
+                .toList();
+
+        log.info("펀딩 승인 대기 목록 조회 완료 - 조회된 펀딩 수: {}, 전체: {}",
+                content.size(), fundingPage.getTotalElements());
+
+        return new AdminFundingApprovalResponse(
+                content,
+                request.page(),
+                request.size(),
+                fundingPage.getTotalElements(),
+                fundingPage.getTotalPages(),
+                fundingPage.hasNext(),
+                fundingPage.hasPrevious()
+        );
+    }
+
+    /**
+     * Funding Entity → FundingApproval DTO 변환
+     */
+    private AdminFundingApprovalResponse.FundingApproval convertToFundingApprovalDto(Funding funding) {
+        DateTimeFormatter dateFormatter = DateTimeFormatter.ofPattern("yyyy. MM. dd");
+
+        // 작가 정보
+        AdminFundingApprovalResponse.Artist artist = new AdminFundingApprovalResponse.Artist(
+                funding.getUser().getId(),
+                funding.getUser().getName(),
+                funding.getUser().getEmail() != null ? funding.getUser().getEmail() : "N/A"
+        );
+
+        return new AdminFundingApprovalResponse.FundingApproval(
+                funding.getId(),
+                funding.getTitle(),
+                artist,
+                funding.getTargetAmount(),
+                funding.getStartDate().format(dateFormatter),
+                funding.getEndDate().format(dateFormatter),
+                funding.getCreateDate().format(dateFormatter),
+                funding.getImageUrl()
+        );
+    }
+
+    /**
+     * 펀딩 승인 대기 정렬 필드 매핑
+     */
+    private String mapFundingApprovalSortField(String sort) {
+        return switch (sort) {
+            case "artistId" -> "user.id";
+            case "artistName" -> "user.name";
+            case "title" -> "title";
+            case "registeredAt" -> "createDate";
+            default -> "createDate";
+        };
+    }
 }
