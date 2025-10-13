@@ -179,6 +179,7 @@ jobs:
             # EC2 호스트에 .env 파일 생성 (docker-compose가 사용)
             echo "${{ secrets.DOT_ENV }}" > /app/mori-mori/.env
             source /etc/environment || true   # 시스템 전역 변수(+ 비밀) 주입 시도
+            PASSWORD_1=$(echo -n "${PASSWORD_1}" | tr -d '\n\r') # Trim newline/carriage return
             OWNER_LC="${{ github.repository_owner }}"
             OWNER_LC="${OWNER_LC,,}"                                # 소문자 표준화
             IMAGE_TAG="${{ needs.makeTagAndRelease.outputs.tag_name }}"
