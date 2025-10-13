@@ -35,7 +35,8 @@ public interface ProductRepository extends JpaRepository<Product, Long>, Product
     List<Product> findBySellingEndDateBefore(LocalDateTime dateTime);
 
     // 신상품 (최근 14일)
-    @Query("SELECT p FROM Product p " +
+    @Query("SELECT DISTINCT p FROM Product p " +
+            "LEFT JOIN FETCH p.images " +
             "WHERE p.createDate BETWEEN :fromDate AND :toDate " +
             "AND p.displayStatus = com.back.domain.product.product.entity.DisplayStatus.DISPLAYING " +
             "ORDER BY p.createDate DESC")
@@ -43,35 +44,40 @@ public interface ProductRepository extends JpaRepository<Product, Long>, Product
                                      @Param("toDate") LocalDateTime toDate);
 
     // 할인중 상품
-    @Query("SELECT p FROM Product p " +
+    @Query("SELECT DISTINCT p FROM Product p " +
+            "LEFT JOIN FETCH p.images " +
             "WHERE p.discountRate > 0 " +
             "AND p.displayStatus = com.back.domain.product.product.entity.DisplayStatus.DISPLAYING " +
             "ORDER BY p.discountRate DESC")
     List<Product> findOnSaleProducts();
 
     // 품절 임박 상품 (재고 5개 이하)
-    @Query("SELECT p FROM Product p " +
+    @Query("SELECT DISTINCT p FROM Product p " +
+            "LEFT JOIN FETCH p.images " +
             "WHERE p.stock <= 5 " +
             "AND p.displayStatus = com.back.domain.product.product.entity.DisplayStatus.DISPLAYING " +
             "ORDER BY p.stock ASC")
     List<Product> findLowStockProducts();
 
     // 재입고 상품
-    @Query("SELECT p FROM Product p " +
+    @Query("SELECT DISTINCT p FROM Product p " +
+            "LEFT JOIN FETCH p.images " +
             "WHERE p.isRestock = true " +
             "AND p.displayStatus = com.back.domain.product.product.entity.DisplayStatus.DISPLAYING " +
             "ORDER BY p.createDate DESC")
     List<Product> findRestockProducts();
 
     // 기획 상품
-    @Query("SELECT p FROM Product p " +
+    @Query("SELECT DISTINCT p FROM Product p " +
+            "LEFT JOIN FETCH p.images " +
             "WHERE p.isPlanned = true " +
             "AND p.displayStatus = com.back.domain.product.product.entity.DisplayStatus.DISPLAYING " +
             "ORDER BY p.createDate DESC")
     List<Product> findPlannedProducts();
 
     // 오픈 예정 상품
-    @Query("SELECT p FROM Product p " +
+    @Query("SELECT DISTINCT p FROM Product p " +
+            "LEFT JOIN FETCH p.images " +
             "WHERE p.sellingStartDate > :today " +
             "AND p.displayStatus = com.back.domain.product.product.entity.DisplayStatus.DISPLAYING " +
             "ORDER BY p.sellingStartDate ASC")
