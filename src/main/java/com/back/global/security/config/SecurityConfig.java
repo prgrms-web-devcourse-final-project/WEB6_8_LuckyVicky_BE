@@ -93,6 +93,9 @@ public class SecurityConfig {
                         // 카테고리,태그 등록, 수정, 삭제 - ADMIN, ROOT만 접근 가능
                         .requestMatchers("/api/categories/**","/api/tag/**").hasAnyRole("ADMIN", "ROOT")
 
+                        // 정산 관리 - ARTIST, ADMIN, ROOT만 접근 가능
+                        .requestMatchers("/api/settlement/**").hasAnyRole("ARTIST", "ADMIN", "ROOT")
+
                         // 펀딩 관련 공개 API - 로그인 없이 접근 허용
                         .requestMatchers(HttpMethod.GET, "/api/fundings/**").permitAll()
 
