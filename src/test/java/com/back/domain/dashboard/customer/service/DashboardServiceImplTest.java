@@ -66,6 +66,16 @@ class DashboardServiceImplTest {
     @Autowired
     private CategoryRepository categoryRepository;
 
+    // 캐시 테스트용 Repository
+    @Autowired
+    private com.back.domain.payment.cash.repository.CashTransactionRepository cashTransactionRepository;
+
+    @Autowired
+    private com.back.domain.payment.moriCash.repository.MoriCashPaymentRepository moriCashPaymentRepository;
+
+    @Autowired
+    private com.back.domain.payment.moriCash.repository.MoriCashBalanceRepository moriCashBalanceRepository;
+
     private User testBuyer;
     private User testArtist;
     private Funding activeFunding;
@@ -678,6 +688,209 @@ class DashboardServiceImplTest {
                 () -> assertThat(result.getContent().get(0).status()).isEqualTo("PENDING"),
                 () -> assertThat(result.getContent().get(0).artistName()).isEqualTo("작가A")
         );
+    }
+
+    // ==================== Cash 캐시 충전/사용 내역 조회 테스트 ====================
+
+    @Test
+    @DisplayName("캐시 잔액 조회 - 실제 DB 연동 확인")
+    void getCashBalance_ReturnsRealData() {
+        // Given
+        com.back.domain.payment.moriCash.entity.MoriCashBalance balance =
+                com.back.domain.payment.moriCash.entity.MoriCashBalance.builder()
+                        .user(testBuyer)
+                        .totalBalance(50000)
+                        .availableBalance(50000)
+                        .frozenBalance(0)
+                        .totalCharged(100000)
+                        .totalUsed(50000)
+                        .build();
+        moriCashBalanceRepository.save(balance);
+
+        // When
+        com.back.domain.dashboard.customer.dto.response.CashResponse.Balance result =
+                dashboardService.getCashBalance(testBuyer.getId());
+
+        // Then
+        assertAll(
+                () -> assertThat(result.currentBalance()).isEqualTo(50000),
+                () -> assertThat(result.currency()).isEqualTo("KRW"),
+                () -> assertThat(result.updatedAt()).isNotNull()
+        );
+    }
+
+    @Test
+    @DisplayName("캐시 내역 조회 - 충전과 사용 내역 Union 조회 및 정렬")
+    void getCashHistory_UnionChargeAndPurchase() {
+        // Given: 잔액 생성
+        com.back.domain.payment.moriCash.entity.MoriCashBalance balance =
+                com.back.domain.payment.moriCash.entity.MoriCashBalance.createInitialBalance(testBuyer);
+        moriCashBalanceRepository.save(balance);
+
+        // 충전 2건
+        createChargeTransaction(30000, LocalDateTime.now().minusDays(3));
+        createChargeTransaction(20000, LocalDateTime.now().minusDays(1));
+
+        // 사용 1건
+        createPurchaseTransaction(10000, LocalDateTime.now().minusDays(2));
+
+        com.back.domain.dashboard.customer.dto.request.CashHistorySearchRequest request =
+                new com.back.domain.dashboard.customer.dto.request.CashHistorySearchRequest(
+                        0, 10, null, null, null, null, null, null
+                );
+
+        // When
+        com.back.domain.dashboard.customer.dto.response.CashResponse.HistoryList result =
+                dashboardService.getCashHistory(testBuyer.getId(), request);
+
+        // Then: 최신순 정렬 확인
+        assertAll(
+                () -> assertThat(result.getContent()).hasSize(3),
+                // 1번째: 가장 최근 충전
+                () -> assertThat(result.getContent().get(0).category()).isEqualTo("모리캐시 충전"),
+                () -> assertThat(result.getContent().get(0).chargeAmount()).isEqualTo(20000),
+                () -> assertThat(result.getContent().get(0).useAmount()).isEqualTo(0),
+                // 2번째: 사용
+                () -> assertThat(result.getContent().get(1).category()).isEqualTo("상품 주문"),
+                () -> assertThat(result.getContent().get(1).chargeAmount()).isEqualTo(0),
+                () -> assertThat(result.getContent().get(1).useAmount()).isEqualTo(10000),
+                // 3번째: 오래된 충전
+                () -> assertThat(result.getContent().get(2).chargeAmount()).isEqualTo(30000)
+        );
+    }
+
+    @Test
+    @DisplayName("캐시 내역 조회 - 페이징 처리")
+    void getCashHistory_HandlesPagination() {
+        // Given
+        com.back.domain.payment.moriCash.entity.MoriCashBalance balance =
+                com.back.domain.payment.moriCash.entity.MoriCashBalance.createInitialBalance(testBuyer);
+        moriCashBalanceRepository.save(balance);
+
+        for (int i = 0; i < 15; i++) {
+            createChargeTransaction(10000, LocalDateTime.now().minusDays(i));
+        }
+
+        com.back.domain.dashboard.customer.dto.request.CashHistorySearchRequest request =
+                new com.back.domain.dashboard.customer.dto.request.CashHistorySearchRequest(
+                        0, 10, null, null, null, null, null, null
+                );
+
+        // When
+        com.back.domain.dashboard.customer.dto.response.CashResponse.HistoryList result =
+                dashboardService.getCashHistory(testBuyer.getId(), request);
+
+        // Then
+        assertAll(
+                () -> assertThat(result.getContent()).hasSize(10),
+                () -> assertThat(result.getTotalElements()).isEqualTo(15),
+                () -> assertThat(result.getTotalPages()).isEqualTo(2),
+                () -> assertThat(result.isHasNext()).isTrue()
+        );
+    }
+
+    @Test
+    @DisplayName("캐시 내역 조회 - 결제수단 텍스트 매핑")
+    void getCashHistory_MapsPaymentMethod() {
+        // Given
+        com.back.domain.payment.moriCash.entity.MoriCashBalance balance =
+                com.back.domain.payment.moriCash.entity.MoriCashBalance.createInitialBalance(testBuyer);
+        moriCashBalanceRepository.save(balance);
+
+        createChargeTransactionWithMethod(10000, "TOSS");
+        createChargeTransactionWithMethod(20000, "NAVERPAY");
+        createPurchaseTransaction(5000, LocalDateTime.now());
+
+        com.back.domain.dashboard.customer.dto.request.CashHistorySearchRequest request =
+                new com.back.domain.dashboard.customer.dto.request.CashHistorySearchRequest(
+                        0, 10, null, null, null, null, null, null
+                );
+
+        // When
+        com.back.domain.dashboard.customer.dto.response.CashResponse.HistoryList result =
+                dashboardService.getCashHistory(testBuyer.getId(), request);
+
+        // Then
+        assertAll(
+                () -> assertThat(result.getContent()).hasSize(3),
+                () -> assertThat(result.getContent().get(0).paymentMethod()).isEqualTo("모리캐시"),
+                () -> assertThat(result.getContent().get(1).paymentMethod()).isEqualTo("네이버페이"),
+                () -> assertThat(result.getContent().get(2).paymentMethod()).isEqualTo("토스페이")
+        );
+    }
+
+    // ==================== Helper Methods (캐시 테스트용) ====================
+
+    private com.back.domain.payment.cash.entity.CashTransaction createChargeTransaction(
+            int amount, LocalDateTime completedAt) {
+        com.back.domain.payment.cash.entity.CashTransaction transaction =
+                com.back.domain.payment.cash.entity.CashTransaction.builder()
+                        .user(testBuyer)
+                        .transactionType(com.back.domain.payment.cash.entity.CashTransactionType.CHARGING)
+                        .amount(amount)
+                        .paymentMethod("TOSS")
+                        .pgProvider("TOSS")
+                        .balanceAfter(50000 + amount)
+                        .build();
+
+        transaction.completeTransaction("PG-" + System.currentTimeMillis(), "APPR-123",
+                50000 + amount);
+
+        // completedAt을 테스트용으로 강제 설정 (Reflection 사용)
+        try {
+            var field = transaction.getClass().getDeclaredField("completedAt");
+            field.setAccessible(true);
+            field.set(transaction, completedAt);
+        } catch (Exception e) {
+            // completedAt 설정 실패 시 현재 시간 사용
+        }
+
+        return cashTransactionRepository.save(transaction);
+    }
+
+    private com.back.domain.payment.cash.entity.CashTransaction createChargeTransactionWithMethod(
+            int amount, String method) {
+        com.back.domain.payment.cash.entity.CashTransaction transaction =
+                com.back.domain.payment.cash.entity.CashTransaction.builder()
+                        .user(testBuyer)
+                        .transactionType(com.back.domain.payment.cash.entity.CashTransactionType.CHARGING)
+                        .amount(amount)
+                        .paymentMethod(method)
+                        .pgProvider("TOSS")
+                        .balanceAfter(50000 + amount)
+                        .build();
+
+        transaction.completeTransaction("PG-" + System.currentTimeMillis(), "APPR-123",
+                50000 + amount);
+
+        return cashTransactionRepository.save(transaction);
+    }
+
+    private com.back.domain.payment.moriCash.entity.MoriCashPayment createPurchaseTransaction(
+            int amount, LocalDateTime paidAt) {
+        com.back.domain.payment.moriCash.entity.MoriCashPayment payment =
+                com.back.domain.payment.moriCash.entity.MoriCashPayment.builder()
+                        .user(testBuyer)
+                        .order(testOrder)
+                        .totalPrice(amount)
+                        .usedMoriCash(amount)
+                        .status(com.back.domain.payment.moriCash.entity.MoriCashPaymentStatus.COMPLETED)
+                        .transactionType(com.back.domain.payment.moriCash.entity.TransactionType.PURCHASE)
+                        .balanceAfter(50000 - amount)
+                        .build();
+
+        payment.completePayment("CASH-" + System.currentTimeMillis());
+
+        // paidAt을 테스트용으로 강제 설정 (Reflection 사용)
+        try {
+            var field = payment.getClass().getDeclaredField("paidAt");
+            field.setAccessible(true);
+            field.set(payment, paidAt);
+        } catch (Exception e) {
+            // paidAt 설정 실패 시 현재 시간 사용
+        }
+
+        return moriCashPaymentRepository.save(payment);
     }
 
 }
