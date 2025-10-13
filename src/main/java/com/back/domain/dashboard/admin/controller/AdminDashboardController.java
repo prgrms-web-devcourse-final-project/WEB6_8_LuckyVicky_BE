@@ -236,4 +236,22 @@ public class AdminDashboardController {
 
         return ResponseEntity.ok(RsData.ok("펀딩 승인 대기 목록 조회 성공", response));
     }
+
+    /**
+     * 관리자 펀딩 승인 대기 상세 조회
+     */
+    @GetMapping("/fundings/approvals/{fundingId}")
+    @Operation(summary = "관리자 펀딩 승인 대기 상세 조회",
+            description = "PENDING 상태의 펀딩 상세 정보를 조회합니다. 작가 정보와 사업자 정보를 포함합니다.")
+    public ResponseEntity<RsData<AdminFundingApprovalDetailResponse>> getFundingApprovalDetail(
+            @AuthenticationPrincipal CustomUserDetails adminUser,
+            @PathVariable Long fundingId) {
+
+        log.info("관리자 펀딩 승인 대기 상세 조회 - adminId: {}, role: {}, fundingId: {}",
+                adminUser.getUserId(), adminUser.getCurrentRole(), fundingId);
+
+        AdminFundingApprovalDetailResponse response = adminDashboardService.getFundingApprovalDetail(fundingId);
+
+        return ResponseEntity.ok(RsData.ok("펀딩 승인 대기 상세 조회 성공", response));
+    }
 }

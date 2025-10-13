@@ -1037,4 +1037,74 @@ public class AdminDashboardServiceImpl implements AdminDashboardService {
             default -> "createDate";
         };
     }
+
+    @Override
+    public AdminFundingApprovalDetailResponse getFundingApprovalDetail(Long fundingId) {
+        CustomUserDetails adminUser = validateAdminAuthentication();
+
+        log.info("관리자 펀딩 승인 대기 상세 조회 - adminId: {}, fundingId: {}",
+                adminUser.getUserId(), fundingId);
+
+        // PENDING 상태의 펀딩 조회
+        Funding funding = fundingRepository.findPendingApprovalFundingById(fundingId)
+                .orElseThrow(() -> new ServiceException("404", "승인 대기 중인 펀딩을 찾을 수 없습니다."));
+
+        // 작가의 ArtistApplication 조회
+        ArtistApplication application = artistApplicationRepository.findByUserId(funding.getUser().getId())
+                .orElse(null);
+
+        // DTO 변환
+        AdminFundingApprovalDetailResponse response = convertToFundingApprovalDetailDto(funding, application);
+
+        log.info("펀딩 승인 대기 상세 조회 완료 - fundingId: {}, artistId: {}",
+                fundingId, funding.getUser().getId());
+
+        return response;
+    }
+
+    /**
+     * Funding + ArtistApplication → AdminFundingApprovalDetailResponse 변환
+     */
+    private AdminFundingApprovalDetailResponse convertToFundingApprovalDetailDto(
+            Funding funding, ArtistApplication application) {
+
+        // 작가 정보 (ArtistApplication에서 우선 조회, 없으면 User에서)
+        String email = application != null ? application.getEmail() : funding.getUser().getEmail();
+        String phone = application != null ? application.getPhone() : funding.getUser().getPhone();
+
+        AdminFundingApprovalDetailResponse.ArtistInfo artistInfo =
+                new AdminFundingApprovalDetailResponse.ArtistInfo(
+                        funding.getUser().getId(),
+                        funding.getUser().getName(),
+                        email != null ? email : "N/A",
+                        phone != null ? phone : "N/A"
+                );
+
+        // 사업자 정보 (ArtistApplication에서만 조회 가능)
+        AdminFundingApprovalDetailResponse.BusinessInfo businessInfo;
+        if (application != null) {
+            String fullAddress = application.getBusinessAddress();
+            if (application.getBusinessAddressDetail() != null) {
+                fullAddress += " " + application.getBusinessAddressDetail();
+            }
+
+            businessInfo = new AdminFundingApprovalDetailResponse.BusinessInfo(
+                    application.getBusinessNumber() != null ? application.getBusinessNumber() : "미등록",
+                    application.getTelecomSalesNumber() != null ? application.getTelecomSalesNumber() : "미등록",
+                    application.getBusinessName() != null ? application.getBusinessName() : "미등록",
+                    fullAddress != null ? fullAddress : "미등록"
+            );
+        } else {
+            // ArtistApplication이 없는 경우 (작가 신청을 안 한 경우)
+            businessInfo = new AdminFundingApprovalDetailResponse.BusinessInfo(
+                    "미등록", "미등록", "미등록", "미등록"
+            );
+        }
+
+        return new AdminFundingApprovalDetailResponse(
+                funding.getTitle(),
+                artistInfo,
+                businessInfo
+        );
+    }
 }
