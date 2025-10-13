@@ -1,9 +1,11 @@
 package com.back.domain.auth.controller;
 
 import com.back.domain.auth.dto.request.LoginRequest;
+import com.back.domain.auth.dto.request.PasswordResetRequest;
 import com.back.domain.auth.dto.request.SignUpRequest;
 import com.back.domain.auth.dto.request.TokenRefreshRequest;
 import com.back.domain.auth.dto.response.AuthResponse;
+import com.back.domain.auth.dto.response.PasswordResetResponse;
 import com.back.domain.auth.dto.response.SignUpResponse;
 import com.back.domain.auth.service.AuthService;
 import com.back.domain.user.entity.Role;
@@ -845,6 +847,129 @@ class AuthControllerTest {
             assertThat(data.email()).isEqualTo("consistent@example.com");
             assertThat(data.selectedRole()).isEqualTo(Role.ARTIST);
             assertThat(data.availableRoles()).containsExactly(Role.USER, Role.ARTIST);
+        }
+    }
+
+    @Nested
+    @DisplayName("비밀번호 찾기 테스트")
+    class PasswordResetTest {
+
+        @Test
+        @DisplayName("정상적인 비밀번호 찾기 요청 성공")
+        void resetPassword_Success() {
+            // given
+            PasswordResetRequest request = new PasswordResetRequest("user@example.com");
+
+            PasswordResetResponse mockResponse = PasswordResetResponse.success("user@example.com");
+            given(authService.resetPassword(any(PasswordResetRequest.class)))
+                    .willReturn(mockResponse);
+
+            // when
+            ResponseEntity<PasswordResetResponse> response = authController.resetPassword(request);
+
+            // then
+            assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
+            assertThat(response.getBody().email()).isEqualTo("user@example.com");
+            assertThat(response.getBody().message()).isEqualTo("임시 비밀번호가 이메일로 발송되었습니다.");
+
+            verify(authService).resetPassword(any(PasswordResetRequest.class));
+        }
+
+        @Test
+        @DisplayName("존재하지 않는 이메일로 비밀번호 찾기 시도")
+        void resetPassword_EmailNotFound() {
+            // given
+            PasswordResetRequest request = new PasswordResetRequest("notfound@example.com");
+
+            given(authService.resetPassword(any(PasswordResetRequest.class)))
+                    .willThrow(new ServiceException("404", "등록되지 않은 이메일입니다."));
+
+            // when & then
+            assertThatThrownBy(() -> authController.resetPassword(request))
+                    .isInstanceOf(ServiceException.class)
+                    .satisfies(exception -> {
+                        ServiceException serviceException = (ServiceException) exception;
+                        assertThat(serviceException.getResultCode()).isEqualTo("404");
+                        assertThat(serviceException.getMsg()).isEqualTo("등록되지 않은 이메일입니다.");
+                    });
+
+            verify(authService).resetPassword(any(PasswordResetRequest.class));
+        }
+
+        @Test
+        @DisplayName("OAuth 사용자 이메일로 비밀번호 찾기 시도")
+        void resetPassword_OAuthUser() {
+            // given
+            PasswordResetRequest request = new PasswordResetRequest("kakao@example.com");
+
+            given(authService.resetPassword(any(PasswordResetRequest.class)))
+                    .willThrow(new ServiceException("400",
+                            "소셜 로그인 사용자는 비밀번호 찾기를 이용할 수 없습니다."));
+
+            // when & then
+            assertThatThrownBy(() -> authController.resetPassword(request))
+                    .isInstanceOf(ServiceException.class)
+                    .satisfies(exception -> {
+                        ServiceException serviceException = (ServiceException) exception;
+                        assertThat(serviceException.getResultCode()).isEqualTo("400");
+                        assertThat(serviceException.getMsg())
+                                .isEqualTo("소셜 로그인 사용자는 비밀번호 찾기를 이용할 수 없습니다.");
+                    });
+
+            verify(authService).resetPassword(any(PasswordResetRequest.class));
+        }
+
+        @Test
+        @DisplayName("다양한 이메일 형식으로 비밀번호 찾기 요청")
+        void resetPassword_VariousEmailFormats() {
+            // given
+            String[] emails = {
+                    "user@domain.com",
+                    "user.name@domain.co.kr",
+                    "user+tag@subdomain.domain.org",
+                    "user_123@test-domain.com"
+            };
+
+            for (String email : emails) {
+                PasswordResetRequest request = new PasswordResetRequest(email);
+                PasswordResetResponse mockResponse = PasswordResetResponse.success(email);
+                given(authService.resetPassword(any(PasswordResetRequest.class)))
+                        .willReturn(mockResponse);
+
+                // when
+                ResponseEntity<PasswordResetResponse> response =
+                        authController.resetPassword(request);
+
+                // then
+                assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
+                assertThat(response.getBody().email()).isEqualTo(email);
+
+                verify(authService).resetPassword(any(PasswordResetRequest.class));
+                reset(authService);
+            }
+        }
+
+        @Test
+        @DisplayName("동일한 이메일로 연속 비밀번호 찾기 요청")
+        void resetPassword_ConsecutiveRequests() {
+            // given
+            PasswordResetRequest request = new PasswordResetRequest("user@example.com");
+            PasswordResetResponse mockResponse = PasswordResetResponse.success("user@example.com");
+
+            given(authService.resetPassword(any(PasswordResetRequest.class)))
+                    .willReturn(mockResponse);
+
+            // when
+            ResponseEntity<PasswordResetResponse> response1 =
+                    authController.resetPassword(request);
+            ResponseEntity<PasswordResetResponse> response2 =
+                    authController.resetPassword(request);
+
+            // then
+            assertThat(response1.getStatusCode()).isEqualTo(HttpStatus.OK);
+            assertThat(response2.getStatusCode()).isEqualTo(HttpStatus.OK);
+
+            verify(authService, times(2)).resetPassword(any(PasswordResetRequest.class));
         }
     }
 }

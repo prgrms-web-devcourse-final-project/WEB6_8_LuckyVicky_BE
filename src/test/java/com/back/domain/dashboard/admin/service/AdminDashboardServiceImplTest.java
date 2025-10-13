@@ -370,6 +370,144 @@ class AdminDashboardServiceImplTest {
         );
     }
 
+    @Test
+    @DisplayName("사용자 목록 조회 - 수수료율 검증 (작가 10%, 일반 유저 null)")
+    void getUsers_수수료율검증() {
+        // Given
+        AdminUserSearchRequest request = new AdminUserSearchRequest(
+                0, 20, null, null, null, null, null, null, null, "joinedAt", "DESC"
+        );
+
+        // When
+        AdminUserResponse response = adminDashboardService.getUsers(request);
+
+        // Then
+        assertThat(response.content()).isNotEmpty();
+        
+        response.content().forEach(user -> {
+            if (user.artistName() != null) {
+                // 작가는 수수료율 10%
+                assertThat(user.commissionRate())
+                        .as("작가 유저는 수수료율이 10%여야 합니다")
+                        .isEqualTo(10);
+            } else {
+                // 일반 유저는 수수료율 null
+                assertThat(user.commissionRate())
+                        .as("일반 유저는 수수료율이 null이어야 합니다")
+                        .isNull();
+            }
+        });
+    }
+
+    @Test
+    @DisplayName("사용자 목록 조회 - 작가 수수료율 정확성 검증")
+    void getUsers_작가수수료율정확성() {
+        // Given - 작가만 필터링
+        AdminUserSearchRequest request = new AdminUserSearchRequest(
+                0, 20, null, "ARTIST", null, null, null, null, null, "joinedAt", "DESC"
+        );
+
+        // When
+        AdminUserResponse response = adminDashboardService.getUsers(request);
+
+        // Then - 모든 작가는 수수료율 10%
+        assertThat(response.content()).isNotEmpty();
+        response.content().forEach(user -> {
+            assertAll(
+                    () -> assertThat(user.artistName()).isNotNull(),
+                    () -> assertThat(user.commissionRate()).isEqualTo(10)
+            );
+        });
+    }
+
+    @Test
+    @DisplayName("사용자 목록 조회 - 일반 유저 수수료율 null 검증")
+    void getUsers_일반유저수수료율null() {
+        // Given - 일반 유저만 필터링 (USER)
+        AdminUserSearchRequest request = new AdminUserSearchRequest(
+                0, 20, null, "USER", null, null, null, null, null, "joinedAt", "DESC"
+        );
+
+        // When
+        AdminUserResponse response = adminDashboardService.getUsers(request);
+
+        // Then - 일반 유저는 수수료율 null
+        response.content().forEach(user -> {
+            assertAll(
+                    () -> assertThat(user.artistName()).isNull(),
+                    () -> assertThat(user.commissionRate()).isNull()
+            );
+        });
+    }
+
+    // ========== 펀딩 승인 대기 목록 테스트 ==========
+
+    @Test
+    @DisplayName("펀딩 승인 대기 목록 조회 - 기본 조회")
+    void getFundingApprovals_기본조회() {
+        // Given
+        AdminFundingApprovalSearchRequest request = new AdminFundingApprovalSearchRequest(
+                0, 20, null, null, "registeredAt", "DESC"
+        );
+
+        // When
+        AdminFundingApprovalResponse response = adminDashboardService.getFundingApprovals(request);
+
+        // Then
+        assertAll(
+                () -> assertThat(response.page()).isEqualTo(0),
+                () -> assertThat(response.size()).isEqualTo(20),
+                () -> assertThat(response.totalElements()).isGreaterThanOrEqualTo(0)
+        );
+    }
+
+    @Test
+    @DisplayName("펀딩 승인 대기 목록 조회 - 작가 ID로 정렬")
+    void getFundingApprovals_작가ID정렬() {
+        // Given
+        AdminFundingApprovalSearchRequest request = new AdminFundingApprovalSearchRequest(
+                0, 20, null, null, "artistId", "ASC"
+        );
+
+        // When
+        AdminFundingApprovalResponse response = adminDashboardService.getFundingApprovals(request);
+
+        // Then
+        assertThat(response).isNotNull();
+    }
+
+    @Test
+    @DisplayName("펀딩 승인 대기 목록 조회 - 펀딩 제목으로 정렬")
+    void getFundingApprovals_제목정렬() {
+        // Given
+        AdminFundingApprovalSearchRequest request = new AdminFundingApprovalSearchRequest(
+                0, 20, null, null, "title", "ASC"
+        );
+
+        // When
+        AdminFundingApprovalResponse response = adminDashboardService.getFundingApprovals(request);
+
+        // Then
+        assertThat(response).isNotNull();
+    }
+
+    @Test
+    @DisplayName("펀딩 승인 대기 목록 조회 - 특정 작가 필터링")
+    void getFundingApprovals_작가필터() {
+        // Given
+        AdminFundingApprovalSearchRequest request = new AdminFundingApprovalSearchRequest(
+                0, 20, null, artistUser.getId(), "registeredAt", "DESC"
+        );
+
+        // When
+        AdminFundingApprovalResponse response = adminDashboardService.getFundingApprovals(request);
+
+        // Then
+        response.content().forEach(funding ->
+                assertThat(funding.artist().id()).isEqualTo(artistUser.getId())
+        );
+    }
+
     // ========== 헬퍼 메서드 ==========
 
     private User createAdminUser() {

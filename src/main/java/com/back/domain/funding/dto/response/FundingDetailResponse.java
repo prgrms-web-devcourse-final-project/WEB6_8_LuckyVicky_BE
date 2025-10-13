@@ -15,6 +15,9 @@ public record FundingDetailResponse(
         String imageUrl, // 펀딩 이미지 URL
         String categoryName, // 카테고리 이름
         long targetAmount, // 목표 금액
+        long price, // 가격
+        Integer stock, // 재고
+        int soldCount,
         long currentAmount, // 현재 모인 금액
         int participants, // 참여자 수
         @JsonFormat(shape = JsonFormat.Shape.STRING, pattern = "yyyy-MM-dd HH:mm:ss")
@@ -25,7 +28,6 @@ public record FundingDetailResponse(
         double progress, // 진행률 (currentAmount / targetAmount * 100)
         FundingStatus status, // 펀딩 상태
         AuthorDto author, // 작성자 정보
-        List<FundingOptionDto> options, // 펀딩 옵션 목록
         List<FundingNewsDto> news, // 펀딩 새소식 목록
         List<FundingCommunityDto> communities // 펀딩 커뮤니티 목록
 ) {
@@ -43,6 +45,9 @@ public record FundingDetailResponse(
                 funding.getImageUrl(),
                 funding.getCategory().getCategoryName(),
                 funding.getTargetAmount(),
+                funding.getPrice(),
+                funding.getStock(),
+                funding.getSoldCount(),
                 currentAmount,
                 participants,
                 funding.getStartDate(),
@@ -51,7 +56,6 @@ public record FundingDetailResponse(
                 progress,
                 funding.getStatus(),
                 AuthorDto.from(funding.getUser(), artistDescription),
-                funding.getOptions().stream().map(FundingOptionDto::new).collect(Collectors.toList()),
                 funding.getNews().stream().map(FundingNewsDto::new).collect(Collectors.toList()),
                 funding.getCommunities().stream().map(FundingCommunityDto::new).collect(Collectors.toList())
         );
@@ -61,13 +65,6 @@ public record FundingDetailResponse(
     public record AuthorDto(Long id, String name, String profileImageUrl, String artistDescription) {
         public static AuthorDto from(User user, String artistDescription) {
             return new AuthorDto(user.getId(), user.getName(), user.getProfileImageUrl(), artistDescription);
-        }
-    }
-
-    // 옵션 DTO
-    public record FundingOptionDto(Long id, String name, long price, int stock) {
-        public FundingOptionDto(FundingOption option) {
-            this(option.getId(), option.getName(), option.getPrice(), option.getStock());
         }
     }
 

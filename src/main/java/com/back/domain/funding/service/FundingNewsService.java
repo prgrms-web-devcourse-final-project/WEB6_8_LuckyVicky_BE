@@ -28,7 +28,7 @@ public class FundingNewsService {
                 .orElseThrow(() -> new ServiceException("403", "존재하지 않는 사용자입니다."));
 
         if (!funding.getUser().getId().equals(artist.getId())) {
-            throw new ServiceException("403", "작성자만 새소식을 등록할 수 있습니다.");
+            throw new ServiceException("403", "권한이 없습니다.");
         }
 
         FundingNews news = FundingNews.builder()
@@ -41,5 +41,19 @@ public class FundingNewsService {
 
         fundingNewsRepository.save(news);
         return news.getId();
+    }
+
+    @Transactional
+    public void deleteFundingNews(Long fundingId ,Long newsId, String userEmail) {
+        Funding funding = fundingRepository.findById(fundingId)
+                .orElseThrow(() -> new ServiceException("404", "존재하지 않는 펀딩입니다."));
+        FundingNews news = fundingNewsRepository.findById(newsId)
+                .orElseThrow(() -> new ServiceException("404", "존재하지 않는 새소식입니다."));
+        User artist = userRepository.findByEmail(userEmail)
+                .orElseThrow(() -> new ServiceException("403", "존재하지 않는 사용자입니다."));
+        if (!funding.getUser().getId().equals(artist.getId())) {
+            throw new ServiceException("403", "권한이 없습니다.");
+        }
+        news.delete();
     }
 }

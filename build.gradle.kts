@@ -68,8 +68,10 @@ dependencies {
     implementation("org.springframework.boot:spring-boot-starter-data-redis")
     implementation("org.springframework.session:spring-session-data-redis")
     //Elasticsearch
-    implementation ("org.springframework.boot:spring-boot-starter-data-elasticsearch")
+    //implementation ("org.springframework.boot:spring-boot-starter-data-elasticsearch")
 
+    // 이메일 발송
+    implementation("org.springframework.boot:spring-boot-starter-mail")
 }
 
 tasks.withType<Test> {

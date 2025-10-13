@@ -217,9 +217,10 @@ public class ArtistProfile extends BaseEntity {
      * 팔로워 수 감소
      */
     public void decreaseFollowerCount() {
-        if (this.followerCount > 0) {
-            this.followerCount--;
+        if (this.followerCount <= 0) {
+            throw new ServiceException("400", "팔로워 수는 0 이하로 감소할 수 없습니다.");
         }
+        this.followerCount--;
     }
 
     /**

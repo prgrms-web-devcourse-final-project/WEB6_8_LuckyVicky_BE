@@ -40,6 +40,9 @@ public class DashboardServiceImpl implements DashboardService {
     private final UserRepository userRepository;
     private final com.back.domain.order.order.repository.OrderRepository orderRepository;
     private final com.back.domain.artist.repository.ArtistApplicationRepository artistApplicationRepository;
+    private final com.back.domain.payment.cash.repository.CashTransactionRepository cashTransactionRepository;
+    private final com.back.domain.payment.moriCash.repository.MoriCashPaymentRepository moriCashPaymentRepository;
+    private final com.back.domain.payment.moriCash.repository.MoriCashBalanceRepository moriCashBalanceRepository;
 
     private static final DateTimeFormatter ORDER_DATE_FORMATTER = DateTimeFormatter.ofPattern("yyyy. MM. dd");
     private static final DateTimeFormatter FUNDING_DATE_FORMATTER = DateTimeFormatter.ofPattern("yyyy. MM. dd");
@@ -640,13 +643,10 @@ public class DashboardServiceImpl implements DashboardService {
 
     /**
      * Funding 상태를 프론트엔드용 상태로 매핑
+     * 8가지 상태를 그대로 반환
      */
     private String mapFundingStatus(FundingStatus status) {
-        return switch (status) {
-            case PENDING, APPROVED -> "UPCOMING";
-            case  OPEN -> "ACTIVE";
-            case CLOSED, SUCCESS, FAILED, CANCELED, REJECTED -> "ENDED";
-        };
+        return status.name();
     }
 
     /**
@@ -667,33 +667,111 @@ public class DashboardServiceImpl implements DashboardService {
 
     @Override
     public CashResponse.Balance getCashBalance(Long userId) {
-        // TODO: 실제 데이터베이스 조회 로직 구현
         log.debug("캐시 정보 조회 - userId: {}", userId);
 
-        return new CashResponse.Balance(5900, "KRW", LocalDateTime.now());
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new ServiceException("USER_NOT_FOUND", "사용자를 찾을 수 없습니다."));
+
+        var balance = moriCashBalanceRepository.findByUser(user)
+                .orElse(com.back.domain.payment.moriCash.entity.MoriCashBalance.createInitialBalance(user));
+
+        return new CashResponse.Balance(
+                balance.getTotalBalance(),
+                "KRW",
+                balance.getModifyDate() != null ? balance.getModifyDate() : balance.getCreateDate()
+        );
     }
 
     @Override
     public CashResponse.HistoryList getCashHistory(Long userId, CashHistorySearchRequest request) {
-        // TODO: 실제 데이터베이스 조회 로직 구현
-        log.debug("캐시 충전 내역 조회 - userId: {}, request: {}", userId, request);
+        log.debug("캐시 충전/사용 내역 조회 - userId: {}, page: {}, size: {}", userId, request.page(), request.size());
 
-        CashResponse.SummaryDto summary = new CashResponse.SummaryDto(5, 15000, 2);
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new ServiceException("USER_NOT_FOUND", "사용자를 찾을 수 없습니다."));
 
-        List<CashResponse.Transaction> content = Arrays.asList(
-                new CashResponse.Transaction(
-                        "RC-001", LocalDateTime.now(),
-                        "캐시 충전", 10000, 50, "NAVERPAY", "네이버페이", "COMPLETED",
-                        new CashResponse.Link(null)),
-                new CashResponse.Transaction(
-                        "RC-002", LocalDateTime.now().minusDays(1),
-                        "캐시 사용", -5000, 45, "PURCHASE", "상품구매", "COMPLETED",
-                        new CashResponse.Link("/orders/0123157"))
+        // 1. 충전 내역 조회 (CashTransaction)
+        var chargeTransactions = cashTransactionRepository.findCompletedChargingByUser(user);
+
+        // 2. 사용 내역 조회 (MoriCashPayment)
+        var purchaseTransactions = moriCashPaymentRepository.findCompletedPurchaseByUser(user);
+
+        // 3. 통합 리스트 생성 및 정렬
+        var allTransactions = new java.util.ArrayList<CashResponse.Transaction>();
+
+        chargeTransactions.forEach(tx -> allTransactions.add(new CashResponse.Transaction(
+                "CHG-" + tx.getId(),
+                tx.getCompletedAt() != null ? tx.getCompletedAt() : tx.getCreateDate(),
+                "모리캐시 충전",
+                tx.getAmount(),
+                0,
+                tx.getBalanceAfter() != null ? tx.getBalanceAfter() : 0,
+                mapPaymentMethodText(tx.getPaymentMethod()),
+                "COMPLETED",
+                new CashResponse.Link("/cash/transactions/" + tx.getId())
+        )));
+
+        purchaseTransactions.forEach(tx -> allTransactions.add(new CashResponse.Transaction(
+                "USE-" + tx.getId(),
+                tx.getPaidAt() != null ? tx.getPaidAt() : tx.getCreateDate(),
+                "상품 주문",
+                0,
+                tx.getUsedMoriCash() != null ? tx.getUsedMoriCash() : 0,
+                tx.getBalanceAfter() != null ? tx.getBalanceAfter() : 0,
+                "모리캐시",
+                "COMPLETED",
+                tx.getOrder() != null ? 
+                    new CashResponse.Link("/orders/" + tx.getOrder().getOrderNumber()) : null
+        )));
+
+        // 4. 날짜순 정렬 (최신순)
+        allTransactions.sort((a, b) -> b.occurredAt().compareTo(a.occurredAt()));
+
+        // 5. 페이징 처리
+        int start = request.page() * request.size();
+        int end = Math.min(start + request.size(), allTransactions.size());
+        var pagedContent = start < allTransactions.size() ? 
+                allTransactions.subList(start, end) : List.<CashResponse.Transaction>of();
+
+        // 6. 통계 계산
+        var balance = moriCashBalanceRepository.findByUser(user)
+                .orElse(com.back.domain.payment.moriCash.entity.MoriCashBalance.createInitialBalance(user));
+
+        int periodTotalRecharge = chargeTransactions.stream()
+                .mapToInt(com.back.domain.payment.cash.entity.CashTransaction::getAmount)
+                .sum();
+
+        var summary = new CashResponse.SummaryDto(
+                balance.getTotalBalance(),
+                periodTotalRecharge,
+                0  // 보너스 포인트는 추후 구현
         );
 
+        // 7. 페이징 정보 계산
+        int totalPages = (int) Math.ceil((double) allTransactions.size() / request.size());
+
         return new CashResponse.HistoryList(
-                summary, content,
-                request.page(), request.size(),
-                5, 1, false, false);
+                summary,
+                pagedContent,
+                request.page(),
+                request.size(),
+                allTransactions.size(),
+                totalPages,
+                end < allTransactions.size(),
+                request.page() > 0
+        );
+    }
+
+    /**
+     * 결제 수단 텍스트 매핑
+     */
+    private String mapPaymentMethodText(String paymentMethod) {
+        if (paymentMethod == null) return "기타";
+        return switch (paymentMethod.toUpperCase()) {
+            case "TOSS", "TOSSPAY" -> "토스페이";
+            case "NAVERPAY" -> "네이버페이";
+            case "CARD" -> "카드결제";
+            case "KAKAOPAY" -> "카카오페이";
+            default -> paymentMethod;
+        };
     }
 }
