@@ -69,9 +69,12 @@ public class ProductCustomRepositoryImpl implements ProductCustomRepository {
             builder.and(p.productTags.any().tag.id.in(tagIds)); // 상품에 사용자가 필터링으로 선택한 tagIds가 하나라도 있으면 조건 만족
         }
 
-        // 가격대 필터
-        if (minPrice != null) builder.and(p.price.goe(minPrice)); // 최소 가격 이상 (goe는 greater or equal)
-        if (maxPrice != null) builder.and(p.price.loe(maxPrice)); // 최대 가격 이하 (loe는 less or equal)
+        // 할인된 최종 가격에 대한 표현식 생성
+        com.querydsl.core.types.dsl.NumberExpression<Integer> discountedPrice = p.price.subtract(p.price.multiply(p.discountRate).divide(100));
+
+        // 가격대 필터 (할인된 가격 기준)
+        if (minPrice != null) builder.and(discountedPrice.goe(minPrice));
+        if (maxPrice != null) builder.and(discountedPrice.loe(maxPrice));
 
         // 배송유형 필터
         if (deliveryType != null) {
