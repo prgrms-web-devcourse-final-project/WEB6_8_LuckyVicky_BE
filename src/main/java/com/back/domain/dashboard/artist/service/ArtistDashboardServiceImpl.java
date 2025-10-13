@@ -47,6 +47,8 @@ public class ArtistDashboardServiceImpl implements ArtistDashboardService {
     private final com.back.domain.order.order.repository.OrderRepository orderRepository;
     private final BetaAnalyticsDataClient analyticsDataClient;
     private final com.back.domain.artist.repository.ArtistProfileRepository artistProfileRepository;
+    private final com.back.domain.payment.moriCash.service.MoriCashBalanceService moriCashBalanceService;
+    private final com.back.domain.user.repository.UserRepository userRepository;
 
     @Value("${google.analytics.property-id}")
     private String propertyId;
@@ -438,9 +440,27 @@ public class ArtistDashboardServiceImpl implements ArtistDashboardService {
 
     @Override
     public ArtistCashResponse.Balance getCashBalance(Long artistId) {
-        // TODO: 실제 데이터베이스 연동 필요
         log.info("작가 지갑 잔액 조회 - artistId: {}", artistId);
-        throw new UnsupportedOperationException("작가 지갑 잔액 조회는 아직 구현되지 않았습니다.");
+
+        // 1. 작가(User) 조회
+        com.back.domain.user.entity.User artist = userRepository.findById(artistId)
+                .orElseThrow(() -> new com.back.global.exception.ServiceException("404", "작가를 찾을 수 없습니다."));
+
+        // 2. MoriCashBalanceService를 통해 모리캐시 잔액 조회
+        com.back.domain.payment.moriCash.dto.response.MoriCashBalanceResponseDto balanceDto = 
+                moriCashBalanceService.getBalance(artist);
+
+        // 3. 응답 DTO 변환
+        // TODO: pendingSettlement, pendingWithdrawal 계산 로직 추가 필요
+        // 현재는 availableBalance를 withdrawable로 사용
+        return new ArtistCashResponse.Balance(
+                balanceDto.getTotalBalance(),        // currentBalance
+                0,                                    // pendingSettlement (정산 대기 금액 - 추후 구현)
+                balanceDto.getFrozenBalance(),       // pendingWithdrawal (환전 처리 중)
+                balanceDto.getAvailableBalance(),    // withdrawable (환전 가능 금액)
+                "KRW",                                // currency
+                java.time.LocalDateTime.now()        // updatedAt
+        );
     }
 
     @Override

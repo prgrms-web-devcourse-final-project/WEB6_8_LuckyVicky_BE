@@ -84,5 +84,46 @@ public interface FundingRepository extends JpaRepository<Funding, Long>, JpaSpec
             FundingStatus status,
             LocalDateTime endDate
     );
+
+    // 관리자 대시보드 - 펀딩 승인 대기 목록 조회 (PENDING 상태 펀딩)
+    @Query("""
+        SELECT f FROM Funding f
+        LEFT JOIN FETCH f.user u
+        WHERE f.status = 'PENDING'
+        AND (:keyword IS NULL OR 
+             LOWER(f.title) LIKE LOWER(CONCAT('%', :keyword, '%')) OR
+             LOWER(u.name) LIKE LOWER(CONCAT('%', :keyword, '%')) OR
+             CAST(u.id AS string) LIKE CONCAT('%', :keyword, '%'))
+        AND (:artistId IS NULL OR f.user.id = :artistId)
+        ORDER BY 
+            CASE WHEN :sort = 'artistId' AND :order = 'ASC' THEN u.id END ASC,
+            CASE WHEN :sort = 'artistId' AND :order = 'DESC' THEN u.id END DESC,
+            CASE WHEN :sort = 'artistName' AND :order = 'ASC' THEN u.name END ASC,
+            CASE WHEN :sort = 'artistName' AND :order = 'DESC' THEN u.name END DESC,
+            CASE WHEN :sort = 'title' AND :order = 'ASC' THEN f.title END ASC,
+            CASE WHEN :sort = 'title' AND :order = 'DESC' THEN f.title END DESC,
+            CASE WHEN :sort = 'registeredAt' AND :order = 'ASC' THEN f.createDate END ASC,
+            CASE WHEN :sort = 'registeredAt' AND :order = 'DESC' THEN f.createDate END DESC,
+            f.createDate DESC
+        """)
+    Page<Funding> findPendingApprovalFundings(
+            @Param("keyword") String keyword,
+            @Param("artistId") Long artistId,
+            @Param("sort") String sort,
+            @Param("order") String order,
+            Pageable pageable
+    );
+
+    // 관리자 대시보드 - 펀딩 승인 대기 상세 조회 (PENDING 상태 + User + ArtistApplication 조인)
+    @Query("""
+        SELECT f FROM Funding f
+        LEFT JOIN FETCH f.user u
+        WHERE f.id = :fundingId
+        AND f.status = 'PENDING'
+        """)
+    Optional<Funding> findPendingApprovalFundingById(@Param("fundingId") Long fundingId);
+
+    // 관리자 대시보드 - 특정 상태의 펀딩 목록 조회 (최근 생성순)
+    Page<Funding> findByStatusOrderByCreateDateDesc(FundingStatus status, Pageable pageable);
 }
 

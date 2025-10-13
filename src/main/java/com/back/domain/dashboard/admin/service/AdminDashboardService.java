@@ -43,4 +43,14 @@ public interface AdminDashboardService {
      * 관리자 입점 신청 상세 조회
      */
     AdminArtistApplicationDetailResponse getArtistApplicationDetail(Long applicationId);
+
+    /**
+     * 관리자 펀딩 승인 대기 목록 조회 (PENDING 상태)
+     */
+    AdminFundingApprovalResponse getFundingApprovals(AdminFundingApprovalSearchRequest request);
+
+    /**
+     * 관리자 펀딩 승인 대기 상세 조회 (PENDING 상태)
+     */
+    AdminFundingApprovalDetailResponse getFundingApprovalDetail(Long fundingId);
 }
