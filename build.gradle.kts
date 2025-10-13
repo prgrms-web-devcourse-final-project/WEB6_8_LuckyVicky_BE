@@ -70,6 +70,8 @@ dependencies {
     //Elasticsearch
     implementation ("org.springframework.boot:spring-boot-starter-data-elasticsearch")
 
+    // 이메일 발송
+    implementation("org.springframework.boot:spring-boot-starter-mail")
 }
 
 tasks.withType<Test> {
