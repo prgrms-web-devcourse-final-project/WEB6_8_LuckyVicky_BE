@@ -27,6 +27,7 @@ public class FundingCustomRepositoryImpl implements FundingCustomRepository {
     public Page<Funding> findByFilters(
             Set<FundingStatus> statuses,
             String keyword,
+            Long categoryId,
             Long minPrice,
             Long maxPrice,
             Pageable pageable
@@ -41,7 +42,7 @@ public class FundingCustomRepositoryImpl implements FundingCustomRepository {
         funding.fetch("user", JoinType.LEFT);
 
         // WHERE 조건 생성
-        List<Predicate> predicates = buildPredicates(cb, funding, statuses, keyword, minPrice, maxPrice);
+        List<Predicate> predicates = buildPredicates(cb, funding, statuses, keyword, categoryId, minPrice, maxPrice);
         query.where(predicates.toArray(new Predicate[0]));
 
         // 정렬 적용
@@ -58,7 +59,7 @@ public class FundingCustomRepositoryImpl implements FundingCustomRepository {
         List<Funding> results = typedQuery.getResultList();
 
         // 카운트 쿼리 (페이징을 위한 전체 개수)
-        long total = countByFilters(cb, statuses, keyword, minPrice, maxPrice);
+        long total = countByFilters(cb, statuses, keyword, categoryId, minPrice, maxPrice);
 
         return new PageImpl<>(results, pageable, total);
     }
@@ -71,6 +72,7 @@ public class FundingCustomRepositoryImpl implements FundingCustomRepository {
             Root<Funding> funding,
             Set<FundingStatus> statuses,
             String keyword,
+            Long categoryId,
             Long minPrice,
             Long maxPrice
     ) {
@@ -87,6 +89,10 @@ public class FundingCustomRepositoryImpl implements FundingCustomRepository {
                     cb.lower(funding.get("title")),
                     "%" + keyword.toLowerCase() + "%"
             ));
+        }
+
+        if (categoryId != null) {
+            predicates.add(cb.equal(funding.get("category").get("id"), categoryId));
         }
 
         // 가격 범위 필터 (Funding 엔티티의 price 필드 사용)
@@ -126,6 +132,7 @@ public class FundingCustomRepositoryImpl implements FundingCustomRepository {
             CriteriaBuilder cb,
             Set<FundingStatus> statuses,
             String keyword,
+            Long categoryId,
             Long minPrice,
             Long maxPrice
     ) {
@@ -133,7 +140,7 @@ public class FundingCustomRepositoryImpl implements FundingCustomRepository {
         Root<Funding> funding = countQuery.from(Funding.class);
 
         // WHERE 조건 동일하게 적용
-        List<Predicate> predicates = buildPredicates(cb, funding, statuses, keyword, minPrice, maxPrice);
+        List<Predicate> predicates = buildPredicates(cb, funding, statuses, keyword, categoryId, minPrice, maxPrice);
         countQuery.select(cb.count(funding));
         countQuery.where(predicates.toArray(new Predicate[0]));
 

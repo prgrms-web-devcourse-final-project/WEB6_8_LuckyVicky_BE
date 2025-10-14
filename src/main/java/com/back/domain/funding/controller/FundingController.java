@@ -11,6 +11,8 @@ import com.back.domain.funding.service.FundingService;
 import com.back.global.rsData.RsData;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.ExampleObject;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Positive;
@@ -34,7 +36,31 @@ public class FundingController {
 
     @PostMapping
     @PreAuthorize("hasAuthority('ROLE_ARTIST') or hasAuthority('ROLE_ADMIN') or hasAuthority('ROLE_ROOT')")
-    @Operation(summary = "펀딩 생성")
+    @Operation(summary = "펀딩 생성",
+            requestBody = @io.swagger.v3.oas.annotations.parameters.RequestBody(
+                    content = @Content(
+                            mediaType = "application/json",
+                            examples = {
+                                    @ExampleObject(
+                                            name = "기본 예시",
+                                            value = """
+                    {
+                      "title": "한정판 키링 펀딩",
+                      "description": "한정판 키링입니다.",
+                      "categoryId": 1,
+                      "imageUrl": "https://testImage.jpg",
+                      "targetAmount": 500000,
+                      "price": 30000,
+                      "stock": 200,
+                      "startDate": "2025-11-01 00:00:00",
+                      "endDate": "2025-12-15 23:59:59"
+                    }
+                    """
+                                    )
+                            }
+                    )
+            )
+    )
     public ResponseEntity<RsData<FundingCreateResponse>> createFunding(
             @Valid @RequestBody FundingCreateRequest request,
             @AuthenticationPrincipal(expression = "username") String userEmail) {
@@ -56,7 +82,7 @@ public class FundingController {
     @GetMapping
     @Operation(summary = "펀딩 목록 조회")
     public ResponseEntity<RsData<Page<FundingCardDto>>> getFundingList(
-            @Parameter(description = "[필터링] 펀딩 상태 목록. 진행중(OPEN), 종료(CLOSED), 성공(SUCCESS), 실패(FAILED), 취소(CANCELED)",
+            @Parameter(description = "[필터링] 펀딩 상태 목록. 심사중(PENDING), 승인됨(APPROVED), 거절됨(REJECTED), 진행중(OPEN), 종료(CLOSED), 성공(SUCCESS), 실패(FAILED), 취소(CANCELED)",
                     example = "OPEN,CLOSED")
             @RequestParam(required = false) Set<FundingStatus> status,
 
@@ -67,6 +93,10 @@ public class FundingController {
             @Parameter(description = "[필터링] 펀딩 제목 검색어 (부분 일치, 대소문자 무시)",
                     example = "키링")
             @RequestParam(required = false) String keyword,
+
+            @Parameter(description = "[필터링] 카테고리 ID (상위 카테고리)",
+                    example = "1")
+            @RequestParam(required = false) Long categoryId,
 
             @Parameter(description = "[필터링] 최소 가격 (원 단위)",
                     example = "10000")
@@ -85,7 +115,7 @@ public class FundingController {
             @RequestParam(defaultValue = "12") int size
             ) {
         Page<FundingCardDto> fundingList = fundingService.getFundingList(
-                status, sortBy, keyword, minPrice, maxPrice, page, size
+                status, sortBy, keyword, categoryId, minPrice, maxPrice, page, size
         );
 
         RsData<Page<FundingCardDto>> body = RsData.of("200", "펀딩 목록 조회 성공", fundingList);
