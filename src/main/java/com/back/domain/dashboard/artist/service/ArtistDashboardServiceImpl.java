@@ -2,6 +2,8 @@ package com.back.domain.dashboard.artist.service;
 
 import com.back.domain.dashboard.artist.dto.request.*;
 import com.back.domain.dashboard.artist.dto.response.*;
+import com.back.domain.follow.entity.Follow;
+import com.back.domain.follow.repository.FollowRepository;
 import com.back.domain.funding.entity.Funding;
 import com.back.domain.funding.entity.FundingStatus;
 import com.back.domain.funding.repository.FundingContributionRepository;
@@ -52,6 +54,7 @@ public class ArtistDashboardServiceImpl implements ArtistDashboardService {
     private final com.back.domain.payment.settlement.repository.SettlementRepository settlementRepository;
     private final com.back.domain.user.repository.UserRepository userRepository;
     private final com.back.domain.payment.cash.repository.CashTransactionRepository cashTransactionRepository;
+    private final FollowRepository followRepository;  // ✅ 추가: 팔로우 기능
 
     @Value("${google.analytics.property-id}")
     private String propertyId;
@@ -83,9 +86,8 @@ public class ArtistDashboardServiceImpl implements ArtistDashboardService {
         com.back.domain.dashboard.artist.dto.DashboardStatsDto stats =
                 orderRepository.getArtistDashboardStats(artistId, startOfDay, endOfDay);
 
-        // TODO: 팔로우 기능 구현 시 수정 필요
-        // 팔로워 수 조회 부분입니다.
-        int followerCount = artistProfile.getFollowerCount();
+        // 팔로워 수 조회 (Follow 테이블에서 실시간 COUNT)
+        int followerCount = (int) followRepository.countByFollowingArtistId(artistProfile.getId());
 
         // 오늘의 매출 조회 부분입니다.
         int todaysSales = stats.todaysSales().intValue();
@@ -265,12 +267,11 @@ public class ArtistDashboardServiceImpl implements ArtistDashboardService {
                 totalOrders
         );
 
-        // TODO: 팔로우 기능 구현 시 수정 필요
-        // 6. 팔로워 시계열 데이터 (빈 데이터)
-        ArtistMainResponse.SeriesData followerSeries = new ArtistMainResponse.SeriesData(
-                "명",
-                List.of(),
-                0
+        // 6. 팔로워 시계열 데이터 (Follow 엔티티에서 직접 집계)
+        ArtistMainResponse.SeriesData followerSeries = createFollowerSeriesFromFollowEntities(
+                artistId,
+                startDate.toLocalDate(),
+                endDate.toLocalDate()
         );
 
         ArtistMainResponse.Series series = new ArtistMainResponse.Series(
@@ -290,7 +291,14 @@ public class ArtistDashboardServiceImpl implements ArtistDashboardService {
 
         ArtistMainResponse.ChangeData salesChange = calculateChange(totalSales, compareSales);
         ArtistMainResponse.ChangeData orderChange = calculateChange(totalOrders, compareOrders);
-        ArtistMainResponse.ChangeData followerChange = new ArtistMainResponse.ChangeData(0, 0.0);
+
+        // 팔로워 변화량 계산
+        int currentFollowerCount = (int) followRepository.countByFollowingArtistId(artistId);
+        List<Follow> allFollows = followRepository.findFollowersByArtistId(artistId);
+        int compareFollowerCount = (int) allFollows.stream()
+                .filter(f -> !f.getCreateDate().isAfter(compareEndDate))
+                .count();
+        ArtistMainResponse.ChangeData followerChange = calculateChange(currentFollowerCount, compareFollowerCount);
 
         ArtistMainResponse.Changes changes = new ArtistMainResponse.Changes(
                 salesChange,
@@ -450,7 +458,7 @@ public class ArtistDashboardServiceImpl implements ArtistDashboardService {
                 .orElseThrow(() -> new com.back.global.exception.ServiceException("404", "작가를 찾을 수 없습니다."));
 
         // 2. MoriCashBalanceService를 통해 모리캐시 잔액 조회
-        com.back.domain.payment.moriCash.dto.response.MoriCashBalanceResponseDto balanceDto = 
+        com.back.domain.payment.moriCash.dto.response.MoriCashBalanceResponseDto balanceDto =
                 moriCashBalanceService.getBalance(artist);
 
         // 3. 응답 DTO 변환
@@ -646,7 +654,7 @@ public class ArtistDashboardServiceImpl implements ArtistDashboardService {
         if (paymentMethod == null) {
             return "기타";
         }
-        
+
         // 입금 수단: 모리캐시 (정산금이 모리캐시로 입금됨)
         // 환전 수단: 계좌이체 (모리캐시를 실제 계좌로 환전)
         return switch (paymentMethod.toUpperCase()) {
@@ -1535,7 +1543,7 @@ public class ArtistDashboardServiceImpl implements ArtistDashboardService {
         }
 
         // 4. 요약 정보 조회 (배송 완료된 주문에서 계산)
-        List<com.back.domain.order.order.entity.Order> deliveredOrders = 
+        List<com.back.domain.order.order.entity.Order> deliveredOrders =
                 orderRepository.findDeliveredOrdersByArtistInPeriod(artist, startDate, endDate);
 
         // 작가의 상품 매출만 계산
@@ -1544,7 +1552,7 @@ public class ArtistDashboardServiceImpl implements ArtistDashboardService {
                 .filter(item -> item.getProduct().getUser().getId().equals(artistId))
                 .mapToInt(item -> item.getPrice().intValue() * item.getQuantity())
                 .sum();
-        
+
         int totalCommission = totalSales / 10;  // 10% 수수료
         int totalNetIncome = totalSales - totalCommission;
 
@@ -1633,7 +1641,7 @@ public class ArtistDashboardServiceImpl implements ArtistDashboardService {
             Long artistId) {
 
         // 1. 배송 완료된 주문 조회 (정렬 없이 전체 조회)
-        List<com.back.domain.order.order.entity.Order> allOrders = 
+        List<com.back.domain.order.order.entity.Order> allOrders =
                 orderRepository.findDeliveredOrdersByArtistInPeriod(artist, startDate, endDate);
 
         // 2. 주문을 OrderItem 단위로 변환 (작가의 상품만)
@@ -1655,7 +1663,7 @@ public class ArtistDashboardServiceImpl implements ArtistDashboardService {
         // 4. 페이징 처리
         int start = request.page() * request.size();
         int end = Math.min(start + request.size(), settlementItems.size());
-        List<SettlementOrderItem> pagedItems = start < settlementItems.size() 
+        List<SettlementOrderItem> pagedItems = start < settlementItems.size()
                 ? settlementItems.subList(start, end)
                 : List.of();
 
@@ -1685,9 +1693,9 @@ public class ArtistDashboardServiceImpl implements ArtistDashboardService {
      */
     private List<SettlementOrderItem> sortSettlementItems(
             List<SettlementOrderItem> items, String sortField, String sortOrder) {
-        
+
         boolean asc = "ASC".equalsIgnoreCase(sortOrder);
-        
+
         return items.stream()
                 .sorted((a, b) -> {
                     int cmp = switch (sortField) {
@@ -1745,7 +1753,8 @@ public class ArtistDashboardServiceImpl implements ArtistDashboardService {
             Long productId,
             String productName,
             int grossAmount
-    ) {}
+    ) {
+    }
 
 
     @Override
@@ -1930,5 +1939,45 @@ public class ArtistDashboardServiceImpl implements ArtistDashboardService {
                     timezone
             );
         }
+    }
+
+    /**
+     * Follow 엔티티에서 직접 일별 팔로워 수 계산
+     * - 기존 findFollowersByArtistId() 메서드만 사용
+     * - 다른 팀원 코드 수정 불필요
+     * <p>
+     * ⚠️ 주의: 모든 Follow를 메모리에 로드하므로
+     * 팔로워가 매우 많을 경우 성능 이슈 가능 (추후 최적화 권장)
+     */
+    private ArtistMainResponse.SeriesData createFollowerSeriesFromFollowEntities(
+            Long artistId, LocalDate startDate, LocalDate endDate) {
+
+        // 해당 작가의 모든 팔로우 관계 조회 (기존 메서드 활용)
+        List<Follow> allFollows = followRepository.findFollowersByArtistId(artistId);
+
+        List<ArtistMainResponse.DataPoint> points = new ArrayList<>();
+
+        // 일별로 루프
+        LocalDate current = startDate;
+        while (!current.isAfter(endDate)) {
+            final LocalDateTime endOfDay = current.atTime(23, 59, 59);
+
+            // 해당 날짜까지 생성된 팔로우의 개수
+            long count = allFollows.stream()
+                    .filter(f -> !f.getCreateDate().isAfter(endOfDay))
+                    .count();
+
+            points.add(new ArtistMainResponse.DataPoint(
+                    current.toString(),
+                    (int) count
+            ));
+
+            current = current.plusDays(1);
+        }
+
+        // 현재 팔로워 수 (기존 메서드 사용)
+        int currentCount = (int) followRepository.countByFollowingArtistId(artistId);
+
+        return new ArtistMainResponse.SeriesData("명", points, currentCount);
     }
 }
