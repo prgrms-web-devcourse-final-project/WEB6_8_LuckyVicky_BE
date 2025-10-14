@@ -43,12 +43,16 @@ class CartServiceTest {
     @Mock
     private ProductRepository productRepository;
     
+    @Mock
+    private com.back.domain.funding.repository.FundingRepository fundingRepository;
+    
     @InjectMocks
     private CartService cartService;
 
     private User testUser;
     private User anotherUser;
     private Product testProduct;
+    private com.back.domain.funding.entity.Funding testFunding;
     private Cart testNormalCart;
     private Cart testFundingCart;
     private CartRequestDto normalCartRequestDto;
@@ -74,10 +78,19 @@ class CartServiceTest {
         when(testProduct.isDeleted()).thenReturn(false);
         when(testProduct.getStock()).thenReturn(100);
 
+        // 테스트용 펀딩 생성 (Mock 사용)
+        testFunding = mock(com.back.domain.funding.entity.Funding.class);
+        when(testFunding.getId()).thenReturn(2L);
+        when(testFunding.getTitle()).thenReturn("테스트 펀딩");
+        when(testFunding.getPrice()).thenReturn(50000L);
+        when(testFunding.getStock()).thenReturn(100);
+        when(testFunding.getImageUrl()).thenReturn("https://test.com/funding.jpg");
+
         // 테스트용 장바구니 생성 (일반) - id는 BaseEntity에서 자동 생성되므로 Builder에서 설정 불가
         testNormalCart = Cart.builder()
                 .user(testUser)
                 .product(testProduct)
+                .funding(null)
                 .quantity(2)
                 .cartType(Cart.CartType.NORMAL)
                 .isSelected(true)
@@ -87,11 +100,14 @@ class CartServiceTest {
         // 테스트용 장바구니 생성 (펀딩) - id는 BaseEntity에서 자동 생성되므로 Builder에서 설정 불가
         testFundingCart = Cart.builder()
                 .user(testUser)
-                .product(testProduct)
+                .product(null)
+                .funding(testFunding)
                 .quantity(1)
                 .cartType(Cart.CartType.FUNDING)
                 .isSelected(true)
-                .optionInfo("펀딩 상품 옵션")
+                .fundingId("2")
+                .fundingPrice(50000)
+                .fundingStock(100)
                 .build();
 
         // 테스트용 요청 DTO 생성 (일반)
@@ -107,11 +123,11 @@ class CartServiceTest {
 
         // 테스트용 요청 DTO 생성 (펀딩)
         fundingCartRequestDto = new CartRequestDto(
-                1L,                // productId
+                null,              // productId (펀딩은 필요 없음)
                 1,                 // quantity
                 null,              // optionInfo (펀딩은 옵션 안씀)
                 "FUNDING",         // cartType
-                "FUNDING_001",     // fundingId
+                2L,                // fundingId (Long 타입)
                 50000,             // fundingPrice
                 100                // fundingStock
         );
@@ -597,17 +613,18 @@ class CartServiceTest {
         // Given
         Cart fundingCartWithFields = Cart.builder()
                 .user(testUser)
-                .product(testProduct)
+                .product(null)
+                .funding(testFunding)
                 .quantity(1)
                 .cartType(Cart.CartType.FUNDING)
                 .isSelected(true)
-                .fundingId("FUNDING_001")
+                .fundingId("2")
                 .fundingPrice(50000)
                 .fundingStock(100)
                 .build();
         
-        given(productRepository.findById(1L)).willReturn(Optional.of(testProduct));
-        given(cartRepository.findByUserAndProductAndCartType(eq(testUser), any(Product.class), eq(Cart.CartType.FUNDING)))
+        given(fundingRepository.findById(2L)).willReturn(Optional.of(testFunding));
+        given(cartRepository.findByUserAndFundingAndCartType(eq(testUser), any(com.back.domain.funding.entity.Funding.class), eq(Cart.CartType.FUNDING)))
                 .willReturn(Optional.empty());
         given(cartRepository.save(any(Cart.class))).willReturn(fundingCartWithFields);
 
@@ -618,12 +635,12 @@ class CartServiceTest {
         assertThat(result).isNotNull();
         assertThat(result.cartType()).isEqualTo("FUNDING");
         assertThat(result.optionInfo()).isNull(); // 펀딩은 옵션 안씀
-        assertThat(result.fundingId()).isEqualTo("FUNDING_001");
+        assertThat(result.fundingId()).isEqualTo("2");
         assertThat(result.fundingPrice()).isEqualTo(50000);
         assertThat(result.fundingStock()).isEqualTo(100);
 
-        verify(productRepository).findById(1L);
-        verify(cartRepository).findByUserAndProductAndCartType(eq(testUser), any(Product.class), eq(Cart.CartType.FUNDING));
+        verify(fundingRepository).findById(2L);
+        verify(cartRepository).findByUserAndFundingAndCartType(eq(testUser), any(com.back.domain.funding.entity.Funding.class), eq(Cart.CartType.FUNDING));
         verify(cartRepository).save(any(Cart.class));
     }
 }

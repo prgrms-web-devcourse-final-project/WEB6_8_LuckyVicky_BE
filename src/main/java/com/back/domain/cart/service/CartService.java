@@ -27,52 +27,99 @@ public class CartService {
     private final CartRepository cartRepository;
     private final CartCalculator cartCalculator;
     private final ProductRepository productRepository;
+    private final com.back.domain.funding.repository.FundingRepository fundingRepository;
 
     /**
      * 장바구니에 상품 추가
      */
     @Transactional
     public CartResponseDto addToCart(User user, CartRequestDto requestDto) {
-        // 1. 상품 존재 확인
+        // 1. 유효성 검증
+        requestDto.validate();
+        
+        // 2. 장바구니 타입 변환
+        Cart.CartType cartType = Cart.CartType.fromString(requestDto.cartType());
+        
+        if (cartType == Cart.CartType.NORMAL) {
+            // 일반 장바구니 처리
+            return addNormalCart(user, requestDto, cartType);
+        } else {
+            // 펀딩 장바구니 처리
+            return addFundingCart(user, requestDto, cartType);
+        }
+    }
+    
+    /**
+     * 일반 장바구니 추가
+     */
+    private CartResponseDto addNormalCart(User user, CartRequestDto requestDto, Cart.CartType cartType) {
+        // 상품 존재 확인
         Product product = productRepository.findById(requestDto.productId())
                 .orElseThrow(() -> new ServiceException("PRODUCT_NOT_FOUND", "존재하지 않는 상품입니다."));
-
-        // 2. 장바구니 타입 변환 (도메인에서 처리)
-        Cart.CartType cartType = Cart.CartType.fromString(requestDto.cartType());
-
-        // 3. 중복 상품 확인 및 처리
+        
+        // 중복 확인
         Optional<Cart> existingCart = cartRepository.findByUserAndProductAndCartType(user, product, cartType);
-
+        
         if (existingCart.isPresent()) {
-            // 기존 상품이 있으면 수량 증가
             Cart cart = existingCart.get();
             cart.changeQuantity(cart.getQuantity() + requestDto.quantity());
-
-            // 옵션 정보가 있으면 업데이트
+            
             if (requestDto.optionInfo() != null) {
                 cart.changeOptionInfo(requestDto.optionInfo());
             }
-
-            Cart savedCart = cartRepository.save(cart);
-            return CartResponseDto.from(savedCart);
+            
+            return CartResponseDto.from(cartRepository.save(cart));
         }
-
-        // 4. 새로운 장바구니 아이템 생성 (중복이 없을 때만)
-        // 펀딩 장바구니일 경우, 펀딩 정보를 requestDto에서 받아서 저장
+        
+        // 새로운 장바구니 생성
         Cart newCart = Cart.builder()
                 .user(user)
                 .product(product)
+                .funding(null)
                 .quantity(requestDto.quantity())
-                .optionInfo(cartType == Cart.CartType.NORMAL ? requestDto.optionInfo() : null) // 일반만 옵션 사용
+                .optionInfo(requestDto.optionInfo())
                 .cartType(cartType)
                 .isSelected(true)
-                .fundingId(cartType == Cart.CartType.FUNDING ? requestDto.fundingId() : null)
-                .fundingPrice(cartType == Cart.CartType.FUNDING ? requestDto.fundingPrice() : null)
-                .fundingStock(cartType == Cart.CartType.FUNDING ? requestDto.fundingStock() : null)
+                .fundingId(null)
+                .fundingPrice(null)
+                .fundingStock(null)
                 .build();
-
-        Cart savedCart = cartRepository.save(newCart);
-        return CartResponseDto.from(savedCart);
+        
+        return CartResponseDto.from(cartRepository.save(newCart));
+    }
+    
+    /**
+     * 펀딩 장바구니 추가
+     */
+    private CartResponseDto addFundingCart(User user, CartRequestDto requestDto, Cart.CartType cartType) {
+        // 펀딩 존재 확인
+        com.back.domain.funding.entity.Funding funding = fundingRepository.findById(requestDto.fundingId())
+                .orElseThrow(() -> new ServiceException("FUNDING_NOT_FOUND", "존재하지 않는 펀딩입니다."));
+        
+        // 중복 확인
+        Optional<Cart> existingCart = cartRepository.findByUserAndFundingAndCartType(user, funding, cartType);
+        
+        if (existingCart.isPresent()) {
+            Cart cart = existingCart.get();
+            cart.changeQuantity(cart.getQuantity() + requestDto.quantity());
+            return CartResponseDto.from(cartRepository.save(cart));
+        }
+        
+        // 새로운 펀딩 장바구니 생성
+        Cart newCart = Cart.builder()
+                .user(user)
+                .product(null)
+                .funding(funding)
+                .quantity(requestDto.quantity())
+                .optionInfo(null)
+                .cartType(cartType)
+                .isSelected(true)
+                .fundingId(requestDto.fundingId().toString())
+                .fundingPrice(requestDto.fundingPrice() != null ? requestDto.fundingPrice() : (int) funding.getPrice())
+                .fundingStock(requestDto.fundingStock() != null ? requestDto.fundingStock() : funding.getStock())
+                .build();
+        
+        return CartResponseDto.from(cartRepository.save(newCart));
     }
 
     /**

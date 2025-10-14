@@ -20,8 +20,12 @@ public class Cart extends BaseEntity {
     private User user;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "product_id", nullable = false)
-    private Product product;
+    @JoinColumn(name = "product_id", nullable = true)
+    private Product product;  // 일반 장바구니만 사용
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "funding_id_ref", nullable = true)
+    private com.back.domain.funding.entity.Funding funding;  // 펀딩 장바구니만 사용
 
     @Column(nullable = false)
     private Integer quantity;
@@ -57,11 +61,12 @@ public class Cart extends BaseEntity {
     }
 
     @Builder
-    public Cart(User user, Product product, Integer quantity, String optionInfo,
-                CartType cartType, Boolean isSelected, String fundingId, 
-                Integer fundingPrice, Integer fundingStock) {
+    public Cart(User user, Product product, com.back.domain.funding.entity.Funding funding,
+                Integer quantity, String optionInfo, CartType cartType, Boolean isSelected, 
+                String fundingId, Integer fundingPrice, Integer fundingStock) {
         this.user = user;
         this.product = product;
+        this.funding = funding;
         this.quantity = quantity != null && quantity > 0 ? quantity : 1;
         this.optionInfo = optionInfo;
         this.cartType = cartType != null ? cartType : CartType.NORMAL;
@@ -69,6 +74,14 @@ public class Cart extends BaseEntity {
         this.fundingId = fundingId;
         this.fundingPrice = fundingPrice;
         this.fundingStock = fundingStock;
+        
+        // 검증: 타입에 맞는 참조가 있는지 확인
+        if (this.cartType == CartType.NORMAL && this.product == null) {
+            throw new IllegalArgumentException("일반 장바구니는 Product가 필수입니다.");
+        }
+        if (this.cartType == CartType.FUNDING && this.funding == null) {
+            throw new IllegalArgumentException("펀딩 장바구니는 Funding이 필수입니다.");
+        }
     }
 
     // ===== 도메인 메서드 =====
@@ -112,41 +125,53 @@ public class Cart extends BaseEntity {
 
     // 유효한 장바구니 아이템인지 확인
     public boolean isValid() {
-        if (this.product == null) {
-            return false;
-        }
-        
-        // 기본 검증: 상품이 삭제되지 않았고 재고가 있는지
-        if (this.product.isDeleted() || this.product.getStock() <= 0) {
-            return false;
-        }
-        
         // 수량 검증
         if (this.quantity <= 0) {
             return false;
         }
         
-        // 펀딩 장바구니의 경우 펀딩 재고 확인
         if (isFundingCart()) {
-            // fundingStock이 설정되어 있으면 그것을 기준으로, 없으면 product의 stock 사용
-            int availableStock = (this.fundingStock != null) ? this.fundingStock : this.product.getStock();
+            // 펀딩 장바구니 검증
+            if (this.funding == null) {
+                return false;
+            }
+            // fundingStock이 설정되어 있으면 그것을 기준으로, 없으면 funding의 stock 사용
+            int availableStock = (this.fundingStock != null) ? this.fundingStock : this.funding.getStock();
             return this.quantity <= availableStock;
+        } else {
+            // 일반 장바구니 검증
+            if (this.product == null) {
+                return false;
+            }
+            
+            // 상품이 삭제되지 않았고 재고가 있는지
+            if (this.product.isDeleted() || this.product.getStock() <= 0) {
+                return false;
+            }
+            
+            // 일반 재고 확인
+            return this.quantity <= this.product.getStock();
         }
-        
-        // 일반 장바구니의 경우 일반 재고 확인
-        return this.quantity <= this.product.getStock();
     }
 
     // 총 가격 계산
     public int getTotalPrice() {
-        if (this.product == null) {
-            return 0;
-        }
-        
         int unitPrice;
-        if (isFundingCart() && fundingPrice != null) {
-            unitPrice = fundingPrice;
+        
+        if (isFundingCart()) {
+            // 펀딩 장바구니: fundingPrice 사용
+            if (this.fundingPrice != null) {
+                unitPrice = this.fundingPrice;
+            } else if (this.funding != null) {
+                unitPrice = (int) this.funding.getPrice();
+            } else {
+                return 0;
+            }
         } else {
+            // 일반 장바구니: Product 가격 사용
+            if (this.product == null) {
+                return 0;
+            }
             unitPrice = this.product.getDiscountPrice();
         }
         
@@ -185,14 +210,32 @@ public class Cart extends BaseEntity {
 
     /**
      * 상품 정보를 반환 (디미터의 법칙 적용)
+     * 타입에 따라 Product 또는 Funding 정보 반환
      */
     public ProductInfo getProductInfo() {
-        return new ProductInfo(
-            this.product.getId(),
-            this.product.getName(),
-            this.product.getPrice(),
-            null  // 이미지는 서비스에서 처리
-        );
+        if (isFundingCart() && this.funding != null) {
+            // 펀딩 장바구니: Funding 정보 사용
+            return new ProductInfo(
+                this.funding.getId(),
+                this.funding.getTitle(),
+                this.fundingPrice != null ? this.fundingPrice : (int) this.funding.getPrice(),
+                this.funding.getImageUrl()  // Funding 이미지
+            );
+        } else if (this.product != null) {
+            // 일반 장바구니: Product 정보 사용
+            String imageUrl = null;
+            if (this.product.getImages() != null && !this.product.getImages().isEmpty()) {
+                imageUrl = this.product.getImages().get(0).getFileUrl();
+            }
+            return new ProductInfo(
+                this.product.getId(),
+                this.product.getName(),
+                this.product.getPrice(),
+                imageUrl  // Product 첫 번째 이미지
+            );
+        }
+        
+        throw new IllegalStateException("유효하지 않은 장바구니 상태입니다.");
     }
 
     /**
