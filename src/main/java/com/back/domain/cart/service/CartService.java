@@ -54,7 +54,7 @@ public class CartService {
      */
     private CartResponseDto addNormalCart(User user, CartRequestDto requestDto, Cart.CartType cartType) {
         // 상품 존재 확인
-        Product product = productRepository.findById(requestDto.productId())
+        Product product = productRepository.findByProductUuid(requestDto.productUuid())
                 .orElseThrow(() -> new ServiceException("PRODUCT_NOT_FOUND", "존재하지 않는 상품입니다."));
         
         // 중복 확인
