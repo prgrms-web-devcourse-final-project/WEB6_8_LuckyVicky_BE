@@ -26,10 +26,8 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
-import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.web.server.ResponseStatusException;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -59,7 +57,7 @@ public class FundingService {
                 .orElseThrow(() -> new ServiceException("403", "존재하지 않는 사용자입니다."));
 
         Category category = categoryRepository.findById(req.categoryId())
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.BAD_REQUEST, "존재하지 않는 카테고리입니다."));
+                .orElseThrow(() -> new ServiceException("400", "존재하지 않는 카테고리입니다."));
 
         // 엔티티 정적 팩토리로 생성(도메인 규칙 검증 포함)
         Funding funding = Funding.create(
