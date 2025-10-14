@@ -462,7 +462,6 @@ public class ProductService {
         if (previousStock == 0 && product.getStock() > 0) {
             product.setRestock(true);
         }
-
     }
 
     /** 엔티티 -> DTO  */
@@ -511,7 +510,9 @@ public class ProductService {
                 product.getDisplayStatus().name(),
                 product.isPlanned(),
                 product.isRestock(),
-                mapTags(product.getProductTags())
+                mapTags(product.getProductTags()),
+                product.getSellingStartDate(),
+                product.getSellingEndDate()
         );
     }
 

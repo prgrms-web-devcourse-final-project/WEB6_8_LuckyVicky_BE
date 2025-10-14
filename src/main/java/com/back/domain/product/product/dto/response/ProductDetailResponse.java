@@ -4,8 +4,10 @@ import com.back.domain.product.product.entity.AdditionalProduct;
 import com.back.domain.product.product.entity.Option;
 import com.back.domain.product.product.entity.ProductImage;
 import com.back.domain.product.tag.dto.response.TagResponse;
+import com.back.global.s3.FileType;
 import io.swagger.v3.oas.annotations.media.Schema;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.UUID;
 
@@ -62,7 +64,7 @@ public record ProductDetailResponse(
         @Schema(description = "추가 상품 목록(null 가능)")
         List<AdditionalProductResponse> additionalProducts,
 
-        @Schema( description = "이미지 파일 목록", example = "[" + "{\"fileUrl\":\"https://example.com/image1.jpg\",\"fileType\":\"MAIN\"}," + "{\"fileUrl\":\"https://example.com/image2.jpg\",\"fileType\":\"ADDITIONAL\"}" + "]" )
+        @Schema( description = "이미지 파일 목록", example = "[" + "{\"url\":\"https://example.com/image1.jpg\",\"fileType\":\"MAIN\",\"s3Key\":\"product-images/uuid1.png\",\"originalFileName\":\"example.png\"}," + "{\"url\":\"https://example.com/image2.jpg\",\"fileType\":\"ADDITIONAL\",\"s3Key\":\"product-images/uuid2.png\",\"originalFileName\":\"example2.png\"}," + "]" )
         List<ProductImageResponse> images,
 
         @Schema(description = "상품 필수 정보")
@@ -93,8 +95,13 @@ public record ProductDetailResponse(
         boolean isRestock,
 
         @Schema(description = "태그 ID 목록", example = "[1,2,3]")
-        List<TagResponse> tags
+        List<TagResponse> tags,
 
+        @Schema(description = "판매 시작일", example = "2025-10-01")
+        LocalDateTime sellingStartDate,
+
+        @Schema(description = "판매 종료일", example = "2025-12-01")
+        LocalDateTime sellingEndDate
 ) {
     @Schema(name = "OptionResponse", description = "상품 옵션")
     public record OptionResponse(
@@ -135,14 +142,20 @@ public record ProductDetailResponse(
     @Schema(name = "ProductImageResponse", description = "상품 이미지")
     public record ProductImageResponse(
             @Schema(description = "이미지 URL", example = "https://s3.amazonaws.com/bucket/uuid-main.jpg")
-            String fileUrl,
+            String url,
             @Schema(description = "이미지 타입", example = "MAIN")
-            String fileType
+            FileType fileType,
+            @Schema(description = "이미지 s3Key", example = "product-images/uuid1.png")
+            String s3Key,
+            @Schema(description = "이미지 원본파일명", example = "example.png")
+            String originalFileName
     ) {
         public static ProductImageResponse fromEntity(ProductImage img) {
             return new ProductImageResponse(
                     img.getFileUrl(),
-                    img.getFileType().name()
+                    img.getFileType(),
+                    img.getS3Key(),
+                    img.getOriginalFilename()
             );
         }
     }
