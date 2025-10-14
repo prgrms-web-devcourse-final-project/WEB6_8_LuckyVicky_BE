@@ -76,9 +76,9 @@ public record FundingDetailResponse(
     }
 
     // 작성자 DTO
-    public record AuthorDto(Long id, String name, String profileImageUrl, String artistDescription) {
+    public record AuthorDto(Long id, String name, String email, String profileImageUrl, String artistDescription) {
         public static AuthorDto from(User user, String artistDescription) {
-            return new AuthorDto(user.getId(), user.getName(), user.getProfileImageUrl(), artistDescription);
+            return new AuthorDto(user.getId(), user.getName(), user.getEmail(), user.getProfileImageUrl(), artistDescription);
         }
     }
 
