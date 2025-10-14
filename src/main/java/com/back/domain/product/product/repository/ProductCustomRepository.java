@@ -7,7 +7,6 @@ import org.springframework.data.domain.Pageable;
 
 import java.util.List;
 
-// JPA 기본 CRUD메서드만으로는 복잡한 동적 조건 처리 (정렬, 필터링 등)
 public interface ProductCustomRepository {
 
     /**
@@ -42,4 +41,7 @@ public interface ProductCustomRepository {
             String order,
             Pageable pageable
     );
+
+    // 검색(상품)
+    List<Product> searchByProductNameOrBrandName(String keyword);
 }
