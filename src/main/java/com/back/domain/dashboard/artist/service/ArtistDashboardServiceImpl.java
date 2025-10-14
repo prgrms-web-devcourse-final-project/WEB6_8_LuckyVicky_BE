@@ -89,11 +89,11 @@ public class ArtistDashboardServiceImpl implements ArtistDashboardService {
         // 팔로워 수 조회 (Follow 테이블에서 실시간 COUNT)
         int followerCount = (int) followRepository.countByFollowingArtistId(artistProfile.getId());
 
-        // 오늘의 매출 조회 부분입니다.
-        int todaysSales = stats.todaysSales().intValue();
+        // 오늘의 매출 조회 부분입니다. (null 처리)
+        int todaysSales = stats.todaysSales() != null ? stats.todaysSales().intValue() : 0;
 
-        // 오늘의 주문 수 조회 부분입니다.
-        int todaysOrders = stats.todaysOrderCount().intValue();
+        // 오늘의 주문 수 조회 부분입니다. (null 처리)
+        int todaysOrders = stats.todaysOrderCount() != null ? stats.todaysOrderCount().intValue() : 0;
 
         // 상품 수 조회 부분입니다.
         int productCount = artistProfile.getProductCount();
@@ -106,14 +106,14 @@ public class ArtistDashboardServiceImpl implements ArtistDashboardService {
                 productCount,
                 todaysSales,
                 todaysOrders,
-                stats.totalSales().intValue(),
-                stats.totalOrderCount().intValue(),
+                stats.totalSales() != null ? stats.totalSales().intValue() : 0,
+                stats.totalOrderCount() != null ? stats.totalOrderCount().intValue() : 0,
                 0.0,  // TODO: 평균 평점 (리뷰 기능 구현 시)
                 pendingOrders
         );
 
-        // 3. 트렌드 정보
-        ArtistMainResponse.Trends trends = createTrendsData(artistId, request.range(), request.tz());
+        // 3. 트렌드 정보 (Artist Profile ID도 함께 전달)
+        ArtistMainResponse.Trends trends = createTrendsData(artistId, artistProfile.getId(), request.range(), request.tz());
 
         // 4. 알림 정보 (빈 데이터 - 다음 단계에서 구현)
         ArtistMainResponse.Notifications notifications = new ArtistMainResponse.Notifications(
@@ -159,7 +159,7 @@ public class ArtistDashboardServiceImpl implements ArtistDashboardService {
     /**
      * 트렌드 데이터 생성 (매출 + 주문 수)
      */
-    private ArtistMainResponse.Trends createTrendsData(Long artistId, String range, String timezone) {
+    private ArtistMainResponse.Trends createTrendsData(Long artistId, Long artistProfileId, String range, String timezone) {
         // 1. 기간 계산
         LocalDateTime endDate = LocalDateTime.now();
         LocalDateTime startDate;
@@ -269,7 +269,7 @@ public class ArtistDashboardServiceImpl implements ArtistDashboardService {
 
         // 6. 팔로워 시계열 데이터 (Follow 엔티티에서 직접 집계)
         ArtistMainResponse.SeriesData followerSeries = createFollowerSeriesFromFollowEntities(
-                artistId,
+                artistProfileId,
                 startDate.toLocalDate(),
                 endDate.toLocalDate()
         );
@@ -293,8 +293,8 @@ public class ArtistDashboardServiceImpl implements ArtistDashboardService {
         ArtistMainResponse.ChangeData orderChange = calculateChange(totalOrders, compareOrders);
 
         // 팔로워 변화량 계산
-        int currentFollowerCount = (int) followRepository.countByFollowingArtistId(artistId);
-        List<Follow> allFollows = followRepository.findFollowersByArtistId(artistId);
+        int currentFollowerCount = (int) followRepository.countByFollowingArtistId(artistProfileId);
+        List<Follow> allFollows = followRepository.findFollowersByArtistId(artistProfileId);
         int compareFollowerCount = (int) allFollows.stream()
                 .filter(f -> !f.getCreateDate().isAfter(compareEndDate))
                 .count();
@@ -1950,10 +1950,10 @@ public class ArtistDashboardServiceImpl implements ArtistDashboardService {
      * 팔로워가 매우 많을 경우 성능 이슈 가능 (추후 최적화 권장)
      */
     private ArtistMainResponse.SeriesData createFollowerSeriesFromFollowEntities(
-            Long artistId, LocalDate startDate, LocalDate endDate) {
+            Long artistProfileId, LocalDate startDate, LocalDate endDate) {
 
         // 해당 작가의 모든 팔로우 관계 조회 (기존 메서드 활용)
-        List<Follow> allFollows = followRepository.findFollowersByArtistId(artistId);
+        List<Follow> allFollows = followRepository.findFollowersByArtistId(artistProfileId);
 
         List<ArtistMainResponse.DataPoint> points = new ArrayList<>();
 
@@ -1976,7 +1976,7 @@ public class ArtistDashboardServiceImpl implements ArtistDashboardService {
         }
 
         // 현재 팔로워 수 (기존 메서드 사용)
-        int currentCount = (int) followRepository.countByFollowingArtistId(artistId);
+        int currentCount = (int) followRepository.countByFollowingArtistId(artistProfileId);
 
         return new ArtistMainResponse.SeriesData("명", points, currentCount);
     }

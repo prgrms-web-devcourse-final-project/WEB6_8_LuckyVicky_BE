@@ -87,6 +87,12 @@ class ArtistDashboardServiceImplTest {
     @Autowired
     private com.back.domain.payment.cash.repository.CashTransactionRepository cashTransactionRepository;
 
+    @Autowired
+    private com.back.domain.follow.repository.FollowRepository followRepository;  // ✅ 추가
+
+    @Autowired
+    private jakarta.persistence.EntityManager entityManager;  // ✅ EntityManager 추가
+
     private User testArtist;
     private User testCustomer;
     private Category testCategory;
@@ -292,7 +298,7 @@ class ArtistDashboardServiceImplTest {
     @DisplayName("입금/환전 내역 조회 - 실제 DB 데이터 검증")
     void getCashHistory_ReturnsRealData() {
         // Given - 입금 거래 생성
-        com.back.domain.payment.cash.entity.CashTransaction depositTx = 
+        com.back.domain.payment.cash.entity.CashTransaction depositTx =
                 com.back.domain.payment.cash.entity.CashTransaction.builder()
                         .user(testArtist)
                         .transactionType(com.back.domain.payment.cash.entity.CashTransactionType.CHARGING)
@@ -305,7 +311,7 @@ class ArtistDashboardServiceImplTest {
         cashTransactionRepository.save(depositTx);
 
         // Given - 환전 거래 생성
-        com.back.domain.payment.cash.entity.CashTransaction withdrawalTx = 
+        com.back.domain.payment.cash.entity.CashTransaction withdrawalTx =
                 com.back.domain.payment.cash.entity.CashTransaction.builder()
                         .user(testArtist)
                         .transactionType(com.back.domain.payment.cash.entity.CashTransactionType.EXCHANGE)
@@ -337,7 +343,7 @@ class ArtistDashboardServiceImplTest {
     @DisplayName("입금/환전 내역 조회 - 거래 유형 필터링 (입금)")
     void getCashHistory_FiltersByDeposit() {
         // Given
-        com.back.domain.payment.cash.entity.CashTransaction depositTx = 
+        com.back.domain.payment.cash.entity.CashTransaction depositTx =
                 com.back.domain.payment.cash.entity.CashTransaction.builder()
                         .user(testArtist)
                         .transactionType(com.back.domain.payment.cash.entity.CashTransactionType.CHARGING)
@@ -348,7 +354,7 @@ class ArtistDashboardServiceImplTest {
         depositTx.completeTransaction("TX003", "APPROVAL003", 20000);
         cashTransactionRepository.save(depositTx);
 
-        com.back.domain.payment.cash.entity.CashTransaction withdrawalTx = 
+        com.back.domain.payment.cash.entity.CashTransaction withdrawalTx =
                 com.back.domain.payment.cash.entity.CashTransaction.builder()
                         .user(testArtist)
                         .transactionType(com.back.domain.payment.cash.entity.CashTransactionType.EXCHANGE)
@@ -380,7 +386,7 @@ class ArtistDashboardServiceImplTest {
     @DisplayName("입금/환전 내역 조회 - 거래 유형 필터링 (환전)")
     void getCashHistory_FiltersByWithdrawal() {
         // Given
-        com.back.domain.payment.cash.entity.CashTransaction depositTx = 
+        com.back.domain.payment.cash.entity.CashTransaction depositTx =
                 com.back.domain.payment.cash.entity.CashTransaction.builder()
                         .user(testArtist)
                         .transactionType(com.back.domain.payment.cash.entity.CashTransactionType.CHARGING)
@@ -391,7 +397,7 @@ class ArtistDashboardServiceImplTest {
         depositTx.completeTransaction("TX005", "APPROVAL005", 30000);
         cashTransactionRepository.save(depositTx);
 
-        com.back.domain.payment.cash.entity.CashTransaction withdrawalTx = 
+        com.back.domain.payment.cash.entity.CashTransaction withdrawalTx =
                 com.back.domain.payment.cash.entity.CashTransaction.builder()
                         .user(testArtist)
                         .transactionType(com.back.domain.payment.cash.entity.CashTransactionType.EXCHANGE)
@@ -423,7 +429,7 @@ class ArtistDashboardServiceImplTest {
     @DisplayName("입금/환전 내역 조회 - 상태 필터링")
     void getCashHistory_FiltersByStatus() {
         // Given - 완료된 거래
-        com.back.domain.payment.cash.entity.CashTransaction completedTx = 
+        com.back.domain.payment.cash.entity.CashTransaction completedTx =
                 com.back.domain.payment.cash.entity.CashTransaction.builder()
                         .user(testArtist)
                         .transactionType(com.back.domain.payment.cash.entity.CashTransactionType.CHARGING)
@@ -435,7 +441,7 @@ class ArtistDashboardServiceImplTest {
         cashTransactionRepository.save(completedTx);
 
         // Given - 대기 중인 거래
-        com.back.domain.payment.cash.entity.CashTransaction pendingTx = 
+        com.back.domain.payment.cash.entity.CashTransaction pendingTx =
                 com.back.domain.payment.cash.entity.CashTransaction.builder()
                         .user(testArtist)
                         .transactionType(com.back.domain.payment.cash.entity.CashTransactionType.EXCHANGE)
@@ -462,7 +468,7 @@ class ArtistDashboardServiceImplTest {
     @DisplayName("입금/환전 내역 조회 - 날짜 범위 필터링")
     void getCashHistory_FiltersByDateRange() {
         // Given - 오늘 거래
-        com.back.domain.payment.cash.entity.CashTransaction todayTx = 
+        com.back.domain.payment.cash.entity.CashTransaction todayTx =
                 com.back.domain.payment.cash.entity.CashTransaction.builder()
                         .user(testArtist)
                         .transactionType(com.back.domain.payment.cash.entity.CashTransactionType.CHARGING)
@@ -584,7 +590,7 @@ class ArtistDashboardServiceImplTest {
                 .quantity(1)
                 .refundPrice(BigDecimal.valueOf(10000))
                 .build();
-        
+
         // Refund의 refundItems 리스트에 추가 (양방향 연관관계)
         refund.getRefundItems().add(refundItem);
         refundRepository.save(refund);
@@ -715,6 +721,63 @@ class ArtistDashboardServiceImplTest {
         );
     }
 
+    @Test
+    @DisplayName("메인 대시보드 - 팔로워 기능 통합 검증")
+    void getMainStats_FollowerIntegration() {
+        // Given - 팔로워 3명 추가 (각각 고유한 전화번호 사용)
+        User follower1 = createTestFollower("follower1@test.com", "팔로워1", "010-1111-0001");
+        User follower2 = createTestFollower("follower2@test.com", "팔로워2", "010-1111-0002");
+        User follower3 = createTestFollower("follower3@test.com", "팔로워3", "010-1111-0003");
+
+        ArtistProfile artistProfile = artistProfileRepository.findByUserId(testArtist.getId())
+                .orElseThrow();
+
+        com.back.domain.follow.entity.Follow follow1 =
+                com.back.domain.follow.entity.Follow.create(follower1, artistProfile);
+        com.back.domain.follow.entity.Follow follow2 =
+                com.back.domain.follow.entity.Follow.create(follower2, artistProfile);
+        com.back.domain.follow.entity.Follow follow3 =
+                com.back.domain.follow.entity.Follow.create(follower3, artistProfile);
+
+        followRepository.save(follow1);
+        followRepository.save(follow2);
+        followRepository.save(follow3);
+        
+        // ✅ EntityManager를 통해 영속성 컨텍스트 플러시 및 클리어
+        // 이렇게 하면 JPA Auditing이 확실하게 작동하여 createDate가 설정됩니다
+        entityManager.flush();
+        entityManager.clear();
+
+        ArtistMainStatsRequest request = new ArtistMainStatsRequest(
+                "30D", null, null, null, "Asia/Seoul");
+
+        // When
+        ArtistMainResponse result = artistDashboardService.getMainStats(testArtist.getId(), request);
+
+        // Then
+        assertAll(
+                // 1. 실시간 팔로워 수 검증
+                () -> assertThat(result.stats().followerCount())
+                        .as("팔로워 수는 Follow 테이블에서 실시간 COUNT")
+                        .isEqualTo(3),
+
+                // 2. 팔로워 그래프 데이터 검증
+                () -> assertThat(result.trends().series().followers())
+                        .as("팔로워 그래프 데이터가 생성되어야 함")
+                        .isNotNull(),
+                () -> assertThat(result.trends().series().followers().unit()).isEqualTo("명"),
+                () -> assertThat(result.trends().series().followers().total()).isEqualTo(3),
+                () -> assertThat(result.trends().series().followers().points()).isNotEmpty(),
+
+                // 3. 팔로워 증감 계산 검증
+                () -> assertThat(result.trends().changes().followers())
+                        .as("팔로워 증감량이 계산되어야 함")
+                        .isNotNull(),
+                () -> assertThat(result.trends().changes().followers().delta())
+                        .isGreaterThanOrEqualTo(0)
+        );
+    }
+
     // ==================== 헬퍼 메서드 ====================
 
     private Order createTestOrder(OrderStatus status) {
@@ -743,5 +806,18 @@ class ArtistDashboardServiceImplTest {
 
         order.addOrderItem(orderItem);
         return orderRepository.save(order);
+    }
+
+    /**
+     * 테스트용 팔로워 사용자 생성
+     */
+    private User createTestFollower(String email, String name, String phone) {
+        User follower = User.createLocalUser(
+                email,
+                "password",
+                name,
+                phone
+        );
+        return userRepository.save(follower);
     }
 }
