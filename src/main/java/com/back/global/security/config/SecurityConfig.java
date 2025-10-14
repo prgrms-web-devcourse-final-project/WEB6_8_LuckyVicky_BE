@@ -83,6 +83,10 @@ public class SecurityConfig {
                         // 나머지 문의 API - 인증만 체크
                         .requestMatchers("/api/support/inquiries/**").authenticated()
 
+                        // 팔로우 관련 API
+                        .requestMatchers(HttpMethod.GET, "/api/follows/artists/*/followers/count").permitAll()
+                        .requestMatchers("/api/follows/**").authenticated()
+
                         // 공개 API
                         .requestMatchers("/public/**").permitAll()
 

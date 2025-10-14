@@ -19,7 +19,15 @@ public interface OrderRepository extends JpaRepository<Order, Long> {
     // 사용자별 주문 목록 (페이징)
     Page<Order> findByUserOrderByOrderDateDesc(User user, Pageable pageable);
 
-    // 주문 상세 조회 - Fetch Join (상품 정보 + 작가 정보)
+    // 사용자별 주문 목록 조회 - N+1 방지를 위한 Fetch Join
+    @Query("SELECT DISTINCT o FROM Order o " +
+            "LEFT JOIN FETCH o.orderItems oi " +
+            "LEFT JOIN FETCH oi.product p " +
+            "WHERE o.user = :user " +
+            "ORDER BY o.orderDate DESC")
+    List<Order> findByUserWithOrderItemsAndProducts(@Param("user") User user, Pageable pageable);
+
+    // 주문 상세 조회 - Fetch Join (상품 정보만)
     @Query("SELECT o FROM Order o " +
             "LEFT JOIN FETCH o.orderItems oi " +
             "LEFT JOIN FETCH oi.product p " +
@@ -268,4 +276,9 @@ public interface OrderRepository extends JpaRepository<Order, Long> {
             @Param("year") int year,
             @Param("month") Integer month
     );
+
+    /**
+     * 사용자별 주문 개수 조회
+     */
+    long countByUser(User user);
 }

@@ -80,24 +80,13 @@ public class ProductCustomRepositoryImpl implements ProductCustomRepository {
             ));
         }
 
-        // QueryDSL로 DTO 매핑 + THUMBNAIL join
+        // QueryDSL로 엔티티 조회 + THUMBNAIL join
         var query = queryFactory
-                .select(Projections.constructor(
-                        ProductInfo.class, // dto 매핑
-                        p.productUuid, // 상품 uuid
-                        img.fileUrl, //썸네일 이미지 url
-                        p.brandName, // 브랜드명
-                        p.name, // 상품명
-                        p.price, // 가격
-                        p.discountRate,// 할인율
-                        p.price.subtract(p.price.multiply(p.discountRate).divide(100)), // 할인된 최종 가격
-                        Expressions.nullExpression(Double.class) // rating: 리뷰 연동 전이라서 일단 null로 함.
-                ))
+                .select(p)
                 .from(p)
-                .leftJoin(p.images, img) // left join
-                .on(img.fileType.eq(FileType.THUMBNAIL)) // type이 THUMBNAIL인 이미지만 JOIN
-                .where(builder) // 동적 조건 적용
-                .distinct(); // 중복 제거
+                .leftJoin(p.images, img).on(img.fileType.eq(FileType.THUMBNAIL))
+                .where(builder)
+                .distinct();
 
         // 정렬 처리
         if ("priceAsc".equals(sort)) query.orderBy(p.price.asc()); // 가격 낮은 순
@@ -107,11 +96,34 @@ public class ProductCustomRepositoryImpl implements ProductCustomRepository {
         // 전체 건수 조회 (페이징용)
         long total = query.fetchCount();
 
-        // 페이징 적용
-        List<ProductInfo> products = query
-                .offset(pageable.getOffset()) // offset
-                .limit(pageable.getPageSize()) //limit
+        // 페이징 적용하여 엔티티 조회
+        List<com.back.domain.product.product.entity.Product> fetchedProducts = query
+                .offset(pageable.getOffset())
+                .limit(pageable.getPageSize())
                 .fetch();
+
+        // 엔티티를 DTO로 변환
+        List<ProductInfo> products = fetchedProducts.stream()
+                .map(product -> {
+                    String thumbnailUrl = product.getImages().stream()
+                            .filter(i -> i.getFileType() == FileType.THUMBNAIL)
+                            .findFirst()
+                            .map(com.back.domain.product.product.entity.ProductImage::getFileUrl)
+                            .orElse(null);
+
+                    return new ProductInfo(
+                            product.getProductUuid(),
+                            thumbnailUrl,
+                            product.getBrandName(),
+                            product.getName(),
+                            product.getPrice(),
+                            product.getDiscountRate(),
+                            product.getDiscountPrice(),
+                            product.getAverageRating()
+                    );
+                })
+                .toList();
+
 
         int totalPages = (int) Math.ceil((double) total / pageable.getPageSize());
 

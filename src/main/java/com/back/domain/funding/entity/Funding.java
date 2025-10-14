@@ -54,6 +54,16 @@ public class Funding extends BaseEntity {
     private long collectedAmount = 0L;
 
     @Column(nullable = false)
+    private long price;
+
+    @Column
+    private Integer stock;
+
+    @Column(nullable = false)
+    @Builder.Default
+    private int soldCount = 0;
+
+    @Column(nullable = false)
     private LocalDateTime startDate;
 
     @Column(nullable = false)
@@ -70,11 +80,6 @@ public class Funding extends BaseEntity {
     private LocalDateTime deletedAt;
 
     // ========== 컬렉션 ==========
-
-    @Builder.Default
-    @OneToMany(mappedBy = "funding", cascade = CascadeType.ALL, orphanRemoval = true)
-    @OrderBy("sortOrder ASC, id ASC")
-    private List<FundingOption> options = new ArrayList<>();
 
     @Builder.Default
     @OneToMany(mappedBy = "funding", cascade = CascadeType.ALL, orphanRemoval = true)
@@ -99,30 +104,27 @@ public class Funding extends BaseEntity {
             Category category,
             String imageUrl,
             long targetAmount,
+            long price,
+            Integer stock,
             LocalDateTime startDate,
             LocalDateTime endDate,
-            FundingStatus initialStatus,
-            List<FundingOption> options
+            FundingStatus initialStatus
     ) {
-        validateCreation(user, title, description, targetAmount, startDate, endDate);
+        validateCreation(user, title, description, targetAmount, price, stock, startDate, endDate);
 
-        Funding funding = Funding.builder()
+        return Funding.builder()
                 .user(user)
                 .title(title)
                 .description(description)
                 .imageUrl(imageUrl)
                 .category(category)
                 .targetAmount(targetAmount)
+                .price(price)
+                .stock(stock)
                 .startDate(startDate)
                 .endDate(endDate)
-                .status(initialStatus != null ? initialStatus : FundingStatus.OPEN)
+                .status(initialStatus != null ? initialStatus : FundingStatus.PENDING)
                 .build();
-
-        if (options != null) {
-            options.forEach(funding::attachOption);
-        }
-
-        return funding;
     }
 
     // ========== 기본 정보 수정 ==========
@@ -142,6 +144,23 @@ public class Funding extends BaseEntity {
     public void updateTargetAmount(long newTargetAmount) {
         validateTargetAmountUpdate(newTargetAmount);
         this.targetAmount = newTargetAmount;
+    }
+
+    public void updatePrice(long newPrice) {
+        if (newPrice <= 0) {
+            throw new IllegalArgumentException("가격은 0보다 커야 합니다.");
+        }
+        if (this.soldCount > 0) {
+            throw new IllegalStateException("판매가 발생한 경우 가격을 수정할 수 없습니다.");
+        }
+        this.price = newPrice;
+    }
+
+    public void updateStock(Integer newStock) {
+        if (newStock != null && newStock < this.soldCount) {
+            throw new IllegalArgumentException("재고는 이미 판매된 수량보다 적을 수 없습니다.");
+        }
+        this.stock = newStock;
     }
 
     public void updateEndDate(LocalDateTime newEndDate) {
@@ -220,24 +239,24 @@ public class Funding extends BaseEntity {
         this.status = FundingStatus.REJECTED;
     }
 
-    // ========== 옵션 관리 ==========
+    // ========== 재고 관리 ==========
 
-    public void attachOption(FundingOption option) {
-        option.attachTo(this);
-        this.options.add(option);
+    public void decreaseStock(int quantity) {
+        if (stock != null) {
+            if (stock < quantity) {
+                throw new IllegalStateException("재고가 부족합니다.");
+            }
+            this.stock -= quantity;
+        }
+        this.soldCount += quantity;
     }
 
-    public void addOption(FundingOption newOption) {
-        this.attachOption(newOption);
+    public boolean hasStock(int quantity) {
+        return stock == null || stock >= quantity;
     }
 
-    public void updateOption(Long optionId, String name, Long price, Integer stock, Integer sortOrder) {
-        FundingOption option = this.options.stream()
-                .filter(o -> o.getId().equals(optionId))
-                .findFirst()
-                .orElseThrow(() -> new IllegalArgumentException("해당 옵션을 찾을 수 없습니다."));
-
-        option.update(name, price, stock, sortOrder);
+    public Integer getRemainingStock() {
+        return stock;
     }
 
     // ========== 금액/참여자 관리 ==========
@@ -278,10 +297,6 @@ public class Funding extends BaseEntity {
         return this.status == FundingStatus.OPEN;
     }
 
-    public List<FundingOption> getOptions() {
-        return Collections.unmodifiableList(options);
-    }
-
     public List<FundingNews> getNews() {
         return Collections.unmodifiableList(news);
     }
@@ -301,6 +316,8 @@ public class Funding extends BaseEntity {
             String title,
             String description,
             long targetAmount,
+            long price,
+            Integer stock,
             LocalDateTime startDate,
             LocalDateTime endDate
     ) {
@@ -318,6 +335,12 @@ public class Funding extends BaseEntity {
         }
         if (targetAmount <= 0) {
             throw new IllegalArgumentException("목표 금액은 0보다 커야 합니다.");
+        }
+        if (price <= 0) {
+            throw new IllegalArgumentException("가격은 0보다 커야 합니다.");
+        }
+        if (stock != null && stock < 0) {
+            throw new IllegalArgumentException("재고는 0 이상이어야 합니다.");
         }
         if (startDate == null || endDate == null) {
             throw new IllegalArgumentException("시작/종료일은 필수입니다.");

@@ -5,7 +5,6 @@ import com.back.domain.artist.repository.ArtistProfileRepository;
 import com.back.domain.dashboard.artist.dto.request.*;
 import com.back.domain.dashboard.artist.dto.response.*;
 import com.back.domain.funding.entity.Funding;
-import com.back.domain.funding.entity.FundingOption;
 import com.back.domain.funding.entity.FundingStatus;
 import com.back.domain.funding.repository.FundingRepository;
 import com.back.domain.order.exchange.entity.Exchange;
@@ -252,12 +251,6 @@ class ArtistDashboardServiceImplTest {
     @DisplayName("펀딩 목록 조회 - 실제 DB 데이터 검증")
     void getFundings_ReturnsRealData() {
         // Given
-        FundingOption option = FundingOption.builder()
-                .name("테스트 리워드")
-                .price(25000L)
-                .stock(100)
-                .sortOrder(1)
-                .build();
 
         Funding funding = Funding.builder()
                 .user(testArtist)
@@ -272,7 +265,6 @@ class ArtistDashboardServiceImplTest {
                 .status(FundingStatus.OPEN)
                 .participantCount(0)
                 .build();
-        funding.attachOption(option);
         fundingRepository.save(funding);
 
         ArtistFundingSearchRequest request = new ArtistFundingSearchRequest(

@@ -40,6 +40,12 @@ public interface CartRepository extends JpaRepository<Cart, Long> {
      * 선택된 장바구니 아이템 조회
      */
     List<Cart> findByUserAndIsSelectedTrue(User user);
+
+    /**
+     * 선택된 장바구니 아이템 조회 - N+1 방지를 위한 Fetch Join
+     */
+    @Query("SELECT c FROM Cart c JOIN FETCH c.product p WHERE c.user = :user AND c.isSelected = true")
+    List<Cart> findByUserAndIsSelectedTrueWithProduct(@Param("user") User user);
     
     /**
      * 주문 완료 후 장바구니에서 제거 (UUID 기반)

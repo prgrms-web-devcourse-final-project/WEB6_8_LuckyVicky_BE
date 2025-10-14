@@ -17,18 +17,6 @@ import java.util.Optional;
 
 public interface FundingRepository extends JpaRepository<Funding, Long>, JpaSpecificationExecutor<Funding>, FundingCustomRepository {
 
-
-    // 펀딩 상세 조회 (작성자 + 옵션 포함)
-    @Query("""
-        SELECT DISTINCT f
-        FROM Funding f
-        LEFT JOIN FETCH f.user
-        LEFT JOIN FETCH f.options o
-        WHERE f.id = :id
-        ORDER BY o.sortOrder ASC, o.id ASC
-        """)
-    Optional<Funding> findByIdWithUserAndOptions(@Param("id") Long id);
-
     // 작가 대시보드용 - 작가별 펀딩 목록 조회 (검색 + 필터링 + 정렬)
     @Query("""
         SELECT f FROM Funding f

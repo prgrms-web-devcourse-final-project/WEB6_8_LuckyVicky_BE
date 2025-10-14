@@ -14,7 +14,9 @@ import com.back.domain.order.orderItem.repository.OrderItemRepository;
 import com.back.domain.product.product.entity.Product;
 import com.back.domain.product.product.entity.SellingStatus;
 import com.back.domain.product.product.repository.ProductRepository;
+import com.back.domain.user.entity.Role;
 import com.back.domain.user.entity.User;
+import com.back.global.exception.ServiceException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
@@ -120,12 +122,14 @@ public class OrderService {
      * 주문 목록 조회 (페이징) - 모든 상품 상세 정보 포함
      */
     public Page<OrderResponseDto> getOrderList(User user, Pageable pageable) {
-        Page<Order> orders = orderRepository.findByUserOrderByOrderDateDesc(user, pageable);
+        // N+1 방지를 위해 Fetch Join 사용
+        List<Order> orders = orderRepository.findByUserWithOrderItemsAndProducts(user, pageable);
         
-        return orders.map(order -> {
-            // 주문 상세 조회와 동일한 로직 사용
-            return convertToOrderResponseDto(order);
-        });
+        // 수동으로 페이징 처리
+        long totalCount = orderRepository.countByUser(user);
+        Page<Order> orderPage = new org.springframework.data.domain.PageImpl<>(orders, pageable, totalCount);
+        
+        return orderPage.map(this::convertToOrderResponseDto);
     }
 
     /**
@@ -266,12 +270,28 @@ public class OrderService {
     }
 
     /**
-     * 주문 상태 변경 (관리자용)
+     * 주문 상태 변경 (관리자 또는 작가용)
      */
     @Transactional
-    public void changeOrderStatus(Long orderId, OrderStatusChangeRequestDto requestDto, User admin) {
+    public void changeOrderStatus(Long orderId, OrderStatusChangeRequestDto requestDto, User user) {
+        // N+1 방지를 위해 Fetch Join으로 주문 조회
         Order order = orderRepository.findByIdWithOrderItems(orderId)
                 .orElseThrow(() -> new IllegalArgumentException("주문을 찾을 수 없습니다."));
+        
+        // 권한 검증: 관리자/루트는 모든 주문, 작가는 자신의 상품 주문만 변경 가능
+        if (!user.isAdmin() && !Role.ROOT.equals(user.getRole())) {
+            if (!user.isArtist()) {
+                throw new ServiceException("403", "주문 상태 변경 권한이 없습니다.");
+            }
+            
+            // 작가인 경우: 자신의 상품인지 확인 (이미 Fetch Join으로 Product 로딩됨)
+            boolean hasPermission = order.getOrderItems().stream()
+                    .anyMatch(item -> item.getProduct().getUser().getId().equals(user.getId()));
+            
+            if (!hasPermission) {
+                throw new ServiceException("403", "자신의 상품 주문만 상태 변경할 수 있습니다.");
+            }
+        }
         
         OrderStatus oldStatus = order.getStatus();
         order.changeStatus(requestDto.status());
