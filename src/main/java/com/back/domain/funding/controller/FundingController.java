@@ -55,6 +55,7 @@ public class FundingController {
                       "title": "한정판 키링 펀딩",
                       "description": "한정판 키링입니다.",
                       "categoryId": 1,
+                      "imageUrl": "https://test.jpg",
                       "targetAmount": 500000,
                       "price": 30000,
                       "stock": 200,

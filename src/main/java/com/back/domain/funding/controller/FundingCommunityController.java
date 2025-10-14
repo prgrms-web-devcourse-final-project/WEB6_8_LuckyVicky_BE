@@ -35,15 +35,15 @@ public class FundingCommunityController {
                 .body(new RsData<>("201", "커뮤니티 글이 등록되었습니다.", createdId));
     }
 
-    @DeleteMapping("/{fundingId}/communities/{communityId}")
+    @DeleteMapping("/{id}/communities/{communityId}")
     @PreAuthorize("isAuthenticated()")
     @Operation(summary = "펀딩 커뮤니티 글 삭제")
     public ResponseEntity<RsData<?>> deleteFundingCommunity(
-            @PathVariable @Positive Long fundingId,
+            @PathVariable @Positive Long id,
             @PathVariable @Positive Long communityId,
             @AuthenticationPrincipal(expression = "username") String userEmail
     ) {
-        fundingCommunityService.delete(fundingId, communityId, userEmail);
+        fundingCommunityService.delete(id, communityId, userEmail);
         return ResponseEntity.ok(new RsData<>("200", "커뮤니티 글이 삭제되었습니다."));
     }
 }
