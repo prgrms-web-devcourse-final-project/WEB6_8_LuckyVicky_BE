@@ -86,10 +86,11 @@ public class FollowService {
     /**
      * 작가의 팔로워 목록 조회 (작가 본인만 조회 가능)
      */
-    public List<FollowerListResponse> getMyFollowerList(Long artistId) {
-        ArtistProfile artist = getArtistById(artistId);
+    public List<FollowerListResponse> getMyFollowerList(Long userId) {
+        ArtistProfile artist = artistProfileRepository.findByUserId(userId)
+                .orElseThrow(() -> new ServiceException("404", "작가 본인만 팔로워 목록을 조회할 수 있습니다."));
 
-        List<Follow> follows = followRepository.findFollowersByArtistId(artistId);
+        List<Follow> follows = followRepository.findFollowersByArtistId(artist.getId());
 
         return follows.stream()
                 .map(FollowerListResponse::from)

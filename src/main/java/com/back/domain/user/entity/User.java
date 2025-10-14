@@ -151,6 +151,7 @@ public class User extends BaseEntity {
      */
     public void becomeArtist() {
         this.role = Role.ARTIST;
+        this.grade = Grade.GUARDIAN;
         this.isArtistVerified = true;
         this.artistVerifiedAt = LocalDateTime.now();
     }
@@ -164,6 +165,7 @@ public class User extends BaseEntity {
         }
 
         this.role = Role.USER;
+        this.grade = Grade.SPROUT;
         this.isArtistVerified = false;
         this.artistVerifiedAt = null;
     }
