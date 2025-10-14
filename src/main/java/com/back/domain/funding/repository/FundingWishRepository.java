@@ -23,7 +23,4 @@ public interface FundingWishRepository extends JpaRepository<FundingWish, Long> 
             "WHERE fw.user.id = :userId " +
             "ORDER BY fw.createDate DESC")
     Page<FundingWish> findByUserIdWithFunding(@Param("userId") Long userId, Pageable pageable);
-
-    // 특정 펀딩의 찜 개수
-    long countByFundingId(Long fundingId);
 }
