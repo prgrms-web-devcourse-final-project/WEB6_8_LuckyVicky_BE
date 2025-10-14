@@ -104,6 +104,8 @@ public class Product extends BaseEntity {
 
     private Integer reviewCount; // 리뷰 개수
 
+    private int popularityScore = 0; // 인기 점수 필드
+
     @Column(nullable = false)
     private boolean isDeleted; // 논리 삭제 여부 (상품 삭제 시, 진짜 DB에서 삭제하냐 아니면 삭제 처리만 하냐 차이)
 
@@ -127,5 +129,10 @@ public class Product extends BaseEntity {
     // 할인된 가격 계산
     public int getDiscountPrice() {
         return price - (price * discountRate / 100);
+    }
+
+    // 인기 점수 계산
+    public void updatePopularityScore(int score) {
+        this.popularityScore = score;
     }
 }

@@ -101,6 +101,10 @@ public class ReviewService {
         Review savedReview = reviewRepository.save(review);
 
         log.info("리뷰 작성 완료 - 리뷰ID: {}", savedReview.getId());
+
+        // 상품 평점 및 리뷰 개수 업데이트
+        updateProductReviewStats(product);
+
         return ReviewResponseDto.from(savedReview, false); // 작성자는 좋아요 안 누름
     }
 
@@ -329,6 +333,9 @@ public class ReviewService {
 
         Review savedReview = reviewRepository.save(review);
 
+        // 상품 평점 및 리뷰 개수 업데이트
+        updateProductReviewStats(savedReview.getProduct());
+
         // 사용자가 좋아요 눌렀는지 확인
         boolean isLiked = reviewLikeRepository.findByReviewAndUserAndNotDeleted(savedReview, user).isPresent();
 
@@ -357,6 +364,9 @@ public class ReviewService {
 
         review.deleteReview();
         reviewRepository.save(review);
+
+        // 상품 평점 및 리뷰 개수 업데이트
+        updateProductReviewStats(review.getProduct());
 
         log.info("리뷰 삭제 완료 - 리뷰ID: {}", reviewId);
     }
@@ -453,5 +463,19 @@ public class ReviewService {
             default:
                 return reviewRepository.findByProductAndNotDeleted(product, pageable);
         }
+    }
+
+    /**
+     * 상품의 평균 평점(averageRating)과 리뷰 개수(reviewCount) 업데이트
+     */
+    private void updateProductReviewStats(Product product) {
+        Long reviewCount = reviewRepository.countByProductAndNotDeleted(product);
+        Double averageRating = reviewRepository.findAverageRatingByProduct(product).orElse(0.0);
+
+        product.setReviewCount(reviewCount.intValue()); // 상태 업데이트
+        product.setAverageRating(averageRating); // 상태 업데이트
+        productRepository.save(product); // DB 저장
+        log.info("상품 리뷰 통계 업데이트 완료 - 상품ID: {}, 리뷰개수: {}, 평균평점: {}",
+                product.getId(), reviewCount, averageRating);
     }
 }

@@ -367,6 +367,29 @@ class ProductControllerTest {
                 .andExpect(jsonPath("$.data.products", hasSize(0)));
     }
 
+    @Test
+    @DisplayName("인기순으로 상품 목록을 정렬하여 조회한다")
+    void getProducts_Success_SortByPopular() throws Exception {
+        // Given
+        productRepository.save(createSampleProduct(artistUser, category, List.of(tag1), "인기상품A", 10000, 100));
+        productRepository.save(createSampleProduct(artistUser, category, List.of(tag2), "인기상품C", 30000, 300));
+        productRepository.save(createSampleProduct(artistUser, category, List.of(tag1, tag2), "인기상품B", 20000, 200));
+
+        // When
+        ResultActions resultActions = mockMvc.perform(
+                get("/api/products")
+                        .param("sort", "popular")
+        ).andDo(print());
+
+        // Then
+        resultActions
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.products", hasSize(3)))
+                .andExpect(jsonPath("$.data.products[0].name").value("인기상품C"))
+                .andExpect(jsonPath("$.data.products[1].name").value("인기상품B"))
+                .andExpect(jsonPath("$.data.products[2].name").value("인기상품A"));
+    }
+
     // ==================== 상품 수정 (Update) ====================
 
     @Test
@@ -570,6 +593,12 @@ class ProductControllerTest {
                     .build();
             product.getProductTags().add(mapping);
         });
+        return product;
+    }
+
+    private Product createSampleProduct(User artist, Category category, List<Tag> tags, String name, int price, int popularityScore) {
+        Product product = createSampleProduct(artist, category, tags, name, price);
+        product.updatePopularityScore(popularityScore);
         return product;
     }
 }
