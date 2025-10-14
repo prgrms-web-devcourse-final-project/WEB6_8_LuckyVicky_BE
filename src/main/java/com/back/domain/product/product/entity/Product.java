@@ -1,6 +1,7 @@
 package com.back.domain.product.product.entity;
 
 import com.back.domain.product.category.entity.Category;
+import com.back.domain.product.qna.entity.ProductQna;
 import com.back.domain.user.entity.User;
 import com.back.global.jpa.entity.BaseEntity;
 import jakarta.persistence.*;
@@ -125,6 +126,10 @@ public class Product extends BaseEntity {
     @Builder.Default
     @OneToMany(mappedBy = "product", cascade = CascadeType.ALL, orphanRemoval = true)// 상품이 저장/삭제되면 매핑 중간테이블의 해당 데이터도 저장/삭제됨, 상품에서 특정 태그를 제거하면 DB에서 해당 매핑 데이터도 삭제됨.
     private Set<ProductTagMapping> productTags= new HashSet<>(); // 상품과 태그(스타일)의 중간 테이블. 하나의 상품에 동일한 태그를 중복으로 붙이는 걸 허용하지 않으므로 List말고 Set 사용
+
+    @Builder.Default
+    @OneToMany(mappedBy = "product", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<ProductQna> productQnas = new ArrayList<>(); // 상품 Q&A
 
     // 할인된 가격 계산
     public int getDiscountPrice() {
