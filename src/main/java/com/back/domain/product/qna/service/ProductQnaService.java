@@ -21,6 +21,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
+import org.springframework.lang.Nullable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -89,13 +90,19 @@ public class ProductQnaService {
 
     /** 상품 Q&A 목록 조회 (페이지네이션) */
     @Transactional(readOnly = true)
-    public ProductQnaListResponseDto getProductQnaList(UUID productUuid, int page, int size) {
+    public ProductQnaListResponseDto getProductQnaList(UUID productUuid, @Nullable String qnaCategory, int page, int size) {
         Product product = productService.getProductOrThrow(productUuid);
 
         // 페이지네이션
         Pageable pageable = PageRequest.of(page - 1, size, Sort.by(Sort.Direction.DESC, "createDate"));
         // 페이지네이션 정보에 따라 ProductQna 조회
-        Page<ProductQna> qnaPage = productQnaRepository.findByProduct(product, pageable);
+        Page<ProductQna> qnaPage;
+
+        if (qnaCategory == null || qnaCategory.equals("전체")) {
+            qnaPage = productQnaRepository.findByProduct(product, pageable);
+        } else {
+            qnaPage = productQnaRepository.findByProductAndQnaCategory(product, qnaCategory, pageable);
+        }
 
         // 조회된 ProductQna -> DTO 변환
         List<ProductQnaResponseDto> qnaList = qnaPage.getContent().stream()

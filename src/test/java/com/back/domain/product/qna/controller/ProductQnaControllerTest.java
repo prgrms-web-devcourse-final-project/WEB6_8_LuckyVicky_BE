@@ -154,11 +154,12 @@ public class ProductQnaControllerTest {
                 List.of(qna1, qna2)
         );
 
-        when(productQnaService.getProductQnaList(eq(productUuid), eq(page), eq(size)))
+        when(productQnaService.getProductQnaList(eq(productUuid), eq("전체"), eq(page), eq(size)))
                 .thenReturn(listResponseDto);
 
         // When & Then
         mockMvc.perform(get("/api/products/qna/{productUuid}/list", productUuid)
+                        .param("qnaCategory", "전체")
                         .param("page", String.valueOf(page))
                         .param("size", String.valueOf(size))
                         .with(user(createTestUserDetails())))
@@ -174,5 +175,47 @@ public class ProductQnaControllerTest {
                 .andExpect(jsonPath("$.data.qnaList[0].qnaTitle").value("배송 문의1"))
                 .andExpect(jsonPath("$.data.qnaList[1].id").value(2L))
                 .andExpect(jsonPath("$.data.qnaList[1].qnaTitle").value("상품 문의2"));
+    }
+
+    @Test
+    @DisplayName("상품 Q&A 목록 조회 성공 (카테고리 필터링)")
+    void getProductQnaList_filterByCategory_success() throws Exception {
+        // Given
+        UUID productUuid = UUID.randomUUID();
+        int page = 1;
+        int size = 10;
+        String qnaCategory = "배송";
+
+        ProductQnaResponseDto qna1 = new ProductQnaResponseDto(
+                1L, "배송", "배송 문의1", "내용1", "User1", "23.10.26", Collections.emptyList());
+
+        ProductQnaListResponseDto listResponseDto = new ProductQnaListResponseDto(
+                page,
+                1,
+                size,
+                1L,
+                List.of(qna1)
+        );
+
+        when(productQnaService.getProductQnaList(eq(productUuid), eq(qnaCategory), eq(page), eq(size)))
+                .thenReturn(listResponseDto);
+
+        // When & Then
+        mockMvc.perform(get("/api/products/qna/{productUuid}/list", productUuid)
+                        .param("qnaCategory", qnaCategory)
+                        .param("page", String.valueOf(page))
+                        .param("size", String.valueOf(size))
+                        .with(user(createTestUserDetails())))
+                .andDo(print())
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.resultCode").value("200"))
+                .andExpect(jsonPath("$.msg").value("상품 Q&A 목록 조회 성공"))
+                .andExpect(jsonPath("$.data.currentPage").value(page))
+                .andExpect(jsonPath("$.data.totalPages").value(1))
+                .andExpect(jsonPath("$.data.pageSize").value(size))
+                .andExpect(jsonPath("$.data.totalElements").value(1L))
+                .andExpect(jsonPath("$.data.qnaList[0].id").value(1L))
+                .andExpect(jsonPath("$.data.qnaList[0].qnaCategory").value("배송"))
+                .andExpect(jsonPath("$.data.qnaList[0].qnaTitle").value("배송 문의1"));
     }
 }

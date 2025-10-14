@@ -8,5 +8,6 @@ import org.springframework.data.jpa.repository.JpaRepository;
 
 public interface ProductQnaRepository extends JpaRepository<ProductQna, Long> {
     Page<ProductQna> findByProduct(Product product, Pageable pageable);
+    Page<ProductQna> findByProductAndQnaCategory(Product product, String qnaCategory, Pageable pageable);
 }
 

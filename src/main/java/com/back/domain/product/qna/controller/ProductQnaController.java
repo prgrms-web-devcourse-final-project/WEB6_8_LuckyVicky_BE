@@ -5,7 +5,6 @@ import com.back.domain.product.qna.dto.response.ProductQnaListResponseDto;
 import com.back.domain.product.qna.dto.response.ProductQnaResponseDto;
 import com.back.domain.product.qna.service.ProductQnaService;
 import com.back.global.rsData.RsData;
-import com.back.global.s3.S3Service;
 import com.back.global.security.auth.CustomUserDetails;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.media.Content;
@@ -27,7 +26,6 @@ import java.util.UUID;
 public class ProductQnaController {
 
     private final ProductQnaService productQnaService;
-    private final S3Service s3Service;
 
     /** 상품 Q&A 등록 */
     @PostMapping
@@ -146,9 +144,10 @@ public class ProductQnaController {
     )
     public ResponseEntity<RsData<ProductQnaListResponseDto>> getProductQnaList(
             @PathVariable UUID productUuid,
+            @RequestParam(value = "qnaCategory", required = false) String qnaCategory,
             @RequestParam(value = "page", defaultValue = "1") int page,
             @RequestParam(value = "size", defaultValue = "10") int size) {
-        ProductQnaListResponseDto responseDto = productQnaService.getProductQnaList(productUuid, page, size);
+        ProductQnaListResponseDto responseDto = productQnaService.getProductQnaList(productUuid, qnaCategory, page, size);
         return ResponseEntity.ok(RsData.of("200", "상품 Q&A 목록 조회 성공", responseDto));
     }
 }
