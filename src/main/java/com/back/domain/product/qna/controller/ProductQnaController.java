@@ -7,6 +7,7 @@ import com.back.domain.product.qna.service.ProductQnaService;
 import com.back.global.rsData.RsData;
 import com.back.global.security.auth.CustomUserDetails;
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
@@ -131,6 +132,11 @@ public class ProductQnaController {
     @GetMapping("/list")
     @Operation(
             summary = "상품 Q&A 목록 조회 (페이지네이션)",
+            parameters = {
+                    @Parameter(name = "qnaCategory", description = "Q&A 카테고리 (예: 배송, 상품, 교환/환불, 기타. '전체' 또는 미지정 시 전체 카테고리 조회)", example = "배송"),
+                    @Parameter(name = "page", description = "페이지 번호", example = "1"),
+                    @Parameter(name = "size", description = "페이지당 항목 수", example = "10")
+            },
             responses = {
                     @ApiResponse(
                             responseCode = "200",
