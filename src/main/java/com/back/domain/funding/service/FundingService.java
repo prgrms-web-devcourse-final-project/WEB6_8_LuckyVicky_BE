@@ -152,7 +152,7 @@ public class FundingService {
         };
     }
 
-    private FundingCardDto toCardDto(Funding funding) {
+    public FundingCardDto toCardDto(Funding funding) {
         long currentAmount = funding.getCollectedAmount();
         double progress = (funding.getTargetAmount() > 0)
                 ? (double) currentAmount / funding.getTargetAmount() * 100
