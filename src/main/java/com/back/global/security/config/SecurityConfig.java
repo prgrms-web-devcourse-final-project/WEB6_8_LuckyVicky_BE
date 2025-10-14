@@ -90,10 +90,10 @@ public class SecurityConfig {
                         // 공개 API
                         .requestMatchers("/public/**").permitAll()
 
-                        // 상품,카테고리,태그 조회 / 상품 파일 다운로드(테스트용) / 상품 상세 조회 / 상품 상세-작가 정보 조회 / 메인페이지에서 주제별 상품 조회 / 검색 / 상품별 찜 개수 조회 - 로그인 없이 접근 허용
-                        .requestMatchers(HttpMethod.GET, "/api/products","/api/products/*", "/api/categories","/api/tags", "/api/products/images/download/{productUuid}","/api/products/{productUuid}/*", "/api/search", "/api/wishlist/{productUuid}/count").permitAll()
-                        // 상품 찜 등록, 삭제 - 로그인한 유저만 접근 가능
-                        .requestMatchers("/api/wishlist/{productUuid}").authenticated()
+                        // 상품,카테고리,태그 조회 / 상품 파일 다운로드(테스트용) / 상품 상세 조회 / 상품 상세-작가 정보 조회 / 메인페이지에서 주제별 상품 조회 / 검색 / 상품별 찜 개수 조회 / 상품 Q&A 조회- 로그인 없이 접근 허용
+                        .requestMatchers(HttpMethod.GET, "/api/products","/api/products/*", "/api/categories","/api/tags", "/api/products/images/download/{productUuid}","/api/products/{productUuid}/*", "/api/search", "/api/wishlist/{productUuid}/count", "/api/products/qna/{productUuid}/{productQnaId}", "/api/products/qna/{productUuid}/list").permitAll()
+                        // 상품 찜 등록, 삭제 / 상품 Q&A 등록 - 로그인한 유저만 접근 가능
+                        .requestMatchers("/api/wishlist/{productUuid}", "/api/products/qna/{productUuid}").authenticated()
                         // 상품 등록, 수정, 삭제 / 상품 이미지 업로드 / 작가 사업자 정보 조회 - ARTIST, ADMIN, ROOT만 접근 가능
                         .requestMatchers("/api/products", "/api/products/*", "/api/artist/business-info").hasAnyRole("ARTIST", "ADMIN", "ROOT")
                         // 카테고리,태그 등록, 수정, 삭제 - ADMIN, ROOT만 접근 가능
