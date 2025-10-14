@@ -29,7 +29,7 @@ public class WishlistService {
     public UUID addWishlist(UUID productUuid, CustomUserDetails customUserDetails) {
         User user = validateAndGetUser(customUserDetails.getUser());
         Product product = validateAndGetProduct(productUuid);
-        validateDuplicateWishlist(user.getId(), product.getProductUuid());
+        validateDuplicateWishlist(user.getId(), product.getId());
 
         Wishlist wishlist = Wishlist.builder()
                 .user(user)
@@ -44,17 +44,17 @@ public class WishlistService {
     public UUID removeWishlist(UUID productUuid, CustomUserDetails customUserDetails) {
         User user = validateAndGetUser(customUserDetails.getUser());
         Product product = validateAndGetProduct(productUuid);
-        if (!wishlistRepository.existsByUserIdAndProductId(user.getId(), product.getProductUuid())) {
+        if (!wishlistRepository.existsByUserIdAndProductId(user.getId(), product.getId())) {
             throw new ServiceException("404", "위시리스트 항목을 찾을 수 없습니다.");
         }
-        wishlistRepository.deleteByUserIdAndProductId(user.getId(), product.getProductUuid());
+        wishlistRepository.deleteByUserIdAndProductId(user.getId(), product.getId());
         return product.getProductUuid();
     }
 
     /** 상품별 찜 개수 조회 */
     public Long getWishlistCount(UUID productUuid) {
         Product product = validateAndGetProduct(productUuid);
-        return wishlistRepository.countByProductId(productUuid);
+        return wishlistRepository.countByProductId(product.getId());
     }
 
     /** Validation 메서드 */
@@ -69,8 +69,8 @@ public class WishlistService {
                 .orElseThrow(() -> new ServiceException("404", "존재하지 않는 상품입니다. UUID: " + productUuid));
     }
     // 중복 찜 검증
-    private void validateDuplicateWishlist(Long userId, UUID productUuid) {
-        if (wishlistRepository.existsByUserIdAndProductId(userId, productUuid)) {
+    private void validateDuplicateWishlist(Long userId, Long productId) {
+        if (wishlistRepository.existsByUserIdAndProductId(userId, productId)) {
             throw new ServiceException("409", "이미 위시리스트에 추가된 상품입니다.");
         }
     }
