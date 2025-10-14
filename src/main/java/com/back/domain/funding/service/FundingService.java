@@ -7,6 +7,7 @@ import com.back.domain.funding.dto.request.FundingUpdateRequest;
 import com.back.domain.funding.dto.response.FundingCardDto;
 import com.back.domain.funding.dto.response.FundingDetailResponse;
 import com.back.domain.funding.entity.Funding;
+import com.back.domain.funding.entity.FundingImage;
 import com.back.domain.funding.entity.FundingStatus;
 import com.back.domain.funding.repository.FundingContributionRepository;
 import com.back.domain.funding.repository.FundingRepository;
@@ -15,6 +16,9 @@ import com.back.domain.product.category.repository.CategoryRepository;
 import com.back.domain.user.entity.User;
 import com.back.domain.user.repository.UserRepository;
 import com.back.global.exception.ServiceException;
+import com.back.global.s3.FileType;
+import com.back.global.s3.S3FileRequest;
+import com.back.global.s3.S3Service;
 import com.back.global.s3.S3ValidationService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -22,15 +26,16 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
-import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.web.server.ResponseStatusException;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
+import java.util.List;
+import java.util.Map;
 import java.util.Set;
+import java.util.stream.Collectors;
 
 @Slf4j
 @Service
@@ -41,6 +46,7 @@ public class FundingService {
     private final UserRepository userRepository;
     private final CategoryRepository categoryRepository;
     private final S3ValidationService s3ValidationService;
+    private final S3Service s3Service;
     private final FundingContributionRepository fundingContributionRepository;
     private final ArtistProfileRepository artistProfileRepository;
 
@@ -51,7 +57,7 @@ public class FundingService {
                 .orElseThrow(() -> new ServiceException("403", "존재하지 않는 사용자입니다."));
 
         Category category = categoryRepository.findById(req.categoryId())
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.BAD_REQUEST, "존재하지 않는 카테고리입니다."));
+                .orElseThrow(() -> new ServiceException("400", "존재하지 않는 카테고리입니다."));
 
         // 엔티티 정적 팩토리로 생성(도메인 규칙 검증 포함)
         Funding funding = Funding.create(
@@ -67,6 +73,11 @@ public class FundingService {
                 req.endDate(),
                 FundingStatus.PENDING
         );
+
+        if (req.images() != null && !req.images().isEmpty()) {
+            var imgs = buildFundingImages(funding, req.images());
+            funding.addImages(imgs);
+        }
 
         return fundingRepository.save(funding);
     }
@@ -108,6 +119,17 @@ public class FundingService {
                 progress,
                 artistDescription
         );
+    }
+
+    @Transactional(readOnly = true)
+    public FundingImage getFundingDocument(Long fundingId) {
+        Funding funding = fundingRepository.findById(fundingId)
+                .orElseThrow(() -> new ServiceException("404", "존재하지 않는 펀딩입니다. fundingId: " + fundingId));
+
+        return funding.getImages().stream()
+                .filter(img -> img.getFileType() == FileType.DOCUMENT)
+                .findFirst()
+                .orElseThrow(() -> new ServiceException("404", "다운로드할 문서가 존재하지 않습니다."));
     }
 
     // null을 0L로 변환
@@ -178,38 +200,86 @@ public class FundingService {
             funding.updateBasicInfo(req.title(), req.description(), req.imageUrl());
         }
 
+        applyNumbersAndDates(funding, req);
+
+    }
+
+    private void applyNumbersAndDates(Funding f, FundingUpdateRequest req) {
         if (req.targetAmount() != null) {
-            try {
-                funding.updateTargetAmount(req.targetAmount());
-            } catch (IllegalStateException e) {
-                throw new ServiceException("400", e.getMessage());
-            }
+            try { f.updateTargetAmount(req.targetAmount()); }
+            catch (IllegalArgumentException | IllegalStateException e) { throw new ServiceException("400", e.getMessage()); }
         }
-
         if (req.price() != null) {
-            try {
-                funding.updatePrice(req.price());
-            } catch (IllegalStateException e) {
-                throw new ServiceException("400", e.getMessage());
-            }
+            try { f.updatePrice(req.price()); }
+            catch (IllegalArgumentException | IllegalStateException e) { throw new ServiceException("400", e.getMessage()); }
         }
-
         if (req.stock() != null) {
-            try {
-                funding.updateStock(req.stock());
-            } catch (IllegalArgumentException e) {
-                throw new ServiceException("400", e.getMessage());
-            }
+            try { f.updateStock(req.stock()); }
+            catch (IllegalArgumentException e) { throw new ServiceException("400", e.getMessage()); }
         }
-
         if (req.endDate() != null) {
-            try {
-                funding.updateEndDate(req.endDate());
-            } catch (IllegalStateException e) {
-                throw new ServiceException("400", e.getMessage());
-            }
+            try { f.updateEndDate(req.endDate()); }
+            catch (IllegalArgumentException | IllegalStateException e) { throw new ServiceException("400", e.getMessage()); }
+        }
+    }
+
+    private List<FundingImage> buildFundingImages(Funding funding, List<S3FileRequest> images) {
+        if (images == null || images.isEmpty()) {
+            return List.of();
         }
 
+        return images.stream()
+                .map(img -> {
+                    // S3에 파일이 존재하는지 검증
+                    s3ValidationService.validateFileExists(img.s3Key());
+
+                    return FundingImage.builder()
+                            .funding(funding)
+                            .fileUrl(img.url())
+                            .fileType(img.type())
+                            .s3Key(img.s3Key())
+                            .originalFilename(img.originalFileName())
+                            .build();
+                }).toList();
+    }
+
+    private void updateFundingImages(Funding funding, List<S3FileRequest> incomingImages) {
+        if (incomingImages == null) {
+            incomingImages = List.of();
+        }
+
+        // 기존 이미지 맵
+        Map<String, FundingImage> existingMap = funding.getImages().stream()
+                .collect(Collectors.toMap(FundingImage::getS3Key, img -> img));
+
+        // 프론트에게 받은 이미지 S3Key 리스트
+        Set<String> incomingKeys = incomingImages.stream()
+                .map(S3FileRequest::s3Key)
+                .collect(Collectors.toSet());
+
+        // DB, S3에서 이미지 삭제 (DB에 있고 프론트에 없는 이미지)
+        funding.getImages().removeIf(img -> {
+            if (!incomingKeys.contains(img.getS3Key())) {
+                s3Service.deleteFile(img.getS3Key());
+                return true;
+            }
+            return false;
+        });
+
+        // 이미지 추가 (프론트에 있는데 DB에는 없는 이미지)
+        for (S3FileRequest img : incomingImages) {
+            if (!existingMap.containsKey(img.s3Key())) {
+                s3ValidationService.validateFileExists(img.s3Key());
+
+                funding.getImages().add(FundingImage.builder()
+                        .funding(funding)
+                        .fileUrl(img.url())
+                        .fileType(img.type())
+                        .s3Key(img.s3Key())
+                        .originalFilename(img.originalFileName())
+                        .build());
+            }
+        }
     }
 
     @Transactional

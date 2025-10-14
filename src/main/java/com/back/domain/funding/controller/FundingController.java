@@ -6,9 +6,13 @@ import com.back.domain.funding.dto.response.FundingCardDto;
 import com.back.domain.funding.dto.response.FundingCreateResponse;
 import com.back.domain.funding.dto.response.FundingDetailResponse;
 import com.back.domain.funding.entity.Funding;
+import com.back.domain.funding.entity.FundingImage;
 import com.back.domain.funding.entity.FundingStatus;
 import com.back.domain.funding.service.FundingService;
 import com.back.global.rsData.RsData;
+import com.back.global.s3.FileType;
+import com.back.global.s3.S3Service;
+import com.back.global.s3.UploadResultResponse;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.media.Content;
@@ -23,7 +27,9 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 
+import java.util.List;
 import java.util.Set;
 
 @RestController
@@ -33,6 +39,7 @@ import java.util.Set;
 public class FundingController {
 
     private final FundingService fundingService;
+    private final S3Service s3Service;
 
     @PostMapping
     @PreAuthorize("hasAuthority('ROLE_ARTIST') or hasAuthority('ROLE_ADMIN') or hasAuthority('ROLE_ROOT')")
@@ -48,12 +55,19 @@ public class FundingController {
                       "title": "한정판 키링 펀딩",
                       "description": "한정판 키링입니다.",
                       "categoryId": 1,
-                      "imageUrl": "https://testImage.jpg",
                       "targetAmount": 500000,
                       "price": 30000,
                       "stock": 200,
                       "startDate": "2025-11-01 00:00:00",
-                      "endDate": "2025-12-15 23:59:59"
+                      "endDate": "2025-12-15 23:59:59",
+                      "images": [
+                          {
+                              "url": "https://test.jpg",
+                              "type": "MAIN",
+                              "s3Key": "funding-images/test.jpg",
+                              "originalFileName": "test.JPG"
+                          }
+                        ]
                     }
                     """
                                     )
@@ -70,6 +84,60 @@ public class FundingController {
 
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(new RsData<>("201", "펀딩이 생성되었습니다.", response));
+    }
+
+    @PostMapping("/images")
+    @PreAuthorize("hasAuthority('ROLE_ARTIST') or hasAuthority('ROLE_ADMIN') or hasAuthority('ROLE_ROOT')")
+    @Operation(
+            summary = "펀딩 이미지 업로드",
+            description = "펀딩에 사용될 이미지를 업로드합니다. " +
+                    "files -> 업로드할 파일 리스트. 이미지(jpg, png 등), 문서(pdf, doc 등)<br>" +
+                    "types -> 업로드할 파일 타입. 대표 이미지(MAIN), 추가 이미지(ADDITIONAL), 썸네일(THUMBNAIL), 문서(DOCUMENT)"
+    ) public ResponseEntity<RsData<List<UploadResultResponse>>> uploadFundingImages(
+            @RequestPart List<MultipartFile> files,
+            @Parameter(hidden = true)
+            @RequestParam List<FileType> types) {
+        List<UploadResultResponse> uploaded = s3Service.uploadFiles(files, "funding-images", types);
+        return ResponseEntity.ok(RsData.of("200", "이미지 업로드 성공", uploaded));
+    }
+
+    /** 펀딩 이미지 개별 삭제 (S3) */
+    @DeleteMapping("/images")
+    @PreAuthorize("hasAuthority('ROLE_ARTIST') or hasAuthority('ROLE_ADMIN') or hasAuthority('ROLE_ROOT')")
+    @Operation(
+            summary = "S3 펀딩 이미지 개별 삭제",
+            description = "s3Key를 사용하여 S3에 업로드된 펀딩 이미지를 삭제합니다. " +
+                    "펀딩 등록/수정 중 사용자가 업로드한 이미지를 다시 삭제할 때 사용됩니다."
+    )
+    public ResponseEntity<RsData<String>> deleteFundingImage(
+            @Parameter(description = "삭제할 파일의 s3Key", required = true)
+            @RequestParam String s3Key) {
+
+        s3Service.deleteFile(s3Key);
+        return ResponseEntity.ok(RsData.of("200", "파일이 성공적으로 삭제되었습니다.", s3Key));
+    }
+
+    /** 펀딩 문서 다운로드 */
+    @GetMapping("/images/download/{id}")
+    @Operation(
+            summary = "펀딩 문서 다운로드",
+            description = "DOCUMENT 타입의 문서 파일 다운로드.<br>" +
+                    "브라우저는 Content-Disposition 헤더를 보고 파일 다운로드 처리합니다."
+    )
+    public ResponseEntity<byte[]> downloadFundingDocument(
+            @Parameter(description = "펀딩 ID", required = true)
+            @PathVariable @Positive Long id) {
+
+        // 펀딩 ID로 DOCUMENT 타입 이미지 조회
+        FundingImage document = fundingService.getFundingDocument(id);
+        // S3에서 파일 다운로드
+        byte[] fileBytes = s3Service.downloadFile(document.getS3Key());
+
+        // 원본 파일명으로 응답
+        return ResponseEntity.ok()
+                .header("Content-Disposition", "attachment; filename=\"" + document.getOriginalFilename() + "\"")
+                .header("Content-Type", "application/octet-stream")
+                .body(fileBytes);
     }
 
     @GetMapping("/{id}")
