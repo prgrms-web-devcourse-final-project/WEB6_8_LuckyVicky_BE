@@ -445,7 +445,7 @@ public class OrderService {
         List<OrderResponseDto.OrderItemResponseDto> orderItemDtos = order.getOrderItems().stream()
                 .map(item -> new OrderResponseDto.OrderItemResponseDto(
                         item.getId(),
-                        item.getProduct().getId(),
+                        item.getProduct().getProductUuid(),
                         item.getProduct().getName(),
                         getProductThumbnailUrl(item.getProduct()),
                         item.getQuantity(),

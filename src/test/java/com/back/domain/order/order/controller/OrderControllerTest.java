@@ -19,6 +19,7 @@ import org.springframework.data.domain.Pageable;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -38,6 +39,8 @@ class OrderControllerTest {
     private OrderRequestDto orderRequestDto;
     private OrderCancelRequestDto orderCancelRequestDto;
     private OrderResponseDto orderResponseDto;
+    
+    private static final UUID TEST_PRODUCT_UUID = UUID.fromString("550e8400-e29b-41d4-a716-446655440000");
 
     @BeforeEach
     void setUp() throws Exception {
@@ -56,7 +59,7 @@ class OrderControllerTest {
         orderRequestDto = new OrderRequestDto(
                 List.of( // orderItems
                         new OrderRequestDto.OrderItemRequestDto(
-                                java.util.UUID.randomUUID(), // productUuid
+                                TEST_PRODUCT_UUID, // productUuid
                                 2, // quantity
                                 "빨강, L" // optionInfo
                         )
@@ -96,7 +99,7 @@ class OrderControllerTest {
                 List.of( // orderItems
                         new OrderResponseDto.OrderItemResponseDto(
                                 1L, // orderItemId
-                                1L, // productId
+                                TEST_PRODUCT_UUID, // productUuid
                                 "테스트 상품", // productName
                                 "http://example.com/image.jpg", // productThumbnailUrl
                                 2, // quantity
