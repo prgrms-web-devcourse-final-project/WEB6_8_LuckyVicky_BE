@@ -22,6 +22,7 @@ public interface FundingCustomRepository {
     Page<Funding> findByFilters(
             Set<FundingStatus> statuses,
             String keyword,
+            Long categoryId,
             Long minPrice,
             Long maxPrice,
             Pageable pageable
