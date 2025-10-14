@@ -6,6 +6,7 @@ import com.back.domain.order.order.entity.PaymentMethod;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.UUID;
 
 /**
  * 주문 상세 응답 DTO
@@ -34,7 +35,7 @@ public record OrderResponseDto(
      */
     public record OrderItemResponseDto(
             Long orderItemId,
-            Long productId,
+            UUID productUuid,
             String productName,
             String productThumbnailUrl,
             Integer quantity,

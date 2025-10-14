@@ -22,6 +22,7 @@ import org.springframework.test.web.servlet.MockMvc;
 import java.time.LocalDateTime;
 import java.util.Arrays;
 import java.util.List;
+import java.util.UUID;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
@@ -57,6 +58,8 @@ class CartControllerTest {
     private CartRequestDto cartRequestDto;
     private CartResponseDto cartResponseDto;
     private CartListResponseDto cartListResponseDto;
+    
+    private static final UUID TEST_PRODUCT_UUID = UUID.fromString("550e8400-e29b-41d4-a716-446655440000");
 
     @BeforeEach
     void setUp() {
@@ -70,18 +73,18 @@ class CartControllerTest {
         org.springframework.test.util.ReflectionTestUtils.setField(testUser, "id", 1L);
 
         cartRequestDto = new CartRequestDto(
-                1L,           // productId
-                2,            // quantity
-                "옵션정보",    // optionInfo
-                "NORMAL",     // cartType
-                null,         // fundingId
-                null,         // fundingPrice
-                null          // fundingStock
+                TEST_PRODUCT_UUID, // productUuid
+                2,                 // quantity
+                "옵션정보",         // optionInfo
+                "NORMAL",          // cartType
+                null,              // fundingId
+                null,              // fundingPrice
+                null               // fundingStock
         );
 
         cartResponseDto = new CartResponseDto(
                 1L,                    // cartId
-                1L,                    // productId
+                TEST_PRODUCT_UUID,     // productUuid
                 "임시 상품명",         // productName
                 "test-image.jpg",     // productImageUrl
                 10000,                 // price
@@ -169,9 +172,9 @@ class CartControllerTest {
         Long cartId = 1L;
         Integer newQuantity = 3;
         CartResponseDto updatedCart = new CartResponseDto(
-                cartId,           // cartId
-                1L,               // productId
-                "임시 상품명",    // productName
+                cartId,              // cartId
+                TEST_PRODUCT_UUID,   // productUuid
+                "임시 상품명",       // productName
                 "test-image.jpg", // productImageUrl
                 10000,            // price
                 newQuantity,      // quantity
@@ -246,9 +249,9 @@ class CartControllerTest {
         // given
         Long cartId = 1L;
         CartResponseDto toggledCart = new CartResponseDto(
-                cartId,           // cartId
-                1L,               // productId
-                "임시 상품명",    // productName
+                cartId,              // cartId
+                TEST_PRODUCT_UUID,   // productUuid
+                "임시 상품명",       // productName
                 "test-image.jpg", // productImageUrl
                 10000,            // price
                 2,                // quantity
@@ -279,7 +282,7 @@ class CartControllerTest {
         List<CartResponseDto> selectedItems = Arrays.asList(
                 new CartResponseDto(
                         1L,                   // cartId
-                        1L,                   // productId
+                        TEST_PRODUCT_UUID,    // productUuid
                         "테스트 상품1",       // productName
                         "test-image1.jpg",   // productImageUrl
                         10000,                // price
