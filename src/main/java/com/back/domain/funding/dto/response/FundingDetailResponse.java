@@ -87,13 +87,14 @@ public record FundingDetailResponse(
     public record FundingCommunityDto(
             Long id,
             String writerName,
+            String writerEmail,
             String profileImageUrl,
             String content,
             @JsonFormat(shape = JsonFormat.Shape.STRING, pattern = "yyyy-MM-dd HH:mm:ss")
             LocalDateTime createDate
     ) {
         public FundingCommunityDto(FundingCommunity community) {
-            this(community.getId(), community.getAuthor().getName(), community.getAuthor().getProfileImageUrl(), community.getContent(), community.getCreateDate());
+            this(community.getId(), community.getAuthor().getName(), community.getAuthor().getEmail(),  community.getAuthor().getProfileImageUrl(), community.getContent(), community.getCreateDate());
         }
     }
 }
