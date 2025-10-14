@@ -144,7 +144,7 @@ public record ProductDetailResponse(
             @Schema(description = "이미지 URL", example = "https://s3.amazonaws.com/bucket/uuid-main.jpg")
             String url,
             @Schema(description = "이미지 타입", example = "MAIN")
-            FileType fileType,
+            FileType type,
             @Schema(description = "이미지 s3Key", example = "product-images/uuid1.png")
             String s3Key,
             @Schema(description = "이미지 원본파일명", example = "example.png")
