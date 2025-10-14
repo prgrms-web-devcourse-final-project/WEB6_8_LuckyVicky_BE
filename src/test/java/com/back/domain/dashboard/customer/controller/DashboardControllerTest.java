@@ -603,6 +603,143 @@ class DashboardControllerTest {
         );
     }
 
+    @Test
+    @DisplayName("찜한 상품 목록 조회 API - 성공")
+    void getWishlist_Success() throws Exception {
+        // Given
+        com.back.domain.dashboard.customer.dto.response.WishlistResponse.List mockResponse =
+                createMockWishlistResponse();
+        given(dashboardService.getWishlist(
+                eq(TEST_USER_ID), any(WishlistSearchRequest.class)))
+                .willReturn(mockResponse);
+
+        // When & Then
+        mockMvc.perform(get("/api/dashboard/wishlist")
+                        .param("page", "0"))
+                .andDo(print())
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.resultCode").value("200"))
+                .andExpect(jsonPath("$.data.summary.totalWishItems").value(2))
+                .andExpect(jsonPath("$.data.content").isArray())
+                .andExpect(jsonPath("$.data.content[0].brandName").exists())
+                .andExpect(jsonPath("$.data.content[0].productName").exists())
+                .andExpect(jsonPath("$.data.content[0].price").exists())
+                .andExpect(jsonPath("$.data.content[0].artist").exists())
+                .andExpect(jsonPath("$.data.content[0].imageUrl").exists())
+                .andExpect(jsonPath("$.data.size").value(8));  // 페이지 크기 8개 고정
+    }
+
+    @Test
+    @DisplayName("찜한 상품 목록 조회 API - 페이지 크기 8개 고정 확인")
+    void getWishlist_FixesPageSizeToEight() throws Exception {
+        // Given
+        com.back.domain.dashboard.customer.dto.response.WishlistResponse.List mockResponse =
+                createMockWishlistResponse();
+        given(dashboardService.getWishlist(
+                eq(TEST_USER_ID), any(WishlistSearchRequest.class)))
+                .willReturn(mockResponse);
+
+        // When & Then: size를 다르게 요청해도 8개로 고정됨
+        mockMvc.perform(get("/api/dashboard/wishlist")
+                        .param("page", "0")
+                        .param("size", "20"))  // 20개 요청해도
+                .andDo(print())
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.size").value(8));  // 8개로 고정
+    }
+
+    @Test
+    @DisplayName("찜한 상품 목록 조회 API - brandName과 productName 모두 반환")
+    void getWishlist_ReturnsBothNames() throws Exception {
+        // Given
+        com.back.domain.dashboard.customer.dto.response.WishlistResponse.List mockResponse =
+                createMockWishlistResponse();
+        given(dashboardService.getWishlist(
+                eq(TEST_USER_ID), any(WishlistSearchRequest.class)))
+                .willReturn(mockResponse);
+
+        // When & Then
+        mockMvc.perform(get("/api/dashboard/wishlist")
+                        .param("page", "0"))
+                .andDo(print())
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.content[0].brandName").value("테스트 브랜드"))
+                .andExpect(jsonPath("$.data.content[0].productName").value("감성 일러스트 포스터"));
+    }
+
+    @Test
+    @DisplayName("찜한 상품 목록 조회 API - 할인율 제외 확인")
+    void getWishlist_ExcludesDiscountRate() throws Exception {
+        // Given
+        com.back.domain.dashboard.customer.dto.response.WishlistResponse.List mockResponse =
+                createMockWishlistResponse();
+        given(dashboardService.getWishlist(
+                eq(TEST_USER_ID), any(WishlistSearchRequest.class)))
+                .willReturn(mockResponse);
+
+        // When & Then
+        mockMvc.perform(get("/api/dashboard/wishlist")
+                        .param("page", "0"))
+                .andDo(print())
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.content[0].price").value(25000))
+                .andExpect(jsonPath("$.data.content[0].discountRate").doesNotExist())
+                .andExpect(jsonPath("$.data.content[0].discountPrice").doesNotExist());
+    }
+
+    private com.back.domain.dashboard.customer.dto.response.WishlistResponse.List createMockWishlistResponse() {
+        com.back.domain.dashboard.customer.dto.response.WishlistResponse.SummaryDto summary =
+                new com.back.domain.dashboard.customer.dto.response.WishlistResponse.SummaryDto(2);
+
+        java.util.List<com.back.domain.dashboard.customer.dto.response.WishlistResponse.BulkAction> bulkActions =
+                java.util.List.of(
+                        new com.back.domain.dashboard.customer.dto.response.WishlistResponse.BulkAction(
+                                "BULK_UNWISH", "선택 항목 해제", true
+                        )
+                );
+
+        java.util.List<com.back.domain.dashboard.customer.dto.response.WishlistResponse.Item> content =
+                java.util.List.of(
+                        new com.back.domain.dashboard.customer.dto.response.WishlistResponse.Item(
+                                "1",
+                                123L,
+                                "uuid-123",
+                                "테스트 브랜드",
+                                "감성 일러스트 포스터",
+                                25000,
+                                new com.back.domain.dashboard.customer.dto.response.WishlistResponse.Artist(
+                                        "1", "감성작가"
+                                ),
+                                "https://cdn.example.com/image.jpg",
+                                "SELLING",
+                                LocalDateTime.now(),
+                                "/products/uuid-123",
+                                new com.back.domain.dashboard.customer.dto.response.WishlistResponse.Permission(true)
+                        ),
+                        new com.back.domain.dashboard.customer.dto.response.WishlistResponse.Item(
+                                "2",
+                                124L,
+                                "uuid-124",
+                                "귀여운 브랜드",
+                                "귀여운 스티커 세트",
+                                15000,
+                                new com.back.domain.dashboard.customer.dto.response.WishlistResponse.Artist(
+                                        "2", "캐릭터작가"
+                                ),
+                                "https://cdn.example.com/image2.jpg",
+                                "SELLING",
+                                LocalDateTime.now().minusDays(1),
+                                "/products/uuid-124",
+                                new com.back.domain.dashboard.customer.dto.response.WishlistResponse.Permission(true)
+                        )
+                );
+
+        return new com.back.domain.dashboard.customer.dto.response.WishlistResponse.List(
+                summary, bulkActions, content,
+                0, 8, 2, 1, false, false
+        );
+    }
+
     /**
      * @AuthenticationPrincipal을 위한 커스텀 ArgumentResolver
      */

@@ -600,9 +600,10 @@ class DashboardServiceImplTest {
                 com.back.domain.payment.moriCash.entity.MoriCashBalance.createInitialBalance(testBuyer);
         moriCashBalanceRepository.save(balance);
 
-        createChargeTransactionWithMethod(10000, "TOSS");
-        createChargeTransactionWithMethod(20000, "NAVERPAY");
-        createPurchaseTransaction(5000, LocalDateTime.now());
+        // 명확한 시간 차이를 두어 정렬 순서 보장
+        createChargeTransactionWithTimeAndMethod(10000, LocalDateTime.now().minusDays(3), "TOSS");   // 가장 오래된
+        createChargeTransactionWithTimeAndMethod(20000, LocalDateTime.now().minusDays(2), "NAVERPAY"); // 중간
+        createPurchaseTransaction(5000, LocalDateTime.now().minusDays(1)); // 가장 최근
 
         com.back.domain.dashboard.customer.dto.request.CashHistorySearchRequest request =
                 new com.back.domain.dashboard.customer.dto.request.CashHistorySearchRequest(
@@ -613,12 +614,12 @@ class DashboardServiceImplTest {
         com.back.domain.dashboard.customer.dto.response.CashResponse.HistoryList result =
                 dashboardService.getCashHistory(testBuyer.getId(), request);
 
-        // Then
+        // Then: 최신순 정렬이므로 역순으로 검증
         assertAll(
                 () -> assertThat(result.getContent()).hasSize(3),
-                () -> assertThat(result.getContent().get(0).paymentMethod()).isEqualTo("모리캐시"),
-                () -> assertThat(result.getContent().get(1).paymentMethod()).isEqualTo("네이버페이"),
-                () -> assertThat(result.getContent().get(2).paymentMethod()).isEqualTo("토스페이")
+                () -> assertThat(result.getContent().get(0).paymentMethod()).isEqualTo("모리캐시"),  // 가장 최근
+                () -> assertThat(result.getContent().get(1).paymentMethod()).isEqualTo("네이버페이"), // 중간
+                () -> assertThat(result.getContent().get(2).paymentMethod()).isEqualTo("토스페이")   // 가장 오래된
         );
     }
 
@@ -627,24 +628,35 @@ class DashboardServiceImplTest {
     @Test
     @DisplayName("팔로우한 작가 목록 조회 - 실제 DB 연동 확인")
     void getFollowingArtists_ReturnsRealData() {
+        // Given: 고유한 작가 생성 (테스트 격리)
+        String uniqueSuffix = "_follow_real_" + System.nanoTime();
+        User uniqueArtist = User.createLocalUser(
+                "unique-artist@example.com" + uniqueSuffix,
+                "password",
+                "고유작가" + uniqueSuffix,
+                "010-8888-8888"
+        );
+        uniqueArtist.becomeArtist();
+        uniqueArtist = userRepository.save(uniqueArtist);
+
         // Given: 작가 프로필 생성
         com.back.domain.artist.entity.ArtistApplication application =
                 com.back.domain.artist.entity.ArtistApplication.builder()
-                        .user(testArtist)
+                        .user(uniqueArtist)
                         .ownerName("테스트작가")
-                        .email("artist@example.com")
+                        .email("artist@example.com" + uniqueSuffix)
                         .phone("010-1234-5678")
                         .artistName("작가명입니다")
-                        .businessNumber("123-45-67890")
+                        .businessNumber("123-45-67890" + uniqueSuffix)
                         .businessAddress("서울시")
                         .businessAddressDetail("강남구")
                         .businessZipCode("12345")
-                        .telecomSalesNumber("2024-서울-0001")
+                        .telecomSalesNumber("2024-서울-0001" + uniqueSuffix)
                         .build();
         artistApplicationRepository.save(application);
 
         com.back.domain.artist.entity.ArtistProfile artistProfile =
-                com.back.domain.artist.entity.ArtistProfile.fromApplication(testArtist, application);
+                com.back.domain.artist.entity.ArtistProfile.fromApplication(uniqueArtist, application);
         artistProfile.updateProfile(
                 "https://cdn.example.com/artist.jpg",
                 "작가명입니다",
@@ -707,33 +719,46 @@ class DashboardServiceImplTest {
     @Test
     @DisplayName("팔로우한 작가 목록 조회 - 자신이 팔로우한 작가만 조회")
     void getFollowingArtists_ReturnsOnlyOwnFollows() {
-        // Given: 다른 사용자 생성
+        // Given: 고유한 데이터로 테스트 격리
+        String uniqueSuffix = "_follow_own_" + System.nanoTime();
+
+        // 다른 사용자 생성
         User otherUser = User.createLocalUser(
-                "other@example.com",
+                "other@example.com" + uniqueSuffix,
                 "password",
-                "다른사용자",
+                "다른사용자" + uniqueSuffix,
                 "01099999999"
         );
         otherUser = userRepository.save(otherUser);
 
+        // 고유한 작가 생성
+        User uniqueArtist = User.createLocalUser(
+                "unique-artist2@example.com" + uniqueSuffix,
+                "password",
+                "고유작가2" + uniqueSuffix,
+                "010-7777-7777"
+        );
+        uniqueArtist.becomeArtist();
+        uniqueArtist = userRepository.save(uniqueArtist);
+
         // 작가 프로필 생성
         com.back.domain.artist.entity.ArtistApplication application =
                 com.back.domain.artist.entity.ArtistApplication.builder()
-                        .user(testArtist)
+                        .user(uniqueArtist)
                         .ownerName("테스트작가")
-                        .email("artist@example.com")
+                        .email("artist@example.com" + uniqueSuffix)
                         .phone("010-1234-5678")
                         .artistName("공통작가")
-                        .businessNumber("123-45-67890")
+                        .businessNumber("123-45-67890" + uniqueSuffix)
                         .businessAddress("서울시")
                         .businessAddressDetail("강남구")
                         .businessZipCode("12345")
-                        .telecomSalesNumber("2024-서울-0001")
+                        .telecomSalesNumber("2024-서울-0001" + uniqueSuffix)
                         .build();
         artistApplicationRepository.save(application);
 
         com.back.domain.artist.entity.ArtistProfile artistProfile =
-                com.back.domain.artist.entity.ArtistProfile.fromApplication(testArtist, application);
+                com.back.domain.artist.entity.ArtistProfile.fromApplication(uniqueArtist, application);
 
         com.back.domain.artist.repository.ArtistProfileRepository artistProfileRepository =
                 applicationContext.getBean(com.back.domain.artist.repository.ArtistProfileRepository.class);
@@ -824,6 +849,33 @@ class DashboardServiceImplTest {
         return cashTransactionRepository.save(transaction);
     }
 
+    private com.back.domain.payment.cash.entity.CashTransaction createChargeTransactionWithTimeAndMethod(
+            int amount, LocalDateTime completedAt, String method) {
+        com.back.domain.payment.cash.entity.CashTransaction transaction =
+                com.back.domain.payment.cash.entity.CashTransaction.builder()
+                        .user(testBuyer)
+                        .transactionType(com.back.domain.payment.cash.entity.CashTransactionType.CHARGING)
+                        .amount(amount)
+                        .paymentMethod(method)
+                        .pgProvider("TOSS")
+                        .balanceAfter(50000 + amount)
+                        .build();
+
+        transaction.completeTransaction("PG-" + System.currentTimeMillis(), "APPR-123",
+                50000 + amount);
+
+        // completedAt을 테스트용으로 강제 설정 (Reflection 사용)
+        try {
+            var field = transaction.getClass().getDeclaredField("completedAt");
+            field.setAccessible(true);
+            field.set(transaction, completedAt);
+        } catch (Exception e) {
+            // completedAt 설정 실패 시 현재 시간 사용
+        }
+
+        return cashTransactionRepository.save(transaction);
+    }
+
     private com.back.domain.payment.moriCash.entity.MoriCashPayment createPurchaseTransaction(
             int amount, LocalDateTime paidAt) {
         com.back.domain.payment.moriCash.entity.MoriCashPayment payment =
@@ -849,6 +901,282 @@ class DashboardServiceImplTest {
         }
 
         return moriCashPaymentRepository.save(payment);
+    }
+
+    // ==================== Wishlist 찜한 상품 목록 조회 테스트 ====================
+
+    @Test
+    @DisplayName("찜한 상품 목록 조회 - 실제 DB 연동 확인")
+    void getWishlist_ReturnsRealData() {
+        // Given: 찜하기 생성
+        com.back.domain.wishlist.repository.WishlistRepository wishlistRepository =
+                applicationContext.getBean(com.back.domain.wishlist.repository.WishlistRepository.class);
+
+        com.back.domain.wishlist.entity.Wishlist wishlist =
+                com.back.domain.wishlist.entity.Wishlist.builder()
+                        .user(testBuyer)
+                        .product(testProduct)
+                        .build();
+        wishlistRepository.save(wishlist);
+
+        com.back.domain.dashboard.customer.dto.request.WishlistSearchRequest request =
+                new com.back.domain.dashboard.customer.dto.request.WishlistSearchRequest(
+                        0, 8, null, null, null, null, null
+                );
+
+        // When
+        com.back.domain.dashboard.customer.dto.response.WishlistResponse.List result =
+                dashboardService.getWishlist(testBuyer.getId(), request);
+
+        // Then
+        assertAll(
+                () -> assertThat(result).isNotNull(),
+                () -> assertThat(result.getContent()).hasSize(1),
+                () -> assertThat(result.getContent().get(0).brandName()).isEqualTo("테스트 브랜드"),
+                () -> assertThat(result.getContent().get(0).productName()).isEqualTo("테스트 상품"),
+                () -> assertThat(result.getContent().get(0).price()).isEqualTo(10000),
+                () -> assertThat(result.getContent().get(0).artist().name()).isEqualTo("테스트작가"),
+                () -> assertThat(result.getSummary().totalWishItems()).isEqualTo(1),
+                () -> assertThat(result.getSize()).isEqualTo(8)  // 페이지 크기 8개 고정
+        );
+    }
+
+    @Test
+    @DisplayName("찜한 상품 목록 조회 - 페이지 크기 8개 고정 확인")
+    void getWishlist_FixesPageSizeToEight() {
+        // Given: 찜 10개 생성
+        com.back.domain.wishlist.repository.WishlistRepository wishlistRepository =
+                applicationContext.getBean(com.back.domain.wishlist.repository.WishlistRepository.class);
+
+        for (int i = 0; i < 10; i++) {
+            com.back.domain.product.product.entity.Product product =
+                    createTestProduct("상품" + i, "브랜드" + i);
+
+            com.back.domain.wishlist.entity.Wishlist wishlist =
+                    com.back.domain.wishlist.entity.Wishlist.builder()
+                            .user(testBuyer)
+                            .product(product)
+                            .build();
+            wishlistRepository.save(wishlist);
+        }
+
+        com.back.domain.dashboard.customer.dto.request.WishlistSearchRequest request =
+                new com.back.domain.dashboard.customer.dto.request.WishlistSearchRequest(
+                        0, 999, null, null, null, null, null  // size를 999로 요청해도
+                );
+
+        // When
+        com.back.domain.dashboard.customer.dto.response.WishlistResponse.List result =
+                dashboardService.getWishlist(testBuyer.getId(), request);
+
+        // Then: 8개만 조회되어야 함
+        assertAll(
+                () -> assertThat(result.getContent()).hasSize(8),
+                () -> assertThat(result.getSize()).isEqualTo(8),  // 페이지 크기 8개 고정
+                () -> assertThat(result.getTotalElements()).isEqualTo(10),
+                () -> assertThat(result.getTotalPages()).isEqualTo(2),
+                () -> assertThat(result.isHasNext()).isTrue()
+        );
+    }
+
+    @Test
+    @DisplayName("찜한 상품 목록 조회 - 삭제된 상품 제외")
+    void getWishlist_ExcludesDeletedProducts() {
+        // Given: 일반 상품과 삭제된 상품 찜하기
+        com.back.domain.wishlist.repository.WishlistRepository wishlistRepository =
+                applicationContext.getBean(com.back.domain.wishlist.repository.WishlistRepository.class);
+
+        // 일반 상품 찜
+        com.back.domain.wishlist.entity.Wishlist wishlist1 =
+                com.back.domain.wishlist.entity.Wishlist.builder()
+                        .user(testBuyer)
+                        .product(testProduct)
+                        .build();
+        wishlistRepository.save(wishlist1);
+
+        // 삭제된 상품 생성 및 찜
+        com.back.domain.product.product.entity.Product deletedProduct =
+                createTestProduct("삭제된상품", "삭제된브랜드");
+        deletedProduct.setDeleted(true);
+        productRepository.save(deletedProduct);
+
+        com.back.domain.wishlist.entity.Wishlist wishlist2 =
+                com.back.domain.wishlist.entity.Wishlist.builder()
+                        .user(testBuyer)
+                        .product(deletedProduct)
+                        .build();
+        wishlistRepository.save(wishlist2);
+
+        com.back.domain.dashboard.customer.dto.request.WishlistSearchRequest request =
+                new com.back.domain.dashboard.customer.dto.request.WishlistSearchRequest(
+                        0, 8, null, null, null, null, null
+                );
+
+        // When
+        com.back.domain.dashboard.customer.dto.response.WishlistResponse.List result =
+                dashboardService.getWishlist(testBuyer.getId(), request);
+
+        // Then: 삭제된 상품은 제외되어야 함
+        assertAll(
+                () -> assertThat(result.getContent()).hasSize(1),
+                () -> assertThat(result.getContent().get(0).productName()).isEqualTo("테스트 상품"),
+                () -> assertThat(result.getSummary().totalWishItems()).isEqualTo(1)
+        );
+    }
+
+    @Test
+    @DisplayName("찜한 상품 목록 조회 - 최신 찜 순 정렬")
+    void getWishlist_SortsByLatestFirst() {
+        // Given: 3개의 찜 생성
+        com.back.domain.wishlist.repository.WishlistRepository wishlistRepository =
+                applicationContext.getBean(com.back.domain.wishlist.repository.WishlistRepository.class);
+
+        com.back.domain.product.product.entity.Product product1 =
+                createTestProduct("첫번째상품", "브랜드1");
+        com.back.domain.product.product.entity.Product product2 =
+                createTestProduct("두번째상품", "브랜드2");
+        com.back.domain.product.product.entity.Product product3 =
+                createTestProduct("세번째상품", "브랜드3");
+
+        wishlistRepository.save(com.back.domain.wishlist.entity.Wishlist.builder()
+                .user(testBuyer).product(product1).build());
+
+        try {
+            Thread.sleep(10);  // 시간 차이를 두기 위해
+        } catch (InterruptedException e) {
+            // ignore
+        }
+
+        wishlistRepository.save(com.back.domain.wishlist.entity.Wishlist.builder()
+                .user(testBuyer).product(product2).build());
+
+        try {
+            Thread.sleep(10);
+        } catch (InterruptedException e) {
+            // ignore
+        }
+
+        wishlistRepository.save(com.back.domain.wishlist.entity.Wishlist.builder()
+                .user(testBuyer).product(product3).build());
+
+        com.back.domain.dashboard.customer.dto.request.WishlistSearchRequest request =
+                new com.back.domain.dashboard.customer.dto.request.WishlistSearchRequest(
+                        0, 8, null, null, null, null, null
+                );
+
+        // When
+        com.back.domain.dashboard.customer.dto.response.WishlistResponse.List result =
+                dashboardService.getWishlist(testBuyer.getId(), request);
+
+        // Then: 최신 순으로 정렬되어야 함
+        assertAll(
+                () -> assertThat(result.getContent()).hasSize(3),
+                () -> assertThat(result.getContent().get(0).productName()).isEqualTo("세번째상품"),
+                () -> assertThat(result.getContent().get(1).productName()).isEqualTo("두번째상품"),
+                () -> assertThat(result.getContent().get(2).productName()).isEqualTo("첫번째상품")
+        );
+    }
+
+    @Test
+    @DisplayName("찜한 상품 목록 조회 - 빈 목록일 때")
+    void getWishlist_ReturnsEmptyWhenNoWishlists() {
+        // Given: 찜이 없는 상태
+        com.back.domain.dashboard.customer.dto.request.WishlistSearchRequest request =
+                new com.back.domain.dashboard.customer.dto.request.WishlistSearchRequest(
+                        0, 8, null, null, null, null, null
+                );
+
+        // When
+        com.back.domain.dashboard.customer.dto.response.WishlistResponse.List result =
+                dashboardService.getWishlist(testBuyer.getId(), request);
+
+        // Then
+        assertAll(
+                () -> assertThat(result.getContent()).isEmpty(),
+                () -> assertThat(result.getSummary().totalWishItems()).isEqualTo(0),
+                () -> assertThat(result.getTotalElements()).isEqualTo(0),
+                () -> assertThat(result.getTotalPages()).isEqualTo(0),
+                () -> assertThat(result.isHasNext()).isFalse()
+        );
+    }
+
+    @Test
+    @DisplayName("찜한 상품 목록 조회 - brandName과 productName 모두 반환")
+    void getWishlist_ReturnsBothBrandNameAndProductName() {
+        // Given
+        com.back.domain.wishlist.repository.WishlistRepository wishlistRepository =
+                applicationContext.getBean(com.back.domain.wishlist.repository.WishlistRepository.class);
+
+        com.back.domain.wishlist.entity.Wishlist wishlist =
+                com.back.domain.wishlist.entity.Wishlist.builder()
+                        .user(testBuyer)
+                        .product(testProduct)
+                        .build();
+        wishlistRepository.save(wishlist);
+
+        com.back.domain.dashboard.customer.dto.request.WishlistSearchRequest request =
+                new com.back.domain.dashboard.customer.dto.request.WishlistSearchRequest(
+                        0, 8, null, null, null, null, null
+                );
+
+        // When
+        com.back.domain.dashboard.customer.dto.response.WishlistResponse.List result =
+                dashboardService.getWishlist(testBuyer.getId(), request);
+
+        // Then: brandName과 productName 모두 있어야 함
+        com.back.domain.dashboard.customer.dto.response.WishlistResponse.Item item =
+                result.getContent().get(0);
+        assertAll(
+                () -> assertThat(item.brandName()).isNotNull(),
+                () -> assertThat(item.brandName()).isEqualTo("테스트 브랜드"),
+                () -> assertThat(item.productName()).isNotNull(),
+                () -> assertThat(item.productName()).isEqualTo("테스트 상품")
+        );
+    }
+
+    // Helper: 테스트 상품 생성
+    private com.back.domain.product.product.entity.Product createTestProduct(
+            String productName, String brandName) {
+        com.back.domain.product.category.repository.CategoryRepository categoryRepository =
+                applicationContext.getBean(com.back.domain.product.category.repository.CategoryRepository.class);
+
+        com.back.domain.product.category.entity.Category category =
+                categoryRepository.findById(1L)
+                        .orElseGet(() -> categoryRepository.save(
+                                com.back.domain.product.category.entity.Category.builder()
+                                        .categoryName("테스트카테고리")
+                                        .build()
+                        ));
+
+        com.back.domain.product.product.entity.Product product =
+                com.back.domain.product.product.entity.Product.builder()
+                        .category(category)
+                        .user(testArtist)
+                        .name(productName)
+                        .brandName(brandName)
+                        .price(10000)
+                        .discountRate(0)
+                        .stock(100)
+                        .bundleShippingAvailable(false)
+                        .deliveryCharge(3000)
+                        .additionalShippingCharge(3000)
+                        .deliveryType(com.back.domain.product.product.entity.DeliveryType.PAID)
+                        .description("테스트 상품 설명")
+                        .sellingStatus(com.back.domain.product.product.entity.SellingStatus.SELLING)
+                        .displayStatus(com.back.domain.product.product.entity.DisplayStatus.DISPLAYING)
+                        .minQuantity(1)
+                        .maxQuantity(10)
+                        .productModelName("TEST-" + System.currentTimeMillis())
+                        .certification(false)
+                        .origin("한국")
+                        .material("플라스틱")
+                        .size("10x10cm")
+                        .isPlanned(false)
+                        .isRestock(false)
+                        .isDeleted(false)
+                        .build();
+
+        return productRepository.save(product);
     }
 
 }
