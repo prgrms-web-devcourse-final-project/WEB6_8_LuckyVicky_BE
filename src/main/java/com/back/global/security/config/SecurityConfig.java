@@ -55,7 +55,7 @@ public class SecurityConfig {
                         // ========================================
 
                         // 인증/인가 - 회원가입, 로그인, 토큰 관련
-                        .requestMatchers("/api/auth/signup", "/api/auth/login", "/api/auth/refresh", "/api/auth/logout").permitAll()
+                        .requestMatchers("/api/auth/signup", "/api/auth/login", "/api/auth/refresh", "/api/auth/logout", "/api/auth/password/reset").permitAll()
 
                         // 중복 검증 - 이메일, 닉네임, 전화번호
                         .requestMatchers("/api/auth/duplicate/**").permitAll()
