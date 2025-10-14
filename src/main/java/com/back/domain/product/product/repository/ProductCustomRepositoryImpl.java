@@ -90,6 +90,7 @@ public class ProductCustomRepositoryImpl implements ProductCustomRepository {
         // 정렬 처리
         if ("priceAsc".equals(sort)) query.orderBy(p.price.asc()); // 가격 낮은 순
         else if ("priceDesc".equals(sort)) query.orderBy(p.price.desc()); // 가격 높은 순
+        else if ("popular".equals(sort)) query.orderBy(p.popularityScore.desc()); // 인기순
         else query.orderBy(p.createDate.desc()); // 일단 기본은 신상품순으로 함.
 
         // 전체 건수 조회 (페이징용)
