@@ -4,13 +4,15 @@ import com.back.domain.funding.entity.Funding;
 import com.fasterxml.jackson.annotation.JsonFormat;
 
 import java.time.LocalDateTime;
+import java.util.List;
+import java.util.stream.Collectors;
 
 public record FundingCreateResponse(
         Long fundingId,
         String title,
         String description,
         String categoryName,
-        String imageUrl,
+        List<FundingDetailResponse.FundingImageResponse> images,
         long targetAmount,
         long price,
         Integer stock,
@@ -25,8 +27,9 @@ public record FundingCreateResponse(
                 funding.getTitle(),
                 funding.getDescription(),
                 funding.getCategory().getCategoryName(),
-                funding.getImageUrl(),
-                funding.getTargetAmount(),
+                funding.getImages().stream()
+                        .map(FundingDetailResponse.FundingImageResponse::fromEntity)
+                        .collect(Collectors.toList()),                funding.getTargetAmount(),
                 funding.getPrice(),
                 funding.getStock(),
                 funding.getStartDate(),
