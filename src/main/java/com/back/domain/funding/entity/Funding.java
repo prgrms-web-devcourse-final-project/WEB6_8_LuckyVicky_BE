@@ -10,6 +10,7 @@ import org.hibernate.annotations.Where;
 
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 
@@ -93,7 +94,19 @@ public class Funding extends BaseEntity {
 
     @OneToMany(mappedBy = "funding", cascade = CascadeType.ALL, orphanRemoval = true)// 펀딩이 저장/삭제되면 모든 펀딩이미지도 저장/삭제됨, 펀딩에서 이미지를 제거하면 DB에서 해당 이미지도 삭제됨.
     @org.hibernate.annotations.BatchSize(size = 100)  // N+1 방지: 100개씩 배치로 조회
-    private List<FundingImage> images = new ArrayList<>();; // 해당 펀딩의 이미지들(대표/추가/썸네일 이미지)
+    @Builder.Default
+    private List<FundingImage> images = new ArrayList<>(); // 해당 펀딩의 이미지들(대표/추가/썸네일 이미지)
+
+    public void addImage(FundingImage image) {
+        if (images == null) images = new ArrayList<>();
+        images.add(image);
+        image.setFunding(this); // 양방향 연관관계 고정
+    }
+
+    public void addImages(Collection<FundingImage> list) {
+        if (list == null || list.isEmpty()) return;
+        list.forEach(this::addImage);
+    }
 
     // ========== 팩토리 메서드 ==========
 
@@ -306,7 +319,7 @@ public class Funding extends BaseEntity {
     }
 
     public List<FundingImage> getImages() {
-        return Collections.unmodifiableList(images);
+        return Collections.unmodifiableList(images == null ? List.of() : images);
     }
 
     // ========== 검증 메서드 ==========

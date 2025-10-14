@@ -1,11 +1,13 @@
 package com.back.domain.funding.dto.request;
 
+import com.back.global.s3.S3FileRequest;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.Future;
 import jakarta.validation.constraints.Positive;
 import jakarta.validation.constraints.Size;
 
 import java.time.LocalDateTime;
+import java.util.List;
 
 @Schema(description = "펀딩 수정 요청")
 public record FundingUpdateRequest(
@@ -33,5 +35,7 @@ public record FundingUpdateRequest(
 
         @Schema(description = "펀딩 종료일", example = "2025-12-31T12:30:00")
         @Future
-        LocalDateTime endDate
+        LocalDateTime endDate,
+
+        List<S3FileRequest> images
 ) {}

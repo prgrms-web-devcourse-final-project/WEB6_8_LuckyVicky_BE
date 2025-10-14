@@ -12,7 +12,7 @@ public record FundingDetailResponse(
         Long id, // 펀딩 ID
         String title, // 펀딩 제목
         String description, // 펀딩 설명
-        String imageUrl, // 펀딩 이미지 URL
+        List<FundingDetailResponse.FundingImageResponse> images,
         String categoryName, // 카테고리 이름
         long targetAmount, // 목표 금액
         long price, // 가격
@@ -42,7 +42,9 @@ public record FundingDetailResponse(
                 funding.getId(),
                 funding.getTitle(),
                 funding.getDescription(),
-                funding.getImageUrl(),
+                funding.getImages().stream()
+                        .map(FundingImageResponse::fromEntity)
+                        .collect(Collectors.toList()),
                 funding.getCategory().getCategoryName(),
                 funding.getTargetAmount(),
                 funding.getPrice(),
@@ -59,6 +61,18 @@ public record FundingDetailResponse(
                 funding.getNews().stream().map(FundingNewsDto::new).collect(Collectors.toList()),
                 funding.getCommunities().stream().map(FundingCommunityDto::new).collect(Collectors.toList())
         );
+    }
+
+    public record FundingImageResponse(
+            String fileUrl,
+            String fileType
+    ) {
+        public static FundingDetailResponse.FundingImageResponse fromEntity(FundingImage img) {
+            return new FundingDetailResponse.FundingImageResponse(
+                    img.getFileUrl(),
+                    img.getFileType().name()
+            );
+        }
     }
 
     // 작성자 DTO

@@ -47,7 +47,7 @@ public class FundingControllerTest {
                                   "title": "테스트 펀딩",
                                   "description": "테스트 펀딩 설명",
                                   "categoryId": 1,
-                                  "imageUrl": "http://example.com/image.jpg",
+                                  "imageUrl": "test.jpg",
                                   "targetAmount": 1000000,
                                   "price": 100000,
                                   "stock": 1000,
@@ -62,7 +62,6 @@ public class FundingControllerTest {
                 .andExpect(jsonPath("$.data.title").value("테스트 펀딩"))
                 .andExpect(jsonPath("$.data.description").value("테스트 펀딩 설명"))
                 .andExpect(jsonPath("$.data.categoryName").value("테스트 카테고리"))
-                .andExpect(jsonPath("$.data.imageUrl").value("http://example.com/image.jpg"))
                 .andExpect(jsonPath("$.data.targetAmount").value(1000000))
                 .andExpect(jsonPath("$.data.startDate").value("2025-11-20 00:00:00"))
                 .andExpect(jsonPath("$.data.endDate").value("2025-12-31 23:59:59"));
@@ -190,7 +189,6 @@ public class FundingControllerTest {
                 .andExpect(jsonPath("$.data.categoryName").value("테스트 카테고리"))
                 .andExpect(jsonPath("$.data.price").value(10000))
                 .andExpect(jsonPath("$.data.stock").value(50))
-                .andExpect(jsonPath("$.data.imageUrl").value("www.example.com"))
                 .andExpect(jsonPath("$.data.targetAmount").value(1_000_000))
                 .andExpect(jsonPath("$.data.startDate").exists())
                 .andExpect(jsonPath("$.data.endDate").exists());
@@ -301,7 +299,7 @@ public class FundingControllerTest {
                 .andDo(print())
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.content", hasSize(4)))
-                .andExpect(jsonPath("$.data.content[0].title").value("프리미엄 굿즈")) // 200만원
+                .andExpect(jsonPath("$.data.content[0].title").value("프리미엄 굿즈"))
                 .andExpect(jsonPath("$.data.content[0].targetAmount").value(2000000));
     }
 
@@ -473,7 +471,6 @@ public class FundingControllerTest {
                                 {
                                   "title": "제목 수정",
                                   "description": "설명 수정",
-                                  "imageUrl": "https://example.com/new.jpg",
                                   "targetAmount": 1200000,
                                   "endDate": "2030-12-31T12:30:00"
                                 }
@@ -483,7 +480,6 @@ public class FundingControllerTest {
         ra.andExpect(status().isOk())
                 .andExpect(jsonPath("$.msg").value("펀딩이 수정되었습니다."))
                 .andExpect(jsonPath("$.data.title").value("제목 수정"))
-                .andExpect(jsonPath("$.data.imageUrl").value("https://example.com/new.jpg"))
                 .andExpect(jsonPath("$.data.targetAmount").value(1200000))
                 .andExpect(jsonPath("$.data.endDate").value("2030-12-31 12:30:00"));
     }
