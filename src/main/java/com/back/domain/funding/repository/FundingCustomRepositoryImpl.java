@@ -169,7 +169,8 @@ public class FundingCustomRepositoryImpl implements FundingCustomRepository {
                 com.back.domain.funding.entity.FundingStatus.OPEN,
                 com.back.domain.funding.entity.FundingStatus.APPROVED,
                 com.back.domain.funding.entity.FundingStatus.SUCCESS,
-                com.back.domain.funding.entity.FundingStatus.CLOSED
+                com.back.domain.funding.entity.FundingStatus.CLOSED,
+                com.back.domain.funding.entity.FundingStatus.FAILED
         ));
 
         query.where(predicates.toArray(new Predicate[0]));
