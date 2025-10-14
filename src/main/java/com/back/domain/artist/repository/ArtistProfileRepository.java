@@ -8,7 +8,7 @@ import org.springframework.data.jpa.repository.Query;
 import java.util.List;
 import java.util.Optional;
 
-public interface ArtistProfileRepository extends JpaRepository<ArtistProfile, Long> {
+public interface ArtistProfileRepository extends JpaRepository<ArtistProfile, Long>, ArtistProfileCustomRepository {
 
     // User ID로 작가 프로필 조회
     Optional<ArtistProfile> findByUserId(Long artistId);
