@@ -386,7 +386,7 @@ public class ProductService {
         }
     }
     // 존재하지 않는 상품 검증
-    private Product getProductOrThrow(UUID productUuid) {
+    public Product getProductOrThrow(UUID productUuid) {
         return productRepository.findByProductUuid(productUuid)
                 .orElseThrow(() -> new ServiceException("404", "존재하지 않는 상품입니다. UUID: " + productUuid));
     }
