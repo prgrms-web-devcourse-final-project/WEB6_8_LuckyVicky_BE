@@ -62,14 +62,10 @@ public class SettlementService {
         log.info("정산 레코드 생성 완료 - 정산ID: {}", settlement.getId());
 
         // 4. 모리캐시 잔액 업데이트 (차감 및 통계 업데이트)
-        balance.processSettlement(
-                settlement.getRequestedAmount(),
-                settlement.getCommissionAmount(),
-                settlement.getNetAmount()
-        );
+        balance.processSettlement(settlement.getRequestedAmount());
         moriCashBalanceRepository.save(balance);
 
-        log.info("환전 완료 - 정산ID: {}, 매출금액: {}, 수수료: {}, 순수익: {}, 잔여 모리캐시: {}", 
+        log.info("환전 완료 - 정산ID: {}, 환전금액: {}, 수수료: {}, 순수익: {}, 잔여 모리캐시: {}", 
                 settlement.getId(), 
                 settlement.getRequestedAmount(), 
                 settlement.getCommissionAmount(),

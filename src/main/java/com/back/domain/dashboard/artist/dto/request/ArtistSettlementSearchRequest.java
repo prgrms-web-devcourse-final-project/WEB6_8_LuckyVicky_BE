@@ -13,15 +13,10 @@ public record ArtistSettlementSearchRequest(
         @Min(value = 2020, message = "연도는 2020년 이후만 가능합니다")
         Integer year,
 
-        /** 조회 월 (1-12) */
+        /** 조회 월 (1-12, null이면 연도 전체) */
         @Min(value = 1, message = "월은 1-12 사이여야 합니다")
         @Max(value = 12, message = "월은 1-12 사이여야 합니다")
         Integer month,
-
-        /** 집계 단위 */
-        @Pattern(regexp = "^(MONTH|DAY)$",
-                message = "granularity는 MONTH, DAY 중 하나여야 합니다")
-        String granularity,
 
         /** 정산 상태 */
         @Pattern(regexp = "^(PENDING|PROCESSING|COMPLETED)$",
@@ -54,7 +49,6 @@ public record ArtistSettlementSearchRequest(
      * 기본값이 적용된 생성자
      */
     public ArtistSettlementSearchRequest {
-        if (granularity == null) granularity = "MONTH";
         if (page == null) page = 0;
         if (size == null) size = 20;
         if (sort == null) sort = "date";

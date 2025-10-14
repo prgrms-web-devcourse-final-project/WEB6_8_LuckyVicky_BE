@@ -19,10 +19,11 @@ public interface OrderRepository extends JpaRepository<Order, Long> {
     // 사용자별 주문 목록 (페이징)
     Page<Order> findByUserOrderByOrderDateDesc(User user, Pageable pageable);
 
-    // 주문 상세 조회 - Fetch Join (상품 정보만)
+    // 주문 상세 조회 - Fetch Join (상품 정보 + 작가 정보)
     @Query("SELECT o FROM Order o " +
             "LEFT JOIN FETCH o.orderItems oi " +
-            "LEFT JOIN FETCH oi.product " +
+            "LEFT JOIN FETCH oi.product p " +
+            "LEFT JOIN FETCH p.user " +
             "WHERE o.id = :orderId")
     Optional<Order> findByIdWithOrderItems(@Param("orderId") Long orderId);
 

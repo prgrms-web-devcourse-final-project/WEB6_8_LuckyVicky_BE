@@ -59,10 +59,10 @@ public class Settlement extends BaseEntity {
     private Settlement(User artist, Integer requestedAmount, Integer commissionRate,
                       String bankName, String accountNumber, String accountHolder) {
         this.artist = artist;
-        this.requestedAmount = requestedAmount;
-        this.commissionRate = commissionRate != null ? commissionRate : 10;
-        this.commissionAmount = calculateCommission(requestedAmount, this.commissionRate);
-        this.netAmount = requestedAmount - this.commissionAmount;
+        this.requestedAmount = requestedAmount;  // 환전 신청 금액 (이미 수수료 차감된 모리캐시)
+        this.commissionRate = 0;  // 환전 시에는 수수료 없음
+        this.commissionAmount = 0;  // 수수료 0원
+        this.netAmount = requestedAmount;  // 신청한 금액 그대로 지급
         this.status = SettlementStatus.COMPLETED; // 즉시 완료 처리
         this.bankName = bankName;
         this.accountNumber = accountNumber;

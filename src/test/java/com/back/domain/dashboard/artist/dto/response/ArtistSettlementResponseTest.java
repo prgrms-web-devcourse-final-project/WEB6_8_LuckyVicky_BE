@@ -30,7 +30,6 @@ public class ArtistSettlementResponseTest {
         // Then - 핵심 구조만 검증
         assertAll(
                 () -> assertThat(response.scope()).isNotNull(),
-                () -> assertThat(response.granularity()).isEqualTo("MONTH"),
                 () -> assertThat(response.timezone()).isEqualTo("Asia/Seoul"),
                 () -> assertThat(response.summary()).isNotNull(),
                 () -> assertThat(response.chart()).isNotNull(),
@@ -127,7 +126,6 @@ public class ArtistSettlementResponseTest {
         assertAll(
                 () -> assertThat(response.scope().year()).isEqualTo(2025),
                 () -> assertThat(response.scope().month()).isNull(),
-                () -> assertThat(response.granularity()).isEqualTo("MONTH"),
                 () -> assertThat(response.summary().totalSales().amount()).isEqualTo(128000),
                 () -> assertThat(response.summary().totalCommission().amount()).isEqualTo(51264),
                 () -> assertThat(response.summary().totalNetIncome().amount()).isEqualTo(64000),
@@ -154,7 +152,6 @@ public class ArtistSettlementResponseTest {
     private ArtistSettlementResponse createSampleResponse(LocalDateTime serverTime) {
         return new ArtistSettlementResponse(
                 createSampleScope(),
-                "MONTH",
                 "Asia/Seoul",
                 createSampleSummary(),
                 createSampleChart(),
@@ -205,7 +202,6 @@ public class ArtistSettlementResponseTest {
 
         return new ArtistSettlementResponse(
                 new ArtistSettlementResponse.Scope(2025, null),
-                "MONTH",
                 "Asia/Seoul",
                 new ArtistSettlementResponse.Summary(
                         new ArtistSettlementResponse.AmountInfo(128000, "총 매출"),

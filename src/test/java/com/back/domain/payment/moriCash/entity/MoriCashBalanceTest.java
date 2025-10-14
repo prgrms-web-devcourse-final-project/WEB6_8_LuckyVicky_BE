@@ -19,14 +19,14 @@ class MoriCashBalanceTest {
         balance.addBalance(100000); // 10만원 충전
 
         // when
-        balance.processSettlement(64000, 6400, 57600);
+        balance.processSettlement(64000); // 64000원 환전
 
         // then
         assertThat(balance.getTotalBalance()).isEqualTo(36000); // 100000 - 64000
         assertThat(balance.getAvailableBalance()).isEqualTo(36000);
         assertThat(balance.getTotalSettlementSales()).isEqualTo(64000);
-        assertThat(balance.getTotalSettlementCommission()).isEqualTo(6400);
-        assertThat(balance.getTotalSettlementNetIncome()).isEqualTo(57600);
+        assertThat(balance.getTotalSettlementCommission()).isEqualTo(0); // 환전 시 수수료 없음
+        assertThat(balance.getTotalSettlementNetIncome()).isEqualTo(64000);
     }
 
     @Test
@@ -40,7 +40,7 @@ class MoriCashBalanceTest {
         balance.addBalance(50000); // 5만원만 충전
 
         // when & then
-        assertThatThrownBy(() -> balance.processSettlement(100000, 10000, 90000))
+        assertThatThrownBy(() -> balance.processSettlement(100000))
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessage("환전 가능한 모리캐시가 부족합니다.");
     }
@@ -56,7 +56,7 @@ class MoriCashBalanceTest {
         balance.addBalance(100000);
 
         // when & then
-        assertThatThrownBy(() -> balance.processSettlement(-10000, -1000, -9000))
+        assertThatThrownBy(() -> balance.processSettlement(-10000))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessage("환전 금액은 양수여야 합니다.");
     }
@@ -72,13 +72,13 @@ class MoriCashBalanceTest {
         balance.addBalance(200000); // 20만원 충전
 
         // when
-        balance.processSettlement(50000, 5000, 45000); // 1차 정산
-        balance.processSettlement(30000, 3000, 27000); // 2차 정산
+        balance.processSettlement(50000); // 1차 정산 (환전)
+        balance.processSettlement(30000); // 2차 정산 (환전)
 
         // then
         assertThat(balance.getAvailableBalance()).isEqualTo(120000); // 200000 - 50000 - 30000
         assertThat(balance.getTotalSettlementSales()).isEqualTo(80000); // 50000 + 30000
-        assertThat(balance.getTotalSettlementCommission()).isEqualTo(8000); // 5000 + 3000
-        assertThat(balance.getTotalSettlementNetIncome()).isEqualTo(72000); // 45000 + 27000
+        assertThat(balance.getTotalSettlementCommission()).isEqualTo(0); // 환전 시 수수료 없음
+        assertThat(balance.getTotalSettlementNetIncome()).isEqualTo(80000); // 50000 + 30000
     }
 }

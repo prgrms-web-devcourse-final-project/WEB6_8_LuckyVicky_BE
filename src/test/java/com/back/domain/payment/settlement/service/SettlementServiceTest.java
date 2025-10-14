@@ -63,7 +63,7 @@ class SettlementServiceTest {
         Settlement settlement = Settlement.builder()
                 .artist(artist)
                 .requestedAmount(64000)
-                .commissionRate(10)
+                .commissionRate(0)  // 환전 시 수수료 없음
                 .bankName("데모은행")
                 .accountNumber("000-0000-0000")
                 .accountHolder("작가")
@@ -78,16 +78,16 @@ class SettlementServiceTest {
         // then
         assertThat(response).isNotNull();
         assertThat(response.getRequestedAmount()).isEqualTo(64000);
-        assertThat(response.getCommissionAmount()).isEqualTo(6400); // 10%
-        assertThat(response.getNetAmount()).isEqualTo(57600); // 90%
+        assertThat(response.getCommissionAmount()).isEqualTo(0); // 환전 시 수수료 없음
+        assertThat(response.getNetAmount()).isEqualTo(64000); // 신청 금액 그대로 지급
         assertThat(response.getStatus()).isEqualTo(SettlementStatus.COMPLETED);
         assertThat(response.getRemainingBalance()).isEqualTo(36000); // 100000 - 64000
 
         // 모리캐시 차감 확인
         assertThat(balance.getAvailableBalance()).isEqualTo(36000);
         assertThat(balance.getTotalSettlementSales()).isEqualTo(64000);
-        assertThat(balance.getTotalSettlementCommission()).isEqualTo(6400);
-        assertThat(balance.getTotalSettlementNetIncome()).isEqualTo(57600);
+        assertThat(balance.getTotalSettlementCommission()).isEqualTo(0); // 환전 시 수수료 없음
+        assertThat(balance.getTotalSettlementNetIncome()).isEqualTo(64000); // 신청 금액 그대로
 
         verify(settlementRepository, times(1)).save(any(Settlement.class));
         verify(moriCashBalanceRepository, times(1)).save(balance);
@@ -152,7 +152,7 @@ class SettlementServiceTest {
     }
 
     @Test
-    @DisplayName("수수료 계산 확인 - 10%")
+    @DisplayName("수수료 계산 확인 - 환전 시 수수료 없음")
     void commissionCalculation() {
         // given
         WithdrawalRequestDto requestDto = WithdrawalRequestDto.builder()
@@ -162,7 +162,7 @@ class SettlementServiceTest {
         Settlement settlement = Settlement.builder()
                 .artist(artist)
                 .requestedAmount(50000)
-                .commissionRate(10)
+                .commissionRate(0)  // 환전 시 수수료 없음
                 .bankName("데모은행")
                 .accountNumber("000-0000-0000")
                 .accountHolder("작가")
@@ -175,8 +175,8 @@ class SettlementServiceTest {
         WithdrawalResponseDto response = settlementService.requestWithdrawal(requestDto, artist);
 
         // then
-        assertThat(response.getCommissionAmount()).isEqualTo(5000); // 50000 * 0.1
-        assertThat(response.getNetAmount()).isEqualTo(45000); // 50000 - 5000
+        assertThat(response.getCommissionAmount()).isEqualTo(0); // 환전 시 수수료 없음
+        assertThat(response.getNetAmount()).isEqualTo(50000); // 신청 금액 그대로
     }
 
     @Test

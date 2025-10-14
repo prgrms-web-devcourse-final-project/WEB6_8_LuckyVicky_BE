@@ -484,7 +484,6 @@ class ArtistDashboardControllerTest {
 
         ArtistSettlementResponse mockResponse = new ArtistSettlementResponse(
                 new ArtistSettlementResponse.Scope(2025, null),
-                "MONTH",
                 "Asia/Seoul",
                 mockSummary,
                 new ArtistSettlementResponse.Chart(
@@ -499,7 +498,7 @@ class ArtistDashboardControllerTest {
                 .willReturn(mockResponse);
 
         ArtistSettlementSearchRequest request = new ArtistSettlementSearchRequest(
-                2025, null, "MONTH", null, null, DEFAULT_PAGE, DEFAULT_SIZE, "date", "DESC");
+                2025, null, null, null, DEFAULT_PAGE, DEFAULT_SIZE, "date", "DESC");
 
         // When
         ResponseEntity<RsData<ArtistSettlementResponse>> response =
@@ -515,7 +514,6 @@ class ArtistDashboardControllerTest {
                 () -> assertThat(data.table()).isNotNull(),
                 () -> assertThat(data.scope().year()).isEqualTo(2025),
                 () -> assertThat(data.scope().month()).isNull(),
-                () -> assertThat(data.granularity()).isEqualTo("MONTH"),
                 () -> assertThat(data.summary().totalSales().amount()).isEqualTo(128000),
                 () -> assertThat(data.summary().totalCommission().amount()).isEqualTo(51264),
                 () -> assertThat(data.summary().totalNetIncome().amount()).isEqualTo(64000),
@@ -540,7 +538,6 @@ class ArtistDashboardControllerTest {
         // Given
         ArtistSettlementResponse mockResponse = new ArtistSettlementResponse(
                 new ArtistSettlementResponse.Scope(2025, 9),
-                "DAY",
                 "Asia/Seoul",
                 new ArtistSettlementResponse.Summary(
                         new ArtistSettlementResponse.AmountInfo(50000, "총 매출"),
@@ -556,7 +553,7 @@ class ArtistDashboardControllerTest {
         );
 
         ArtistSettlementSearchRequest request = new ArtistSettlementSearchRequest(
-                2025, 9, "DAY", "COMPLETED", 101L, DEFAULT_PAGE, DEFAULT_SIZE, "grossAmount", "ASC");
+                2025, 9, "COMPLETED", 101L, DEFAULT_PAGE, DEFAULT_SIZE, "grossAmount", "ASC");
 
         given(artistDashboardService.getSettlements(eq(TEST_ARTIST_ID), eq(request)))
                 .willReturn(mockResponse);
@@ -570,7 +567,6 @@ class ArtistDashboardControllerTest {
         assertAll(
                 () -> assertThat(data.scope().year()).isEqualTo(2025),
                 () -> assertThat(data.scope().month()).isEqualTo(9),
-                () -> assertThat(data.granularity()).isEqualTo("DAY"),
                 () -> assertThat(data.summary().totalSales().amount()).isEqualTo(50000),
                 () -> assertThat(data.table().getContent()).isEmpty()
         );

@@ -12,8 +12,6 @@ import java.util.List;
 public record ArtistSettlementResponse(
         /** 조회 범위 */
         Scope scope,
-        /** 집계 단위 */
-        String granularity,
         /** 타임존 */
         String timezone,
         /** 요약 정보 */
