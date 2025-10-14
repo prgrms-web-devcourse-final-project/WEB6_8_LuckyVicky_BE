@@ -130,17 +130,17 @@ public class OrderController {
     }
 
     /**
-     * 주문 상태 변경 (관리자용)
+     * 주문 상태 변경 (관리자 또는 작가용)
      */
     @PatchMapping("/{orderId}/status")
-    @PreAuthorize("hasAuthority('ROLE_ADMIN') or hasAuthority('ROLE_ROOT')")
-    @Operation(summary = "주문 상태 변경", description = "관리자가 주문 상태를 변경합니다. (관리자 전용)")
+    @PreAuthorize("hasAnyRole('ADMIN', 'ROOT', 'ARTIST')")
+    @Operation(summary = "주문 상태 변경", description = "관리자 또는 작가가 주문 상태를 변경합니다. 작가는 자신의 상품 주문만 변경 가능합니다.")
     public ResponseEntity<Void> changeOrderStatus(
             @PathVariable Long orderId,
             @Valid @RequestBody OrderStatusChangeRequestDto requestDto,
-            @AuthenticationPrincipal User admin
+            @AuthenticationPrincipal User user
     ) {
-        orderService.changeOrderStatus(orderId, requestDto, admin);
+        orderService.changeOrderStatus(orderId, requestDto, user);
         return ResponseEntity.ok().build();
     }
 }

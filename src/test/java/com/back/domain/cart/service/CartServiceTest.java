@@ -70,6 +70,9 @@ class CartServiceTest {
         when(testProduct.getId()).thenReturn(1L);
         when(testProduct.getName()).thenReturn("테스트 상품");
         when(testProduct.getPrice()).thenReturn(10000);
+        when(testProduct.getDiscountPrice()).thenReturn(10000);
+        when(testProduct.isDeleted()).thenReturn(false);
+        when(testProduct.getStock()).thenReturn(100);
 
         // 테스트용 장바구니 생성 (일반) - id는 BaseEntity에서 자동 생성되므로 Builder에서 설정 불가
         testNormalCart = Cart.builder()
@@ -93,18 +96,24 @@ class CartServiceTest {
 
         // 테스트용 요청 DTO 생성 (일반)
         normalCartRequestDto = new CartRequestDto(
-                1L,
-                2,
-                "일반 상품 옵션",
-                "NORMAL"
+                1L,              // productId
+                2,               // quantity
+                "일반 상품 옵션",  // optionInfo
+                "NORMAL",        // cartType
+                null,            // fundingId
+                null,            // fundingPrice
+                null             // fundingStock
         );
 
         // 테스트용 요청 DTO 생성 (펀딩)
         fundingCartRequestDto = new CartRequestDto(
-                1L,
-                1,
-                "펀딩 상품 옵션",
-                "FUNDING"
+                1L,                // productId
+                1,                 // quantity
+                null,              // optionInfo (펀딩은 옵션 안씀)
+                "FUNDING",         // cartType
+                "FUNDING_001",     // fundingId
+                50000,             // fundingPrice
+                100                // fundingStock
         );
 
         // CartCalculator Mock 설정
@@ -181,10 +190,13 @@ class CartServiceTest {
     void addToCart_InvalidCartType_ThrowException() {
         // Given
         CartRequestDto invalidDto = new CartRequestDto(
-                1L,
-                2,
-                null,
-                "INVALID"
+                1L,        // productId
+                2,         // quantity
+                null,      // optionInfo
+                "INVALID", // cartType
+                null,      // fundingId
+                null,      // fundingPrice
+                null       // fundingStock
         );
 
         given(productRepository.findById(1L)).willReturn(Optional.of(testProduct));
@@ -429,35 +441,153 @@ class CartServiceTest {
     }
 
     @Test
-    @DisplayName("선택된 장바구니 아이템만 조회 성공")
-    void getSelectedCartItems_Success() {
+    @DisplayName("선택된 장바구니 아이템만 조회 성공 - 검증 없음")
+    void getSelectedCartItems_WithoutValidation_Success() {
         // Given
         testNormalCart.select();
         testFundingCart.select();
         List<Cart> selectedCarts = Arrays.asList(testNormalCart, testFundingCart);
-        given(cartRepository.findByUserAndIsSelectedTrue(testUser)).willReturn(selectedCarts);
+        given(cartRepository.findByUserAndIsSelectedTrueWithProduct(testUser)).willReturn(selectedCarts);
 
         // When
-        List<CartResponseDto> result = cartService.getSelectedCartItems(testUser);
+        List<CartResponseDto> result = cartService.getSelectedCartItems(testUser, false);
 
         // Then
         assertThat(result).hasSize(2);
         assertThat(result.get(0).isSelected()).isTrue();
         assertThat(result.get(1).isSelected()).isTrue();
-        verify(cartRepository).findByUserAndIsSelectedTrue(testUser);
+        verify(cartRepository).findByUserAndIsSelectedTrueWithProduct(testUser);
+    }
+
+    @Test
+    @DisplayName("선택된 장바구니 아이템만 조회 성공 - 유효성 검증 포함")
+    void getSelectedCartItems_WithValidation_Success() {
+        // Given
+        testNormalCart.select();
+        testFundingCart.select();
+        List<Cart> selectedCarts = Arrays.asList(testNormalCart, testFundingCart);
+        given(cartRepository.findByUserAndIsSelectedTrueWithProduct(testUser)).willReturn(selectedCarts);
+
+        // When
+        List<CartResponseDto> result = cartService.getSelectedCartItems(testUser, true);
+
+        // Then
+        assertThat(result).isNotNull();
+        verify(cartRepository).findByUserAndIsSelectedTrueWithProduct(testUser);
     }
 
     @Test
     @DisplayName("선택된 장바구니 아이템이 없을 때")
     void getSelectedCartItems_EmptyResult() {
         // Given
-        given(cartRepository.findByUserAndIsSelectedTrue(testUser)).willReturn(Collections.emptyList());
+        given(cartRepository.findByUserAndIsSelectedTrueWithProduct(testUser)).willReturn(Collections.emptyList());
 
         // When
-        List<CartResponseDto> result = cartService.getSelectedCartItems(testUser);
+        List<CartResponseDto> result = cartService.getSelectedCartItems(testUser, false);
 
         // Then
         assertThat(result).isEmpty();
+        verify(cartRepository).findByUserAndIsSelectedTrueWithProduct(testUser);
+    }
+
+    @Test
+    @DisplayName("전체 장바구니 아이템 조회 성공 - 검증 없음")
+    void getAllCartItems_WithoutValidation_Success() {
+        // Given
+        List<Cart> allCarts = Arrays.asList(testNormalCart, testFundingCart);
+        given(cartRepository.findByUserWithProduct(testUser)).willReturn(allCarts);
+
+        // When
+        List<CartResponseDto> result = cartService.getAllCartItems(testUser, false);
+
+        // Then
+        assertThat(result).hasSize(2);
+        verify(cartRepository).findByUserWithProduct(testUser);
+    }
+
+    @Test
+    @DisplayName("전체 장바구니 아이템 조회 성공 - 유효성 검증 포함")
+    void getAllCartItems_WithValidation_Success() {
+        // Given
+        List<Cart> allCarts = Arrays.asList(testNormalCart, testFundingCart);
+        given(cartRepository.findByUserWithProduct(testUser)).willReturn(allCarts);
+
+        // When
+        List<CartResponseDto> result = cartService.getAllCartItems(testUser, true);
+
+        // Then
+        assertThat(result).isNotNull();
+        verify(cartRepository).findByUserWithProduct(testUser);
+    }
+
+    @Test
+    @DisplayName("주문 가능한 장바구니 검증 성공 - 전체주문")
+    void validateCartItemsForOrder_FullOrder_Success() {
+        // Given
+        testNormalCart.select();
+        List<Cart> allCarts = Arrays.asList(testNormalCart);
+        given(cartRepository.findByUserWithProduct(testUser)).willReturn(allCarts);
+
+        // When & Then
+        cartService.validateCartItemsForOrder(testUser, true);
+        
+        verify(cartRepository).findByUserWithProduct(testUser);
+    }
+
+    @Test
+    @DisplayName("주문 가능한 장바구니 검증 성공 - 선택주문")
+    void validateCartItemsForOrder_SelectedOrder_Success() {
+        // Given
+        testNormalCart.select();
+        List<Cart> selectedCarts = Arrays.asList(testNormalCart);
+        given(cartRepository.findByUserAndIsSelectedTrue(testUser)).willReturn(selectedCarts);
+
+        // When & Then
+        cartService.validateCartItemsForOrder(testUser, false);
+        
+        verify(cartRepository).findByUserAndIsSelectedTrue(testUser);
+    }
+
+    @Test
+    @DisplayName("빈 장바구니 주문 검증 실패")
+    void validateCartItemsForOrder_EmptyCart_ThrowException() {
+        // Given
+        given(cartRepository.findByUserWithProduct(testUser)).willReturn(Collections.emptyList());
+
+        // When & Then
+        assertThatThrownBy(() -> cartService.validateCartItemsForOrder(testUser, true))
+                .isInstanceOf(ServiceException.class)
+                .hasMessage("CART_EMPTY : 주문할 장바구니 아이템이 없습니다.");
+    }
+
+    @Test
+    @DisplayName("장바구니 총 금액 계산 성공 - 전체주문")
+    void calculateTotalAmount_FullOrder_Success() {
+        // Given
+        List<Cart> allCarts = Arrays.asList(testNormalCart, testFundingCart);
+        given(cartRepository.findByUserWithProduct(testUser)).willReturn(allCarts);
+
+        // When
+        Integer result = cartService.calculateTotalAmount(testUser, true);
+
+        // Then
+        assertThat(result).isNotNull();
+        verify(cartRepository).findByUserWithProduct(testUser);
+    }
+
+    @Test
+    @DisplayName("장바구니 총 금액 계산 성공 - 선택주문")
+    void calculateTotalAmount_SelectedOrder_Success() {
+        // Given
+        testNormalCart.select();
+        List<Cart> selectedCarts = Arrays.asList(testNormalCart);
+        given(cartRepository.findByUserAndIsSelectedTrue(testUser)).willReturn(selectedCarts);
+
+        // When
+        Integer result = cartService.calculateTotalAmount(testUser, false);
+
+        // Then
+        assertThat(result).isNotNull();
         verify(cartRepository).findByUserAndIsSelectedTrue(testUser);
     }
 
@@ -465,10 +595,21 @@ class CartServiceTest {
     @DisplayName("펀딩 장바구니에 상품 추가 성공")
     void addToCart_FundingCart_Success() {
         // Given
+        Cart fundingCartWithFields = Cart.builder()
+                .user(testUser)
+                .product(testProduct)
+                .quantity(1)
+                .cartType(Cart.CartType.FUNDING)
+                .isSelected(true)
+                .fundingId("FUNDING_001")
+                .fundingPrice(50000)
+                .fundingStock(100)
+                .build();
+        
         given(productRepository.findById(1L)).willReturn(Optional.of(testProduct));
         given(cartRepository.findByUserAndProductAndCartType(eq(testUser), any(Product.class), eq(Cart.CartType.FUNDING)))
                 .willReturn(Optional.empty());
-        given(cartRepository.save(any(Cart.class))).willReturn(testFundingCart);
+        given(cartRepository.save(any(Cart.class))).willReturn(fundingCartWithFields);
 
         // When
         CartResponseDto result = cartService.addToCart(testUser, fundingCartRequestDto);
@@ -476,7 +617,10 @@ class CartServiceTest {
         // Then
         assertThat(result).isNotNull();
         assertThat(result.cartType()).isEqualTo("FUNDING");
-        assertThat(result.optionInfo()).isEqualTo("펀딩 상품 옵션");
+        assertThat(result.optionInfo()).isNull(); // 펀딩은 옵션 안씀
+        assertThat(result.fundingId()).isEqualTo("FUNDING_001");
+        assertThat(result.fundingPrice()).isEqualTo(50000);
+        assertThat(result.fundingStock()).isEqualTo(100);
 
         verify(productRepository).findById(1L);
         verify(cartRepository).findByUserAndProductAndCartType(eq(testUser), any(Product.class), eq(Cart.CartType.FUNDING));

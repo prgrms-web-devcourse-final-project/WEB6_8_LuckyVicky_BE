@@ -48,6 +48,8 @@ public class ArtistDashboardServiceImpl implements ArtistDashboardService {
     private final BetaAnalyticsDataClient analyticsDataClient;
     private final com.back.domain.artist.repository.ArtistProfileRepository artistProfileRepository;
     private final com.back.domain.payment.moriCash.service.MoriCashBalanceService moriCashBalanceService;
+    private final com.back.domain.payment.moriCash.repository.MoriCashBalanceRepository moriCashBalanceRepository;
+    private final com.back.domain.payment.settlement.repository.SettlementRepository settlementRepository;
     private final com.back.domain.user.repository.UserRepository userRepository;
 
     @Value("${google.analytics.property-id}")
@@ -1302,10 +1304,219 @@ public class ArtistDashboardServiceImpl implements ArtistDashboardService {
 
     @Override
     public ArtistSettlementResponse getSettlements(Long artistId, ArtistSettlementSearchRequest request) {
-        // TODO: 실제 데이터베이스 연동 필요
-        log.info("작가 정산 내역 조회 - artistId: {}, year: {}, month: {}",
-                artistId, request.year(), request.month());
-        throw new UnsupportedOperationException("작가 정산 내역 조회는 아직 구현되지 않았습니다.");
+        log.info("작가 정산 내역 조회 시작 - artistId: {}, year: {}, month: {}, page: {}, size: {}, sort: {}, order: {}",
+                artistId, request.year(), request.month(), request.page(), request.size(), request.sort(), request.order());
+
+        // 1. 작가 조회
+        com.back.domain.user.entity.User artist = userRepository.findById(artistId)
+                .orElseThrow(() -> new com.back.global.exception.ServiceException("404", "작가를 찾을 수 없습니다."));
+
+        // 2. 조회 범위 설정
+        Integer year = request.year() != null ? request.year() : LocalDate.now().getYear();
+        Integer month = request.month(); // null이면 전체 연도
+
+        ArtistSettlementResponse.Scope scope = new ArtistSettlementResponse.Scope(year, month);
+
+        // 3. 기간 계산
+        LocalDateTime startDate;
+        LocalDateTime endDate;
+
+        if (month != null) {
+            // 특정 월
+            startDate = LocalDateTime.of(year, month, 1, 0, 0, 0);
+            endDate = startDate.plusMonths(1).minusSeconds(1);
+        } else {
+            // 연도 전체
+            startDate = LocalDateTime.of(year, 1, 1, 0, 0, 0);
+            endDate = LocalDateTime.of(year, 12, 31, 23, 59, 59);
+        }
+
+        // 4. 요약 정보 조회 (해당 기간의 정산 데이터 집계)
+        // MoriCashBalance가 아닌 실제 Settlement 데이터에서 계산
+        org.springframework.data.domain.Page<com.back.domain.payment.settlement.entity.Settlement> allSettlements = 
+                settlementRepository.findByArtistAndStatusAndCompletedAtBetween(
+                        artist,
+                        com.back.domain.payment.settlement.entity.SettlementStatus.COMPLETED,
+                        startDate,
+                        endDate,
+                        org.springframework.data.domain.PageRequest.of(0, Integer.MAX_VALUE)
+                );
+
+        int totalSales = allSettlements.getContent().stream()
+                .mapToInt(com.back.domain.payment.settlement.entity.Settlement::getRequestedAmount)
+                .sum();
+        
+        int totalCommission = allSettlements.getContent().stream()
+                .mapToInt(com.back.domain.payment.settlement.entity.Settlement::getCommissionAmount)
+                .sum();
+        
+        int totalNetIncome = allSettlements.getContent().stream()
+                .mapToInt(com.back.domain.payment.settlement.entity.Settlement::getNetAmount)
+                .sum();
+
+        ArtistSettlementResponse.Summary summary = new ArtistSettlementResponse.Summary(
+                new ArtistSettlementResponse.AmountInfo(totalSales, "총 매출"),
+                new ArtistSettlementResponse.AmountInfo(totalCommission, "수수료"),
+                new ArtistSettlementResponse.AmountInfo(totalNetIncome, "순수익")
+        );
+
+        // 5. 차트 데이터 (월별 집계)
+        ArtistSettlementResponse.Chart chart = createSettlementChart(artistId, year, month);
+
+        // 6. 테이블 데이터 (정산 내역 목록)
+        ArtistSettlementResponse.Table table = createSettlementTable(
+                artist, startDate, endDate, request
+        );
+
+        log.info("작가 정산 내역 조회 완료 - artistId: {}, 총매출: {}, 수수료: {}, 순수익: {}",
+                artistId, totalSales, totalCommission, totalNetIncome);
+
+        return new ArtistSettlementResponse(
+                scope,
+                "Asia/Seoul",
+                summary,
+                chart,
+                table,
+                LocalDateTime.now()
+        );
+    }
+
+    /**
+     * 정산 차트 데이터 생성 (월별 매출 그래프 - 1월~12월)
+     */
+    private ArtistSettlementResponse.Chart createSettlementChart(Long artistId, Integer year, Integer month) {
+        List<ArtistSettlementResponse.ChartDataPoint> salesPoints = new ArrayList<>();
+
+        // 작가 조회
+        com.back.domain.user.entity.User artist = userRepository.findById(artistId)
+                .orElseThrow(() -> new com.back.global.exception.ServiceException("404", "작가를 찾을 수 없습니다."));
+
+        // 항상 연도 전체의 월별 데이터 (1월~12월)
+        for (int m = 1; m <= 12; m++) {
+            LocalDateTime monthStart = LocalDateTime.of(year, m, 1, 0, 0, 0);
+            LocalDateTime monthEnd = monthStart.plusMonths(1).minusSeconds(1);
+
+            // 해당 월의 특정 작가 정산 합계 조회
+            org.springframework.data.domain.Page<com.back.domain.payment.settlement.entity.Settlement> settlements =
+                    settlementRepository.findByArtistAndStatusAndCompletedAtBetween(
+                            artist,
+                            com.back.domain.payment.settlement.entity.SettlementStatus.COMPLETED,
+                            monthStart,
+                            monthEnd,
+                            org.springframework.data.domain.PageRequest.of(0, Integer.MAX_VALUE)
+                    );
+
+            int monthTotal = settlements.getContent().stream()
+                    .mapToInt(com.back.domain.payment.settlement.entity.Settlement::getRequestedAmount)
+                    .sum();
+
+            salesPoints.add(new ArtistSettlementResponse.ChartDataPoint(
+                    String.format("%d-%02d", year, m),
+                    monthTotal
+            ));
+        }
+
+        // Y축 범위 계산
+        int maxValue = salesPoints.stream()
+                .mapToInt(ArtistSettlementResponse.ChartDataPoint::value)
+                .max()
+                .orElse(0);
+
+        int yMax = (int) Math.ceil(maxValue * 1.2); // 최대값의 120%
+
+        ArtistSettlementResponse.ChartSeries series = new ArtistSettlementResponse.ChartSeries(salesPoints);
+        ArtistSettlementResponse.YDomain yDomain = new ArtistSettlementResponse.YDomain(0, yMax);
+
+        return new ArtistSettlementResponse.Chart(series, yDomain);
+    }
+
+    /**
+     * 정산 테이블 데이터 생성
+     */
+    private ArtistSettlementResponse.Table createSettlementTable(
+            com.back.domain.user.entity.User artist,
+            LocalDateTime startDate,
+            LocalDateTime endDate,
+            ArtistSettlementSearchRequest request) {
+
+        // 1. 정렬 설정
+        org.springframework.data.domain.Sort sort = createSettlementSort(request.sort(), request.order());
+        PageRequest pageRequest = PageRequest.of(request.page(), request.size(), sort);
+
+        // 2. Settlement 조회
+        Page<com.back.domain.payment.settlement.entity.Settlement> settlementPage = 
+                settlementRepository.findByArtistAndStatusAndCompletedAtBetween(
+                        artist,
+                        com.back.domain.payment.settlement.entity.SettlementStatus.COMPLETED,
+                        startDate,
+                        endDate,
+                        pageRequest
+                );
+
+        // 3. DTO 변환
+        List<ArtistSettlementResponse.Settlement> content = settlementPage.getContent().stream()
+                .map(this::convertToSettlementDto)
+                .toList();
+
+        return new ArtistSettlementResponse.Table(
+                content,
+                request.page(),
+                request.size(),
+                (int) settlementPage.getTotalElements(),
+                settlementPage.getTotalPages(),
+                settlementPage.hasNext(),
+                settlementPage.hasPrevious()
+        );
+    }
+
+    /**
+     * 정산 정렬 생성
+     */
+    private org.springframework.data.domain.Sort createSettlementSort(String sortField, String sortOrder) {
+        org.springframework.data.domain.Sort.Direction direction =
+                "ASC".equalsIgnoreCase(sortOrder)
+                        ? org.springframework.data.domain.Sort.Direction.ASC
+                        : org.springframework.data.domain.Sort.Direction.DESC;
+
+        return switch (sortField) {
+            case "grossAmount" -> org.springframework.data.domain.Sort.by(direction, "requestedAmount");
+            case "commission" -> org.springframework.data.domain.Sort.by(direction, "commissionAmount");
+            case "netAmount" -> org.springframework.data.domain.Sort.by(direction, "netAmount");
+            case "status" -> org.springframework.data.domain.Sort.by(direction, "status");
+            default -> org.springframework.data.domain.Sort.by(direction, "completedAt");
+        };
+    }
+
+    /**
+     * Settlement 엔티티를 DTO로 변환
+     */
+    private ArtistSettlementResponse.Settlement convertToSettlementDto(
+            com.back.domain.payment.settlement.entity.Settlement settlement) {
+
+        // 상품 정보 (더미 - 실제로는 Settlement에 상품 정보가 없음)
+        ArtistSettlementResponse.Product product = new ArtistSettlementResponse.Product(
+                null,
+                "생활꿀팁미니 상품결제입니다"
+        );
+
+        // 날짜 포맷팅
+        String dateStr = settlement.getCompletedAt() != null
+                ? settlement.getCompletedAt().format(DateTimeFormatter.ofPattern("yyyy. MM. dd"))
+                : settlement.getCreateDate().format(DateTimeFormatter.ofPattern("yyyy. MM. dd"));
+
+        // 상태 텍스트 (항상 정산완료 - 즉시 완료 처리되므로)
+        String statusText = "정산완료";
+
+        return new ArtistSettlementResponse.Settlement(
+                settlement.getId(),
+                dateStr,
+                product,
+                settlement.getRequestedAmount(),
+                settlement.getCommissionAmount(),
+                settlement.getNetAmount(),
+                settlement.getStatus().name(),
+                statusText
+        );
     }
 
     @Override

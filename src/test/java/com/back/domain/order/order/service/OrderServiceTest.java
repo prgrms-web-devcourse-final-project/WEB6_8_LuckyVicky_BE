@@ -92,15 +92,18 @@ class OrderServiceTest {
         Pageable pageable = PageRequest.of(0, 10);
         UUID productUuid = UUID.randomUUID();
         Order order = createOrderWithItem(user, createProduct(1L, productUuid));
-        Page<Order> orderPage = new PageImpl<>(List.of(order));
-        given(orderRepository.findByUserOrderByOrderDateDesc(user, pageable)).willReturn(orderPage);
+        
+        // N+1 방지를 위해 Fetch Join 메서드 Mock 설정
+        given(orderRepository.findByUserWithOrderItemsAndProducts(user, pageable)).willReturn(List.of(order));
+        given(orderRepository.countByUser(user)).willReturn(1L);
 
         Page<OrderResponseDto> result = orderService.getOrderList(user, pageable);
 
         assertThat(result.getContent()).hasSize(1);
         assertThat(result.getContent().get(0).orderId()).isNotNull();
         assertThat(result.getContent().get(0).orderItems()).isNotEmpty();
-        verify(orderRepository).findByUserOrderByOrderDateDesc(user, pageable);
+        verify(orderRepository).findByUserWithOrderItemsAndProducts(user, pageable);
+        verify(orderRepository).countByUser(user);
     }
 
     @Test
