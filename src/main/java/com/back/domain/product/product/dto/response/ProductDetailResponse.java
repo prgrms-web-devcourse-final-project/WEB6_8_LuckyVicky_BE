@@ -64,7 +64,7 @@ public record ProductDetailResponse(
         @Schema(description = "추가 상품 목록(null 가능)")
         List<AdditionalProductResponse> additionalProducts,
 
-        @Schema( description = "이미지 파일 목록", example = "[" + "{\"url\":\"https://example.com/image1.jpg\",\"fileType\":\"MAIN\",\"s3Key\":\"product-images/uuid1.png\",\"originalFileName\":\"example.png\"}," + "{\"url\":\"https://example.com/image2.jpg\",\"fileType\":\"ADDITIONAL\",\"s3Key\":\"product-images/uuid2.png\",\"originalFileName\":\"example2.png\"}," + "]" )
+        @Schema( description = "이미지 파일 목록", example = "[" + "{\"url\":\"https://example.com/image1.jpg\",\"type\":\"MAIN\",\"s3Key\":\"product-images/uuid1.png\",\"originalFileName\":\"example.png\"}," + "{\"url\":\"https://example.com/image2.jpg\",\"fileType\":\"ADDITIONAL\",\"s3Key\":\"product-images/uuid2.png\",\"originalFileName\":\"example2.png\"}," + "]" )
         List<ProductImageResponse> images,
 
         @Schema(description = "상품 필수 정보")
