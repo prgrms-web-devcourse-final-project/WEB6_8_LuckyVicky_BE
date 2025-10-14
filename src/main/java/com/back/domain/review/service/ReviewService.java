@@ -52,11 +52,11 @@ public class ReviewService {
      */
     @Transactional
     public ReviewResponseDto createReview(ReviewCreateRequestDto requestDto, User user) {
-        log.info("리뷰 작성 요청 - 상품ID: {}, 사용자: {}, 평점: {}", 
-                requestDto.getProductId(), user.getId(), requestDto.getRating());
+        log.info("리뷰 작성 요청 - 상품UUID: {}, 사용자: {}, 평점: {}", 
+                requestDto.getProductUuid(), user.getId(), requestDto.getRating());
 
         // 상품 존재 확인
-        Product product = productRepository.findById(requestDto.getProductId())
+        Product product = productRepository.findByProductUuid(requestDto.getProductUuid())
                 .orElseThrow(() -> new ServiceException("E-1", "상품을 찾을 수 없습니다."));
 
         // 이미 리뷰를 작성했는지 확인
@@ -112,10 +112,10 @@ public class ReviewService {
      * 리뷰 목록 조회
      */
     public ReviewListResponseDto getReviewList(ReviewListRequestDto requestDto, User currentUser) {
-        log.info("리뷰 목록 조회 요청 - 상품ID: {}, 리뷰타입: {}", 
-                requestDto.getProductId(), requestDto.getReviewType());
+        log.info("리뷰 목록 조회 요청 - 상품UUID: {}, 리뷰타입: {}", 
+                requestDto.getProductUuid(), requestDto.getReviewType());
 
-        Product product = productRepository.findById(requestDto.getProductId())
+        Product product = productRepository.findByProductUuid(requestDto.getProductUuid())
                 .orElseThrow(() -> new ServiceException("E-1", "상품을 찾을 수 없습니다."));
 
         // 페이지 설정
@@ -211,14 +211,14 @@ public class ReviewService {
      */
     @Transactional
     public ReviewDetailResponseDto writeReviewFromPopup(ReviewWriteRequestDto requestDto, User user) {
-        log.info("리뷰 작성 팝업 요청 - 상품ID: {}, 사용자: {}, 평점: {}, 상품옵션: {}", 
-                requestDto.getProductId(), user.getId(), requestDto.getRating(), requestDto.getProductOption());
+        log.info("리뷰 작성 팝업 요청 - 상품UUID: {}, 사용자: {}, 평점: {}, 상품옵션: {}", 
+                requestDto.getProductUuid(), user.getId(), requestDto.getRating(), requestDto.getProductOption());
 
         // 입력 데이터 유효성 검사
         validateReviewWriteRequest(requestDto);
 
         // 상품 존재 확인
-        Product product = productRepository.findById(requestDto.getProductId())
+        Product product = productRepository.findByProductUuid(requestDto.getProductUuid())
                 .orElseThrow(() -> new ServiceException("E-1", "상품을 찾을 수 없습니다."));
 
         // 이미 리뷰를 작성했는지 확인
@@ -391,9 +391,10 @@ public class ReviewService {
             // 좋아요 취소
             ReviewLike reviewLike = existingLike.get();
             reviewLike.cancelLike();
-            review.decreaseLikeCount();
             reviewLikeRepository.save(reviewLike);
-            reviewRepository.save(review);
+            
+            // DB 쿼리로 직접 감소 (동시성 안전)
+            reviewRepository.decreaseLikeCount(reviewId);
             
             log.info("리뷰 좋아요 취소 - 리뷰ID: {}", reviewId);
             return false;
@@ -403,9 +404,10 @@ public class ReviewService {
                     .review(review)
                     .user(user)
                     .build();
-            review.increaseLikeCount();
             reviewLikeRepository.save(reviewLike);
-            reviewRepository.save(review);
+            
+            // DB 쿼리로 직접 증가 (동시성 안전)
+            reviewRepository.increaseLikeCount(reviewId);
             
             log.info("리뷰 좋아요 추가 - 리뷰ID: {}", reviewId);
             return true;

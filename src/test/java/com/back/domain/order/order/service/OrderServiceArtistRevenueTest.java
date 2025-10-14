@@ -21,6 +21,7 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.test.util.ReflectionTestUtils;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
@@ -75,6 +76,7 @@ class OrderServiceArtistRevenueTest {
 
         // 관리자 생성 (테스트용)
         admin = User.createLocalUser("admin@test.com" + uniqueSuffix, "password", "관리자" + uniqueSuffix, "010-9999-9999");
+        ReflectionTestUtils.setField(admin, "role", com.back.domain.user.entity.Role.ADMIN); // 관리자 권한 부여
         admin = userRepository.save(admin);
 
         // 카테고리 생성

@@ -5,6 +5,8 @@ import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
+import java.util.UUID;
+
 /**
  * 리뷰 목록 조회 요청 DTO
  */
@@ -14,7 +16,7 @@ import lombok.NoArgsConstructor;
 @Builder
 public class ReviewListRequestDto {
 
-    private Long productId; // 상품 ID
+    private UUID productUuid; // 상품 UUID
 
     private ReviewType reviewType; // 리뷰 타입 (PHOTO, GENERAL, ALL)
 
