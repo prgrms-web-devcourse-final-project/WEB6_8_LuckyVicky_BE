@@ -43,6 +43,7 @@ public class DashboardServiceImpl implements DashboardService {
     private final com.back.domain.payment.cash.repository.CashTransactionRepository cashTransactionRepository;
     private final com.back.domain.payment.moriCash.repository.MoriCashPaymentRepository moriCashPaymentRepository;
     private final com.back.domain.payment.moriCash.repository.MoriCashBalanceRepository moriCashBalanceRepository;
+    private final com.back.domain.follow.repository.FollowRepository followRepository;
 
     private static final DateTimeFormatter ORDER_DATE_FORMATTER = DateTimeFormatter.ofPattern("yyyy. MM. dd");
     private static final DateTimeFormatter FUNDING_DATE_FORMATTER = DateTimeFormatter.ofPattern("yyyy. MM. dd");
@@ -448,42 +449,51 @@ public class DashboardServiceImpl implements DashboardService {
 
     @Override
     public FollowingResponse.List getFollowingArtists(Long userId, FollowingSearchRequest request) {
-        // TODO: 실제 데이터베이스 조회 로직 구현
         log.debug("팔로우한 작가 목록 조회 - userId: {}, request: {}", userId, request);
 
-        // 사용자 조회
+        // 1. 사용자 조회
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new ServiceException("USER_NOT_FOUND", "사용자를 찾을 수 없습니다."));
 
-        FollowingResponse.Profile profile = new FollowingResponse.Profile(
-                user.getId().toString(),
-                user.getName(),
-                user.getProfileImageUrl());
+        // 2. 팔로우 목록 조회
+        List<com.back.domain.follow.entity.Follow> follows =
+                followRepository.findFollowingsByFollowerId(userId);
 
-        FollowingResponse.SummaryDto summary =
-                new FollowingResponse.SummaryDto(5);
+        // 3. 페이징 처리
+        long total = follows.size();
+        int start = request.page() * request.size();
+        int end = Math.min(start + request.size(), follows.size());
+        List<com.back.domain.follow.entity.Follow> pagedFollows =
+                follows.subList(start, Math.min(end, follows.size()));
 
-        List<FollowingResponse.Artist> content = Arrays.asList(
-                new FollowingResponse.Artist(
-                        "artist_001", "감성작가",
-                        "https://cdn.example.com/artists/artist_001/profile.jpg",
-                        500, "/artists/artist_001",
-                        new FollowingResponse.FollowRelation("FOLLOWING", LocalDateTime.now()),
-                        new FollowingResponse.Badge(true)
-                ),
-                new FollowingResponse.Artist(
-                        "artist_002", "캐릭터작가",
-                        "https://cdn.example.com/artists/artist_002/profile.jpg",
-                        123, "/artists/artist_002",
-                        new FollowingResponse.FollowRelation("FOLLOWING", LocalDateTime.now().minusDays(1)),
-                        new FollowingResponse.Badge(false)
-                )
-        );
+        // 4. DTO 변환
+        List<FollowingResponse.Artist> content = pagedFollows.stream()
+                .map(this::convertToFollowingArtist)
+                .collect(Collectors.toList());
+
+        // 5. 페이징 정보 계산
+        int totalPages = (int) Math.ceil((double) total / request.size());
+        boolean hasNext = request.page() < totalPages - 1;
+        boolean hasPrevious = request.page() > 0;
 
         return new FollowingResponse.List(
-                profile, summary, content,
+                content,
                 request.page(), request.size(),
-                5, 1, false, false);
+                total, totalPages, hasNext, hasPrevious);
+    }
+
+    /**
+     * Follow 엔티티를 Artist DTO로 변환
+     */
+    private FollowingResponse.Artist convertToFollowingArtist(com.back.domain.follow.entity.Follow follow) {
+        com.back.domain.artist.entity.ArtistProfile artist = follow.getFollowingArtist();
+
+        return new FollowingResponse.Artist(
+                artist.getId().toString(),
+                artist.getArtistName(),
+                artist.getProfileImageUrl(), // null인 경우 프론트에서 기본 이미지 처리
+                "/artists/" + artist.getId()
+        );
     }
 
     @Override
@@ -719,8 +729,8 @@ public class DashboardServiceImpl implements DashboardService {
                 tx.getBalanceAfter() != null ? tx.getBalanceAfter() : 0,
                 "모리캐시",
                 "COMPLETED",
-                tx.getOrder() != null ? 
-                    new CashResponse.Link("/orders/" + tx.getOrder().getOrderNumber()) : null
+                tx.getOrder() != null ?
+                        new CashResponse.Link("/orders/" + tx.getOrder().getOrderNumber()) : null
         )));
 
         // 4. 날짜순 정렬 (최신순)
@@ -729,7 +739,7 @@ public class DashboardServiceImpl implements DashboardService {
         // 5. 페이징 처리
         int start = request.page() * request.size();
         int end = Math.min(start + request.size(), allTransactions.size());
-        var pagedContent = start < allTransactions.size() ? 
+        var pagedContent = start < allTransactions.size() ?
                 allTransactions.subList(start, end) : List.<CashResponse.Transaction>of();
 
         // 6. 통계 계산

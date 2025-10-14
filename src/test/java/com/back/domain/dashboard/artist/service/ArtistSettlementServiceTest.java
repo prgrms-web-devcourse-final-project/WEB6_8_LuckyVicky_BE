@@ -1,11 +1,23 @@
 package com.back.domain.dashboard.artist.service;
 
+import com.back.domain.artist.entity.ArtistApplication;
+import com.back.domain.artist.entity.ArtistProfile;
+import com.back.domain.artist.repository.ArtistApplicationRepository;
+import com.back.domain.artist.repository.ArtistProfileRepository;
 import com.back.domain.dashboard.artist.dto.request.ArtistSettlementSearchRequest;
 import com.back.domain.dashboard.artist.dto.response.ArtistSettlementResponse;
-import com.back.domain.payment.moriCash.entity.MoriCashBalance;
-import com.back.domain.payment.moriCash.repository.MoriCashBalanceRepository;
-import com.back.domain.payment.settlement.entity.Settlement;
-import com.back.domain.payment.settlement.repository.SettlementRepository;
+import com.back.domain.order.order.entity.Order;
+import com.back.domain.order.order.entity.OrderStatus;
+import com.back.domain.order.order.entity.PaymentMethod;
+import com.back.domain.order.order.repository.OrderRepository;
+import com.back.domain.order.orderItem.entity.OrderItem;
+import com.back.domain.product.category.entity.Category;
+import com.back.domain.product.category.repository.CategoryRepository;
+import com.back.domain.product.product.entity.DeliveryType;
+import com.back.domain.product.product.entity.DisplayStatus;
+import com.back.domain.product.product.entity.Product;
+import com.back.domain.product.product.entity.SellingStatus;
+import com.back.domain.product.product.repository.ProductRepository;
 import com.back.domain.user.entity.User;
 import com.back.domain.user.repository.UserRepository;
 import org.junit.jupiter.api.BeforeEach;
@@ -15,13 +27,20 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+/**
+ * 작가 정산 내역 조회 테스트
+ * Order 기반 정산 통계로 변경 후 테스트
+ */
 @SpringBootTest
 @Transactional
+@DisplayName("작가 정산 내역 조회 테스트 (Order 기반)")
 class ArtistSettlementServiceTest {
 
     @Autowired
@@ -31,13 +50,24 @@ class ArtistSettlementServiceTest {
     private UserRepository userRepository;
 
     @Autowired
-    private MoriCashBalanceRepository moriCashBalanceRepository;
+    private ProductRepository productRepository;
 
     @Autowired
-    private SettlementRepository settlementRepository;
+    private CategoryRepository categoryRepository;
+
+    @Autowired
+    private OrderRepository orderRepository;
+
+    @Autowired
+    private ArtistProfileRepository artistProfileRepository;
+
+    @Autowired
+    private ArtistApplicationRepository artistApplicationRepository;
 
     private User artist;
-    private MoriCashBalance balance;
+    private User customer;
+    private Category category;
+    private Product product;
 
     @BeforeEach
     void setUp() {
@@ -46,93 +76,133 @@ class ArtistSettlementServiceTest {
         artist.becomeArtist();
         artist = userRepository.save(artist);
 
-        // 모리캐시 잔액 생성 및 충분한 금액 충전
-        balance = MoriCashBalance.createInitialBalance(artist);
-        balance.addBalance(1000000); // 정산할 수 있도록 충분한 금액 충전
-        balance = moriCashBalanceRepository.save(balance);
+        // 작가 신청 및 프로필 생성
+        ArtistApplication application = ArtistApplication.builder()
+                .user(artist)
+                .ownerName("작가")
+                .email("artist@test.com")
+                .phone("010-1234-5678")
+                .artistName("작가")
+                .businessNumber("123-45-67890")
+                .businessAddress("서울시")
+                .businessAddressDetail("강남구")
+                .businessZipCode("12345")
+                .telecomSalesNumber("2024-서울-0001")
+                .bankName("테스트은행")
+                .bankAccount("123-456-789012")
+                .accountName("작가")
+                .build();
+        application = artistApplicationRepository.save(application);
 
-        // 정산 데이터 생성
-        createSettlementData();
+        ArtistProfile profile = ArtistProfile.builder()
+                .user(artist)
+                .artistApplication(application)
+                .artistName("작가")
+                .bankName("테스트은행")
+                .bankAccount("123-456-789012")
+                .build();
+        artistProfileRepository.save(profile);
+
+        // 고객 생성
+        customer = User.createLocalUser("customer@test.com", "password", "고객", "010-2222-2222");
+        customer = userRepository.save(customer);
+
+        // 카테고리 생성
+        category = Category.builder()
+                .categoryName("테스트카테고리")
+                .build();
+        category = categoryRepository.save(category);
+
+        // 상품 생성
+        product = Product.builder()
+                .category(category)
+                .user(artist)
+                .name("테스트 상품")
+                .brandName("테스트 브랜드")
+                .price(10000)
+                .discountRate(0)
+                .stock(100)
+                .bundleShippingAvailable(false)
+                .deliveryCharge(3000)
+                .additionalShippingCharge(0)
+                .deliveryType(DeliveryType.PAID)
+                .description("테스트 상품 설명")
+                .sellingStatus(SellingStatus.SELLING)
+                .displayStatus(DisplayStatus.DISPLAYING)
+                .minQuantity(1)
+                .maxQuantity(10)
+                .productModelName("TEST-001")
+                .certification(false)
+                .origin("한국")
+                .material("플라스틱")
+                .size("10x10cm")
+                .isPlanned(false)
+                .isRestock(false)
+                .isDeleted(false)
+                .build();
+        product = productRepository.save(product);
+
+        // 배송 완료된 주문 데이터 생성
+        createDeliveredOrders();
     }
 
-    private void createSettlementData() {
-        // 정산 데이터 5개 생성 (모두 현재 시간으로 생성됨)
-        for (int i = 0; i < 5; i++) {
-            int amount = 30000 + (i * 10000); // 30k, 40k, 50k, 60k, 70k
-            Settlement settlement = Settlement.builder()
-                    .artist(artist)
-                    .requestedAmount(amount)
-                    .commissionRate(10)  // 사용되지 않음 (환전 시 수수료 없음)
-                    .bankName("데모은행")
-                    .accountNumber("000-0000-0000")
-                    .accountHolder(artist.getName())
+    private void createDeliveredOrders() {
+        // 5개의 배송 완료된 주문 생성
+        int[] amounts = {30000, 40000, 50000, 60000, 70000};
+        
+        for (int amount : amounts) {
+            Order order = Order.builder()
+                    .user(customer)
+                    .orderNumber("ORD" + System.nanoTime())
+                    .status(OrderStatus.DELIVERED)  // 배송 완료 상태
+                    .totalQuantity(amount / 10000)
+                    .totalAmount(BigDecimal.valueOf(amount))
+                    .shippingFee(BigDecimal.valueOf(3000))
+                    .finalAmount(BigDecimal.valueOf(amount + 3000))
+                    .shippingAddress1("서울시")
+                    .shippingAddress2("강남구")
+                    .recipientName("수령인")
+                    .recipientPhone("010-1234-5678")
+                    .paymentMethod(PaymentMethod.CARD)
+                    .orderDate(LocalDateTime.now())
                     .build();
-            
-            settlement = settlementRepository.save(settlement);
-            
-            System.out.println("=== Created Settlement ===");
-            System.out.println("ID: " + settlement.getId());
-            System.out.println("Amount: " + settlement.getRequestedAmount());
-            System.out.println("Commission: " + settlement.getCommissionAmount());
-            System.out.println("Net: " + settlement.getNetAmount());
-            System.out.println("Status: " + settlement.getStatus());
-            System.out.println("CompletedAt: " + settlement.getCompletedAt());
 
-            // MoriCashBalance 통계 업데이트 (환전 처리)
-            balance.processSettlement(amount);
+            OrderItem orderItem = OrderItem.builder()
+                    .order(order)
+                    .product(product)
+                    .quantity(amount / 10000)
+                    .price(BigDecimal.valueOf(10000))
+                    .build();
+
+            order.addOrderItem(orderItem);
+            orderRepository.save(order);
         }
-        
-        moriCashBalanceRepository.save(balance);
-        
-        // 저장된 데이터 확인
-        List<Settlement> savedSettlements = settlementRepository.findAll();
-        System.out.println("=== Total Settlements in DB: " + savedSettlements.size() + " ===");
     }
 
     @Test
-    @DisplayName("정산 현황 조회 - 기본 조회")
+    @DisplayName("정산 현황 조회 - 기본 조회 (Order 기반)")
     void getSettlements_Basic() {
         // given
         ArtistSettlementSearchRequest request = new ArtistSettlementSearchRequest(
                 LocalDate.now().getYear(), null, null, null, 0, 20, "date", "DESC"
         );
 
-        System.out.println("=== Test Setup ===");
-        System.out.println("Artist ID: " + artist.getId());
-        System.out.println("Request Year: " + request.year());
-        System.out.println("Current Year: " + LocalDate.now().getYear());
-        
-        // 실제 저장된 데이터 확인
-        List<Settlement> allSettlements = settlementRepository.findAll();
-        System.out.println("Total settlements in DB: " + allSettlements.size());
-        allSettlements.forEach(s -> {
-            System.out.println("Settlement: ID=" + s.getId() + 
-                             ", Artist=" + s.getArtist().getId() + 
-                             ", Amount=" + s.getRequestedAmount() +
-                             ", Commission=" + s.getCommissionAmount() +
-                             ", Net=" + s.getNetAmount() +
-                             ", CompletedAt=" + s.getCompletedAt());
-        });
-
         // when
         ArtistSettlementResponse response = artistDashboardService.getSettlements(artist.getId(), request);
-
-        System.out.println("=== Response ===");
-        System.out.println("Summary - TotalSales: " + response.summary().totalSales().amount());
-        System.out.println("Summary - Commission: " + response.summary().totalCommission().amount());
-        System.out.println("Summary - NetIncome: " + response.summary().totalNetIncome().amount());
-        System.out.println("Table - Content Size: " + response.table().getContent().size());
-        System.out.println("Table - Total Elements: " + response.table().getTotalElements());
 
         // then
         assertThat(response).isNotNull();
         assertThat(response.scope().year()).isEqualTo(LocalDate.now().getYear());
         assertThat(response.scope().month()).isNull();
 
-        // 요약 정보 확인 (환전 시 수수료 없음)
-        assertThat(response.summary().totalSales().amount()).isEqualTo(250000); // 30k + 40k + 50k + 60k + 70k
-        assertThat(response.summary().totalCommission().amount()).isEqualTo(0); // 환전 시 수수료 없음!
-        assertThat(response.summary().totalNetIncome().amount()).isEqualTo(250000); // 수수료 없으므로 총액과 동일
+        // 요약 정보 확인 (배송 완료된 주문 기준 - 10% 수수료)
+        int expectedTotalSales = 250000; // 30k + 40k + 50k + 60k + 70k
+        int expectedCommission = 25000;  // 10%
+        int expectedNetIncome = 225000;  // 90%
+
+        assertThat(response.summary().totalSales().amount()).isEqualTo(expectedTotalSales);
+        assertThat(response.summary().totalCommission().amount()).isEqualTo(expectedCommission);
+        assertThat(response.summary().totalNetIncome().amount()).isEqualTo(expectedNetIncome);
 
         // 테이블 데이터 확인
         assertThat(response.table().getContent()).hasSize(5);
@@ -156,7 +226,7 @@ class ArtistSettlementServiceTest {
         assertThat(response.scope().year()).isEqualTo(LocalDate.now().getYear());
         assertThat(response.scope().month()).isEqualTo(currentMonth);
 
-        // 테이블 데이터 확인 (이번 달 데이터만)
+        // 테이블 데이터 확인 (이번 달 데이터)
         assertThat(response.table().getContent()).hasSize(5);
         assertThat(response.table().getContent())
                 .allMatch(s -> s.statusText().equals("정산완료"));
@@ -259,12 +329,11 @@ class ArtistSettlementServiceTest {
     }
 
     @Test
-    @DisplayName("정산 현황 조회 - 수수료 계산 확인")
+    @DisplayName("정산 현황 조회 - 수수료 계산 확인 (Order 기반 - 10% 수수료)")
     void getSettlements_CommissionCalculation() {
         // given
-        int currentMonth = LocalDate.now().getMonthValue();
         ArtistSettlementSearchRequest request = new ArtistSettlementSearchRequest(
-                LocalDate.now().getYear(), currentMonth, null, null, 0, 20, "date", "DESC"
+                LocalDate.now().getYear(), null, null, null, 0, 20, "date", "DESC"
         );
 
         // when
@@ -274,10 +343,13 @@ class ArtistSettlementServiceTest {
         List<ArtistSettlementResponse.Settlement> content = response.table().getContent();
         assertThat(content).isNotEmpty();
 
-        // 각 정산의 수수료와 순수익 확인 (환전 시 수수료 없음)
+        // 각 정산의 수수료와 순수익 확인 (판매 시 10% 수수료)
         content.forEach(settlement -> {
-            assertThat(settlement.commission()).isEqualTo(0);  // 환전 시 수수료 없음
-            assertThat(settlement.netAmount()).isEqualTo(settlement.grossAmount());  // 총액 = 순수익
+            int expectedCommission = settlement.grossAmount() / 10;  // 10% 수수료
+            int expectedNetAmount = settlement.grossAmount() - expectedCommission;
+            
+            assertThat(settlement.commission()).isEqualTo(expectedCommission);
+            assertThat(settlement.netAmount()).isEqualTo(expectedNetAmount);
         });
     }
 
@@ -353,5 +425,23 @@ class ArtistSettlementServiceTest {
         // 기타 필드 검증
         assertThat(response.timezone()).isEqualTo("Asia/Seoul");
         assertThat(response.serverTime()).isNotNull();
+    }
+
+    @Test
+    @DisplayName("정산 현황 조회 - 상품명 포함 확인")
+    void getSettlements_ProductName() {
+        // given
+        ArtistSettlementSearchRequest request = new ArtistSettlementSearchRequest(
+                LocalDate.now().getYear(), null, null, null, 0, 20, "date", "DESC"
+        );
+
+        // when
+        ArtistSettlementResponse response = artistDashboardService.getSettlements(artist.getId(), request);
+
+        // then
+        List<ArtistSettlementResponse.Settlement> content = response.table().getContent();
+        assertThat(content).isNotEmpty();
+        assertThat(content).allMatch(s -> s.product() != null);
+        assertThat(content).allMatch(s -> s.product().name().equals("테스트 상품"));
     }
 }

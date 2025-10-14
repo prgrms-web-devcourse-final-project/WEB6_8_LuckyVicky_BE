@@ -281,4 +281,22 @@ public interface OrderRepository extends JpaRepository<Order, Long> {
      * 사용자별 주문 개수 조회
      */
     long countByUser(User user);
+
+    /**
+     * 작가별 배송 완료된 주문 조회 (정산 통계용)
+     * - 특정 기간 내 DELIVERED 상태 주문만
+     * - 작가가 판매한 상품의 주문만
+     */
+    @Query("SELECT DISTINCT o FROM Order o " +
+            "JOIN o.orderItems oi " +
+            "JOIN oi.product p " +
+            "WHERE p.user = :artist " +
+            "AND o.status = com.back.domain.order.order.entity.OrderStatus.DELIVERED " +
+            "AND o.orderDate >= :startDate " +
+            "AND o.orderDate <= :endDate")
+    List<Order> findDeliveredOrdersByArtistInPeriod(
+            @Param("artist") User artist,
+            @Param("startDate") java.time.LocalDateTime startDate,
+            @Param("endDate") java.time.LocalDateTime endDate
+    );
 }
