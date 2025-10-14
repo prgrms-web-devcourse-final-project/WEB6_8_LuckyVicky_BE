@@ -104,6 +104,8 @@ public class SecurityConfig {
 
                         // 펀딩 관련 공개 API - 로그인 없이 접근 허용
                         .requestMatchers(HttpMethod.GET, "/api/fundings/**").permitAll()
+                        // 펀딩 커뮤니티, 찜 - 로그인한 사용자만 접근 가능
+                        .requestMatchers("/api/fundings/{id}/communities", "/api/fundings/{id}/communities/{communityId}", "/api/fundings/{id}/wish", "/api/fundings/{id}/wish/check", "/api/fundings/wishes").authenticated()
 
                         // 개발 도구들
                         .requestMatchers("/h2-console/**").permitAll()
