@@ -56,7 +56,7 @@ class MoriCashRefundServiceTest {
         MoriCashBalance balance = createTestBalance(10000);
         
         when(moriCashPaymentRepository.findById(1L)).thenReturn(Optional.of(payment));
-        when(moriCashBalanceRepository.findByUser(user)).thenReturn(Optional.of(balance));
+        when(moriCashBalanceRepository.findByUserWithLock(user)).thenReturn(Optional.of(balance));
         when(moriCashBalanceRepository.save(any(MoriCashBalance.class))).thenReturn(balance);
 
         // When
@@ -68,7 +68,7 @@ class MoriCashRefundServiceTest {
         assertThat(result.getBalanceAfter()).isEqualTo(15000); // 10000 + 5000
 
         verify(moriCashPaymentRepository).findById(1L);
-        verify(moriCashBalanceRepository).findByUser(user);
+        verify(moriCashBalanceRepository).findByUserWithLock(user);
         verify(moriCashBalanceRepository).save(any(MoriCashBalance.class));
     }
 
@@ -216,7 +216,7 @@ class MoriCashRefundServiceTest {
         MoriCashBalance balance = createTestBalance(15000);
         
         when(moriCashPaymentRepository.findById(paymentId)).thenReturn(Optional.of(payment));
-        when(moriCashBalanceRepository.findByUser(user)).thenReturn(Optional.of(balance));
+        when(moriCashBalanceRepository.findByUserWithLock(user)).thenReturn(Optional.of(balance));
         when(moriCashBalanceRepository.save(any(MoriCashBalance.class))).thenReturn(balance);
 
         // When
@@ -224,7 +224,7 @@ class MoriCashRefundServiceTest {
 
         // Then
         verify(moriCashPaymentRepository).findById(paymentId);
-        verify(moriCashBalanceRepository).findByUser(user);
+        verify(moriCashBalanceRepository).findByUserWithLock(user);
         verify(moriCashBalanceRepository).save(any(MoriCashBalance.class));
         
         assertThat(payment.getRefundPrice()).isNull();
@@ -291,7 +291,7 @@ class MoriCashRefundServiceTest {
         MoriCashBalance balance = createTestBalance(10000);
         
         when(moriCashPaymentRepository.findById(paymentId)).thenReturn(Optional.of(payment));
-        when(moriCashBalanceRepository.findByUser(user)).thenReturn(Optional.of(balance));
+        when(moriCashBalanceRepository.findByUser(user)).thenReturn(Optional.of(balance)); // 조회 전용이라 락 없음
 
         // When
         MoriCashRefundResponseDto result = moriCashRefundService.getRefund(paymentId, user);

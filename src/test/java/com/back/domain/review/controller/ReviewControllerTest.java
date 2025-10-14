@@ -26,6 +26,7 @@ import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 
 import java.time.LocalDateTime;
 import java.util.Arrays;
+import java.util.UUID;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
@@ -53,6 +54,8 @@ class ReviewControllerTest {
     private MockMvc mockMvc;
     private ObjectMapper objectMapper;
     private User user;
+    
+    private static final UUID TEST_PRODUCT_UUID = UUID.fromString("550e8400-e29b-41d4-a716-446655440000");
 
     @BeforeEach
     void setUp() {
@@ -66,7 +69,7 @@ class ReviewControllerTest {
     void createReview_Success() throws Exception {
         // Given
         ReviewCreateRequestDto requestDto = ReviewCreateRequestDto.builder()
-                .productId(1L)
+                .productUuid(TEST_PRODUCT_UUID)
                 .rating(5)
                 .content("정말 좋은 상품입니다!")
                 .images(Arrays.asList())
@@ -74,7 +77,7 @@ class ReviewControllerTest {
 
         ReviewResponseDto responseDto = ReviewResponseDto.builder()
                 .reviewId(1L)
-                .productId(1L)
+                .productUuid(TEST_PRODUCT_UUID)
                 .productName("테스트 상품")
                 .userId(user.getId())
                 .userName(user.getName())
@@ -96,7 +99,7 @@ class ReviewControllerTest {
                         .requestAttr("user", user))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.reviewId").value(1L))
-                .andExpect(jsonPath("$.productId").value(1L))
+                .andExpect(jsonPath("$.productUuid").value(TEST_PRODUCT_UUID.toString()))
                 .andExpect(jsonPath("$.rating").value(5))
                 .andExpect(jsonPath("$.content").value("정말 좋은 상품입니다!"));
     }
@@ -106,7 +109,7 @@ class ReviewControllerTest {
     void getReviewList_Success() throws Exception {
         // When & Then
         mockMvc.perform(get("/api/reviews")
-                        .param("productId", "1")
+                        .param("productUuid", TEST_PRODUCT_UUID.toString())
                         .param("reviewType", "ALL")
                         .param("page", "0")
                         .param("size", "10")
@@ -120,7 +123,7 @@ class ReviewControllerTest {
         // Given
         ReviewResponseDto responseDto = ReviewResponseDto.builder()
                 .reviewId(1L)
-                .productId(1L)
+                .productUuid(TEST_PRODUCT_UUID)
                 .productName("테스트 상품")
                 .userId(user.getId())
                 .userName(user.getName())
@@ -162,7 +165,7 @@ class ReviewControllerTest {
         // Given
         ReviewDetailResponseDto responseDto = ReviewDetailResponseDto.builder()
                 .reviewId(1L)
-                .productId(1L)
+                .productUuid(TEST_PRODUCT_UUID)
                 .productName("테스트 상품")
                 .productOption("상품옵션1")
                 .userId(user.getId())
@@ -191,7 +194,7 @@ class ReviewControllerTest {
     void writeReviewFromPopup_Success() throws Exception {
         // Given
         ReviewWriteRequestDto requestDto = ReviewWriteRequestDto.builder()
-                .productId(1L)
+                .productUuid(TEST_PRODUCT_UUID)
                 .rating(5)
                 .content("정말 좋은 상품입니다!")
                 .images(Arrays.asList())
@@ -202,7 +205,7 @@ class ReviewControllerTest {
 
         ReviewDetailResponseDto responseDto = ReviewDetailResponseDto.builder()
                 .reviewId(1L)
-                .productId(1L)
+                .productUuid(TEST_PRODUCT_UUID)
                 .productName("테스트 상품")
                 .productOption("상품옵션1")
                 .userId(user.getId())
@@ -234,7 +237,7 @@ class ReviewControllerTest {
     void getReviewStats_Success() throws Exception {
         // Given
         com.back.domain.product.product.entity.Product product = mock(com.back.domain.product.product.entity.Product.class);
-        when(productRepository.findById(1L)).thenReturn(java.util.Optional.of(product));
+        when(productRepository.findByProductUuid(TEST_PRODUCT_UUID)).thenReturn(java.util.Optional.of(product));
         
         com.back.domain.review.dto.response.ReviewStatsResponseDto statsDto = 
             com.back.domain.review.dto.response.ReviewStatsResponseDto.builder()
@@ -250,7 +253,7 @@ class ReviewControllerTest {
         
         // When & Then
         mockMvc.perform(get("/api/reviews/stats")
-                        .param("productId", "1"))
+                        .param("productUuid", TEST_PRODUCT_UUID.toString()))
                 .andExpect(status().isOk());
     }
 
@@ -259,7 +262,7 @@ class ReviewControllerTest {
     void writeReviewFromPopup_FigmaDesign_Success() throws Exception {
         // Given - 피그마 디자인의 모든 요소 포함
         ReviewWriteRequestDto requestDto = ReviewWriteRequestDto.builder()
-                .productId(1L)
+                .productUuid(TEST_PRODUCT_UUID)
                 .rating(5)
                 .content("정말 좋은 상품입니다! 추천해요!")
                 .images(Arrays.asList())
@@ -270,7 +273,7 @@ class ReviewControllerTest {
 
         ReviewDetailResponseDto responseDto = ReviewDetailResponseDto.builder()
                 .reviewId(1L)
-                .productId(1L)
+                .productUuid(TEST_PRODUCT_UUID)
                 .productName("테스트 상품")
                 .productOption("상품옵션1")
                 .userId(user.getId())
@@ -304,7 +307,7 @@ class ReviewControllerTest {
     void writeReviewFromPopup_ValidationError() throws Exception {
         // Given - 필수 필드 누락된 요청
         ReviewWriteRequestDto requestDto = ReviewWriteRequestDto.builder()
-                .productId(null) // 필수 필드 누락
+                .productUuid(null) // 필수 필드 누락
                 .rating(5)
                 .content("") // 빈 내용
                 .productOption("") // 빈 상품옵션
@@ -324,7 +327,7 @@ class ReviewControllerTest {
         // Given - 피그마 디자인 팝업 응답
         ReviewDetailResponseDto responseDto = ReviewDetailResponseDto.builder()
                 .reviewId(1L)
-                .productId(1L)
+                .productUuid(TEST_PRODUCT_UUID)
                 .productName("테스트 상품")
                 .productOption("상품옵션1")
                 .userId(user.getId())

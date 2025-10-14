@@ -33,8 +33,8 @@ public class SettlementService {
             throw new IllegalArgumentException("작가만 환전 신청이 가능합니다.");
         }
 
-        // 1. 모리캐시 잔액 조회 또는 생성
-        MoriCashBalance balance = moriCashBalanceRepository.findByUser(artist)
+        // 1. 모리캐시 잔액 조회 또는 생성 (Pessimistic Write Lock - 동시성 제어)
+        MoriCashBalance balance = moriCashBalanceRepository.findByUserWithLock(artist)
                 .orElseGet(() -> {
                     log.info("모리캐시 잔액 정보 없음. 새로 생성 - 작가ID: {}", artist.getId());
                     MoriCashBalance newBalance = MoriCashBalance.createInitialBalance(artist);

@@ -65,9 +65,12 @@ public class CashChargeService {
                 cashTransaction.getAmount()
         );
 
-        // 2. 모리캐시 잔액 업데이트
-        MoriCashBalance balance = moriCashBalanceRepository.findByUser(cashTransaction.getUser())
-                .orElseGet(() -> MoriCashBalance.createInitialBalance(cashTransaction.getUser()));
+        // 2. 모리캐시 잔액 업데이트 (Pessimistic Write Lock - 동시성 제어)
+        MoriCashBalance balance = moriCashBalanceRepository.findByUserWithLock(cashTransaction.getUser())
+                .orElseGet(() -> {
+                    MoriCashBalance newBalance = MoriCashBalance.createInitialBalance(cashTransaction.getUser());
+                    return moriCashBalanceRepository.save(newBalance);
+                });
 
         balance.addBalance(cashTransaction.getAmount());
         moriCashBalanceRepository.save(balance);

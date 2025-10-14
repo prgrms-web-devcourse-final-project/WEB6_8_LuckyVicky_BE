@@ -46,9 +46,12 @@ public class MoriCashPaymentService {
             throw new IllegalArgumentException("본인의 주문만 결제할 수 있습니다.");
         }
 
-        // 3. 모리캐시 잔액 확인
-        MoriCashBalance balance = moriCashBalanceRepository.findByUser(user)
-                .orElseGet(() -> MoriCashBalance.createInitialBalance(user));
+        // 3. 모리캐시 잔액 확인 (Pessimistic Write Lock - 동시성 제어)
+        MoriCashBalance balance = moriCashBalanceRepository.findByUserWithLock(user)
+                .orElseGet(() -> {
+                    MoriCashBalance newBalance = MoriCashBalance.createInitialBalance(user);
+                    return moriCashBalanceRepository.save(newBalance);
+                });
 
         if (balance.getAvailableBalance() < requestDto.getUsedMoriCash()) {
             throw new IllegalArgumentException("모리캐시 잔액이 부족합니다.");
@@ -99,8 +102,8 @@ public class MoriCashPaymentService {
             throw new IllegalArgumentException("완료된 결제만 취소할 수 있습니다.");
         }
 
-        // 3. 모리캐시 잔액 복원
-        MoriCashBalance balance = moriCashBalanceRepository.findByUser(user)
+        // 3. 모리캐시 잔액 복원 (Pessimistic Write Lock - 동시성 제어)
+        MoriCashBalance balance = moriCashBalanceRepository.findByUserWithLock(user)
                 .orElseThrow(() -> new IllegalArgumentException("모리캐시 잔액 정보를 찾을 수 없습니다."));
 
         balance.restoreBalance(payment.getUsedMoriCash());
