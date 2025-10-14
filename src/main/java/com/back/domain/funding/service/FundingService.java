@@ -120,6 +120,7 @@ public class FundingService {
             Set<FundingStatus> statuses,
             String sortBy,
             String keyword,
+            Long categoryId,
             Long minPrice,
             Long maxPrice,
             int page,
@@ -131,7 +132,7 @@ public class FundingService {
 
         // Custom Repository 메서드 호출
         Page<Funding> fundingPage = fundingRepository.findByFilters(
-                statuses, keyword, minPrice, maxPrice, pageable
+                statuses, keyword, categoryId, minPrice, maxPrice, pageable
         );
 
         // DTO 변환
@@ -151,7 +152,7 @@ public class FundingService {
         };
     }
 
-    private FundingCardDto toCardDto(Funding funding) {
+    public FundingCardDto toCardDto(Funding funding) {
         long currentAmount = funding.getCollectedAmount();
         double progress = (funding.getTargetAmount() > 0)
                 ? (double) currentAmount / funding.getTargetAmount() * 100

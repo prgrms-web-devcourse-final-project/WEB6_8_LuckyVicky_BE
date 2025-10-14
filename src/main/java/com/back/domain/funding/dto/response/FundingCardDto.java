@@ -8,6 +8,7 @@ public record FundingCardDto(
         String imageUrl,      // 썸네일 이미지
         String categoryName,  // 카테고리 이름
         String authorName,    // 작성자명
+        long price,           // 가격
         long targetAmount,    // 목표 금액
         long currentAmount,   // 현재 금액
         double progress,      // 달성률
@@ -20,6 +21,7 @@ public record FundingCardDto(
                 funding.getImageUrl(),
                 funding.getCategory().getCategoryName(),
                 funding.getUser().getName(),
+                funding.getPrice(),
                 funding.getTargetAmount(),
                 currentAmount,
                 progress,

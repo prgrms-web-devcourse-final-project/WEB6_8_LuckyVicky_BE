@@ -28,6 +28,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 
 @ActiveProfiles("test")
@@ -327,32 +328,48 @@ public class FollowServiceTest {
         @DisplayName("팔로워 목록 조회 성공")
         void getFollowerList_Success() {
             // given
-            given(artistProfileRepository.findById(1L)).willReturn(Optional.of(testArtist));
-            given(followRepository.findFollowersByArtistId(1L))
+            Long userId = 5L;
+            Long artistProfileId = 1L;
+
+            given(testArtist.getId()).willReturn(artistProfileId);
+
+            given(artistProfileRepository.findByUserId(userId))
+                    .willReturn(Optional.of(testArtist));
+
+            given(followRepository.findFollowersByArtistId(artistProfileId))
                     .willReturn(List.of(testFollow));
 
             // when
-            List<FollowerListResponse> response = followService.getMyFollowerList(1L);
+            List<FollowerListResponse> response = followService.getMyFollowerList(userId);
 
             // then
             assertThat(response).hasSize(1);
             assertThat(response.get(0).userName()).isEqualTo("테스트유저");
-            verify(followRepository).findFollowersByArtistId(1L);
+
+            verify(artistProfileRepository).findByUserId(userId);
+            verify(followRepository).findFollowersByArtistId(artistProfileId);
         }
 
         @Test
-        @DisplayName("팔로워 목록 조회 실패 - 작가 없음")
+        @DisplayName("팔로워 목록 조회 실패 - 작가 프로필 없음")
         void getFollowerList_ArtistNotFound() {
             // given
-            given(artistProfileRepository.findById(999L)).willReturn(Optional.empty());
+            Long userId = 999L;
+            given(artistProfileRepository.findByUserId(userId))
+                    .willReturn(Optional.empty());
 
             // when & then
-            assertThatThrownBy(() -> followService.getMyFollowerList(999L))
+            assertThatThrownBy(() -> followService.getMyFollowerList(userId))
                     .isInstanceOf(ServiceException.class)
                     .satisfies(ex -> {
                         ServiceException serviceEx = (ServiceException) ex;
                         assertThat(serviceEx.getResultCode()).isEqualTo("404");
+                        assertThat(serviceEx.getMessage())
+                                .contains("작가 본인만 팔로워 목록을 조회할 수 있습니다");
                     });
+
+            verify(artistProfileRepository).findByUserId(userId);
+            verify(followRepository, never()).findFollowersByArtistId(any());
         }
     }
 

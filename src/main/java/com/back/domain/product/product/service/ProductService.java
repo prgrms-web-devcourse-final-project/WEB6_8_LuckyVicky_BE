@@ -415,8 +415,8 @@ public class ProductService {
                 .maxQuantity(request.maxQuantity()) // 최대 구매수량
                 .isPlanned(request.isPlanned()) // 기획상품 여부
                 .isRestock(request.isRestock()) // 재입고상품 여부
-                .sellingStartDate(request.sellingStartDate() != null ? request.sellingStartDate().atStartOfDay() : null)// 판매시작일
-                .sellingEndDate(request.sellingEndDate() != null ? request.sellingEndDate().atStartOfDay() : null)// 판매종료일
+                .sellingStartDate(request.sellingStartDate() != null ? request.sellingStartDate() : null)// 판매시작일
+                .sellingEndDate(request.sellingEndDate() != null ? request.sellingEndDate() : null)// 판매종료일
                 .productModelName(request.productModelName()) //품명
                 .certification(request.certification()) // 법에 의한 인증,허가 확인사항
                 .origin(request.origin()) // 제조국
@@ -462,7 +462,6 @@ public class ProductService {
         if (previousStock == 0 && product.getStock() > 0) {
             product.setRestock(true);
         }
-
     }
 
     /** 엔티티 -> DTO  */
@@ -511,7 +510,9 @@ public class ProductService {
                 product.getDisplayStatus().name(),
                 product.isPlanned(),
                 product.isRestock(),
-                mapTags(product.getProductTags())
+                mapTags(product.getProductTags()),
+                product.getSellingStartDate(),
+                product.getSellingEndDate()
         );
     }
 

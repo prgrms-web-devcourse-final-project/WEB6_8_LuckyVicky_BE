@@ -5,6 +5,7 @@ import com.back.domain.funding.entity.FundingStatus;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 
+import java.util.List;
 import java.util.Set;
 
 public interface FundingCustomRepository {
@@ -21,8 +22,12 @@ public interface FundingCustomRepository {
     Page<Funding> findByFilters(
             Set<FundingStatus> statuses,
             String keyword,
+            Long categoryId,
             Long minPrice,
             Long maxPrice,
             Pageable pageable
     );
+
+    // 검색(펀딩)
+    List<Funding> searchByTitle(String keyword);
 }

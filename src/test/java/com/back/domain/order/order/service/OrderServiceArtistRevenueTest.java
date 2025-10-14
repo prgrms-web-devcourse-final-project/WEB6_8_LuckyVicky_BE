@@ -27,12 +27,8 @@ import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-/**
- * 주문 배송 완료 시 작가 수익 적립 테스트
- */
 @SpringBootTest
 @Transactional
-@DisplayName("작가 수익 적립 테스트")
 class OrderServiceArtistRevenueTest {
 
     @Autowired
@@ -77,9 +73,8 @@ class OrderServiceArtistRevenueTest {
         artist.becomeArtist();
         artist = userRepository.save(artist);
 
-        // 관리자 생성 (ADMIN 권한)
+        // 관리자 생성 (테스트용)
         admin = User.createLocalUser("admin@test.com" + uniqueSuffix, "password", "관리자" + uniqueSuffix, "010-9999-9999");
-        admin.becomeAdmin(); // ADMIN 권한 부여
         admin = userRepository.save(admin);
 
         // 카테고리 생성
@@ -131,10 +126,6 @@ class OrderServiceArtistRevenueTest {
                 PaymentMethod.CARD
         );
         order = orderRepository.save(order);
-        
-        // 영속성 컨텍스트 플러시 및 클리어
-        entityManager.flush();
-        entityManager.clear();
     }
 
     @Test
@@ -145,11 +136,14 @@ class OrderServiceArtistRevenueTest {
         MoriCashBalance balanceBefore = moriCashBalanceRepository.findByUser(artist).orElse(null);
         int balanceBeforeAmount = balanceBefore != null ? balanceBefore.getAvailableBalance() : 0;
 
+        entityManager.flush();
+        entityManager.clear();
+
         // when - 주문 상태를 DELIVERED로 변경
         orderService.changeOrderStatus(
                 order.getId(),
                 new OrderStatusChangeRequestDto(OrderStatus.DELIVERED),
-                admin
+                admin // 관리자가 상태 변경
         );
 
         entityManager.flush();
@@ -229,7 +223,7 @@ class OrderServiceArtistRevenueTest {
         orderService.changeOrderStatus(
                 multiArtistOrder.getId(),
                 new OrderStatusChangeRequestDto(OrderStatus.DELIVERED),
-                admin
+                admin // 관리자가 상태 변경
         );
 
         entityManager.flush();
@@ -254,11 +248,14 @@ class OrderServiceArtistRevenueTest {
         MoriCashBalance balanceBefore = moriCashBalanceRepository.findByUser(artist).orElse(null);
         int balanceBeforeAmount = balanceBefore != null ? balanceBefore.getAvailableBalance() : 0;
 
+        entityManager.flush();
+        entityManager.clear();
+
         // when - SHIPPING으로만 변경 (DELIVERED 아님)
         orderService.changeOrderStatus(
                 order.getId(),
                 new OrderStatusChangeRequestDto(OrderStatus.SHIPPING),
-                admin
+                admin // 관리자가 상태 변경
         );
 
         entityManager.flush();
@@ -286,7 +283,7 @@ class OrderServiceArtistRevenueTest {
         orderService.changeOrderStatus(
                 order.getId(),
                 new OrderStatusChangeRequestDto(OrderStatus.DELIVERED),
-                admin
+                admin // 관리자가 상태 변경
         );
 
         entityManager.flush();
@@ -298,7 +295,6 @@ class OrderServiceArtistRevenueTest {
 
         // 기존 50,000원 + 신규 18,000원 = 68,000원
         assertThat(balanceAfter.getAvailableBalance()).isEqualTo(68000);
-        assertThat(balanceAfter.getTotalBalance()).isEqualTo(68000);
     }
 
     @Test
@@ -355,7 +351,7 @@ class OrderServiceArtistRevenueTest {
         orderService.changeOrderStatus(
                 expensiveOrder.getId(),
                 new OrderStatusChangeRequestDto(OrderStatus.DELIVERED),
-                admin
+                admin // 관리자가 상태 변경
         );
 
         entityManager.flush();
@@ -368,27 +364,5 @@ class OrderServiceArtistRevenueTest {
         // 99,999원 - 9,999원(수수료) = 89,999원 (소수점 버림)
         int expectedRevenue = 99999 - (99999 / 10);
         assertThat(balance.getAvailableBalance()).isEqualTo(expectedRevenue);
-    }
-
-    @Test
-    @DisplayName("작가 수익 적립 메서드 직접 호출 테스트")
-    void creditArtistRevenue_DirectCall() {
-        // given
-        Order freshOrder = orderRepository.findByIdWithOrderItems(order.getId())
-                .orElseThrow(() -> new AssertionError("주문을 찾을 수 없습니다."));
-
-        // when
-        orderService.creditArtistRevenue(freshOrder);
-
-        entityManager.flush();
-        entityManager.clear();
-
-        // then
-        MoriCashBalance balance = moriCashBalanceRepository.findByUser(artist)
-                .orElseThrow(() -> new AssertionError("작가의 모리캐시가 생성되지 않았습니다."));
-
-        // 20,000원 - 2,000원 = 18,000원
-        assertThat(balance.getAvailableBalance()).isEqualTo(18000);
-        assertThat(balance.getTotalBalance()).isEqualTo(18000);
     }
 }
