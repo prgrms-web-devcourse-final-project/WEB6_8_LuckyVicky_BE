@@ -33,10 +33,7 @@ import org.springframework.web.bind.annotation.*;
  * </ul>
  * <p>
  * 2025.10.01 GA4 유입 경로 통합 - 메인 현황에 포함
-<<<<<<< HEAD
  * 2025.10.02 JWT 표준 패턴 적용 - @AuthenticationPrincipal 사용
-=======
->>>>>>> 2f4795372b442dd5b55cfd8b8cfe7ba547b36a98
  */
 @RestController
 @RequestMapping("/api/dashboard/artist")
@@ -213,8 +210,8 @@ public class ArtistDashboardController {
             @AuthenticationPrincipal CustomUserDetails userDetails,
             @Valid @ModelAttribute ArtistSettlementSearchRequest request) {
 
-        log.info("작가 정산내역 조회 - artistId: {}, year: {}, month: {}, granularity: {}, page: {}, size: {}",
-                userDetails.getUserId(), request.year(), request.month(), request.granularity(), 
+        log.info("작가 정산내역 조회 - artistId: {}, year: {}, month: {}, page: {}, size: {}",
+                userDetails.getUserId(), request.year(), request.month(),
                 request.page(), request.size());
 
         ArtistSettlementResponse response = artistDashboardService.getSettlements(

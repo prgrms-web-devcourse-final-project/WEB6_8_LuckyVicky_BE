@@ -18,6 +18,7 @@ import com.back.domain.user.entity.Role;
 import com.back.domain.user.entity.User;
 import com.back.global.exception.ServiceException;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
@@ -30,6 +31,7 @@ import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 @Transactional(readOnly = true)
 public class OrderService {
 
@@ -38,6 +40,7 @@ public class OrderService {
     private final ProductRepository productRepository;
     private final CartRepository cartRepository;
     private final NotificationService notificationService;
+    private final com.back.domain.payment.moriCash.repository.MoriCashBalanceRepository moriCashBalanceRepository;
 
     /**
      * 주문 생성
@@ -294,6 +297,11 @@ public class OrderService {
         order.changeStatus(requestDto.status());
         orderRepository.save(order);
         
+        // ✅ 배송 완료 시 작가에게 수익 적립
+        if (requestDto.status() == OrderStatus.DELIVERED) {
+            creditArtistRevenue(order);
+        }
+        
         // 알림 발송 - 상태별 처리
         User customer = order.getUser();
         
@@ -332,6 +340,40 @@ public class OrderService {
                 // 다른 상태 변경은 알림 없음
                 break;
         }
+    }
+
+    /**
+     * 주문 배송 완료 시 작가에게 수익 적립
+     */
+    @Transactional
+    public void creditArtistRevenue(Order order) {
+        log.info("작가 수익 적립 시작 - 주문ID: {}", order.getId());
+        
+        // 각 주문 상품별로 작가에게 수익 적립
+        order.getOrderItems().forEach(orderItem -> {
+            User artist = orderItem.getProduct().getUser();
+            
+            // 작가의 모리캐시 잔액 조회 또는 생성
+            com.back.domain.payment.moriCash.entity.MoriCashBalance balance = 
+                    moriCashBalanceRepository.findByUser(artist)
+                            .orElseGet(() -> {
+                                com.back.domain.payment.moriCash.entity.MoriCashBalance newBalance = 
+                                        com.back.domain.payment.moriCash.entity.MoriCashBalance.createInitialBalance(artist);
+                                return moriCashBalanceRepository.save(newBalance);
+                            });
+            
+            // 수익 계산 (상품 금액 - 수수료)
+            int itemTotal = orderItem.getPrice().intValue() * orderItem.getQuantity();
+            int commission = itemTotal / 10; // 10% 수수료
+            int netAmount = itemTotal - commission;
+            
+            // 작가 모리캐시 증가
+            balance.addSalesRevenue(netAmount);
+            moriCashBalanceRepository.save(balance);
+            
+            log.info("작가 수익 적립 완료 - 작가ID: {}, 상품: {}, 총액: {}, 수수료: {}, 순수익: {}", 
+                    artist.getId(), orderItem.getProduct().getName(), itemTotal, commission, netAmount);
+        });
     }
 
     // ==================== Private Methods ====================
