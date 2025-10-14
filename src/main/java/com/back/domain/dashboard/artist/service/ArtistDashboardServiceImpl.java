@@ -51,6 +51,7 @@ public class ArtistDashboardServiceImpl implements ArtistDashboardService {
     private final com.back.domain.payment.moriCash.repository.MoriCashBalanceRepository moriCashBalanceRepository;
     private final com.back.domain.payment.settlement.repository.SettlementRepository settlementRepository;
     private final com.back.domain.user.repository.UserRepository userRepository;
+    private final com.back.domain.payment.cash.repository.CashTransactionRepository cashTransactionRepository;
 
     @Value("${google.analytics.property-id}")
     private String propertyId;
@@ -467,10 +468,212 @@ public class ArtistDashboardServiceImpl implements ArtistDashboardService {
 
     @Override
     public ArtistCashHistoryResponse.List getCashHistory(Long artistId, ArtistCashHistorySearchRequest request) {
-        // TODO: 실제 데이터베이스 연동 필요
-        log.info("작가 캐시 내역 조회 - artistId: {}, page: {}, size: {}, type: {}",
-                artistId, request.page(), request.size(), request.type());
-        throw new UnsupportedOperationException("작가 캐시 거래 내역 조회는 아직 구현되지 않았습니다.");
+        log.info("작가 캐시 내역 조회 - artistId: {}, page: {}, size: {}, type: {}, status: {}, dateFrom: {}, dateTo: {}",
+                artistId, request.page(), request.size(), request.type(), request.status(), request.dateFrom(), request.dateTo());
+
+        // 1. 작가(User) 조회
+        com.back.domain.user.entity.User artist = userRepository.findById(artistId)
+                .orElseThrow(() -> new com.back.global.exception.ServiceException("404", "작가를 찾을 수 없습니다."));
+
+        // 2. 필터 조건 변환
+        com.back.domain.payment.cash.entity.CashTransactionType transactionType = null;
+        if (request.type() != null && !request.type().isBlank()) {
+            try {
+                // DEPOSIT -> CHARGING, WITHDRAWAL -> EXCHANGE
+                transactionType = switch (request.type()) {
+                    case "DEPOSIT" -> com.back.domain.payment.cash.entity.CashTransactionType.CHARGING;
+                    case "WITHDRAWAL" -> com.back.domain.payment.cash.entity.CashTransactionType.EXCHANGE;
+                    default -> throw new IllegalArgumentException("Invalid transaction type: " + request.type());
+                };
+            } catch (IllegalArgumentException e) {
+                log.warn("잘못된 거래 유형: {}", request.type());
+            }
+        }
+
+        com.back.domain.payment.cash.entity.CashTransactionStatus status = null;
+        if (request.status() != null && !request.status().isBlank()) {
+            try {
+                status = com.back.domain.payment.cash.entity.CashTransactionStatus.valueOf(request.status());
+            } catch (IllegalArgumentException e) {
+                log.warn("잘못된 거래 상태: {}", request.status());
+            }
+        }
+
+        // 3. 날짜 파싱
+        LocalDateTime startDate = null;
+        LocalDateTime endDate = null;
+
+        if (request.dateFrom() != null && !request.dateFrom().isBlank()) {
+            try {
+                startDate = java.time.LocalDate.parse(request.dateFrom()).atStartOfDay();
+            } catch (java.time.format.DateTimeParseException e) {
+                log.warn("잘못된 시작 날짜 형식: {}", request.dateFrom());
+            }
+        }
+
+        if (request.dateTo() != null && !request.dateTo().isBlank()) {
+            try {
+                endDate = java.time.LocalDate.parse(request.dateTo()).atTime(23, 59, 59);
+            } catch (java.time.format.DateTimeParseException e) {
+                log.warn("잘못된 종료 날짜 형식: {}", request.dateTo());
+            }
+        }
+
+        // 4. 정렬 설정
+        org.springframework.data.domain.Sort sort = createCashHistorySort(request.sort(), request.order());
+        PageRequest pageRequest = PageRequest.of(request.page(), request.size(), sort);
+
+        // 5. Repository를 통한 실제 DB 조회
+        Page<com.back.domain.payment.cash.entity.CashTransaction> transactionPage =
+                cashTransactionRepository.findCashTransactionsByUserWithFilters(
+                        artist,
+                        transactionType,
+                        status,
+                        startDate,
+                        endDate,
+                        pageRequest
+                );
+
+        // 6. Entity → DTO 변환
+        List<ArtistCashHistoryResponse.Transaction> content = transactionPage.getContent().stream()
+                .map(this::convertToCashHistoryDto)
+                .toList();
+
+        // 7. 기간별 요약 계산
+        ArtistCashHistoryResponse.Summary summary = calculateCashHistorySummary(
+                artist, startDate, endDate);
+
+        int totalPages = transactionPage.getTotalPages();
+        long totalElements = transactionPage.getTotalElements();
+        boolean hasNext = transactionPage.hasNext();
+        boolean hasPrevious = transactionPage.hasPrevious();
+
+        log.info("작가 캐시 내역 조회 완료 - 조회된 거래 수: {}, 전체: {}", content.size(), totalElements);
+
+        return new ArtistCashHistoryResponse.List(
+                summary,
+                content,
+                request.page(),
+                request.size(),
+                totalElements,
+                totalPages,
+                hasNext,
+                hasPrevious
+        );
+    }
+
+    /**
+     * CashTransaction 정렬 생성
+     */
+    private org.springframework.data.domain.Sort createCashHistorySort(String sortField, String sortOrder) {
+        if (sortField == null || sortField.isBlank()) {
+            sortField = "transactedAt";
+        }
+        if (sortOrder == null || sortOrder.isBlank()) {
+            sortOrder = "DESC";
+        }
+
+        org.springframework.data.domain.Sort.Direction direction =
+                "ASC".equalsIgnoreCase(sortOrder)
+                        ? org.springframework.data.domain.Sort.Direction.ASC
+                        : org.springframework.data.domain.Sort.Direction.DESC;
+
+        return switch (sortField) {
+            case "amount" -> org.springframework.data.domain.Sort.by(direction, "amount");
+            case "type" -> org.springframework.data.domain.Sort.by(direction, "transactionType");
+            case "status" -> org.springframework.data.domain.Sort.by(direction, "status");
+            default -> org.springframework.data.domain.Sort.by(direction, "completedAt", "createDate");
+        };
+    }
+
+    /**
+     * CashTransaction 엔티티를 Transaction DTO로 변환
+     */
+    private ArtistCashHistoryResponse.Transaction convertToCashHistoryDto(
+            com.back.domain.payment.cash.entity.CashTransaction transaction) {
+
+        // 거래 일시 (완료 시간 우선, 없으면 생성 시간)
+        String transactedAt = transaction.getCompletedAt() != null
+                ? transaction.getCompletedAt().format(java.time.format.DateTimeFormatter.ofPattern("yyyy. MM. dd HH:mm"))
+                : transaction.getCreateDate().format(java.time.format.DateTimeFormatter.ofPattern("yyyy. MM. dd HH:mm"));
+
+        // 거래 유형 변환 (CHARGING -> DEPOSIT, EXCHANGE -> WITHDRAWAL)
+        String type = transaction.isCharging() ? "DEPOSIT" : "WITHDRAWAL";
+        String typeText = transaction.isCharging() ? "입금" : "환전";
+
+        // 입금액/환전액 구분
+        int depositAmount = transaction.isCharging() ? transaction.getAmount() : 0;
+        int withdrawalAmount = transaction.isExchange() ? transaction.getAmount() : 0;
+
+        // 거래 후 잔액
+        int balanceAfter = transaction.getBalanceAfter() != null ? transaction.getBalanceAfter() : 0;
+
+        // 거래 방법
+        String method = transaction.getPaymentMethod() != null ? transaction.getPaymentMethod() : "UNKNOWN";
+        String methodText = convertPaymentMethodToKorean(transaction.getPaymentMethod());
+
+        // 상태
+        String status = transaction.getStatus().name();
+
+        // 메모 (실패 사유, 취소 사유 등)
+        String note = "";
+        if (transaction.getStatus() == com.back.domain.payment.cash.entity.CashTransactionStatus.FAILED) {
+            note = transaction.getFailureReason() != null ? transaction.getFailureReason() : "처리 실패";
+        } else if (transaction.getStatus() == com.back.domain.payment.cash.entity.CashTransactionStatus.CANCELLED) {
+            note = transaction.getCancellationReason() != null ? transaction.getCancellationReason() : "처리 취소";
+        }
+
+        return new ArtistCashHistoryResponse.Transaction(
+                transaction.getId().toString(),
+                transactedAt,
+                type,
+                typeText,
+                depositAmount,
+                withdrawalAmount,
+                balanceAfter,
+                method,
+                methodText,
+                status,
+                note
+        );
+    }
+
+    /**
+     * 결제 수단을 한글로 변환
+     * 작가 대시보드에서는 모리캐시(정산금 입금)와 계좌이체(환전) 2가지만 사용
+     */
+    private String convertPaymentMethodToKorean(String paymentMethod) {
+        if (paymentMethod == null) {
+            return "기타";
+        }
+        
+        // 입금 수단: 모리캐시 (정산금이 모리캐시로 입금됨)
+        // 환전 수단: 계좌이체 (모리캐시를 실제 계좌로 환전)
+        return switch (paymentMethod.toUpperCase()) {
+            case "WALLET", "MORICASH" -> "모리캐시";
+            case "BANK_TRANSFER", "BANK" -> "계좌이체";
+            default -> paymentMethod;
+        };
+    }
+
+    /**
+     * 기간별 입금/환전 요약 계산
+     */
+    private ArtistCashHistoryResponse.Summary calculateCashHistorySummary(
+            com.back.domain.user.entity.User artist,
+            LocalDateTime startDate,
+            LocalDateTime endDate) {
+
+        // CashTransactionRepository 사용
+        int periodDepositTotal = cashTransactionRepository.getPeriodDepositTotal(artist, startDate, endDate);
+        int periodWithdrawalTotal = cashTransactionRepository.getPeriodWithdrawalTotal(artist, startDate, endDate);
+        int periodNet = periodDepositTotal - periodWithdrawalTotal;
+
+        return new ArtistCashHistoryResponse.Summary(
+                periodDepositTotal,
+                periodWithdrawalTotal,
+                periodNet
+        );
     }
 
     @Override

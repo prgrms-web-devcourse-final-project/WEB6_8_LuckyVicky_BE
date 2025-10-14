@@ -84,6 +84,9 @@ class ArtistDashboardServiceImplTest {
     @Autowired
     private com.back.domain.artist.repository.ArtistApplicationRepository artistApplicationRepository;
 
+    @Autowired
+    private com.back.domain.payment.cash.repository.CashTransactionRepository cashTransactionRepository;
+
     private User testArtist;
     private User testCustomer;
     private Category testCategory;
@@ -283,20 +286,204 @@ class ArtistDashboardServiceImplTest {
         );
     }
 
-    // ==================== 설정 테스트 ====================
+    // ==================== 입금/환전 내역 테스트 ====================
 
     @Test
-    @DisplayName("작가 설정 조회 - 계좌번호 마스킹 검증")
-    void getSettings_AccountMasking() {
+    @DisplayName("입금/환전 내역 조회 - 실제 DB 데이터 검증")
+    void getCashHistory_ReturnsRealData() {
+        // Given - 입금 거래 생성
+        com.back.domain.payment.cash.entity.CashTransaction depositTx = 
+                com.back.domain.payment.cash.entity.CashTransaction.builder()
+                        .user(testArtist)
+                        .transactionType(com.back.domain.payment.cash.entity.CashTransactionType.CHARGING)
+                        .amount(10000)
+                        .paymentMethod("TOSS")
+                        .pgProvider("TOSS")
+                        .balanceAfter(10000)
+                        .build();
+        depositTx.completeTransaction("TX001", "APPROVAL001", 10000);
+        cashTransactionRepository.save(depositTx);
+
+        // Given - 환전 거래 생성
+        com.back.domain.payment.cash.entity.CashTransaction withdrawalTx = 
+                com.back.domain.payment.cash.entity.CashTransaction.builder()
+                        .user(testArtist)
+                        .transactionType(com.back.domain.payment.cash.entity.CashTransactionType.EXCHANGE)
+                        .amount(5000)
+                        .paymentMethod("BANK_TRANSFER")
+                        .balanceAfter(5000)
+                        .build();
+        withdrawalTx.completeTransaction("TX002", "APPROVAL002", 5000);
+        cashTransactionRepository.save(withdrawalTx);
+
+        ArtistCashHistorySearchRequest request = new ArtistCashHistorySearchRequest(
+                0, 10, null, null, null, null, "transactedAt", "DESC");
+
         // When
-        ArtistSettingsResponse result = artistDashboardService.getSettings(testArtist.getId());
+        ArtistCashHistoryResponse.List result = artistDashboardService.getCashHistory(
+                testArtist.getId(), request);
 
         // Then
         assertAll(
-                () -> assertThat(result.profile().nickname()).isEqualTo("테스트작가"),
-                () -> assertThat(result.payout().accountMasked()).isEqualTo("****-****-**9012"),
-                () -> assertThat(result.payout().bankName()).isEqualTo("테스트은행")
+                () -> assertThat(result.content()).hasSize(2),
+                () -> assertThat(result.summary()).isNotNull(),
+                () -> assertThat(result.summary().periodDepositTotal()).isEqualTo(10000),
+                () -> assertThat(result.summary().periodWithdrawalTotal()).isEqualTo(5000),
+                () -> assertThat(result.summary().periodNet()).isEqualTo(5000)
         );
+    }
+
+    @Test
+    @DisplayName("입금/환전 내역 조회 - 거래 유형 필터링 (입금)")
+    void getCashHistory_FiltersByDeposit() {
+        // Given
+        com.back.domain.payment.cash.entity.CashTransaction depositTx = 
+                com.back.domain.payment.cash.entity.CashTransaction.builder()
+                        .user(testArtist)
+                        .transactionType(com.back.domain.payment.cash.entity.CashTransactionType.CHARGING)
+                        .amount(20000)
+                        .paymentMethod("CARD")
+                        .balanceAfter(20000)
+                        .build();
+        depositTx.completeTransaction("TX003", "APPROVAL003", 20000);
+        cashTransactionRepository.save(depositTx);
+
+        com.back.domain.payment.cash.entity.CashTransaction withdrawalTx = 
+                com.back.domain.payment.cash.entity.CashTransaction.builder()
+                        .user(testArtist)
+                        .transactionType(com.back.domain.payment.cash.entity.CashTransactionType.EXCHANGE)
+                        .amount(10000)
+                        .paymentMethod("BANK_TRANSFER")
+                        .balanceAfter(10000)
+                        .build();
+        withdrawalTx.completeTransaction("TX004", "APPROVAL004", 10000);
+        cashTransactionRepository.save(withdrawalTx);
+
+        ArtistCashHistorySearchRequest request = new ArtistCashHistorySearchRequest(
+                0, 10, "DEPOSIT", null, null, null, "transactedAt", "DESC");
+
+        // When
+        ArtistCashHistoryResponse.List result = artistDashboardService.getCashHistory(
+                testArtist.getId(), request);
+
+        // Then
+        assertAll(
+                () -> assertThat(result.content()).hasSize(1),
+                () -> assertThat(result.content().get(0).type()).isEqualTo("DEPOSIT"),
+                () -> assertThat(result.content().get(0).typeText()).isEqualTo("입금"),
+                () -> assertThat(result.content().get(0).depositAmount()).isEqualTo(20000),
+                () -> assertThat(result.content().get(0).withdrawalAmount()).isEqualTo(0)
+        );
+    }
+
+    @Test
+    @DisplayName("입금/환전 내역 조회 - 거래 유형 필터링 (환전)")
+    void getCashHistory_FiltersByWithdrawal() {
+        // Given
+        com.back.domain.payment.cash.entity.CashTransaction depositTx = 
+                com.back.domain.payment.cash.entity.CashTransaction.builder()
+                        .user(testArtist)
+                        .transactionType(com.back.domain.payment.cash.entity.CashTransactionType.CHARGING)
+                        .amount(30000)
+                        .paymentMethod("TOSS")
+                        .balanceAfter(30000)
+                        .build();
+        depositTx.completeTransaction("TX005", "APPROVAL005", 30000);
+        cashTransactionRepository.save(depositTx);
+
+        com.back.domain.payment.cash.entity.CashTransaction withdrawalTx = 
+                com.back.domain.payment.cash.entity.CashTransaction.builder()
+                        .user(testArtist)
+                        .transactionType(com.back.domain.payment.cash.entity.CashTransactionType.EXCHANGE)
+                        .amount(15000)
+                        .paymentMethod("BANK_TRANSFER")
+                        .balanceAfter(15000)
+                        .build();
+        withdrawalTx.completeTransaction("TX006", "APPROVAL006", 15000);
+        cashTransactionRepository.save(withdrawalTx);
+
+        ArtistCashHistorySearchRequest request = new ArtistCashHistorySearchRequest(
+                0, 10, "WITHDRAWAL", null, null, null, "transactedAt", "DESC");
+
+        // When
+        ArtistCashHistoryResponse.List result = artistDashboardService.getCashHistory(
+                testArtist.getId(), request);
+
+        // Then
+        assertAll(
+                () -> assertThat(result.content()).hasSize(1),
+                () -> assertThat(result.content().get(0).type()).isEqualTo("WITHDRAWAL"),
+                () -> assertThat(result.content().get(0).typeText()).isEqualTo("환전"),
+                () -> assertThat(result.content().get(0).depositAmount()).isEqualTo(0),
+                () -> assertThat(result.content().get(0).withdrawalAmount()).isEqualTo(15000)
+        );
+    }
+
+    @Test
+    @DisplayName("입금/환전 내역 조회 - 상태 필터링")
+    void getCashHistory_FiltersByStatus() {
+        // Given - 완료된 거래
+        com.back.domain.payment.cash.entity.CashTransaction completedTx = 
+                com.back.domain.payment.cash.entity.CashTransaction.builder()
+                        .user(testArtist)
+                        .transactionType(com.back.domain.payment.cash.entity.CashTransactionType.CHARGING)
+                        .amount(50000)
+                        .paymentMethod("CARD")
+                        .balanceAfter(50000)
+                        .build();
+        completedTx.completeTransaction("TX007", "APPROVAL007", 50000);
+        cashTransactionRepository.save(completedTx);
+
+        // Given - 대기 중인 거래
+        com.back.domain.payment.cash.entity.CashTransaction pendingTx = 
+                com.back.domain.payment.cash.entity.CashTransaction.builder()
+                        .user(testArtist)
+                        .transactionType(com.back.domain.payment.cash.entity.CashTransactionType.EXCHANGE)
+                        .amount(25000)
+                        .paymentMethod("BANK_TRANSFER")
+                        .build();
+        cashTransactionRepository.save(pendingTx);
+
+        ArtistCashHistorySearchRequest request = new ArtistCashHistorySearchRequest(
+                0, 10, null, "COMPLETED", null, null, "transactedAt", "DESC");
+
+        // When
+        ArtistCashHistoryResponse.List result = artistDashboardService.getCashHistory(
+                testArtist.getId(), request);
+
+        // Then
+        assertAll(
+                () -> assertThat(result.content()).hasSize(1),
+                () -> assertThat(result.content().get(0).status()).isEqualTo("COMPLETED")
+        );
+    }
+
+    @Test
+    @DisplayName("입금/환전 내역 조회 - 날짜 범위 필터링")
+    void getCashHistory_FiltersByDateRange() {
+        // Given - 오늘 거래
+        com.back.domain.payment.cash.entity.CashTransaction todayTx = 
+                com.back.domain.payment.cash.entity.CashTransaction.builder()
+                        .user(testArtist)
+                        .transactionType(com.back.domain.payment.cash.entity.CashTransactionType.CHARGING)
+                        .amount(10000)
+                        .paymentMethod("TOSS")
+                        .balanceAfter(10000)
+                        .build();
+        todayTx.completeTransaction("TX008", "APPROVAL008", 10000);
+        cashTransactionRepository.save(todayTx);
+
+        String today = java.time.LocalDate.now().toString();
+
+        ArtistCashHistorySearchRequest request = new ArtistCashHistorySearchRequest(
+                0, 10, null, null, today, today, "transactedAt", "DESC");
+
+        // When
+        ArtistCashHistoryResponse.List result = artistDashboardService.getCashHistory(
+                testArtist.getId(), request);
+
+        // Then
+        assertThat(result.content()).isNotEmpty();
     }
 
     // ==================== 주문 내역 테스트 ====================
