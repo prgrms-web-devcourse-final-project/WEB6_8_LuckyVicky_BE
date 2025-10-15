@@ -41,7 +41,7 @@ public record ArtistPublicProfileResponse(
 ) {
     public static ArtistPublicProfileResponse from(ArtistProfile artistProfile) {
         return new ArtistPublicProfileResponse(
-                artistProfile.getUser().getId(),
+                artistProfile.getId(),
                 artistProfile.getArtistName(),
                 artistProfile.getProfileImageUrl(),
                 artistProfile.getDescription(),

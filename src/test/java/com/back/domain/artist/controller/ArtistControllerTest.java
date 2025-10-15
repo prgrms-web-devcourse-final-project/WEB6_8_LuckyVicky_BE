@@ -584,7 +584,7 @@ class ArtistControllerTest {
         artistProfileRepository.save(profile);
 
         // when
-        ResultActions resultActions = mvc.perform(get("/api/artist/profile/" + user1.getId())
+        ResultActions resultActions = mvc.perform(get("/api/artist/profile/" + profile.getId())
                         .contentType(MediaType.APPLICATION_JSON))
                 .andDo(print());
 
@@ -592,7 +592,7 @@ class ArtistControllerTest {
         resultActions.andExpect(status().isOk())
                 .andExpect(jsonPath("$.resultCode").value("200"))
                 .andExpect(jsonPath("$.msg").value("작가 프로필 조회 성공"))
-                .andExpect(jsonPath("$.data.artistId").value(user1.getId()))
+                .andExpect(jsonPath("$.data.artistId").value(profile.getId()))
                 .andExpect(jsonPath("$.data.artistName").value("유저1작가"))
                 .andExpect(jsonPath("$.data.description").value("전통 도자기를 현대적으로 재해석하는 작가입니다."))
                 .andExpect(jsonPath("$.data.mainProducts").value("도자기, 머그컵"))
