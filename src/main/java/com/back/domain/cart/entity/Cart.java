@@ -138,11 +138,14 @@ public class Cart extends BaseEntity {
             if (this.funding == null) {
                 return false;
             }
-            Integer fundingStockFromEntity = this.funding.getStock();
-            int availableStock = (this.fundingStock != null)
+            // 재고 null = 무제한, 0 이하는 품절
+            Integer availableStock = (this.fundingStock != null)
                     ? this.fundingStock
-                    : (fundingStockFromEntity != null ? fundingStockFromEntity : 0);
+                    : this.funding.getStock();
 
+            if (availableStock == null) {
+                return true; // 무제한 재고로 간주
+            }
             if (availableStock <= 0) {
                 return false;
             }
@@ -157,10 +160,11 @@ public class Cart extends BaseEntity {
             return false;
         }
         Integer productStock = this.product.getStock();
-        if (productStock == null || productStock <= 0) {
+        // 재고 null = 무제한, 0 이하는 품절
+        if (productStock != null && productStock <= 0) {
             return false;
         }
-        return this.quantity <= productStock;
+        return productStock == null || this.quantity <= productStock;
     }
 
     // 총 가격 계산 (null-safe)
