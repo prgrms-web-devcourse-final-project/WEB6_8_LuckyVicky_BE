@@ -25,36 +25,18 @@ public record AdminFundingApprovalResponse(
 ) {
 
     /**
-     * 펀딩 승인 대기 정보
+     * 펀딩 승인 대기 정보 (화면 표시 필드만)
      */
     public record FundingApproval(
             /** 펀딩 ID */
             Long fundingId,
+            /** 작가 ID */
+            Long artistId,
+            /** 작가명 */
+            String artistName,
             /** 펀딩 제목 */
             String title,
-            /** 작가 정보 */
-            Artist artist,
-            /** 목표 금액 */
-            long targetAmount,
-            /** 펀딩 시작일 */
-            String startDate,
-            /** 펀딩 종료일 */
-            String endDate,
-            /** 펀딩 신청일 */
-            String registeredAt,
-            /** 메인 이미지 */
-            String mainImage
-    ) {}
-
-    /**
-     * 작가 정보
-     */
-    public record Artist(
-            /** 작가 ID */
-            Long id,
-            /** 작가명 */
-            String name,
-            /** 이메일 */
-            String email
+            /** 신청일자 */
+            String registeredAt
     ) {}
 }
