@@ -1,6 +1,9 @@
 server:
   port: 8080
   forward-headers-strategy: native
+  # Post body 크기 100MB 설정
+  tomcat:
+    max-http-form-post-size: 100MB
 spring:
   # redis가 개발/테스트 환경에서 작동하지 않도록 설정
   autoconfigure:
@@ -99,6 +102,11 @@ spring:
           timeout: 5000
           writetimeout: 5000
     default-encoding: UTF-8
+  # 파일 업로드 용량 설정
+  servlet:
+    multipart:
+      max-file-size: 100MB
+      max-request-size: 100MB
 
 # Frontend URL (OAuth2 리다이렉트용, UTM 링크 생성용)
 app:
