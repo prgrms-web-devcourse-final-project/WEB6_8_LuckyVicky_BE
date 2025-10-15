@@ -23,6 +23,7 @@ import jakarta.validation.constraints.Positive;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -87,7 +88,7 @@ public class FundingController {
                 .body(new RsData<>("201", "펀딩이 생성되었습니다.", response));
     }
 
-    @PostMapping("/images")
+    @PostMapping(value = "/images", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     @PreAuthorize("hasAuthority('ROLE_ARTIST') or hasAuthority('ROLE_ADMIN') or hasAuthority('ROLE_ROOT')")
     @Operation(
             summary = "펀딩 이미지 업로드",
@@ -96,7 +97,6 @@ public class FundingController {
                     "types -> 업로드할 파일 타입. 대표 이미지(MAIN), 추가 이미지(ADDITIONAL), 썸네일(THUMBNAIL), 문서(DOCUMENT)"
     ) public ResponseEntity<RsData<List<UploadResultResponse>>> uploadFundingImages(
             @RequestPart List<MultipartFile> files,
-            @Parameter(hidden = true)
             @RequestParam List<FileType> types) {
         List<UploadResultResponse> uploaded = s3Service.uploadFiles(files, "funding-images", types);
         return ResponseEntity.ok(RsData.of("200", "이미지 업로드 성공", uploaded));
