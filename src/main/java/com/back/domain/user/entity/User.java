@@ -299,6 +299,20 @@ public class User extends BaseEntity {
     }
 
     /**
+     * 프로필 이미지 설정
+     */
+    public void setProfileImage(String profileImageUrl) {
+        this.profileImageUrl = profileImageUrl;
+    }
+
+    /**
+     * 프로필 이미지 삭제 (null로 설정)
+     */
+    public void deleteProfileImage() {
+        this.profileImageUrl = null;
+    }
+
+    /**
      * 비밀번호 변경
      */
     public void changePassword(String newPassword) {

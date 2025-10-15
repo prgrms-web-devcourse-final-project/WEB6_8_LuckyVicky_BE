@@ -11,9 +11,11 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 
 @Slf4j
 @RestController
@@ -111,6 +113,54 @@ public class UserController {
 
         return ResponseEntity.ok(
                 RsData.of("200", "공개 프로필 조회 성공", response)
+        );
+    }
+
+    /**
+     * 프로필 이미지 업로드 및 변경
+     */
+    @PostMapping(value = "/me/profile-image", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    @Operation(
+            summary = "프로필 이미지 업로드 및 변경",
+            description = "프로필 이미지를 S3에 업로드하고 사용자 정보를 자동으로 업데이트합니다. " +
+                    "MAIN 타입으로 업로드되며, 썸네일이 자동 생성됩니다."
+    )
+    public ResponseEntity<RsData<UserProfileResponse>> uploadProfileImage(
+            @AuthenticationPrincipal CustomUserDetails userDetails,
+            @RequestPart MultipartFile file) {
+
+        log.info("프로필 이미지 업로드 - userId: {}, filename: {}",
+                userDetails.getUserId(), file.getOriginalFilename());
+
+        UserProfileResponse response = userService.uploadAndUpdateProfileImage(
+                userDetails.getUserId(),
+                file
+        );
+
+        return ResponseEntity.ok(
+                RsData.of("200", "프로필 이미지 업로드 및 변경 성공", response)
+        );
+    }
+
+    /**
+     * 프로필 이미지 삭제
+     */
+    @DeleteMapping("/me/profile-image")
+    @Operation(
+            summary = "프로필 이미지 삭제",
+            description = "현재 설정된 프로필 이미지를 삭제하고 기본 이미지로 되돌립니다. S3에서도 이미지가 삭제됩니다."
+    )
+    public ResponseEntity<RsData<UserProfileResponse>> deleteProfileImage(
+            @AuthenticationPrincipal CustomUserDetails userDetails) {
+
+        log.info("프로필 이미지 삭제 - userId: {}", userDetails.getUserId());
+
+        UserProfileResponse response = userService.deleteProfileImage(
+                userDetails.getUserId()
+        );
+
+        return ResponseEntity.ok(
+                RsData.of("200", "프로필 이미지 삭제 성공", response)
         );
     }
 
