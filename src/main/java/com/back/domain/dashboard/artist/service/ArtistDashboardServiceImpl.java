@@ -719,19 +719,39 @@ public class ArtistDashboardServiceImpl implements ArtistDashboardService {
             }
         }
 
-        // 동적 정렬 처리
-        org.springframework.data.domain.Sort sort = createOrderSort(request.sort(), request.order());
-        PageRequest pageRequest = PageRequest.of(request.page(), request.size(), sort);
+        // 상품명 정렬 여부 확인
+        boolean isProductNameSort = "productName".equals(request.sort());
+        
+        Page<com.back.domain.order.order.entity.Order> orderPage;
 
-        // Repository를 통한 실제 DB 조회
-        Page<com.back.domain.order.order.entity.Order> orderPage = orderRepository.findOrdersByArtist(
-                artistId,
-                orderStatus,
-                request.keyword(),
-                startDateTime,
-                endDateTime,
-                pageRequest
-        );
+        if (isProductNameSort) {
+            // 상품명 정렬: 별도 메서드 사용
+            String direction = request.order() != null ? request.order() : "DESC";
+            PageRequest pageRequest = PageRequest.of(request.page(), request.size());
+            
+            orderPage = orderRepository.findOrdersByArtistSortedByProductName(
+                    artistId,
+                    orderStatus,
+                    request.keyword(),
+                    startDateTime,
+                    endDateTime,
+                    direction,
+                    pageRequest
+            );
+        } else {
+            // 일반 정렬: 동적 정렬 처리
+            org.springframework.data.domain.Sort sort = createOrderSort(request.sort(), request.order());
+            PageRequest pageRequest = PageRequest.of(request.page(), request.size(), sort);
+
+            orderPage = orderRepository.findOrdersByArtist(
+                    artistId,
+                    orderStatus,
+                    request.keyword(),
+                    startDateTime,
+                    endDateTime,
+                    pageRequest
+            );
+        }
 
         // ID 리스트 추출
         List<Long> orderIds = orderPage.getContent().stream()
@@ -790,8 +810,7 @@ public class ArtistDashboardServiceImpl implements ArtistDashboardService {
             case "status" -> org.springframework.data.domain.Sort.by(direction, "status");
             case "totalAmount" -> org.springframework.data.domain.Sort.by(direction, "totalAmount");
             case "customerName" -> org.springframework.data.domain.Sort.by(direction, "user.name");
-            case "productName" ->
-                    org.springframework.data.domain.Sort.by(direction, "orderDate"); // 상품명 정렬은 복잡하므로 일단 주문일자로 대체
+            case "productName" -> null; // 상품명 정렬은 Repository에서 처리
             default -> org.springframework.data.domain.Sort.by(direction, "orderDate");
         };
     }
