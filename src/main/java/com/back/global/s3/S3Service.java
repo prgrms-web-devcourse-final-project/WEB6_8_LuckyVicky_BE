@@ -108,7 +108,7 @@ public class S3Service {
             results.add(new UploadResultResponse(url, type, s3Key, originalFilename));
 
             if (category == FileCategory.IMAGE && type == FileType.MAIN) {
-                byte[] thumbBytes = resizeImageSafe(file.getBytes(), 300, 300, extension);
+                byte[] thumbBytes = resizeImageSafe(file.getBytes(), 300, 400, extension);
                 // 썸네일 S3 Key 생성
                 String thumbKey = folder + "/thumbnail-" + UUID.randomUUID() + "." + extension;
                 //S3에 썸네일 이미지 업로드
