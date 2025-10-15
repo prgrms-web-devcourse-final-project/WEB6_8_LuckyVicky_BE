@@ -6,6 +6,7 @@ import com.back.domain.payment.cash.entity.CashTransactionStatus;
 import com.back.domain.payment.cash.entity.CashTransactionType;
 import com.back.domain.payment.cash.service.CashExchangeService;
 import com.back.domain.user.entity.User;
+import com.back.global.security.auth.CustomUserDetails;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.mockito.InjectMocks;
@@ -36,6 +37,7 @@ class CashExchangeControllerTest {
     void createExchangeRequest_Success() {
         // given
         User artist = User.createLocalUser("artist@test.com", "password", "작가", "01012345678");
+        CustomUserDetails customUserDetails = new CustomUserDetails(artist, com.back.domain.user.entity.Role.ARTIST);
         CashExchangeRequestDto requestDto = new CashExchangeRequestDto(50000, "우리은행", "123-456-7890", "홍길동");
         
         CashExchangeResponseDto responseDto = CashExchangeResponseDto.builder()
@@ -52,7 +54,7 @@ class CashExchangeControllerTest {
 
         // when
         ResponseEntity<CashExchangeResponseDto> response = 
-                cashExchangeController.createExchangeRequest(requestDto, artist);
+                cashExchangeController.createExchangeRequest(requestDto, customUserDetails);
 
         // then
         assertThat(response.getStatusCode().value()).isEqualTo(200);

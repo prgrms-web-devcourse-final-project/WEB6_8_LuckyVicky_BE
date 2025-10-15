@@ -6,6 +6,7 @@ import com.back.domain.order.exchange.entity.Exchange;
 import com.back.domain.order.exchange.entity.ExchangeReasonType;
 import com.back.domain.order.exchange.service.ExchangeService;
 import com.back.domain.user.entity.User;
+import com.back.global.security.auth.CustomUserDetails;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -32,6 +33,7 @@ class ExchangeControllerTest {
     private ObjectMapper objectMapper;
 
     private User testUser;
+    private CustomUserDetails customUserDetails;
     private ExchangeRequestDto exchangeRequestDto;
     private ExchangeResponseDto exchangeResponseDto;
 
@@ -47,6 +49,9 @@ class ExchangeControllerTest {
         java.lang.reflect.Field idField = testUser.getClass().getSuperclass().getDeclaredField("id");
         idField.setAccessible(true);
         idField.set(testUser, 1L);
+        
+        // CustomUserDetails 생성
+        customUserDetails = new CustomUserDetails(testUser, com.back.domain.user.entity.Role.USER);
 
         // 교환 요청 DTO
         exchangeRequestDto = new ExchangeRequestDto(
@@ -102,7 +107,7 @@ class ExchangeControllerTest {
                 .willReturn(exchangeResponseDto);
 
         // When
-        var result = exchangeController.createExchange(exchangeRequestDto, testUser);
+        var result = exchangeController.createExchange(exchangeRequestDto, customUserDetails);
 
         // Then
         assertThat(result.getStatusCode().value()).isEqualTo(201);
@@ -127,7 +132,7 @@ class ExchangeControllerTest {
                 .willReturn(exchangePage);
 
         // When
-        var result = exchangeController.getExchangeList(PageRequest.of(0, 10), testUser);
+        var result = exchangeController.getExchangeList(PageRequest.of(0, 10), customUserDetails);
 
         // Then
         assertThat(result.getStatusCode().value()).isEqualTo(200);
@@ -145,7 +150,7 @@ class ExchangeControllerTest {
                 .willReturn(exchangeResponseDto);
 
         // When
-        var result = exchangeController.getExchangeDetail(1L, testUser);
+        var result = exchangeController.getExchangeDetail(1L, customUserDetails);
 
         // Then
         assertThat(result.getStatusCode().value()).isEqualTo(200);
@@ -162,7 +167,7 @@ class ExchangeControllerTest {
                 .willThrow(new IllegalArgumentException("교환 정보를 찾을 수 없습니다."));
 
         // When & Then
-        assertThatThrownBy(() -> exchangeController.getExchangeDetail(999L, testUser))
+        assertThatThrownBy(() -> exchangeController.getExchangeDetail(999L, customUserDetails))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessage("교환 정보를 찾을 수 없습니다.");
     }
@@ -194,7 +199,7 @@ class ExchangeControllerTest {
                 .willReturn(approvedResponseDto);
 
         // When
-        var result = exchangeController.approveExchange(1L, testUser);
+        var result = exchangeController.approveExchange(1L, customUserDetails);
 
         // Then
         assertThat(result.getStatusCode().value()).isEqualTo(200);

@@ -4,6 +4,7 @@ import com.back.domain.payment.cash.dto.request.CashExchangeRequestDto;
 import com.back.domain.payment.cash.dto.response.CashExchangeResponseDto;
 import com.back.domain.payment.cash.service.CashExchangeService;
 import com.back.domain.user.entity.User;
+import com.back.global.security.auth.CustomUserDetails;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
@@ -29,8 +30,9 @@ public class CashExchangeController {
     @PreAuthorize("hasRole('ARTIST')")
     public ResponseEntity<CashExchangeResponseDto> createExchangeRequest(
             @RequestBody CashExchangeRequestDto requestDto,
-            @AuthenticationPrincipal User artist) {
+            @AuthenticationPrincipal CustomUserDetails customUserDetails) {
         
+        User artist = customUserDetails.getUser();
         CashExchangeResponseDto response = cashExchangeService.createExchangeRequest(requestDto, artist);
         return ResponseEntity.ok(response);
     }
