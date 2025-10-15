@@ -560,12 +560,12 @@ class CartServiceTest {
         // Given
         testNormalCart.select();
         List<Cart> selectedCarts = Arrays.asList(testNormalCart);
-        given(cartRepository.findByUserAndIsSelectedTrue(testUser)).willReturn(selectedCarts);
+        given(cartRepository.findByUserAndIsSelectedTrueWithProduct(testUser)).willReturn(selectedCarts);
 
         // When & Then
         cartService.validateCartItemsForOrder(testUser, false);
         
-        verify(cartRepository).findByUserAndIsSelectedTrue(testUser);
+        verify(cartRepository).findByUserAndIsSelectedTrueWithProduct(testUser);
     }
 
     @Test
@@ -601,14 +601,14 @@ class CartServiceTest {
         // Given
         testNormalCart.select();
         List<Cart> selectedCarts = Arrays.asList(testNormalCart);
-        given(cartRepository.findByUserAndIsSelectedTrue(testUser)).willReturn(selectedCarts);
+        given(cartRepository.findByUserAndIsSelectedTrueWithProduct(testUser)).willReturn(selectedCarts);
 
         // When
         Integer result = cartService.calculateTotalAmount(testUser, false);
 
         // Then
         assertThat(result).isNotNull();
-        verify(cartRepository).findByUserAndIsSelectedTrue(testUser);
+        verify(cartRepository).findByUserAndIsSelectedTrueWithProduct(testUser);
     }
 
     @Test
