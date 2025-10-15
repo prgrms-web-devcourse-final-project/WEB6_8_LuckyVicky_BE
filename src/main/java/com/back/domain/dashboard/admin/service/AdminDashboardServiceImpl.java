@@ -111,7 +111,13 @@ public class AdminDashboardServiceImpl implements AdminDashboardService {
         // 5. 승인 대기 알림
         // 작가 입점 신청 승인 대기 (최근 2건)
         List<ArtistApplication> pendingApplications = artistApplicationRepository
-                .findByStatusOrderByCreateDateDesc(ApplicationStatus.PENDING, PageRequest.of(0, 2))
+                .findArtistApplicationsForAdmin(
+                        null,  // keyword: 검색어 없음
+                        ApplicationStatus.PENDING,  // status: PENDING만
+                        "submittedAt",  // 신청일자 기준
+                        "DESC",  // 최신순
+                        PageRequest.of(0, 2)
+                )
                 .getContent();
 
         List<AdminOverviewResponse.ArtistApproval> artistApprovals = pendingApplications.stream()
@@ -737,25 +743,21 @@ public class AdminDashboardServiceImpl implements AdminDashboardService {
     public AdminArtistApplicationResponse getArtistApplications(AdminArtistApplicationSearchRequest request) {
         CustomUserDetails adminUser = validateAdminAuthentication();
 
-        Pageable pageable = buildPageable(request.page(), request.size(), request.sort(), request.order(),
-                sort -> "createDate");
+        Pageable pageable = PageRequest.of(request.page(), request.size());
 
-        Page<ArtistApplication> applicationPage;
-
+        // 새로운 동적 정렬 쿼리 사용
+        ApplicationStatus status = null;
         if (request.status() != null && !request.status().isBlank()) {
-            ApplicationStatus appStatus = ApplicationStatus.valueOf(request.status());
-            if (request.keyword() != null && !request.keyword().isBlank()) {
-                applicationPage = artistApplicationRepository.findByArtistNameContainingOrderByCreateDateDesc(request.keyword(), pageable);
-            } else {
-                applicationPage = artistApplicationRepository.findByStatusOrderByCreateDateDesc(appStatus, pageable);
-            }
-        } else {
-            if (request.keyword() != null && !request.keyword().isBlank()) {
-                applicationPage = artistApplicationRepository.findByArtistNameContainingOrderByCreateDateDesc(request.keyword(), pageable);
-            } else {
-                applicationPage = artistApplicationRepository.findAllByOrderByCreateDateDesc(pageable);
-            }
+            status = ApplicationStatus.valueOf(request.status());
         }
+
+        Page<ArtistApplication> applicationPage = artistApplicationRepository.findArtistApplicationsForAdmin(
+                request.keyword(),
+                status,
+                request.sort(),
+                request.order(),
+                pageable
+        );
 
         long totalApplications = artistApplicationRepository.count();
         long pending = artistApplicationRepository.countByStatus(ApplicationStatus.PENDING);
@@ -794,6 +796,7 @@ public class AdminDashboardServiceImpl implements AdminDashboardService {
         return new AdminArtistApplicationResponse.Application(
                 application.getId(),
                 new AdminArtistApplicationResponse.Artist(
+                        application.getUser().getId(), // 작가 ID 추가
                         application.getUser().getEmail() != null ? application.getUser().getEmail() : "N/A",
                         application.getArtistName()
                 ),

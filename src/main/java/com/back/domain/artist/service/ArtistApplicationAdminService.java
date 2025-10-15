@@ -34,8 +34,15 @@ public class ArtistApplicationAdminService {
      * TODO: 대시보드 파트와 겹치는 부분이어서 통합 고려
      */
     public Page<ArtistApplicationSimpleResponse> getAllApplications(Pageable pageable) {
+        // 새로운 동적 쿼리 사용 (keyword, status null로 전체 조회, 기본 정렬: submittedAt DESC)
         Page<ArtistApplication> applications =
-                artistApplicationRepository.findAllByOrderByCreateDateDesc(pageable);
+                artistApplicationRepository.findArtistApplicationsForAdmin(
+                        null,  // keyword: 검색어 없음 (전체 조회)
+                        null,  // status: 상태 필터 없음 (전체 조회)
+                        "submittedAt",  // 신청일자 기준 정렬
+                        "DESC",  // 최신순
+                        pageable
+                );
 
         return applications.map(ArtistApplicationSimpleResponse::from);
     }
