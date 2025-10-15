@@ -497,12 +497,11 @@ public class DashboardServiceImpl implements DashboardService {
      */
     private FollowingResponse.Artist convertToFollowingArtist(com.back.domain.follow.entity.Follow follow) {
         com.back.domain.artist.entity.ArtistProfile artistProfile = follow.getFollowingArtist();
-        User artistUser = artistProfile.getUser();
 
         return new FollowingResponse.Artist(
                 artistProfile.getId().toString(),
                 artistProfile.getArtistName(),
-                artistUser.getProfileImageUrl(),
+                artistProfile.getProfileImageUrl(),
                 "/artists/" + artistProfile.getId()
         );
     }
@@ -516,10 +515,11 @@ public class DashboardServiceImpl implements DashboardService {
             throw new ServiceException("USER_NOT_FOUND", "사용자를 찾을 수 없습니다.");
         }
 
-        // 2. 페이징 설정
-        Pageable pageable = PageRequest.of(request.page(), request.size());
+        // 2. 페이징 설정 (페이지 크기 8개 고정)
+        int fixedPageSize = 8;
+        Pageable pageable = PageRequest.of(request.page(), fixedPageSize);
 
-        // 3. 찜 목록 조회 (Product, Artist 정보 포함)
+        // 3. 찜 목록 조회 (Product, Artist 정보 포함, 삭제된 상품 제외)
         Page<com.back.domain.wishlist.entity.Wishlist> wishlistPage =
                 wishlistRepository.findByUserIdWithProductAndArtist(userId, pageable);
 
@@ -528,8 +528,8 @@ public class DashboardServiceImpl implements DashboardService {
                 .map(this::convertToWishlistItem)
                 .collect(Collectors.toList());
 
-        // 5. 통계 계산
-        long totalWishItems = wishlistRepository.countByUserId(userId);
+        // 5. 통계 계산 (삭제되지 않은 상품만 카운트)
+        long totalWishItems = wishlistPage.getTotalElements();
         WishlistResponse.SummaryDto summary = new WishlistResponse.SummaryDto((int) totalWishItems);
 
         // 6. 일괄 작업 옵션
@@ -539,7 +539,7 @@ public class DashboardServiceImpl implements DashboardService {
 
         return new WishlistResponse.List(
                 summary, bulkActions, content,
-                wishlistPage.getNumber(), wishlistPage.getSize(),
+                wishlistPage.getNumber(), fixedPageSize,
                 wishlistPage.getTotalElements(), wishlistPage.getTotalPages(),
                 wishlistPage.hasNext(), wishlistPage.hasPrevious()
         );
