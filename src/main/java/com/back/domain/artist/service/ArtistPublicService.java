@@ -53,7 +53,7 @@ public class ArtistPublicService {
         log.info("작가 공개 프로필 조회 시작 - artistId: {}", artistId);
 
         // 작가 프로필 조회
-        ArtistProfile artistProfile = artistProfileRepository.findByUserId(artistId)
+        ArtistProfile artistProfile = artistProfileRepository.findById(artistId)
                 .orElseThrow(() -> new ServiceException("404", "존재하지 않는 작가입니다."));
 
         log.info("작가 공개 프로필 조회 완료 - artistId: {}, artistName: {}",
