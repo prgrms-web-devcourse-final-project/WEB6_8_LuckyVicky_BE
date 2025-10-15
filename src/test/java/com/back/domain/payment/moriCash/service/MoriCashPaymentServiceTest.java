@@ -64,7 +64,7 @@ class MoriCashPaymentServiceTest {
         MoriCashPayment savedPayment = createTestPayment();
         
         when(orderRepository.findById(1L)).thenReturn(Optional.of(order));
-        when(moriCashBalanceRepository.findByUser(user)).thenReturn(Optional.of(balance));
+        when(moriCashBalanceRepository.findByUserWithLock(user)).thenReturn(Optional.of(balance));
         when(moriCashPaymentRepository.save(any(MoriCashPayment.class))).thenReturn(savedPayment);
         when(moriCashBalanceRepository.save(any(MoriCashBalance.class))).thenReturn(balance);
 
@@ -78,7 +78,7 @@ class MoriCashPaymentServiceTest {
         assertThat(result.getStatus()).isEqualTo(MoriCashPaymentStatus.COMPLETED);
 
         verify(orderRepository).findById(1L);
-        verify(moriCashBalanceRepository).findByUser(user);
+        verify(moriCashBalanceRepository).findByUserWithLock(user);
         verify(moriCashPaymentRepository).save(any(MoriCashPayment.class));
         verify(moriCashBalanceRepository).save(any(MoriCashBalance.class));
     }
@@ -126,7 +126,7 @@ class MoriCashPaymentServiceTest {
         MoriCashBalance balance = createTestBalance(5000); // 요청 금액보다 적음
         
         when(orderRepository.findById(1L)).thenReturn(Optional.of(order));
-        when(moriCashBalanceRepository.findByUser(user)).thenReturn(Optional.of(balance));
+        when(moriCashBalanceRepository.findByUserWithLock(user)).thenReturn(Optional.of(balance));
 
         // When & Then
         assertThatThrownBy(() -> moriCashPaymentService.createPayment(requestDto, user))
@@ -135,11 +135,14 @@ class MoriCashPaymentServiceTest {
     }
 
     @Test
-    @DisplayName("모리캐시 결제 - 잔액이 없는 경우 예외 발생")
+    @DisplayName("모리캐시 결제 - 잔액이 없는 경우 새로 생성 후 잔액 부족으로 실패")
     void createPayment_CreateNewBalance() {
         // Given
+        MoriCashBalance newBalance = createTestBalance(0); // 새로 생성된 잔액은 0원
+        
         when(orderRepository.findById(1L)).thenReturn(Optional.of(order));
-        when(moriCashBalanceRepository.findByUser(user)).thenReturn(Optional.empty());
+        when(moriCashBalanceRepository.findByUserWithLock(user)).thenReturn(Optional.empty());
+        when(moriCashBalanceRepository.save(any(MoriCashBalance.class))).thenReturn(newBalance);
 
         // When & Then
         assertThatThrownBy(() -> moriCashPaymentService.createPayment(requestDto, user))
@@ -156,7 +159,7 @@ class MoriCashPaymentServiceTest {
         MoriCashBalance balance = createTestBalance(15000);
         
         when(moriCashPaymentRepository.findById(paymentId)).thenReturn(Optional.of(payment));
-        when(moriCashBalanceRepository.findByUser(user)).thenReturn(Optional.of(balance));
+        when(moriCashBalanceRepository.findByUserWithLock(user)).thenReturn(Optional.of(balance));
         when(moriCashBalanceRepository.save(any(MoriCashBalance.class))).thenReturn(balance);
 
         // When
@@ -164,7 +167,7 @@ class MoriCashPaymentServiceTest {
 
         // Then
         verify(moriCashPaymentRepository).findById(paymentId);
-        verify(moriCashBalanceRepository).findByUser(user);
+        verify(moriCashBalanceRepository).findByUserWithLock(user);
         verify(moriCashBalanceRepository).save(any(MoriCashBalance.class));
         
         assertThat(payment.getStatus()).isEqualTo(MoriCashPaymentStatus.CANCELLED);

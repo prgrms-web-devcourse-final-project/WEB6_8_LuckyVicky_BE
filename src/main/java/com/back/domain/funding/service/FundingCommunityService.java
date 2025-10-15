@@ -33,8 +33,8 @@ public class FundingCommunityService {
     }
 
     @Transactional
-    public void delete(Long fundingId, Long communityId, String username) {
-        Funding funding = fundingRepository.findById(fundingId)
+    public void delete(Long id, Long communityId, String username) {
+        Funding funding = fundingRepository.findById(id)
                 .orElseThrow(() -> new ServiceException("404", "펀딩을 찾을 수 없습니다."));
         FundingCommunity post = fundingCommunityRepository.findById(communityId)
                 .orElseThrow(() -> new ServiceException("404", "존재하지 않는 글입니다."));

@@ -3,13 +3,14 @@ package com.back.domain.cart.dto.response;
 import com.back.domain.cart.entity.Cart;
 
 import java.time.LocalDateTime;
+import java.util.UUID;
 
 /**
  * 장바구니 개별 상품 응답 DTO
  */
 public record CartResponseDto(
     Long cartId, // 장바구니 아이템 ID
-    Long productId, // 상품 ID
+    UUID productUuid, // 상품 UUID
     String productName, // 상품명
     String productImageUrl, // 상품 이미지 URL
     Integer price, // 상품 가격
@@ -33,7 +34,7 @@ public record CartResponseDto(
         
         return new CartResponseDto(
                 cart.getId(),
-                productInfo.getId(),
+                productInfo.getUuid(),
                 productInfo.getName(),
                 productInfo.getImageUrl(), // ProductInfo에서 이미지 URL 가져오기
                 productInfo.getPrice(),

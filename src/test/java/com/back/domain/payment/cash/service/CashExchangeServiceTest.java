@@ -56,7 +56,7 @@ class CashExchangeServiceTest {
         MoriCashBalance balance = createTestBalance(15000);
         CashTransaction savedTransaction = createTestTransaction();
         
-        when(moriCashBalanceRepository.findByUser(artistUser)).thenReturn(Optional.of(balance));
+        when(moriCashBalanceRepository.findByUserWithLock(artistUser)).thenReturn(Optional.of(balance));
         when(cashTransactionRepository.save(any(CashTransaction.class))).thenReturn(savedTransaction);
         when(moriCashBalanceRepository.save(any(MoriCashBalance.class))).thenReturn(balance);
 
@@ -68,7 +68,7 @@ class CashExchangeServiceTest {
         assertThat(result.getAmount()).isEqualTo(10000);
         assertThat(result.getStatus()).isEqualTo(CashTransactionStatus.PENDING);
 
-        verify(moriCashBalanceRepository).findByUser(artistUser);
+        verify(moriCashBalanceRepository).findByUserWithLock(artistUser);
         verify(cashTransactionRepository).save(any(CashTransaction.class));
         verify(moriCashBalanceRepository).save(any(MoriCashBalance.class));
     }
@@ -88,7 +88,7 @@ class CashExchangeServiceTest {
         // Given
         MoriCashBalance balance = createTestBalance(5000); // 요청 금액보다 적음
         
-        when(moriCashBalanceRepository.findByUser(artistUser)).thenReturn(Optional.of(balance));
+        when(moriCashBalanceRepository.findByUserWithLock(artistUser)).thenReturn(Optional.of(balance));
 
         // When & Then
         assertThatThrownBy(() -> cashExchangeService.createExchangeRequest(requestDto, artistUser))
@@ -100,7 +100,7 @@ class CashExchangeServiceTest {
     @DisplayName("캐시 환전 신청 - 잔액 정보 없음")
     void createExchangeRequest_BalanceNotFound() {
         // Given
-        when(moriCashBalanceRepository.findByUser(artistUser)).thenReturn(Optional.empty());
+        when(moriCashBalanceRepository.findByUserWithLock(artistUser)).thenReturn(Optional.empty());
 
         // When & Then
         assertThatThrownBy(() -> cashExchangeService.createExchangeRequest(requestDto, artistUser))
@@ -127,7 +127,7 @@ class CashExchangeServiceTest {
                 .build();
         
         when(cashTransactionRepository.findById(transactionId)).thenReturn(Optional.of(transaction));
-        when(moriCashBalanceRepository.findByUser(artistUser)).thenReturn(Optional.of(balance));
+        when(moriCashBalanceRepository.findByUserWithLock(artistUser)).thenReturn(Optional.of(balance));
         when(moriCashBalanceRepository.save(any(MoriCashBalance.class))).thenReturn(balance);
 
         // When
@@ -138,7 +138,7 @@ class CashExchangeServiceTest {
         assertThat(result.getStatus()).isEqualTo(CashTransactionStatus.COMPLETED);
 
         verify(cashTransactionRepository).findById(transactionId);
-        verify(moriCashBalanceRepository).findByUser(artistUser);
+        verify(moriCashBalanceRepository).findByUserWithLock(artistUser);
         verify(moriCashBalanceRepository).save(any(MoriCashBalance.class));
     }
 
@@ -172,7 +172,7 @@ class CashExchangeServiceTest {
                 .build();
         
         when(cashTransactionRepository.findById(transactionId)).thenReturn(Optional.of(transaction));
-        when(moriCashBalanceRepository.findByUser(artistUser)).thenReturn(Optional.of(balance));
+        when(moriCashBalanceRepository.findByUserWithLock(artistUser)).thenReturn(Optional.of(balance));
         when(moriCashBalanceRepository.save(any(MoriCashBalance.class))).thenReturn(balance);
 
         // When
@@ -180,7 +180,7 @@ class CashExchangeServiceTest {
 
         // Then
         verify(cashTransactionRepository).findById(transactionId);
-        verify(moriCashBalanceRepository).findByUser(artistUser);
+        verify(moriCashBalanceRepository).findByUserWithLock(artistUser);
         verify(moriCashBalanceRepository).save(any(MoriCashBalance.class));
         
         assertThat(transaction.getStatus()).isEqualTo(CashTransactionStatus.FAILED);

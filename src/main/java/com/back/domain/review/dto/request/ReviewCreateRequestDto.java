@@ -8,6 +8,7 @@ import lombok.NoArgsConstructor;
 
 import jakarta.validation.constraints.*;
 import java.util.List;
+import java.util.UUID;
 
 /**
  * 리뷰 작성 요청 DTO
@@ -19,8 +20,8 @@ import java.util.List;
 @Builder
 public class ReviewCreateRequestDto {
 
-    @NotNull(message = "상품 ID는 필수입니다")
-    private Long productId; // 상품 ID
+    @NotNull(message = "상품 UUID는 필수입니다")
+    private UUID productUuid; // 상품 UUID
 
     @NotNull(message = "평점은 필수입니다")
     @Min(value = 1, message = "평점은 1점 이상이어야 합니다")

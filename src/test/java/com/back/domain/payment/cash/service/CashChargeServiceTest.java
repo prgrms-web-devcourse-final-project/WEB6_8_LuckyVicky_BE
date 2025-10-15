@@ -90,7 +90,7 @@ class CashChargeServiceTest {
         
         when(cashTransactionRepository.findById(transactionId)).thenReturn(Optional.of(transaction));
         when(paymentGatewayService.approvePayment(anyString(), anyString(), anyInt())).thenReturn(pgResponse);
-        when(moriCashBalanceRepository.findByUser(user)).thenReturn(Optional.of(balance));
+        when(moriCashBalanceRepository.findByUserWithLock(user)).thenReturn(Optional.of(balance));
         when(moriCashBalanceRepository.save(any(MoriCashBalance.class))).thenReturn(balance);
 
         // When
@@ -103,7 +103,7 @@ class CashChargeServiceTest {
 
         verify(cashTransactionRepository).findById(transactionId);
         verify(paymentGatewayService).approvePayment(paymentKey, orderId, transaction.getAmount());
-        verify(moriCashBalanceRepository).findByUser(user);
+        verify(moriCashBalanceRepository).findByUserWithLock(user);
         verify(moriCashBalanceRepository).save(any(MoriCashBalance.class));
     }
 
@@ -141,7 +141,7 @@ class CashChargeServiceTest {
         
         when(cashTransactionRepository.findById(transactionId)).thenReturn(Optional.of(transaction));
         when(paymentGatewayService.approvePayment(anyString(), anyString(), anyInt())).thenReturn(pgResponse);
-        when(moriCashBalanceRepository.findByUser(user)).thenReturn(Optional.empty());
+        when(moriCashBalanceRepository.findByUserWithLock(user)).thenReturn(Optional.empty());
         when(moriCashBalanceRepository.save(any(MoriCashBalance.class))).thenReturn(newBalance);
 
         // When
@@ -150,7 +150,7 @@ class CashChargeServiceTest {
         // Then
         assertThat(result).isNotNull();
         verify(paymentGatewayService).approvePayment(paymentKey, orderId, transaction.getAmount());
-        verify(moriCashBalanceRepository).save(any(MoriCashBalance.class));
+        verify(moriCashBalanceRepository, times(2)).save(any(MoriCashBalance.class)); // orElseGet에서 1번, 이후 1번
     }
 
     @Test

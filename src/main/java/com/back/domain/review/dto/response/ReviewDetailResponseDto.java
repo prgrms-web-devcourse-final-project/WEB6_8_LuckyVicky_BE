@@ -9,6 +9,7 @@ import lombok.NoArgsConstructor;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.UUID;
 import java.util.stream.Collectors;
 
 /**
@@ -21,7 +22,7 @@ import java.util.stream.Collectors;
 public class ReviewDetailResponseDto {
 
     private Long reviewId; // 리뷰 ID
-    private Long productId; // 상품 ID
+    private UUID productUuid; // 상품 UUID
     private String productName; // 상품명
     private String productOption; // 상품 옵션 (예: "상품옵션1")
     private Long userId; // 사용자 ID
@@ -43,7 +44,7 @@ public class ReviewDetailResponseDto {
     public static ReviewDetailResponseDto from(Review review, boolean isLiked) {
         return ReviewDetailResponseDto.builder()
                 .reviewId(review.getId())
-                .productId(review.getProduct().getId())
+                .productUuid(review.getProduct().getProductUuid())
                 .productName(review.getProduct().getName())
                 .productOption(review.getProductOption() != null ? review.getProductOption() : "상품옵션1")
                 .userId(review.getUser().getId())

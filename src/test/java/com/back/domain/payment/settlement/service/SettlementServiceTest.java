@@ -69,7 +69,7 @@ class SettlementServiceTest {
                 .accountHolder("작가")
                 .build();
 
-        when(moriCashBalanceRepository.findByUser(artist)).thenReturn(Optional.of(balance));
+        when(moriCashBalanceRepository.findByUserWithLock(artist)).thenReturn(Optional.of(balance));
         when(settlementRepository.save(any(Settlement.class))).thenReturn(settlement);
 
         // when
@@ -117,7 +117,7 @@ class SettlementServiceTest {
                 .amount(200000) // 보유액보다 많은 금액
                 .build();
 
-        when(moriCashBalanceRepository.findByUser(artist)).thenReturn(Optional.of(balance));
+        when(moriCashBalanceRepository.findByUserWithLock(artist)).thenReturn(Optional.of(balance));
 
         // when & then
         assertThatThrownBy(() -> settlementService.requestWithdrawal(requestDto, artist))
@@ -138,7 +138,7 @@ class SettlementServiceTest {
         // 잔액이 없을 때 빈 잔액 생성 (0원)
         MoriCashBalance newBalance = MoriCashBalance.createInitialBalance(artist);
 
-        when(moriCashBalanceRepository.findByUser(artist)).thenReturn(Optional.empty());
+        when(moriCashBalanceRepository.findByUserWithLock(artist)).thenReturn(Optional.empty());
         when(moriCashBalanceRepository.save(any(MoriCashBalance.class))).thenReturn(newBalance);
 
         // when & then
@@ -168,7 +168,7 @@ class SettlementServiceTest {
                 .accountHolder("작가")
                 .build();
 
-        when(moriCashBalanceRepository.findByUser(artist)).thenReturn(Optional.of(balance));
+        when(moriCashBalanceRepository.findByUserWithLock(artist)).thenReturn(Optional.of(balance));
         when(settlementRepository.save(any(Settlement.class))).thenReturn(settlement);
 
         // when
@@ -183,7 +183,7 @@ class SettlementServiceTest {
     @DisplayName("보유 모리캐시 조회")
     void getMoriCashBalance() {
         // given
-        when(moriCashBalanceRepository.findByUser(artist)).thenReturn(Optional.of(balance));
+        when(moriCashBalanceRepository.findByUser(artist)).thenReturn(Optional.of(balance)); // 조회 전용이라 락 없음
 
         // when
         Integer result = settlementService.getMoriCashBalance(artist);
@@ -196,7 +196,7 @@ class SettlementServiceTest {
     @DisplayName("보유 모리캐시 조회 - 잔액 없을 때 0 반환")
     void getMoriCashBalance_NoBalance() {
         // given
-        when(moriCashBalanceRepository.findByUser(artist)).thenReturn(Optional.empty());
+        when(moriCashBalanceRepository.findByUser(artist)).thenReturn(Optional.empty()); // 조회 전용이라 락 없음
 
         // when
         Integer result = settlementService.getMoriCashBalance(artist);

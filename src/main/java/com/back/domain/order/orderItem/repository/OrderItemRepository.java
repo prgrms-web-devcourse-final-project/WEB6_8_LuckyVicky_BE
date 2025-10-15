@@ -2,6 +2,7 @@ package com.back.domain.order.orderItem.repository;
 
 import com.back.domain.order.order.entity.Order;
 import com.back.domain.order.orderItem.entity.OrderItem;
+import com.back.domain.product.product.entity.Product;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -17,4 +18,7 @@ public interface OrderItemRepository extends JpaRepository<OrderItem, Long> {
            "JOIN FETCH oi.product " +
            "WHERE oi.order = :order")
     List<OrderItem> findByOrderWithProduct(@Param("order") Order order);
+
+    // 특정 상품의 총 누적 판매 수량
+    long countByProduct(Product product);
 }

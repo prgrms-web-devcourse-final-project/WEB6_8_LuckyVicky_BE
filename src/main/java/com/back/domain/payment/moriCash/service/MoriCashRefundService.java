@@ -53,8 +53,8 @@ public class MoriCashRefundService {
             throw new IllegalArgumentException("환불 금액이 올바르지 않습니다.");
         }
 
-        // 5. 모리캐시 잔액 복원
-        MoriCashBalance balance = moriCashBalanceRepository.findByUser(user)
+        // 5. 모리캐시 잔액 복원 (Pessimistic Write Lock - 동시성 제어)
+        MoriCashBalance balance = moriCashBalanceRepository.findByUserWithLock(user)
                 .orElseThrow(() -> new IllegalArgumentException("모리캐시 잔액 정보를 찾을 수 없습니다."));
 
         balance.restoreBalance(requestDto.getRefundAmount());
@@ -83,8 +83,8 @@ public class MoriCashRefundService {
             throw new IllegalArgumentException("환불 처리된 결제가 아닙니다.");
         }
 
-        // 2. 모리캐시 잔액에서 환불 금액 차감
-        MoriCashBalance balance = moriCashBalanceRepository.findByUser(payment.getUser())
+        // 2. 모리캐시 잔액에서 환불 금액 차감 (Pessimistic Write Lock - 동시성 제어)
+        MoriCashBalance balance = moriCashBalanceRepository.findByUserWithLock(payment.getUser())
                 .orElseThrow(() -> new IllegalArgumentException("모리캐시 잔액 정보를 찾을 수 없습니다."));
 
         balance.deductBalance(payment.getRefundPrice());
