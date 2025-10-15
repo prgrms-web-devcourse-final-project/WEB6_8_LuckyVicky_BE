@@ -60,14 +60,14 @@ class OrderServiceTest {
         Product product = createProduct(1L, productUuid);
         OrderRequestDto requestDto = createOrderRequestDto(productUuid);
 
-        given(productRepository.findByProductUuid(productUuid)).willReturn(Optional.of(product));
+        given(productRepository.findByProductUuidWithLock(productUuid)).willReturn(Optional.of(product));
         given(orderRepository.save(any(Order.class))).willAnswer(invocation -> invocation.getArgument(0));
 
         OrderResponseDto result = orderService.createOrder(user, requestDto);
 
         assertThat(result).isNotNull();
         assertThat(result.status()).isEqualTo(OrderStatus.PAYMENT_COMPLETED);
-        verify(productRepository).findByProductUuid(productUuid);
+        verify(productRepository).findByProductUuidWithLock(productUuid);
         verify(orderRepository).save(any(Order.class));
         verify(cartRepository).deleteByUserAndProductUuidIn(eq(user), anyList());
     }
@@ -78,7 +78,7 @@ class OrderServiceTest {
         User user = createUser(1L);
         UUID productUuid = UUID.randomUUID();
         OrderRequestDto requestDto = createOrderRequestDto(productUuid);
-        given(productRepository.findByProductUuid(productUuid)).willReturn(Optional.empty());
+        given(productRepository.findByProductUuidWithLock(productUuid)).willReturn(Optional.empty());
 
         assertThatThrownBy(() -> orderService.createOrder(user, requestDto))
                 .isInstanceOf(IllegalArgumentException.class)

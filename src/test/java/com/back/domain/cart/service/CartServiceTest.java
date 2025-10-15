@@ -24,6 +24,7 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
+import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.*;
@@ -57,6 +58,8 @@ class CartServiceTest {
     private Cart testFundingCart;
     private CartRequestDto normalCartRequestDto;
     private CartRequestDto fundingCartRequestDto;
+    
+    private static final UUID TEST_PRODUCT_UUID = UUID.fromString("550e8400-e29b-41d4-a716-446655440000");
 
     @BeforeEach
     void setUp() {
@@ -72,6 +75,7 @@ class CartServiceTest {
         // 테스트용 상품 생성 (Mock 사용)
         testProduct = mock(Product.class);
         when(testProduct.getId()).thenReturn(1L);
+        when(testProduct.getProductUuid()).thenReturn(TEST_PRODUCT_UUID);
         when(testProduct.getName()).thenReturn("테스트 상품");
         when(testProduct.getPrice()).thenReturn(10000);
         when(testProduct.getDiscountPrice()).thenReturn(10000);
@@ -112,18 +116,18 @@ class CartServiceTest {
 
         // 테스트용 요청 DTO 생성 (일반)
         normalCartRequestDto = new CartRequestDto(
-                1L,              // productId
-                2,               // quantity
-                "일반 상품 옵션",  // optionInfo
-                "NORMAL",        // cartType
-                null,            // fundingId
-                null,            // fundingPrice
-                null             // fundingStock
+                TEST_PRODUCT_UUID, // productUuid
+                2,                 // quantity
+                "일반 상품 옵션",    // optionInfo
+                "NORMAL",          // cartType
+                null,              // fundingId
+                null,              // fundingPrice
+                null               // fundingStock
         );
 
         // 테스트용 요청 DTO 생성 (펀딩)
         fundingCartRequestDto = new CartRequestDto(
-                null,              // productId (펀딩은 필요 없음)
+                null,              // productUuid (펀딩은 필요 없음)
                 1,                 // quantity
                 null,              // optionInfo (펀딩은 옵션 안씀)
                 "FUNDING",         // cartType
@@ -141,7 +145,7 @@ class CartServiceTest {
     @DisplayName("장바구니에 새 상품 추가 성공")
     void addToCart_NewProduct_Success() {
         // Given
-        given(productRepository.findById(1L)).willReturn(Optional.of(testProduct));
+        given(productRepository.findByProductUuid(TEST_PRODUCT_UUID)).willReturn(Optional.of(testProduct));
         given(cartRepository.findByUserAndProductAndCartType(eq(testUser), any(Product.class), eq(Cart.CartType.NORMAL)))
                 .willReturn(Optional.empty());
         given(cartRepository.save(any(Cart.class))).willReturn(testNormalCart);
@@ -155,7 +159,7 @@ class CartServiceTest {
         assertThat(result.cartType()).isEqualTo("NORMAL");
         assertThat(result.optionInfo()).isEqualTo("일반 상품 옵션");
 
-        verify(productRepository).findById(1L);
+        verify(productRepository).findByProductUuid(TEST_PRODUCT_UUID);
         verify(cartRepository).findByUserAndProductAndCartType(eq(testUser), any(Product.class), eq(Cart.CartType.NORMAL));
         verify(cartRepository).save(any(Cart.class));
     }
@@ -173,7 +177,7 @@ class CartServiceTest {
                 .optionInfo("기존 옵션")
                 .build();
 
-        given(productRepository.findById(1L)).willReturn(Optional.of(testProduct));
+        given(productRepository.findByProductUuid(TEST_PRODUCT_UUID)).willReturn(Optional.of(testProduct));
         given(cartRepository.findByUserAndProductAndCartType(eq(testUser), any(Product.class), eq(Cart.CartType.NORMAL)))
                 .willReturn(Optional.of(existingCart));
         given(cartRepository.save(existingCart)).willReturn(existingCart);
@@ -191,7 +195,7 @@ class CartServiceTest {
     @DisplayName("존재하지 않는 상품 추가 실패")
     void addToCart_ProductNotFound_ThrowException() {
         // Given
-        given(productRepository.findById(1L)).willReturn(Optional.empty());
+        given(productRepository.findByProductUuid(TEST_PRODUCT_UUID)).willReturn(Optional.empty());
 
         // When & Then
         assertThatThrownBy(() -> cartService.addToCart(testUser, normalCartRequestDto))
@@ -206,16 +210,16 @@ class CartServiceTest {
     void addToCart_InvalidCartType_ThrowException() {
         // Given
         CartRequestDto invalidDto = new CartRequestDto(
-                1L,        // productId
-                2,         // quantity
-                null,      // optionInfo
-                "INVALID", // cartType
-                null,      // fundingId
-                null,      // fundingPrice
-                null       // fundingStock
+                TEST_PRODUCT_UUID, // productUuid
+                2,                 // quantity
+                null,              // optionInfo
+                "INVALID",         // cartType
+                null,              // fundingId
+                null,              // fundingPrice
+                null               // fundingStock
         );
 
-        given(productRepository.findById(1L)).willReturn(Optional.of(testProduct));
+        given(productRepository.findByProductUuid(TEST_PRODUCT_UUID)).willReturn(Optional.of(testProduct));
 
         // When & Then
         assertThatThrownBy(() -> cartService.addToCart(testUser, invalidDto))

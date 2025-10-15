@@ -4,15 +4,17 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotNull;
 
+import java.util.UUID;
+
 /**
  * 장바구니 추가/수정 요청 DTO
- * - 일반 장바구니: productId, optionInfo 사용
+ * - 일반 장바구니: productUuid, optionInfo 사용
  * - 펀딩 장바구니: fundingId, fundingPrice, fundingStock 사용
  */
 @Schema(description = "장바구니 추가 요청")
 public record CartRequestDto(
-    @Schema(description = "상품 ID (일반 장바구니만 필수)", example = "123", requiredMode = Schema.RequiredMode.NOT_REQUIRED)
-    Long productId, // 상품 ID (일반 장바구니만 사용)
+    @Schema(description = "상품 UUID (일반 장바구니만 필수)", example = "550e8400-e29b-41d4-a716-446655440000", requiredMode = Schema.RequiredMode.NOT_REQUIRED)
+    UUID productUuid, // 상품 UUID (일반 장바구니만 사용)
 
     @NotNull(message = "수량은 필수입니다")
     @Min(value = 1, message = "수량은 1개 이상이어야 합니다")
@@ -40,8 +42,8 @@ public record CartRequestDto(
      * 유효성 검증
      */
     public void validate() {
-        if ("NORMAL".equals(cartType) && productId == null) {
-            throw new IllegalArgumentException("일반 장바구니는 productId가 필수입니다.");
+        if ("NORMAL".equals(cartType) && productUuid == null) {
+            throw new IllegalArgumentException("일반 장바구니는 productUuid가 필수입니다.");
         }
         if ("FUNDING".equals(cartType) && fundingId == null) {
             throw new IllegalArgumentException("펀딩 장바구니는 fundingId가 필수입니다.");

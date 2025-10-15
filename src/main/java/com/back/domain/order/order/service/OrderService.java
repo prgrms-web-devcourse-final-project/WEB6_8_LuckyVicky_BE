@@ -353,9 +353,9 @@ public class OrderService {
         order.getOrderItems().forEach(orderItem -> {
             User artist = orderItem.getProduct().getUser();
             
-            // 작가의 모리캐시 잔액 조회 또는 생성
+            // 작가의 모리캐시 잔액 조회 또는 생성 (Pessimistic Write Lock - 동시성 제어)
             com.back.domain.payment.moriCash.entity.MoriCashBalance balance = 
-                    moriCashBalanceRepository.findByUser(artist)
+                    moriCashBalanceRepository.findByUserWithLock(artist)
                             .orElseGet(() -> {
                                 com.back.domain.payment.moriCash.entity.MoriCashBalance newBalance = 
                                         com.back.domain.payment.moriCash.entity.MoriCashBalance.createInitialBalance(artist);
@@ -384,10 +384,11 @@ public class OrderService {
     private List<OrderItem> createOrderItems(List<OrderRequestDto.OrderItemRequestDto> orderItemRequests) {
         return orderItemRequests.stream()
                 .map(itemRequest -> {
-                    Product product = productRepository.findByProductUuid(itemRequest.productUuid())
+                    // Pessimistic Write Lock으로 상품 조회 (동시성 제어)
+                    Product product = productRepository.findByProductUuidWithLock(itemRequest.productUuid())
                             .orElseThrow(() -> new IllegalArgumentException("상품을 찾을 수 없습니다."));
                     
-                    // 재고 감소
+                    // 재고 검증 및 감소
                     int newStock = product.getStock() - itemRequest.quantity();
                     if (newStock < 0) {
                         throw new IllegalArgumentException("재고가 부족합니다. (상품: " + product.getName() + ", 현재 재고: " + product.getStock() + ")");
@@ -444,7 +445,7 @@ public class OrderService {
         List<OrderResponseDto.OrderItemResponseDto> orderItemDtos = order.getOrderItems().stream()
                 .map(item -> new OrderResponseDto.OrderItemResponseDto(
                         item.getId(),
-                        item.getProduct().getId(),
+                        item.getProduct().getProductUuid(),
                         item.getProduct().getName(),
                         getProductThumbnailUrl(item.getProduct()),
                         item.getQuantity(),

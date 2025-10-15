@@ -603,6 +603,7 @@ class DashboardControllerTest {
         );
     }
 
+
     @Test
     @DisplayName("찜한 상품 목록 조회 API - 성공")
     void getWishlist_Success() throws Exception {

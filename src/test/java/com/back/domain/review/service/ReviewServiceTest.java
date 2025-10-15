@@ -32,6 +32,7 @@ import java.time.LocalDateTime;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
+import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -60,6 +61,8 @@ class ReviewServiceTest {
     private User user;
     private Product product;
     private Review review;
+    
+    private static final UUID TEST_PRODUCT_UUID = UUID.fromString("550e8400-e29b-41d4-a716-446655440000");
 
     @BeforeEach
     void setUp() {
@@ -73,13 +76,13 @@ class ReviewServiceTest {
     void createReview_Success() {
         // Given
         ReviewCreateRequestDto requestDto = ReviewCreateRequestDto.builder()
-                .productId(1L)
+                .productUuid(TEST_PRODUCT_UUID)
                 .rating(5)
                 .content("정말 좋은 상품입니다!")
                 .images(Arrays.asList())
                 .build();
 
-        when(productRepository.findById(1L)).thenReturn(Optional.of(product));
+        when(productRepository.findByProductUuid(TEST_PRODUCT_UUID)).thenReturn(Optional.of(product));
         when(reviewRepository.findByProductAndUserAndNotDeleted(product, user)).thenReturn(Optional.empty());
         when(reviewRepository.save(any(Review.class))).thenReturn(review);
 
@@ -91,7 +94,7 @@ class ReviewServiceTest {
         assertThat(result.getRating()).isEqualTo(5);
         assertThat(result.getContent()).isEqualTo("정말 좋은 상품입니다! 추천해요!");
 
-        verify(productRepository).findById(1L);
+        verify(productRepository).findByProductUuid(TEST_PRODUCT_UUID);
         verify(reviewRepository).findByProductAndUserAndNotDeleted(product, user);
         verify(reviewRepository).save(any(Review.class));
     }
@@ -100,13 +103,14 @@ class ReviewServiceTest {
     @DisplayName("리뷰 작성 실패 - 상품을 찾을 수 없음")
     void createReview_ProductNotFound() {
         // Given
+        UUID nonExistentUuid = UUID.fromString("00000000-0000-0000-0000-000000000000");
         ReviewCreateRequestDto requestDto = ReviewCreateRequestDto.builder()
-                .productId(999L)
+                .productUuid(nonExistentUuid)
                 .rating(5)
                 .content("정말 좋은 상품입니다!")
                 .build();
 
-        when(productRepository.findById(999L)).thenReturn(Optional.empty());
+        when(productRepository.findByProductUuid(nonExistentUuid)).thenReturn(Optional.empty());
 
         // When & Then
         assertThatThrownBy(() -> reviewService.createReview(requestDto, user))
@@ -119,12 +123,12 @@ class ReviewServiceTest {
     void createReview_AlreadyExists() {
         // Given
         ReviewCreateRequestDto requestDto = ReviewCreateRequestDto.builder()
-                .productId(1L)
+                .productUuid(TEST_PRODUCT_UUID)
                 .rating(5)
                 .content("정말 좋은 상품입니다!")
                 .build();
 
-        when(productRepository.findById(1L)).thenReturn(Optional.of(product));
+        when(productRepository.findByProductUuid(TEST_PRODUCT_UUID)).thenReturn(Optional.of(product));
         when(reviewRepository.findByProductAndUserAndNotDeleted(product, user)).thenReturn(Optional.of(review));
 
         // When & Then
@@ -138,7 +142,7 @@ class ReviewServiceTest {
     void getReviewList_Success() {
         // Given
         ReviewListRequestDto requestDto = ReviewListRequestDto.builder()
-                .productId(1L)
+                .productUuid(TEST_PRODUCT_UUID)
                 .reviewType(ReviewListRequestDto.ReviewType.ALL)
                 .page(0)
                 .size(10)
@@ -147,7 +151,7 @@ class ReviewServiceTest {
         List<Review> reviews = Arrays.asList(review);
         Page<Review> reviewPage = new PageImpl<>(reviews, PageRequest.of(0, 10), 1);
 
-        when(productRepository.findById(1L)).thenReturn(Optional.of(product));
+        when(productRepository.findByProductUuid(TEST_PRODUCT_UUID)).thenReturn(Optional.of(product));
         when(reviewRepository.findByProductAndNotDeleted(any(Product.class), any(Pageable.class))).thenReturn(reviewPage);
         when(reviewRepository.countByProductAndNotDeleted(product)).thenReturn(1L);
         when(reviewRepository.countPhotoReviewsByProduct(product)).thenReturn(0L);
@@ -168,7 +172,7 @@ class ReviewServiceTest {
         assertThat(result.getTotalCount()).isEqualTo(1);
         assertThat(result.getAverageRating()).isEqualTo(5.0);
 
-        verify(productRepository).findById(1L);
+        verify(productRepository).findByProductUuid(TEST_PRODUCT_UUID);
         verify(reviewRepository).findByProductWithUserAndImagesAndLikes(eq(product), eq(user.getId()), any(Pageable.class));
     }
 
@@ -238,7 +242,6 @@ class ReviewServiceTest {
         when(reviewRepository.findById(1L)).thenReturn(Optional.of(review));
         when(reviewLikeRepository.findByReviewAndUserAndNotDeleted(review, user)).thenReturn(Optional.empty());
         when(reviewLikeRepository.save(any(ReviewLike.class))).thenReturn(ReviewLike.builder().build());
-        when(reviewRepository.save(any(Review.class))).thenReturn(review);
 
         // When
         boolean result = reviewService.toggleReviewLike(1L, user);
@@ -248,7 +251,7 @@ class ReviewServiceTest {
         verify(reviewRepository).findById(1L);
         verify(reviewLikeRepository).findByReviewAndUserAndNotDeleted(review, user);
         verify(reviewLikeRepository).save(any(ReviewLike.class));
-        verify(reviewRepository).save(any(Review.class));
+        verify(reviewRepository).increaseLikeCount(1L);
     }
 
     @Test
@@ -263,7 +266,6 @@ class ReviewServiceTest {
         when(reviewRepository.findById(1L)).thenReturn(Optional.of(review));
         when(reviewLikeRepository.findByReviewAndUserAndNotDeleted(review, user)).thenReturn(Optional.of(reviewLike));
         when(reviewLikeRepository.save(any(ReviewLike.class))).thenReturn(reviewLike);
-        when(reviewRepository.save(any(Review.class))).thenReturn(review);
 
         // When
         boolean result = reviewService.toggleReviewLike(1L, user);
@@ -273,7 +275,7 @@ class ReviewServiceTest {
         verify(reviewRepository).findById(1L);
         verify(reviewLikeRepository).findByReviewAndUserAndNotDeleted(review, user);
         verify(reviewLikeRepository).save(any(ReviewLike.class));
-        verify(reviewRepository).save(any(Review.class));
+        verify(reviewRepository).decreaseLikeCount(1L);
     }
 
     @Test
@@ -281,7 +283,7 @@ class ReviewServiceTest {
     void writeReviewFromPopup_Success() {
         // Given - 피그마 디자인 요소들 포함
         ReviewWriteRequestDto requestDto = ReviewWriteRequestDto.builder()
-                .productId(1L)
+                .productUuid(TEST_PRODUCT_UUID)
                 .rating(5)
                 .content("정말 좋은 상품입니다! 추천해요!")
                 .images(Arrays.asList())
@@ -290,7 +292,7 @@ class ReviewServiceTest {
                 .reviewType("PHOTO")
                 .build();
 
-        when(productRepository.findById(1L)).thenReturn(Optional.of(product));
+        when(productRepository.findByProductUuid(TEST_PRODUCT_UUID)).thenReturn(Optional.of(product));
         when(reviewRepository.findByProductAndUserAndNotDeleted(product, user)).thenReturn(Optional.empty());
         when(reviewRepository.save(any(Review.class))).thenReturn(review);
 
@@ -303,7 +305,7 @@ class ReviewServiceTest {
         assertThat(result.getContent()).isEqualTo("정말 좋은 상품입니다! 추천해요!");
         assertThat(result.getProductOption()).isEqualTo("상품옵션1");
 
-        verify(productRepository).findById(1L);
+        verify(productRepository).findByProductUuid(TEST_PRODUCT_UUID);
         verify(reviewRepository).findByProductAndUserAndNotDeleted(product, user);
         verify(reviewRepository).save(any(Review.class));
     }
@@ -313,7 +315,7 @@ class ReviewServiceTest {
     void writeReviewFromPopup_InvalidHashtags() {
         // Given - 유효하지 않은 해시태그 (20자 초과)
         ReviewWriteRequestDto requestDto = ReviewWriteRequestDto.builder()
-                .productId(1L)
+                .productUuid(TEST_PRODUCT_UUID)
                 .rating(5)
                 .content("정말 좋은 상품입니다!")
                 .hashtags(Arrays.asList("이것은매우긴해시태그입니다20자를초과합니다"))
@@ -331,7 +333,7 @@ class ReviewServiceTest {
     void writeReviewFromPopup_TooManyImages() {
         // Given - 이미지 6개 (최대 5개 제한 초과)
         ReviewWriteRequestDto requestDto = ReviewWriteRequestDto.builder()
-                .productId(1L)
+                .productUuid(TEST_PRODUCT_UUID)
                 .rating(5)
                 .content("정말 좋은 상품입니다!")
                 .images(Arrays.asList(
@@ -356,7 +358,7 @@ class ReviewServiceTest {
     void writeReviewFromPopup_AutoPhotoReview() {
         // Given - 이미지가 있으면 자동으로 포토리뷰로 설정
         ReviewWriteRequestDto requestDto = ReviewWriteRequestDto.builder()
-                .productId(1L)
+                .productUuid(TEST_PRODUCT_UUID)
                 .rating(5)
                 .content("정말 좋은 상품입니다!")
                 .images(Arrays.asList(
@@ -365,7 +367,7 @@ class ReviewServiceTest {
                 .productOption("상품옵션1")
                 .build();
 
-        when(productRepository.findById(1L)).thenReturn(Optional.of(product));
+        when(productRepository.findByProductUuid(TEST_PRODUCT_UUID)).thenReturn(Optional.of(product));
         when(reviewRepository.findByProductAndUserAndNotDeleted(product, user)).thenReturn(Optional.empty());
         when(reviewRepository.save(any(Review.class))).thenAnswer(invocation -> {
             Review savedReview = invocation.getArgument(0);
@@ -421,6 +423,7 @@ class ReviewServiceTest {
                 .name("테스트 상품")
                 .price(10000)
                 .discountRate(10)
+                .productUuid(TEST_PRODUCT_UUID)
                 .build();
         ReflectionTestUtils.setField(product, "id", 1L);
         return product;

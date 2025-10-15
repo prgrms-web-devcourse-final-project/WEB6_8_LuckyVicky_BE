@@ -46,6 +46,7 @@ public class DashboardServiceImpl implements DashboardService {
     private final com.back.domain.follow.repository.FollowRepository followRepository;
     private final com.back.domain.wishlist.repository.WishlistRepository wishlistRepository;
 
+
     private static final DateTimeFormatter ORDER_DATE_FORMATTER = DateTimeFormatter.ofPattern("yyyy. MM. dd");
     private static final DateTimeFormatter FUNDING_DATE_FORMATTER = DateTimeFormatter.ofPattern("yyyy. MM. dd");
     private static final DateTimeFormatter APPLICATION_DATE_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd");

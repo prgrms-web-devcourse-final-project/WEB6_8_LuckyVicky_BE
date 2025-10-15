@@ -15,6 +15,9 @@ import lombok.NoArgsConstructor;
 @Table(name = "carts")
 public class Cart extends BaseEntity {
 
+    @Version
+    private Long version; // Optimistic Lock을 위한 버전 필드
+
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "user_id", nullable = false)
     private User user;
@@ -217,6 +220,7 @@ public class Cart extends BaseEntity {
             // 펀딩 장바구니: Funding 정보 사용
             return new ProductInfo(
                 this.funding.getId(),
+                null, // 펀딩은 UUID 없음
                 this.funding.getTitle(),
                 this.fundingPrice != null ? this.fundingPrice : (int) this.funding.getPrice(),
                 this.funding.getImageUrl()  // Funding 이미지
@@ -229,6 +233,7 @@ public class Cart extends BaseEntity {
             }
             return new ProductInfo(
                 this.product.getId(),
+                this.product.getProductUuid(),
                 this.product.getName(),
                 this.product.getPrice(),
                 imageUrl  // Product 첫 번째 이미지
@@ -243,18 +248,21 @@ public class Cart extends BaseEntity {
      */
     public static class ProductInfo {
         private final Long id;
+        private final java.util.UUID uuid;
         private final String name;
         private final Integer price;
         private final String imageUrl;
 
-        public ProductInfo(Long id, String name, Integer price, String imageUrl) {
+        public ProductInfo(Long id, java.util.UUID uuid, String name, Integer price, String imageUrl) {
             this.id = id;
+            this.uuid = uuid;
             this.name = name;
             this.price = price;
             this.imageUrl = imageUrl;
         }
 
         public Long getId() { return id; }
+        public java.util.UUID getUuid() { return uuid; }
         public String getName() { return name; }
         public Integer getPrice() { return price; }
         public String getImageUrl() { return imageUrl; }

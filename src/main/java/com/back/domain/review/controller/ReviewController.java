@@ -29,6 +29,7 @@ import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.UUID;
 
 /**
  * 리뷰 Controller
@@ -81,14 +82,14 @@ public class ReviewController {
     @Operation(summary = "리뷰 목록 조회", description = "상품의 리뷰 목록을 조회합니다.")
     @GetMapping
     public ResponseEntity<ReviewListResponseDto> getReviewList(
-            @Parameter(description = "상품 ID") @RequestParam Long productId,
+            @Parameter(description = "상품 UUID") @RequestParam UUID productUuid,
             @Parameter(description = "리뷰 타입 (PHOTO, GENERAL, ALL)") @RequestParam(required = false) ReviewListRequestDto.ReviewType reviewType,
             @Parameter(description = "페이지 번호") @RequestParam(required = false, defaultValue = "0") Integer page,
             @Parameter(description = "페이지 크기") @RequestParam(required = false, defaultValue = "10") Integer size,
             @AuthenticationPrincipal User user) {
 
         ReviewListRequestDto requestDto = ReviewListRequestDto.builder()
-                .productId(productId)
+                .productUuid(productUuid)
                 .reviewType(reviewType != null ? reviewType : ReviewListRequestDto.ReviewType.ALL)
                 .page(page)
                 .size(size)
@@ -180,8 +181,8 @@ public class ReviewController {
             @Valid @RequestBody ReviewWriteRequestDto requestDto,
             @AuthenticationPrincipal User user) {
 
-        log.info("리뷰 작성 팝업 API 호출 - 사용자: {}, 상품ID: {}, 평점: {}, 상품옵션: {}", 
-                user.getId(), requestDto.getProductId(), requestDto.getRating(), requestDto.getProductOption());
+        log.info("리뷰 작성 팝업 API 호출 - 사용자: {}, 상품UUID: {}, 평점: {}, 상품옵션: {}", 
+                user.getId(), requestDto.getProductUuid(), requestDto.getRating(), requestDto.getProductOption());
 
         ReviewDetailResponseDto response = reviewService.writeReviewFromPopup(requestDto, user);
         
@@ -197,9 +198,9 @@ public class ReviewController {
     @Operation(summary = "상품별 리뷰 통계 조회", description = "특정 상품의 리뷰 통계 정보를 조회합니다.")
     @GetMapping("/stats")
     public ResponseEntity<ReviewStatsResponseDto> getReviewStats(
-            @Parameter(description = "상품 ID") @RequestParam Long productId) {
+            @Parameter(description = "상품 UUID") @RequestParam UUID productUuid) {
 
-        Product product = productRepository.findById(productId)
+        Product product = productRepository.findByProductUuid(productUuid)
                 .orElseThrow(() -> new RuntimeException("상품을 찾을 수 없습니다."));
         
         ReviewStatsResponseDto response = reviewService.getReviewStats(product);
