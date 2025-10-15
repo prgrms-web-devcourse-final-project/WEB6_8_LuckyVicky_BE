@@ -65,8 +65,12 @@ class OrderControllerTest {
                 List.of( // orderItems
                         new OrderRequestDto.OrderItemRequestDto(
                                 TEST_PRODUCT_UUID, // productUuid
+                                null, // fundingId
+                                null, // fundingPrice
+                                null, // fundingStock
                                 2, // quantity
-                                "빨강, L" // optionInfo
+                                "빨강, L", // optionInfo
+                                "NORMAL" // cartType
                         )
                 ),
                 "서울시 강남구", // shippingAddress1

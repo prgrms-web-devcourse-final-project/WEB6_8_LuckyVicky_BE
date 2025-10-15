@@ -81,8 +81,8 @@ class OrderServiceTest {
         given(productRepository.findByProductUuidWithLock(productUuid)).willReturn(Optional.empty());
 
         assertThatThrownBy(() -> orderService.createOrder(user, requestDto))
-                .isInstanceOf(IllegalArgumentException.class)
-                .hasMessage("상품을 찾을 수 없습니다.");
+                .isInstanceOf(com.back.global.exception.ServiceException.class)
+                .hasMessageContaining("404 : 상품을 찾을 수 없습니다.");
     }
 
     @Test
@@ -265,7 +265,7 @@ class OrderServiceTest {
 
     private OrderRequestDto createOrderRequestDto(UUID productUuid) {
         return new OrderRequestDto(
-                List.of(new OrderRequestDto.OrderItemRequestDto(productUuid, 2, "옵션")),
+                List.of(new OrderRequestDto.OrderItemRequestDto(productUuid, null, null, null, 2, "옵션", "NORMAL")),
                 "서울시 강남구",
                 "테헤란로 123",
                 "12345",

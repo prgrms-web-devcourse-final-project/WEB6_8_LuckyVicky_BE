@@ -292,7 +292,7 @@ public class CartService {
     public void validateCartItemsForOrder(User user, boolean isFullOrder) {
         List<Cart> cartItems = isFullOrder ? 
             cartRepository.findByUserWithProduct(user) :
-            cartRepository.findByUserAndIsSelectedTrue(user);
+            cartRepository.findByUserAndIsSelectedTrueWithProduct(user);
 
         if (cartItems.isEmpty()) {
             throw new ServiceException("CART_EMPTY", "주문할 장바구니 아이템이 없습니다.");

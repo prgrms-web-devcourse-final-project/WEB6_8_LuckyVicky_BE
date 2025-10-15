@@ -64,4 +64,11 @@ public interface CartRepository extends JpaRepository<Cart, Long> {
     @Modifying
     @Query("DELETE FROM Cart c WHERE c.user = :user AND c.product.productUuid IN :productUuids")
     void deleteByUserAndProductUuidIn(@Param("user") User user, @Param("productUuids") List<java.util.UUID> productUuids);
+    
+    /**
+     * 주문 완료 후 펀딩 장바구니에서 제거 (Funding ID 기반)
+     */
+    @Modifying
+    @Query("DELETE FROM Cart c WHERE c.user = :user AND c.funding.id IN :fundingIds")
+    void deleteByUserAndFundingIdIn(@Param("user") User user, @Param("fundingIds") List<Long> fundingIds);
 }
