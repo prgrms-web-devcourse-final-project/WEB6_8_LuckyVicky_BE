@@ -16,7 +16,7 @@ public record ArtistListResponse (
 ) {
         public static ArtistListResponse from(ArtistProfile artistProfile) {
             return new ArtistListResponse(
-                    artistProfile.getUser().getId(),
+                    artistProfile.getId(),
                     artistProfile.getArtistName()
             );
         }
