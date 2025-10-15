@@ -31,39 +31,17 @@ public record AdminProductResponse(
      * 상품 정보
      */
     public record Product(
-            /** 상품 ID */
+            /** 상품 ID (기본키) */
             Long productId,
             /** 상품 번호 */
             String productNumber,
             /** 상품명 */
             String name,
-            /** 작가 정보 */
-            Artist artist,
+            /** 작가명 */
+            String artistName,
             /** 판매 상태 */
             String sellingStatus,
-            /** 카테고리 정보 */
-            Category category,
             /** 등록일 */
             LocalDate registeredAt
-    ) {}
-
-    /**
-     * 작가 정보
-     */
-    public record Artist(
-            /** 작가 ID */
-            Long id,
-            /** 작가명 */
-            String name
-    ) {}
-
-    /**
-     * 카테고리 정보
-     */
-    public record Category(
-            /** 카테고리 ID */
-            Long id,
-            /** 카테고리명 */
-            String name
     ) {}
 }

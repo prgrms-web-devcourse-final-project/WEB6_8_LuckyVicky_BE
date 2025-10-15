@@ -325,19 +325,15 @@ public class AdminDashboardServiceImpl implements AdminDashboardService {
                 ? product.getProductUuid().toString()
                 : String.valueOf(product.getId());
 
+        // 작가명 추출 (User 또는 ArtistProfile에서)
+        String artistName = product.getUser().getName();
+
         return new AdminProductResponse.Product(
                 product.getId(),
                 productNumber,
                 product.getName(),
-                new AdminProductResponse.Artist(
-                        product.getUser().getId(),
-                        product.getUser().getName() // User에서 작가명 추출
-                ),
+                artistName,
                 product.getSellingStatus().name(),
-                new AdminProductResponse.Category(
-                        product.getCategory().getId(),
-                        product.getCategory().getCategoryName() // categoryName 사용
-                ),
                 product.getCreateDate().toLocalDate()
         );
     }
