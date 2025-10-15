@@ -264,6 +264,19 @@ public class Funding extends BaseEntity {
         this.soldCount += quantity;
     }
 
+    public void increaseStock(int quantity) {
+        if (quantity <= 0) {
+            throw new IllegalArgumentException("복원 수량은 0보다 커야 합니다.");
+        }
+        if (stock != null) {
+            this.stock += quantity;
+        }
+        this.soldCount -= quantity;
+        if (this.soldCount < 0) {
+            this.soldCount = 0;
+        }
+    }
+
     public boolean hasStock(int quantity) {
         return stock == null || stock >= quantity;
     }
