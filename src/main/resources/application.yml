@@ -1,9 +1,9 @@
 server:
   port: 8080
   forward-headers-strategy: native
-  # Post body 크기 무제한
+  # Post body 크기 100MB 설정
   tomcat:
-    max-http-form-post-size: -1
+    max-http-form-post-size: 100MB
 spring:
   # redis가 개발/테스트 환경에서 작동하지 않도록 설정
   autoconfigure:
