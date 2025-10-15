@@ -11,6 +11,7 @@ public record FundingNewsItemDto(
         String title,
         String content,
         String imageUrl,
+        String s3Key,
         @JsonFormat(shape = JsonFormat.Shape.STRING, pattern = "yyyy-MM-dd HH:mm:ss")
         LocalDateTime createDate
 ) {
@@ -21,6 +22,7 @@ public record FundingNewsItemDto(
                 u.getTitle(),
                 u.getContent(),
                 u.getImageUrl(),
+                u.getS3Key(),
                 u.getCreateDate()
         );
     }
