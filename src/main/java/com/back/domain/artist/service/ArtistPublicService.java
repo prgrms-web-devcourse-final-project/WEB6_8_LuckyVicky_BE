@@ -12,7 +12,6 @@ import com.back.global.exception.ServiceException;
 import com.back.global.s3.FileType;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -65,20 +64,20 @@ public class ArtistPublicService {
     /**
      * 작가 상품 목록 조회
      */
-    public List<ArtistProductResponse> getArtistProducts(Long artistId, Pageable pageable) {
-        log.info("작가 상품 목록 조회 시작 - artistId: {}, page: {}, size: {}",
-                artistId, pageable.getPageNumber(), pageable.getPageSize());
+    public List<ArtistProductResponse> getArtistProducts(Long artistProfileId) {
+        log.info("작가 상품 목록 조회 시작 - artistProfileId: {}", artistProfileId);
 
-        // 작가 존재 여부 확인
-        if (!artistProfileRepository.existsByUserId(artistId)) {
-            throw new ServiceException("404", "존재하지 않는 작가입니다.");
-        }
+        // 작가 프로필 조회
+        ArtistProfile artistProfile = artistProfileRepository.findById(artistProfileId)
+                .orElseThrow(() -> new ServiceException("404", "존재하지 않는 작가입니다."));
 
-        // 작가의 상품 목록 조회 (판매 중인 상품만)
-        List<Product> products = productRepository.findByUserIdAndIsDeletedFalse(artistId, pageable);
+        // 작가의 상품 목록 조회
+        List<Product> products = productRepository.findByUserIdAndIsDeletedFalse(
+                artistProfile.getUser().getId()
+        );
 
-        log.info("작가 상품 목록 조회 완료 - artistId: {}, 조회된 상품 수: {}",
-                artistId, products.size());
+        log.info("작가 상품 목록 조회 완료 - artistProfileId: {}, 조회된 상품 수: {}",
+                artistProfileId, products.size());
 
         return products.stream()
                 .map(this::convertToArtistProductResponse)

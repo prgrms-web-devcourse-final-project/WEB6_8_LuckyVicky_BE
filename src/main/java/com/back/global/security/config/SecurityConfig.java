@@ -65,6 +65,7 @@ public class SecurityConfig {
 
                         // 작가 공개 정보 조회
                         .requestMatchers("/api/artist/profile/**", "/api/artist/list").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/artist/profile/*/products").permitAll()
 
                         // 공지사항 조회 - 로그인 없이 접근 허용
                         .requestMatchers(HttpMethod.GET, "/api/support/notices", "/api/support/notices/**").permitAll()

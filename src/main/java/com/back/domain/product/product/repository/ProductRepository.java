@@ -36,6 +36,8 @@ public interface ProductRepository extends JpaRepository<Product, Long>, Product
      */
     List<Product> findByUserIdAndIsDeletedFalse(Long userId, Pageable pageable);
 
+    List<Product> findByUserIdAndIsDeletedFalse(Long artistId);
+
     // 판매 시작일이 오늘 이후인 상품 조회
     List<Product> findBySellingStartDateAfter(LocalDateTime dateTime);
 

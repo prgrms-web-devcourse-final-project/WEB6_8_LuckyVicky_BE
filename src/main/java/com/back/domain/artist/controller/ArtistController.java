@@ -12,8 +12,6 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.data.domain.PageRequest;
-import org.springframework.data.domain.Pageable;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
@@ -83,19 +81,12 @@ public class ArtistController {
             description = "특정 작가가 등록한 모든 상품을 조회합니다."
     )
     public ResponseEntity<RsData<List<ArtistProductResponse>>> getArtistProducts(
-            @Parameter(description = "작가 ID", example = "42", required = true)
-            @PathVariable Long artistId,
+            @Parameter(description = "작가 프로필 ID", example = "42", required = true)
+            @PathVariable Long artistId) {
 
-            @Parameter(description = "페이지 번호 (1부터 시작)", example = "1")
-            @RequestParam(defaultValue = "1") int page,
+        log.info("작가 상품 목록 조회 - artistId: {}", artistId);
 
-            @Parameter(description = "페이지 크기", example = "12")
-            @RequestParam(defaultValue = "12") int size) {
-
-        log.info("작가 상품 목록 조회 - artistId: {}, page: {}, size: {}", artistId, page, size);
-
-        Pageable pageable = PageRequest.of(page - 1, size);
-        List<ArtistProductResponse> response = artistPublicService.getArtistProducts(artistId, pageable);
+        List<ArtistProductResponse> response = artistPublicService.getArtistProducts(artistId);
 
         return ResponseEntity.ok(
                 RsData.of("200", "작가 상품 목록 조회 성공", response)

@@ -649,7 +649,7 @@ class ArtistControllerTest {
         artistProfileRepository.save(profile);
 
         // when - 상품이 없는 상태에서 조회
-        ResultActions resultActions = mvc.perform(get("/api/artist/profile/" + user1.getId() + "/products")
+        ResultActions resultActions = mvc.perform(get("/api/artist/profile/" + profile.getId() + "/products")
                         .param("page", "1")
                         .param("size", "12")
                         .contentType(MediaType.APPLICATION_JSON))
