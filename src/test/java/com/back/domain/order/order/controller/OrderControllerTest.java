@@ -7,6 +7,7 @@ import com.back.domain.order.order.entity.OrderStatus;
 import com.back.domain.order.order.entity.PaymentMethod;
 import com.back.domain.order.order.service.OrderService;
 import com.back.domain.user.entity.User;
+import com.back.global.security.auth.CustomUserDetails;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -36,6 +37,7 @@ class OrderControllerTest {
     private ObjectMapper objectMapper;
 
     private User testUser;
+    private CustomUserDetails customUserDetails;
     private OrderRequestDto orderRequestDto;
     private OrderCancelRequestDto orderCancelRequestDto;
     private OrderResponseDto orderResponseDto;
@@ -54,6 +56,9 @@ class OrderControllerTest {
         java.lang.reflect.Field idField = testUser.getClass().getSuperclass().getDeclaredField("id");
         idField.setAccessible(true);
         idField.set(testUser, 1L);
+        
+        // CustomUserDetails 생성
+        customUserDetails = new CustomUserDetails(testUser, com.back.domain.user.entity.Role.USER);
 
         // 주문 요청 DTO
         orderRequestDto = new OrderRequestDto(
@@ -119,7 +124,7 @@ class OrderControllerTest {
                 .willReturn(orderResponseDto);
 
         // When
-        var result = orderController.createOrder(orderRequestDto, testUser);
+        var result = orderController.createOrder(orderRequestDto, customUserDetails);
 
         // Then
         assertThat(result.getStatusCode().value()).isEqualTo(201);
@@ -145,7 +150,7 @@ class OrderControllerTest {
                 .willReturn(orderPage);
 
         // When
-        var result = orderController.getOrderList(PageRequest.of(0, 8), testUser);
+        var result = orderController.getOrderList(PageRequest.of(0, 8), customUserDetails);
 
         // Then
         assertThat(result.getStatusCode().value()).isEqualTo(200);
@@ -163,7 +168,7 @@ class OrderControllerTest {
                 .willReturn(orderResponseDto);
 
         // When
-        var result = orderController.getOrderDetail(1L, testUser);
+        var result = orderController.getOrderDetail(1L, customUserDetails);
 
         // Then
         assertThat(result.getStatusCode().value()).isEqualTo(200);
@@ -179,7 +184,7 @@ class OrderControllerTest {
         willDoNothing().given(orderService).cancelOrder(eq(1L), any(User.class), any(OrderCancelRequestDto.class));
 
         // When
-        var result = orderController.cancelOrder(1L, orderCancelRequestDto, testUser);
+        var result = orderController.cancelOrder(1L, orderCancelRequestDto, customUserDetails);
 
         // Then
         assertThat(result.getStatusCode().value()).isEqualTo(200);
@@ -192,7 +197,7 @@ class OrderControllerTest {
         willDoNothing().given(orderService).approveOrderCancellation(eq(1L), any(User.class));
 
         // When
-        var result = orderController.approveOrderCancellation(1L, testUser);
+        var result = orderController.approveOrderCancellation(1L, customUserDetails);
 
         // Then
         assertThat(result.getStatusCode().value()).isEqualTo(200);
@@ -206,7 +211,7 @@ class OrderControllerTest {
                 .willThrow(new IllegalArgumentException("주문을 찾을 수 없습니다."));
 
         // When & Then
-        assertThatThrownBy(() -> orderController.getOrderDetail(999L, testUser))
+        assertThatThrownBy(() -> orderController.getOrderDetail(999L, customUserDetails))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessage("주문을 찾을 수 없습니다.");
     }

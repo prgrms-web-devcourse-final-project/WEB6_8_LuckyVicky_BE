@@ -4,6 +4,7 @@ import com.back.domain.order.refund.dto.request.RefundRequestDto;
 import com.back.domain.order.refund.dto.response.RefundResponseDto;
 import com.back.domain.order.refund.service.RefundService;
 import com.back.domain.user.entity.User;
+import com.back.global.security.auth.CustomUserDetails;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
@@ -33,8 +34,9 @@ public class RefundController {
     @Operation(summary = "환불 신청", description = "배송완료된 주문에 대해 환불을 신청합니다.")
     public ResponseEntity<RefundResponseDto> createRefund(
             @Valid @RequestBody RefundRequestDto requestDto,
-            @AuthenticationPrincipal User user
+            @AuthenticationPrincipal CustomUserDetails customUserDetails
     ) {
+        User user = customUserDetails.getUser();
         RefundResponseDto responseDto = refundService.createRefund(requestDto, user);
         return ResponseEntity.status(HttpStatus.CREATED).body(responseDto);
     }
@@ -50,8 +52,9 @@ public class RefundController {
                 sort = "createDate",
                 direction = Sort.Direction.DESC
             ) Pageable pageable,
-            @AuthenticationPrincipal User user
+            @AuthenticationPrincipal CustomUserDetails customUserDetails
     ) {
+        User user = customUserDetails.getUser();
         Page<RefundResponseDto> result = refundService.getItemsByUser(user, pageable);
         return ResponseEntity.ok(result);
     }
@@ -63,8 +66,9 @@ public class RefundController {
     @Operation(summary = "환불 상세 조회", description = "특정 환불의 상세 정보를 조회합니다.")
     public ResponseEntity<RefundResponseDto> getRefundDetail(
             @PathVariable Long refundId,
-            @AuthenticationPrincipal User user
+            @AuthenticationPrincipal CustomUserDetails customUserDetails
     ) {
+        User user = customUserDetails.getUser();
         RefundResponseDto result = refundService.getItem(refundId, user);
         return ResponseEntity.ok(result);
     }
@@ -77,8 +81,9 @@ public class RefundController {
     @Operation(summary = "환불 승인", description = "관리자가 환불을 승인합니다. (관리자 전용)")
     public ResponseEntity<RefundResponseDto> approveRefund(
             @PathVariable Long refundId,
-            @AuthenticationPrincipal User admin
+            @AuthenticationPrincipal CustomUserDetails customUserDetails
     ) {
+        User admin = customUserDetails.getUser();
         RefundResponseDto responseDto = refundService.approveItem(refundId, admin);
         return ResponseEntity.ok(responseDto);
     }

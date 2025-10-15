@@ -6,6 +6,7 @@ import com.back.domain.payment.cash.entity.CashTransactionStatus;
 import com.back.domain.payment.cash.entity.CashTransactionType;
 import com.back.domain.payment.cash.service.CashChargeService;
 import com.back.domain.user.entity.User;
+import com.back.global.security.auth.CustomUserDetails;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.mockito.InjectMocks;
@@ -37,6 +38,7 @@ class CashChargeControllerTest {
     void createChargeRequest_Success() {
         // given
         User user = User.createLocalUser("test@test.com", "password", "테스트", "01012345678");
+        CustomUserDetails customUserDetails = new CustomUserDetails(user, com.back.domain.user.entity.Role.USER);
         CashChargeRequestDto requestDto = new CashChargeRequestDto(10000, "토스페이", "TOSS");
         
         CashChargeResponseDto responseDto = CashChargeResponseDto.builder()
@@ -54,7 +56,7 @@ class CashChargeControllerTest {
 
         // when
         ResponseEntity<CashChargeResponseDto> response = 
-                cashChargeController.createChargeRequest(requestDto, user);
+                cashChargeController.createChargeRequest(requestDto, customUserDetails);
 
         // then
         assertThat(response.getStatusCode().value()).isEqualTo(200);

@@ -4,6 +4,7 @@ import com.back.domain.payment.moriCash.dto.response.MoriCashBalanceResponseDto;
 import com.back.domain.payment.moriCash.dto.response.MoriCashPaymentResponseDto;
 import com.back.domain.payment.moriCash.service.MoriCashBalanceService;
 import com.back.domain.user.entity.User;
+import com.back.global.security.auth.CustomUserDetails;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
@@ -30,8 +31,9 @@ public class MoriCashBalanceController {
      */
     @GetMapping
     public ResponseEntity<MoriCashBalanceResponseDto> getMyBalance(
-            @AuthenticationPrincipal User user) {
+            @AuthenticationPrincipal CustomUserDetails customUserDetails) {
         
+        User user = customUserDetails.getUser();
         MoriCashBalanceResponseDto response = moriCashBalanceService.getBalance(user);
         return ResponseEntity.ok(response);
     }
@@ -41,9 +43,10 @@ public class MoriCashBalanceController {
      */
     @GetMapping("/history")
     public ResponseEntity<Page<MoriCashPaymentResponseDto>> getMyHistory(
-            @AuthenticationPrincipal User user,
+            @AuthenticationPrincipal CustomUserDetails customUserDetails,
             @PageableDefault(size = 20, sort = "createdDate", direction = Sort.Direction.DESC) Pageable pageable) {
         
+        User user = customUserDetails.getUser();
         Page<MoriCashPaymentResponseDto> response = moriCashBalanceService.getHistory(user, pageable);
         return ResponseEntity.ok(response);
     }

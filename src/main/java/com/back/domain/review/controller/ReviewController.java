@@ -12,6 +12,7 @@ import com.back.domain.review.service.ReviewService;
 import com.back.domain.product.product.entity.Product;
 import com.back.domain.product.product.repository.ProductRepository;
 import com.back.domain.user.entity.User;
+import com.back.global.security.auth.CustomUserDetails;
 import com.back.global.rsData.RsData;
 import com.back.global.s3.FileType;
 import com.back.global.s3.S3Service;
@@ -70,8 +71,9 @@ public class ReviewController {
     @PreAuthorize("hasRole('USER')")
     public ResponseEntity<ReviewResponseDto> createReview(
             @Valid @RequestBody ReviewCreateRequestDto requestDto,
-            @AuthenticationPrincipal User user) {
+            @AuthenticationPrincipal CustomUserDetails customUserDetails) {
 
+        User user = customUserDetails.getUser();
         ReviewResponseDto response = reviewService.createReview(requestDto, user);
         return ResponseEntity.ok(response);
     }
@@ -86,7 +88,7 @@ public class ReviewController {
             @Parameter(description = "리뷰 타입 (PHOTO, GENERAL, ALL)") @RequestParam(required = false) ReviewListRequestDto.ReviewType reviewType,
             @Parameter(description = "페이지 번호") @RequestParam(required = false, defaultValue = "0") Integer page,
             @Parameter(description = "페이지 크기") @RequestParam(required = false, defaultValue = "10") Integer size,
-            @AuthenticationPrincipal User user) {
+            @AuthenticationPrincipal CustomUserDetails customUserDetails) {
 
         ReviewListRequestDto requestDto = ReviewListRequestDto.builder()
                 .productUuid(productUuid)
@@ -95,6 +97,7 @@ public class ReviewController {
                 .size(size)
                 .build();
 
+        User user = customUserDetails.getUser();
         ReviewListResponseDto response = reviewService.getReviewList(requestDto, user);
         return ResponseEntity.ok(response);
     }
@@ -106,8 +109,9 @@ public class ReviewController {
     @GetMapping("/{reviewId}")
     public ResponseEntity<ReviewResponseDto> getReviewDetail(
             @Parameter(description = "리뷰 ID") @PathVariable Long reviewId,
-            @AuthenticationPrincipal User user) {
+            @AuthenticationPrincipal CustomUserDetails customUserDetails) {
 
+        User user = customUserDetails.getUser();
         ReviewResponseDto response = reviewService.getReviewDetail(reviewId, user);
         return ResponseEntity.ok(response);
     }
@@ -121,8 +125,9 @@ public class ReviewController {
     public ResponseEntity<ReviewResponseDto> updateReview(
             @Parameter(description = "리뷰 ID") @PathVariable Long reviewId,
             @Valid @RequestBody ReviewUpdateRequestDto requestDto,
-            @AuthenticationPrincipal User user) {
+            @AuthenticationPrincipal CustomUserDetails customUserDetails) {
 
+        User user = customUserDetails.getUser();
         ReviewResponseDto response = reviewService.updateReview(reviewId, requestDto, user);
         return ResponseEntity.ok(response);
     }
@@ -135,8 +140,9 @@ public class ReviewController {
     @PreAuthorize("hasRole('USER')")
     public ResponseEntity<Void> deleteReview(
             @Parameter(description = "리뷰 ID") @PathVariable Long reviewId,
-            @AuthenticationPrincipal User user) {
+            @AuthenticationPrincipal CustomUserDetails customUserDetails) {
 
+        User user = customUserDetails.getUser();
         reviewService.deleteReview(reviewId, user);
         return ResponseEntity.ok().build();
     }
@@ -149,8 +155,9 @@ public class ReviewController {
     @PreAuthorize("hasRole('USER')")
     public ResponseEntity<Boolean> toggleReviewLike(
             @Parameter(description = "리뷰 ID") @PathVariable Long reviewId,
-            @AuthenticationPrincipal User user) {
+            @AuthenticationPrincipal CustomUserDetails customUserDetails) {
 
+        User user = customUserDetails.getUser();
         boolean isLiked = reviewService.toggleReviewLike(reviewId, user);
         return ResponseEntity.ok(isLiked);
     }
@@ -162,8 +169,9 @@ public class ReviewController {
     @GetMapping("/{reviewId}/popup")
     public ResponseEntity<ReviewDetailResponseDto> getReviewDetailPopup(
             @Parameter(description = "리뷰 ID") @PathVariable Long reviewId,
-            @AuthenticationPrincipal User user) {
+            @AuthenticationPrincipal CustomUserDetails customUserDetails) {
 
+        User user = customUserDetails.getUser();
         ReviewDetailResponseDto response = reviewService.getReviewDetailForPopup(reviewId, user);
         return ResponseEntity.ok(response);
     }
@@ -179,8 +187,9 @@ public class ReviewController {
     @PreAuthorize("hasRole('USER')")
     public ResponseEntity<ReviewDetailResponseDto> writeReviewFromPopup(
             @Valid @RequestBody ReviewWriteRequestDto requestDto,
-            @AuthenticationPrincipal User user) {
+            @AuthenticationPrincipal CustomUserDetails customUserDetails) {
 
+        User user = customUserDetails.getUser();
         log.info("리뷰 작성 팝업 API 호출 - 사용자: {}, 상품UUID: {}, 평점: {}, 상품옵션: {}", 
                 user.getId(), requestDto.getProductUuid(), requestDto.getRating(), requestDto.getProductOption());
 

@@ -6,6 +6,7 @@ import com.back.domain.payment.moriCash.entity.MoriCashPaymentStatus;
 import com.back.domain.payment.moriCash.entity.TransactionType;
 import com.back.domain.payment.moriCash.service.MoriCashBalanceService;
 import com.back.domain.user.entity.User;
+import com.back.global.security.auth.CustomUserDetails;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.mockito.InjectMocks;
@@ -41,6 +42,7 @@ class MoriCashBalanceControllerTest {
     void getMyBalance_Success() {
         // given
         User user = User.createLocalUser("test@test.com", "password", "테스트", "01012345678");
+        CustomUserDetails customUserDetails = new CustomUserDetails(user, com.back.domain.user.entity.Role.USER);
         
         MoriCashBalanceResponseDto responseDto = MoriCashBalanceResponseDto.builder()
                 .balanceId(1L)
@@ -57,7 +59,7 @@ class MoriCashBalanceControllerTest {
 
         // when
         ResponseEntity<MoriCashBalanceResponseDto> response = 
-                moriCashBalanceController.getMyBalance(user);
+                moriCashBalanceController.getMyBalance(customUserDetails);
 
         // then
         assertThat(response.getStatusCode().value()).isEqualTo(200);
@@ -74,6 +76,7 @@ class MoriCashBalanceControllerTest {
     void getMyHistory_Success() {
         // given
         User user = User.createLocalUser("test@test.com", "password", "테스트", "01012345678");
+        CustomUserDetails customUserDetails = new CustomUserDetails(user, com.back.domain.user.entity.Role.USER);
         Pageable pageable = PageRequest.of(0, 20);
         
         MoriCashPaymentResponseDto responseDto = MoriCashPaymentResponseDto.builder()
@@ -96,7 +99,7 @@ class MoriCashBalanceControllerTest {
 
         // when
         ResponseEntity<Page<MoriCashPaymentResponseDto>> response = 
-                moriCashBalanceController.getMyHistory(user, pageable);
+                moriCashBalanceController.getMyHistory(customUserDetails, pageable);
 
         // then
         assertThat(response.getStatusCode().value()).isEqualTo(200);

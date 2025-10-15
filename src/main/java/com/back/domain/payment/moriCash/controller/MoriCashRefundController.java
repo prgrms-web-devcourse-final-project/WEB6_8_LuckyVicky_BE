@@ -4,6 +4,7 @@ import com.back.domain.payment.moriCash.dto.request.MoriCashRefundRequestDto;
 import com.back.domain.payment.moriCash.dto.response.MoriCashRefundResponseDto;
 import com.back.domain.payment.moriCash.service.MoriCashRefundService;
 import com.back.domain.user.entity.User;
+import com.back.global.security.auth.CustomUserDetails;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
@@ -31,8 +32,9 @@ public class MoriCashRefundController {
     @PostMapping
     public ResponseEntity<MoriCashRefundResponseDto> processRefund(
             @RequestBody MoriCashRefundRequestDto requestDto,
-            @AuthenticationPrincipal User user) {
+            @AuthenticationPrincipal CustomUserDetails customUserDetails) {
         
+        User user = customUserDetails.getUser();
         MoriCashRefundResponseDto response = moriCashRefundService.processRefund(requestDto, user);
         return ResponseEntity.ok(response);
     }
@@ -55,8 +57,9 @@ public class MoriCashRefundController {
     @GetMapping("/{paymentId}")
     public ResponseEntity<MoriCashRefundResponseDto> getRefund(
             @PathVariable Long paymentId,
-            @AuthenticationPrincipal User user) {
+            @AuthenticationPrincipal CustomUserDetails customUserDetails) {
         
+        User user = customUserDetails.getUser();
         MoriCashRefundResponseDto response = moriCashRefundService.getRefund(paymentId, user);
         return ResponseEntity.ok(response);
     }
@@ -66,9 +69,10 @@ public class MoriCashRefundController {
      */
     @GetMapping
     public ResponseEntity<Page<MoriCashRefundResponseDto>> getMyRefunds(
-            @AuthenticationPrincipal User user,
+            @AuthenticationPrincipal CustomUserDetails customUserDetails,
             @PageableDefault(size = 20, sort = "createdDate", direction = Sort.Direction.DESC) Pageable pageable) {
         
+        User user = customUserDetails.getUser();
         Page<MoriCashRefundResponseDto> response = moriCashRefundService.getRefunds(user, pageable);
         return ResponseEntity.ok(response);
     }

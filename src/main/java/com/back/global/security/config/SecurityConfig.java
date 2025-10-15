@@ -98,6 +98,7 @@ public class SecurityConfig {
                         .requestMatchers("/api/products", "/api/products/*", "/api/artist/business-info").hasAnyRole("ARTIST", "ADMIN", "ROOT")
                         // 카테고리,태그 등록, 수정, 삭제 - ADMIN, ROOT만 접근 가능
                         .requestMatchers("/api/categories","/api/categories/*","/api/tags","/api/tags/*").hasAnyRole("ADMIN", "ROOT")
+                        .requestMatchers(HttpMethod.POST,"/api/products/description-images","/api/products/images").authenticated()
 
                         // 정산 관리 - ARTIST, ADMIN, ROOT만 접근 가능
                         .requestMatchers("/api/settlement/**").hasAnyRole("ARTIST", "ADMIN", "ROOT")

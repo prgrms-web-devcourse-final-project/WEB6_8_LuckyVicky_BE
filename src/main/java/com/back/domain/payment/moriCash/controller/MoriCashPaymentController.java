@@ -4,6 +4,7 @@ import com.back.domain.payment.moriCash.dto.request.MoriCashPaymentRequestDto;
 import com.back.domain.payment.moriCash.dto.response.MoriCashPaymentResponseDto;
 import com.back.domain.payment.moriCash.service.MoriCashPaymentService;
 import com.back.domain.user.entity.User;
+import com.back.global.security.auth.CustomUserDetails;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
@@ -31,8 +32,9 @@ public class MoriCashPaymentController {
     @PostMapping
     public ResponseEntity<MoriCashPaymentResponseDto> createPayment(
             @RequestBody MoriCashPaymentRequestDto requestDto,
-            @AuthenticationPrincipal User user) {
+            @AuthenticationPrincipal CustomUserDetails customUserDetails) {
         
+        User user = customUserDetails.getUser();
         MoriCashPaymentResponseDto response = moriCashPaymentService.createPayment(requestDto, user);
         return ResponseEntity.ok(response);
     }
@@ -43,8 +45,9 @@ public class MoriCashPaymentController {
     @PostMapping("/{paymentId}/cancel")
     public ResponseEntity<Void> cancelPayment(
             @PathVariable Long paymentId,
-            @AuthenticationPrincipal User user) {
+            @AuthenticationPrincipal CustomUserDetails customUserDetails) {
         
+        User user = customUserDetails.getUser();
         moriCashPaymentService.cancelPayment(paymentId, user);
         return ResponseEntity.ok().build();
     }
@@ -55,8 +58,9 @@ public class MoriCashPaymentController {
     @GetMapping("/{paymentId}")
     public ResponseEntity<MoriCashPaymentResponseDto> getPayment(
             @PathVariable Long paymentId,
-            @AuthenticationPrincipal User user) {
+            @AuthenticationPrincipal CustomUserDetails customUserDetails) {
         
+        User user = customUserDetails.getUser();
         MoriCashPaymentResponseDto response = moriCashPaymentService.getPayment(paymentId, user);
         return ResponseEntity.ok(response);
     }
@@ -66,9 +70,10 @@ public class MoriCashPaymentController {
      */
     @GetMapping
     public ResponseEntity<Page<MoriCashPaymentResponseDto>> getMyPayments(
-            @AuthenticationPrincipal User user,
+            @AuthenticationPrincipal CustomUserDetails customUserDetails,
             @PageableDefault(size = 20, sort = "createdDate", direction = Sort.Direction.DESC) Pageable pageable) {
         
+        User user = customUserDetails.getUser();
         Page<MoriCashPaymentResponseDto> response = moriCashPaymentService.getPayments(user, pageable);
         return ResponseEntity.ok(response);
     }

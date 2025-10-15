@@ -8,6 +8,7 @@ import com.back.domain.review.service.ReviewService;
 import com.back.domain.user.entity.Role;
 import com.back.domain.user.entity.User;
 import com.back.domain.product.product.repository.ProductRepository;
+import com.back.global.security.auth.CustomUserDetails;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.security.core.Authentication;
 import org.springframework.test.util.ReflectionTestUtils;
@@ -16,13 +17,12 @@ import java.util.Arrays;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
-import org.mockito.InjectMocks;
-import org.mockito.Mock;
-import org.mockito.junit.jupiter.MockitoExtension;
-import org.junit.jupiter.api.extension.ExtendWith;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
+import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
-import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 
 import java.time.LocalDateTime;
 import java.util.Arrays;
@@ -34,34 +34,37 @@ import static org.mockito.Mockito.when;
 import static org.mockito.Mockito.mock;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.authentication;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user;
 
-@ExtendWith(MockitoExtension.class)
+@SpringBootTest
+@AutoConfigureMockMvc
 @DisplayName("리뷰 Controller 테스트")
 class ReviewControllerTest {
 
-    @Mock
+    @Autowired
+    private MockMvc mockMvc;
+
+    @MockitoBean
     private ReviewService reviewService;
 
-    @Mock
+    @MockitoBean
     private ProductRepository productRepository;
     
-    @Mock
+    @MockitoBean
     private com.back.global.s3.S3Service s3Service;
 
-    @InjectMocks
-    private ReviewController reviewController;
-
-    private MockMvc mockMvc;
     private ObjectMapper objectMapper;
     private User user;
+    private CustomUserDetails customUserDetails;
     
     private static final UUID TEST_PRODUCT_UUID = UUID.fromString("550e8400-e29b-41d4-a716-446655440000");
 
     @BeforeEach
     void setUp() {
-        mockMvc = MockMvcBuilders.standaloneSetup(reviewController).build();
         objectMapper = new ObjectMapper();
         user = createTestUser();
+        customUserDetails = new CustomUserDetails(user, Role.USER);
     }
 
     @Test
@@ -96,7 +99,7 @@ class ReviewControllerTest {
         mockMvc.perform(post("/api/reviews")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(requestDto))
-                        .requestAttr("user", user))
+                        .with(user(customUserDetails)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.reviewId").value(1L))
                 .andExpect(jsonPath("$.productUuid").value(TEST_PRODUCT_UUID.toString()))
@@ -113,7 +116,7 @@ class ReviewControllerTest {
                         .param("reviewType", "ALL")
                         .param("page", "0")
                         .param("size", "10")
-                        .requestAttr("user", user))
+                        .with(user(customUserDetails)))
                 .andExpect(status().isOk());
     }
 
@@ -135,11 +138,11 @@ class ReviewControllerTest {
                 .createdAt(LocalDateTime.now())
                 .build();
 
-        when(reviewService.getReviewDetail(eq(1L), any(User.class))).thenReturn(responseDto);
+        when(reviewService.getReviewDetail(any(Long.class), any(User.class))).thenReturn(responseDto);
 
         // When & Then
         mockMvc.perform(get("/api/reviews/1")
-                        .requestAttr("user", user))
+                        .with(user(customUserDetails)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.reviewId").value(1L))
                 .andExpect(jsonPath("$.rating").value(5))
@@ -150,11 +153,11 @@ class ReviewControllerTest {
     @DisplayName("리뷰 좋아요 토글 성공")
     void toggleReviewLike_Success() throws Exception {
         // Given
-        when(reviewService.toggleReviewLike(eq(1L), any(User.class))).thenReturn(true);
+        when(reviewService.toggleReviewLike(any(Long.class), any(User.class))).thenReturn(true);
 
         // When & Then
         mockMvc.perform(post("/api/reviews/1/like")
-                        .requestAttr("user", user))
+                        .with(user(customUserDetails)))
                 .andExpect(status().isOk())
                 .andExpect(content().string("true"));
     }
@@ -178,11 +181,11 @@ class ReviewControllerTest {
                 .createdAt(LocalDateTime.now())
                 .build();
 
-        when(reviewService.getReviewDetailForPopup(eq(1L), any(User.class))).thenReturn(responseDto);
+        when(reviewService.getReviewDetailForPopup(any(Long.class), any(User.class))).thenReturn(responseDto);
 
         // When & Then
         mockMvc.perform(get("/api/reviews/1/popup")
-                        .requestAttr("user", user))
+                        .with(user(customUserDetails)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.reviewId").value(1L))
                 .andExpect(jsonPath("$.productOption").value("상품옵션1"))
@@ -225,7 +228,7 @@ class ReviewControllerTest {
         mockMvc.perform(post("/api/reviews/write")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(requestDto))
-                        .requestAttr("user", user))
+                        .with(user(customUserDetails)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.reviewId").value(1L))
                 .andExpect(jsonPath("$.productOption").value("상품옵션1"))
@@ -293,7 +296,7 @@ class ReviewControllerTest {
         mockMvc.perform(post("/api/reviews/write")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(requestDto))
-                        .requestAttr("user", user))
+                        .with(user(customUserDetails)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.reviewId").value(1L))
                 .andExpect(jsonPath("$.rating").value(5))
@@ -317,7 +320,7 @@ class ReviewControllerTest {
         mockMvc.perform(post("/api/reviews/write")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(requestDto))
-                        .requestAttr("user", user))
+                        .with(user(customUserDetails)))
                 .andExpect(status().isBadRequest());
     }
 
@@ -342,11 +345,11 @@ class ReviewControllerTest {
                 .createdAt(LocalDateTime.now())
                 .build();
 
-        when(reviewService.getReviewDetailForPopup(eq(1L), any(User.class))).thenReturn(responseDto);
+        when(reviewService.getReviewDetailForPopup(any(Long.class), any(User.class))).thenReturn(responseDto);
 
         // When & Then
         mockMvc.perform(get("/api/reviews/1/popup")
-                        .requestAttr("user", user))
+                        .with(user(customUserDetails)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.reviewId").value(1L))
                 .andExpect(jsonPath("$.productOption").value("상품옵션1"))
