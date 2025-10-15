@@ -640,43 +640,26 @@ public class AdminDashboardServiceImpl implements AdminDashboardService {
     }
 
     /**
-     * Funding Entity → DTO 변환
+     * Funding Entity → DTO 변환 (화면 표시 필드만)
      */
     private AdminFundingResponse.Funding convertToFundingDto(Funding funding) {
+        // 달성률 계산
         int achievementRate = funding.getTargetAmount() > 0
                 ? (int) ((funding.getCollectedAmount() * 100) / funding.getTargetAmount())
                 : 0;
 
-        long remainingDays = java.time.temporal.ChronoUnit.DAYS.between(
-                LocalDateTime.now(),
-                funding.getEndDate()
-        );
-
-        DateTimeFormatter dateFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd");
+        DateTimeFormatter dateFormatter = DateTimeFormatter.ofPattern("yyyy. MM. dd");
 
         return new AdminFundingResponse.Funding(
                 funding.getId(),
-                funding.getTitle(),
                 new AdminFundingResponse.Artist(
                         funding.getUser().getId(),
-                        funding.getUser().getEmail() != null ? funding.getUser().getEmail() : "N/A",
                         funding.getUser().getName()
                 ),
-                new AdminFundingResponse.Category(1L, "미분류"),
-                funding.getStatus().name(),
-                funding.getTargetAmount(),
-                funding.getCollectedAmount(),
+                funding.getTitle(),
                 achievementRate,
-                funding.getParticipantCount(),
-                funding.getEndDate().format(dateFormatter),
-                funding.getCreateDate().format(dateFormatter),
-                (int) Math.max(0, remainingDays),
-                funding.getImageUrl(),
-                new AdminFundingResponse.Permissions(true, true),
-                new AdminFundingResponse.Flags(
-                        achievementRate >= 100,
-                        remainingDays <= 7 && remainingDays > 0
-                )
+                funding.getStatus().name(),
+                funding.getEndDate().format(dateFormatter)
         );
     }
 
