@@ -8,11 +8,17 @@ import com.back.domain.user.entity.Status;
 import com.back.domain.user.entity.User;
 import com.back.domain.user.repository.UserRepository;
 import com.back.global.exception.ServiceException;
+import com.back.global.s3.FileType;
+import com.back.global.s3.S3Service;
+import com.back.global.s3.UploadResultResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.multipart.MultipartFile;
+
+import java.util.List;
 
 /**
  * 사용자 관리 서비스
@@ -25,6 +31,7 @@ public class UserService {
 
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
+    private final S3Service s3Service;
 
     /**
      * 사용자 조회
@@ -289,6 +296,133 @@ public class UserService {
 
         user.changeStatus(Status.DELETED);
         log.info("계정 삭제: userId={}", userId);
+    }
+
+    /**
+     * 프로필 이미지 업로드 및 변경
+     */
+    @Transactional
+    public UserProfileResponse uploadAndUpdateProfileImage(Long userId, MultipartFile file) {
+        User user = getUserById(userId);
+
+        // 1. 파일 검증 (크기 및 형식)
+        validateImageFile(file);
+
+        // 2. 기존 프로필 이미지 삭제 (S3에서)
+        deleteOldProfileImage(user);
+
+        // 3. S3에 새 이미지 업로드 (MAIN 타입 - 썸네일 자동 생성됨)
+        List<UploadResultResponse> uploadResults = s3Service.uploadFiles(
+                List.of(file),
+                "profile-images",
+                List.of(FileType.MAIN)
+        );
+
+        if (uploadResults.isEmpty()) {
+            throw new ServiceException("500", "이미지 업로드에 실패했습니다.");
+        }
+
+        // 4. MAIN 타입의 이미지 URL 추출
+        String profileImageUrl = uploadResults.stream()
+                .filter(result -> result.type() == FileType.MAIN)
+                .findFirst()
+                .map(UploadResultResponse::url)
+                .orElseThrow(() -> new ServiceException("500", "업로드된 이미지를 찾을 수 없습니다."));
+
+        // 5. 프로필 이미지 URL 업데이트
+        user.updateProfile(null, null, null, null, null, profileImageUrl);
+
+        log.info("프로필 이미지 업로드 및 변경 완료 - userId: {}, imageUrl: {}",
+                userId, profileImageUrl);
+
+        return UserProfileResponse.from(user);
+    }
+
+    /**
+     * 기존 프로필 이미지 삭제 (S3)
+     */
+    private void deleteOldProfileImage(User user) {
+        if (user.getProfileImageUrl() == null || user.getProfileImageUrl().isBlank()) {
+            return;
+        }
+
+        try {
+            // URL에서 S3 Key 추출하여 삭제
+            String oldKey = extractS3KeyFromUrl(user.getProfileImageUrl());
+            s3Service.deleteFile(oldKey);
+
+            // 썸네일도 있다면 삭제
+            String thumbnailKey = oldKey.replace("profile-images/", "profile-images/thumbnail-");
+            try {
+                s3Service.deleteFile(thumbnailKey);
+            } catch (Exception e) {
+                log.debug("썸네일 이미지 없음 또는 삭제 실패 - key: {}", thumbnailKey);
+            }
+
+            log.info("기존 프로필 이미지 삭제 완료 - key: {}", oldKey);
+        } catch (Exception e) {
+            log.warn("기존 프로필 이미지 삭제 실패 - userId: {}", user.getId(), e);
+            // 삭제 실패해도 진행 (새 이미지는 업로드)
+        }
+    }
+
+    /**
+     * 프로필 이미지 삭제
+     */
+    @Transactional
+    public UserProfileResponse deleteProfileImage(Long userId) {
+        User user = getUserById(userId);
+
+        // 1. 현재 프로필 이미지가 없으면 에러
+        if (user.getProfileImageUrl() == null || user.getProfileImageUrl().isBlank()) {
+            throw new ServiceException("400", "삭제할 프로필 이미지가 없습니다.");
+        }
+
+        // 2. S3에서 이미지 삭제
+        deleteOldProfileImage(user);
+
+        // 3. DB에서 프로필 이미지 URL을 null로 설정
+        user.updateProfile(null, null, null, null, null, null);
+
+        log.info("프로필 이미지 삭제 완료 - userId: {}", userId);
+
+        return UserProfileResponse.from(user);
+    }
+
+    /**
+     * S3 URL에서 Key 추출 헬퍼 메서드
+     */
+    private String extractS3KeyFromUrl(String url) {
+        try {
+            String[] parts = url.split(".com/");
+            if (parts.length > 1) {
+                return parts[1];
+            }
+        } catch (Exception e) {
+            log.error("S3 URL 파싱 실패: {}", url, e);
+        }
+        throw new ServiceException("400", "잘못된 S3 URL 형식입니다.");
+    }
+
+    /**
+     * 파일 크기 검증
+     */
+    private void validateImageFile(MultipartFile file) {
+        // 1. 파일이 비어있는지 검증
+        if (file == null || file.isEmpty()) {
+            throw new ServiceException("400", "업로드할 파일이 없습니다.");
+        }
+
+        // 2. 파일 크기 검증 (5MB 제한)
+        if (file.getSize() > 5 * 1024 * 1024) {
+            throw new ServiceException("400", "이미지 크기는 5MB를 초과할 수 없습니다.");
+        }
+
+        // 3. 이미지 파일 형식 검증 (Content-Type)
+        String contentType = file.getContentType();
+        if (contentType == null || !contentType.startsWith("image/")) {
+            throw new ServiceException("400", "이미지 파일만 업로드 가능합니다.");
+        }
     }
 
 }
