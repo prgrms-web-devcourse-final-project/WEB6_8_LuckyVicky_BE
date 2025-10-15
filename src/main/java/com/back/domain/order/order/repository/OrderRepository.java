@@ -130,6 +130,35 @@ public interface OrderRepository extends JpaRepository<Order, Long> {
     );
 
     /**
+     * 작가별 주문 목록 조회 - 상품명 정렬용
+     * 각 주문의 상품 중 이름이 가장 빠른 상품(ㄱ에 가까운)을 기준으로 정렬
+     */
+    @Query("SELECT DISTINCT o FROM Order o " +
+            "JOIN o.orderItems oi " +
+            "JOIN oi.product p " +
+            "WHERE p.user.id = :artistId " +
+            "AND (:status IS NULL OR o.status = :status) " +
+            "AND (:keyword IS NULL OR :keyword = '' OR " +
+            "     o.user.name LIKE CONCAT('%', :keyword, '%') OR " +
+            "     p.name LIKE CONCAT('%', :keyword, '%')) " +
+            "AND (:startDate IS NULL OR o.orderDate >= :startDate) " +
+            "AND (:endDate IS NULL OR o.orderDate <= :endDate) " +
+            "AND p.name = (SELECT MIN(p2.name) FROM OrderItem oi2 JOIN oi2.product p2 WHERE oi2.order = o AND p2.user.id = :artistId) " +
+            "ORDER BY " +
+            "CASE WHEN :direction = 'ASC' THEN p.name END ASC, " +
+            "CASE WHEN :direction = 'DESC' THEN p.name END DESC, " +
+            "o.orderDate DESC")
+    Page<Order> findOrdersByArtistSortedByProductName(
+            @Param("artistId") Long artistId,
+            @Param("status") OrderStatus status,
+            @Param("keyword") String keyword,
+            @Param("startDate") java.time.LocalDateTime startDate,
+            @Param("endDate") java.time.LocalDateTime endDate,
+            @Param("direction") String direction,
+            Pageable pageable
+    );
+
+    /**
      * 작가별 주문 상세 정보 조회 (Fetch Join)
      */
     @Query("SELECT DISTINCT o FROM Order o " +
@@ -298,5 +327,30 @@ public interface OrderRepository extends JpaRepository<Order, Long> {
             @Param("artist") User artist,
             @Param("startDate") java.time.LocalDateTime startDate,
             @Param("endDate") java.time.LocalDateTime endDate
+    );
+
+    /**
+     * - 특정 기간 내 DELIVERED 상태 주문만
+     * - 작가가 판매한 상품의 주문만
+     * - 상품명 기준 정렬 (ASC/DESC)
+     */
+    @Query("SELECT DISTINCT o FROM Order o " +
+            "JOIN o.orderItems oi " +
+            "JOIN oi.product p " +
+            "WHERE p.user = :artist " +
+            "AND o.status = com.back.domain.order.order.entity.OrderStatus.DELIVERED " +
+            "AND o.orderDate >= :startDate " +
+            "AND o.orderDate <= :endDate " +
+            "AND p.name = (SELECT MIN(p2.name) FROM OrderItem oi2 JOIN oi2.product p2 " +
+            "              WHERE oi2.order = o AND p2.user = :artist) " +
+            "ORDER BY " +
+            "CASE WHEN :direction = 'ASC' THEN p.name END ASC, " +
+            "CASE WHEN :direction = 'DESC' THEN p.name END DESC, " +
+            "o.orderDate DESC")
+    List<Order> findDeliveredOrdersByArtistInPeriodSortedByProductName(
+            @Param("artist") User artist,
+            @Param("startDate") java.time.LocalDateTime startDate,
+            @Param("endDate") java.time.LocalDateTime endDate,
+            @Param("direction") String direction
     );
 }

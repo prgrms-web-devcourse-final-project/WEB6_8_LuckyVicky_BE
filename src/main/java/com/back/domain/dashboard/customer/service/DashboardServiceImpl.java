@@ -494,14 +494,22 @@ public class DashboardServiceImpl implements DashboardService {
 
     /**
      * Follow 엔티티를 Artist DTO로 변환
+     * 프로필 이미지 우선순위: User.profileImageUrl > ArtistProfile.profileImageUrl
      */
     private FollowingResponse.Artist convertToFollowingArtist(com.back.domain.follow.entity.Follow follow) {
         com.back.domain.artist.entity.ArtistProfile artistProfile = follow.getFollowingArtist();
+        User artistUser = artistProfile.getUser();
+
+        // 프로필 이미지 URL 우선순위: User > ArtistProfile
+        String profileImageUrl = artistUser.getProfileImageUrl();
+        if (profileImageUrl == null || profileImageUrl.isBlank()) {
+            profileImageUrl = artistProfile.getProfileImageUrl();
+        }
 
         return new FollowingResponse.Artist(
                 artistProfile.getId().toString(),
                 artistProfile.getArtistName(),
-                artistProfile.getProfileImageUrl(),
+                profileImageUrl,  // null인 경우 프론트에서 기본 이미지 표시
                 "/artists/" + artistProfile.getId()
         );
     }

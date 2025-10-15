@@ -719,19 +719,39 @@ public class ArtistDashboardServiceImpl implements ArtistDashboardService {
             }
         }
 
-        // 동적 정렬 처리
-        org.springframework.data.domain.Sort sort = createOrderSort(request.sort(), request.order());
-        PageRequest pageRequest = PageRequest.of(request.page(), request.size(), sort);
+        // 상품명 정렬 여부 확인
+        boolean isProductNameSort = "productName".equals(request.sort());
+        
+        Page<com.back.domain.order.order.entity.Order> orderPage;
 
-        // Repository를 통한 실제 DB 조회
-        Page<com.back.domain.order.order.entity.Order> orderPage = orderRepository.findOrdersByArtist(
-                artistId,
-                orderStatus,
-                request.keyword(),
-                startDateTime,
-                endDateTime,
-                pageRequest
-        );
+        if (isProductNameSort) {
+            // 상품명 정렬: 별도 메서드 사용
+            String direction = request.order() != null ? request.order() : "DESC";
+            PageRequest pageRequest = PageRequest.of(request.page(), request.size());
+            
+            orderPage = orderRepository.findOrdersByArtistSortedByProductName(
+                    artistId,
+                    orderStatus,
+                    request.keyword(),
+                    startDateTime,
+                    endDateTime,
+                    direction,
+                    pageRequest
+            );
+        } else {
+            // 일반 정렬: 동적 정렬 처리
+            org.springframework.data.domain.Sort sort = createOrderSort(request.sort(), request.order());
+            PageRequest pageRequest = PageRequest.of(request.page(), request.size(), sort);
+
+            orderPage = orderRepository.findOrdersByArtist(
+                    artistId,
+                    orderStatus,
+                    request.keyword(),
+                    startDateTime,
+                    endDateTime,
+                    pageRequest
+            );
+        }
 
         // ID 리스트 추출
         List<Long> orderIds = orderPage.getContent().stream()
@@ -790,8 +810,7 @@ public class ArtistDashboardServiceImpl implements ArtistDashboardService {
             case "status" -> org.springframework.data.domain.Sort.by(direction, "status");
             case "totalAmount" -> org.springframework.data.domain.Sort.by(direction, "totalAmount");
             case "customerName" -> org.springframework.data.domain.Sort.by(direction, "user.name");
-            case "productName" ->
-                    org.springframework.data.domain.Sort.by(direction, "orderDate"); // 상품명 정렬은 복잡하므로 일단 주문일자로 대체
+            case "productName" -> null; // 상품명 정렬은 Repository에서 처리
             default -> org.springframework.data.domain.Sort.by(direction, "orderDate");
         };
     }
@@ -1112,8 +1131,8 @@ public class ArtistDashboardServiceImpl implements ArtistDashboardService {
 
     @Override
     public ArtistExchangeResponse.List getExchangeRequests(Long artistId, ArtistExchangeSearchRequest request) {
-        log.info("작가 교환 요청 목록 조회 시작 - artistId: {}, page: {}, size: {}, status: {}, keyword: {}",
-                artistId, request.page(), request.size(), request.status(), request.keyword());
+        log.info("작가 교환 요청 목록 조회 시작 - artistId: {}, page: {}, size: {}, status: {}, keyword: {}, sort: {}, order: {}",
+                artistId, request.page(), request.size(), request.status(), request.keyword(), request.sort(), request.order());
 
         // status 문자열을 ExchangeStatus enum으로 변환
         com.back.domain.order.exchange.entity.Exchange.ExchangeStatus exchangeStatus = null;
@@ -1130,23 +1149,49 @@ public class ArtistDashboardServiceImpl implements ArtistDashboardService {
             }
         }
 
-        // Repository를 통한 실제 DB 조회 (최신순 정렬)
-        Page<com.back.domain.order.exchange.entity.Exchange> exchangePage = exchangeRepository.findExchangesByArtist(
-                artistId,
-                exchangeStatus,
-                request.keyword(),
-                PageRequest.of(request.page(), request.size())
-        );
+        // 정렬 방향
+        String sortOrder = request.order() != null ? request.order() : "DESC";
+        
+        // 정렬 필드에 따라 적절한 Repository 메서드 호출
+        Page<com.back.domain.order.exchange.entity.Exchange> exchangePage;
+        PageRequest pageRequest = PageRequest.of(request.page(), request.size());
+
+        String sortField = request.sort() != null ? request.sort() : "requestDate";
+
+        switch (sortField) {
+            case "productName" -> {
+                // 상품명 정렬 (DB 쿼리)
+                if ("ASC".equalsIgnoreCase(sortOrder)) {
+                    exchangePage = exchangeRepository.findExchangesByArtistSortedByProductNameAsc(
+                            artistId, exchangeStatus, request.keyword(), pageRequest);
+                } else {
+                    exchangePage = exchangeRepository.findExchangesByArtistSortedByProductNameDesc(
+                            artistId, exchangeStatus, request.keyword(), pageRequest);
+                }
+            }
+            case "customerName" -> {
+                // 구매자 이름 정렬 (DB 쿼리)
+                if ("ASC".equalsIgnoreCase(sortOrder)) {
+                    exchangePage = exchangeRepository.findExchangesByArtistSortedByCustomerNameAsc(
+                            artistId, exchangeStatus, request.keyword(), pageRequest);
+                } else {
+                    exchangePage = exchangeRepository.findExchangesByArtistSortedByCustomerNameDesc(
+                            artistId, exchangeStatus, request.keyword(), pageRequest);
+                }
+            }
+            default -> {
+                // 주문일자, 상태 정렬 (Pageable Sort 사용)
+                org.springframework.data.domain.Sort sort = createExchangeSort(sortField, sortOrder);
+                pageRequest = PageRequest.of(request.page(), request.size(), sort);
+                exchangePage = exchangeRepository.findExchangesByArtist(
+                        artistId, exchangeStatus, request.keyword(), pageRequest);
+            }
+        }
 
         // Entity → DTO 변환
         List<ArtistExchangeResponse.ExchangeRequest> content = exchangePage.getContent().stream()
                 .map(this::convertToExchangeDto)
                 .toList();
-
-        // 메모리에서 정렬 (간단한 정렬만 지원)
-        if (request.sort() != null && !request.sort().equals("requestDate")) {
-            content = sortExchangesInMemory(content, request.sort(), request.order());
-        }
 
         int totalPages = exchangePage.getTotalPages();
         long totalElements = exchangePage.getTotalElements();
@@ -1168,36 +1213,18 @@ public class ArtistDashboardServiceImpl implements ArtistDashboardService {
     }
 
     /**
-     * 메모리에서 교환 요청 정렬 처리
+     * 교환 요청 정렬 생성 (requestDate, status 정렬용)
      */
-    private List<ArtistExchangeResponse.ExchangeRequest> sortExchangesInMemory(
-            List<ArtistExchangeResponse.ExchangeRequest> list, String sort, String order) {
+    private org.springframework.data.domain.Sort createExchangeSort(String sortField, String sortOrder) {
+        org.springframework.data.domain.Sort.Direction direction =
+                "ASC".equalsIgnoreCase(sortOrder)
+                        ? org.springframework.data.domain.Sort.Direction.ASC
+                        : org.springframework.data.domain.Sort.Direction.DESC;
 
-        boolean asc = "ASC".equalsIgnoreCase(order);
-
-        return list.stream()
-                .sorted((a, b) -> {
-                    int cmp = 0;
-                    switch (sort) {
-                        case "productName":
-                            String nameA = a.orderItem() != null ? a.orderItem().productName() : "";
-                            String nameB = b.orderItem() != null ? b.orderItem().productName() : "";
-                            cmp = nameA.compareTo(nameB);
-                            break;
-                        case "customerName":
-                            String customerA = a.customer() != null ? a.customer().nickname() : "";
-                            String customerB = b.customer() != null ? b.customer().nickname() : "";
-                            cmp = customerA.compareTo(customerB);
-                            break;
-                        case "status":
-                            cmp = a.status().compareTo(b.status());
-                            break;
-                        default:
-                            cmp = a.requestDate().compareTo(b.requestDate());
-                    }
-                    return asc ? cmp : -cmp;
-                })
-                .toList();
+        return switch (sortField) {
+            case "status" -> org.springframework.data.domain.Sort.by(direction, "status");
+            default -> org.springframework.data.domain.Sort.by(direction, "createDate"); // requestDate
+        };
     }
 
     /**
@@ -1640,11 +1667,25 @@ public class ArtistDashboardServiceImpl implements ArtistDashboardService {
             ArtistSettlementSearchRequest request,
             Long artistId) {
 
-        // 1. 배송 완료된 주문 조회 (정렬 없이 전체 조회)
-        List<com.back.domain.order.order.entity.Order> allOrders =
-                orderRepository.findDeliveredOrdersByArtistInPeriod(artist, startDate, endDate);
+        // 1. 정렬 필드 확인
+        String sortField = request.sort() != null ? request.sort() : "date";
+        String sortOrder = request.order() != null ? request.order() : "DESC";
+        boolean isProductNameSort = "productName".equals(sortField);
 
-        // 2. 주문을 OrderItem 단위로 변환 (작가의 상품만)
+        // 2. 배송 완료된 주문 조회
+        List<com.back.domain.order.order.entity.Order> allOrders;
+        
+        if (isProductNameSort) {
+            // 상품명 정렬: DB에서 정렬된 상태로 조회
+            allOrders = orderRepository.findDeliveredOrdersByArtistInPeriodSortedByProductName(
+                    artist, startDate, endDate, sortOrder);
+        } else {
+            // 일반 조회 (정렬은 메모리에서 처리)
+            allOrders = orderRepository.findDeliveredOrdersByArtistInPeriod(
+                    artist, startDate, endDate);
+        }
+
+        // 3. 주문을 OrderItem 단위로 변환 (작가의 상품만)
         List<SettlementOrderItem> settlementItems = allOrders.stream()
                 .flatMap(order -> order.getOrderItems().stream()
                         .filter(item -> item.getProduct().getUser().getId().equals(artistId))
@@ -1657,17 +1698,19 @@ public class ArtistDashboardServiceImpl implements ArtistDashboardService {
                         )))
                 .toList();
 
-        // 3. 정렬 적용
-        settlementItems = sortSettlementItems(settlementItems, request.sort(), request.order());
+        // 4. 정렬 적용 (상품명 정렬이 아닌 경우만 메모리 정렬)
+        if (!isProductNameSort) {
+            settlementItems = sortSettlementItems(settlementItems, sortField, sortOrder);
+        }
 
-        // 4. 페이징 처리
+        // 5. 페이징 처리
         int start = request.page() * request.size();
         int end = Math.min(start + request.size(), settlementItems.size());
         List<SettlementOrderItem> pagedItems = start < settlementItems.size()
                 ? settlementItems.subList(start, end)
                 : List.of();
 
-        // 5. DTO 변환
+        // 6. DTO 변환
         List<ArtistSettlementResponse.Settlement> content = pagedItems.stream()
                 .map(this::convertToSettlementDtoFromOrder)
                 .toList();
@@ -1689,7 +1732,8 @@ public class ArtistDashboardServiceImpl implements ArtistDashboardService {
     }
 
     /**
-     * 정산 아이템 정렬
+     * 정산 아이템 정렬 (메모리 정렬)
+     * productName 정렬은 DB에서 처리하므로 여기서는 제외
      */
     private List<SettlementOrderItem> sortSettlementItems(
             List<SettlementOrderItem> items, String sortField, String sortOrder) {
@@ -1699,6 +1743,7 @@ public class ArtistDashboardServiceImpl implements ArtistDashboardService {
         return items.stream()
                 .sorted((a, b) -> {
                     int cmp = switch (sortField) {
+                        case "productName" -> a.productName.compareTo(b.productName);
                         case "grossAmount" -> Integer.compare(a.grossAmount, b.grossAmount);
                         case "commission" -> Integer.compare(a.grossAmount / 10, b.grossAmount / 10);
                         case "netAmount" -> Integer.compare(a.grossAmount * 9 / 10, b.grossAmount * 9 / 10);
