@@ -515,7 +515,7 @@ public class AdminDashboardServiceImpl implements AdminDashboardService {
             case "memberId" -> "email";
             case "nickname" -> "name";
             case "artistName" -> "name";
-            case "commissionRate" -> "id"; // TODO: User 엔티티에 commissionRate 필드 추가 시 수정
+            case "commissionRate" -> "grade";  // 수수료율 정렬은 회원등급으로 처리 (작가=GUARDIAN, 일반=SPROUT)
             case "grade" -> "grade";
             case "accountStatus" -> "status";
             case "joinedAt" -> "createDate";

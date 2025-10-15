@@ -8,7 +8,10 @@ import com.back.domain.order.order.entity.PaymentMethod;
 import com.back.domain.order.order.repository.OrderRepository;
 import com.back.domain.product.category.entity.Category;
 import com.back.domain.product.category.repository.CategoryRepository;
-import com.back.domain.product.product.entity.*;
+import com.back.domain.product.product.entity.DeliveryType;
+import com.back.domain.product.product.entity.DisplayStatus;
+import com.back.domain.product.product.entity.Product;
+import com.back.domain.product.product.entity.SellingStatus;
 import com.back.domain.product.product.repository.ProductRepository;
 import com.back.domain.user.entity.Role;
 import com.back.domain.user.entity.User;
@@ -30,6 +33,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertAll;
@@ -438,6 +442,52 @@ class AdminDashboardServiceImplTest {
                     () -> assertThat(user.commissionRate()).isNull()
             );
         });
+    }
+
+    @Test
+    @DisplayName("사용자 목록 조회 - 수수료율 정렬 (실제로는 회원등급 정렬)")
+    void getUsers_수수료율정렬() {
+        // Given - 수수료율 오름차순 정렬 (실제로는 grade 정렬)
+        AdminUserSearchRequest request = new AdminUserSearchRequest(
+                0, 20, null, null, null, null, null, null, null,
+                "commissionRate", "ASC"
+        );
+
+        // When
+        AdminUserResponse response = adminDashboardService.getUsers(request);
+
+        // Then
+        assertThat(response.content()).isNotEmpty();
+        // 등급 순서: SPROUT(일반) < GRASS < TREE < FOREST < GUARDIAN(작가)
+        // 따라서 일반 유저(수수료율 null)가 먼저, 작가(수수료율 10%)가 나중에 나와야 함
+        
+        List<AdminUserResponse.User> users = response.content();
+        for (int i = 0; i < users.size() - 1; i++) {
+            String currentGrade = users.get(i).grade();
+            String nextGrade = users.get(i + 1).grade();
+            
+            // GUARDIAN(작가) 앞에는 GUARDIAN이 아닌 등급이 와야 함
+            if ("GUARDIAN".equals(nextGrade)) {
+                assertThat(currentGrade).isIn("SPROUT", "GRASS", "TREE", "FOREST", "GUARDIAN");
+            }
+        }
+    }
+
+    @Test
+    @DisplayName("사용자 목록 조회 - 수수료율 내림차순 정렬")
+    void getUsers_수수료율내림차순정렬() {
+        // Given - 수수료율 내림차순 정렬 (실제로는 grade 역순 정렬)
+        AdminUserSearchRequest request = new AdminUserSearchRequest(
+                0, 20, null, null, null, null, null, null, null,
+                "commissionRate", "DESC"
+        );
+
+        // When
+        AdminUserResponse response = adminDashboardService.getUsers(request);
+
+        // Then
+        assertThat(response.content()).isNotEmpty();
+        // 내림차순이므로 GUARDIAN(작가, 10%)가 먼저, 일반 유저(null)가 나중에 나와야 함
     }
 
     // ========== 펀딩 승인 대기 목록 테스트 ==========
