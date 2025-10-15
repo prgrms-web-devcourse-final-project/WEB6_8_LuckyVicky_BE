@@ -330,7 +330,7 @@ public class UserService {
                 .orElseThrow(() -> new ServiceException("500", "업로드된 이미지를 찾을 수 없습니다."));
 
         // 5. 프로필 이미지 URL 업데이트
-        user.updateProfile(null, null, null, null, null, profileImageUrl);
+        user.setProfileImage(profileImageUrl);
 
         log.info("프로필 이미지 업로드 및 변경 완료 - userId: {}, imageUrl: {}",
                 userId, profileImageUrl);
@@ -382,7 +382,7 @@ public class UserService {
         deleteOldProfileImage(user);
 
         // 3. DB에서 프로필 이미지 URL을 null로 설정
-        user.updateProfile(null, null, null, null, null, null);
+        user.deleteProfileImage();
 
         log.info("프로필 이미지 삭제 완료 - userId: {}", userId);
 
@@ -394,14 +394,22 @@ public class UserService {
      */
     private String extractS3KeyFromUrl(String url) {
         try {
-            String[] parts = url.split(".com/");
-            if (parts.length > 1) {
-                return parts[1];
+            log.debug("S3 URL 파싱 시도: {}", url);
+
+            // .com/ 이후의 문자열 추출 (리터럴 문자열 사용)
+            int index = url.indexOf(".com/");
+
+            if (index != -1 && index + 5 < url.length()) {
+                String key = url.substring(index + 5);
+                log.debug("추출된 S3 Key: {}", key);
+                return key;
             }
+
+            log.error("URL 파싱 실패: '.com/' 구분자를 찾을 수 없음. URL: {}", url);
         } catch (Exception e) {
-            log.error("S3 URL 파싱 실패: {}", url, e);
+            log.error("S3 URL 파싱 중 예외 발생: {}", url, e);
         }
-        throw new ServiceException("400", "잘못된 S3 URL 형식입니다.");
+        throw new ServiceException("400", "잘못된 S3 URL 형식입니다. URL: " + url);
     }
 
     /**
