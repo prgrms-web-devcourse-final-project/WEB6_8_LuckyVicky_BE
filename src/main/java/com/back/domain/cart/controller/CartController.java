@@ -101,6 +101,18 @@ public class CartController {
         return ResponseEntity.ok(RsData.of("200", "선택 상태가 변경되었습니다.", responseDto));
     }
 
+    @PutMapping("/toggle-all-selection")
+    @Operation(summary = "장바구니 전체 선택 토글", description = "모든 장바구니 아이템의 선택 상태를 일괄 변경합니다.")
+    public ResponseEntity<RsData<List<CartResponseDto>>> toggleAllSelection(
+            @AuthenticationPrincipal CustomUserDetails customUserDetails,
+            @RequestParam boolean isSelected) {
+        
+        User user = customUserDetails.getUser();
+        List<CartResponseDto> responseDtos = cartService.toggleAllSelection(user, isSelected);
+        String message = isSelected ? "모든 장바구니 아이템이 선택되었습니다." : "모든 장바구니 아이템이 해제되었습니다.";
+        return ResponseEntity.ok(RsData.of("200", message, responseDtos));
+    }
+
     @GetMapping("/selected")
     @Operation(
         summary = "선택된 장바구니 아이템 조회", 

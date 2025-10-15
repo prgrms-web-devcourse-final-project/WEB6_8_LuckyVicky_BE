@@ -256,7 +256,8 @@ class ReviewControllerTest {
         
         // When & Then
         mockMvc.perform(get("/api/reviews/stats")
-                        .param("productUuid", TEST_PRODUCT_UUID.toString()))
+                        .param("productUuid", TEST_PRODUCT_UUID.toString())
+                        .with(user(customUserDetails)))
                 .andExpect(status().isOk());
     }
 
