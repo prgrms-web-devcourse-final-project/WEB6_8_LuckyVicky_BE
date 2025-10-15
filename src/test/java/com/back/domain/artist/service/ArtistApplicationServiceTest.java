@@ -6,12 +6,15 @@ import com.back.domain.artist.dto.response.ArtistApplicationSimpleResponse;
 import com.back.domain.artist.dto.response.ArtistBusinessInfoResponse;
 import com.back.domain.artist.entity.ApplicationStatus;
 import com.back.domain.artist.entity.ArtistApplication;
-import com.back.domain.artist.entity.DocumentType;
 import com.back.domain.artist.repository.ArtistApplicationRepository;
+import com.back.domain.artist.repository.ArtistDocumentRepository;
+import com.back.domain.notification.service.NotificationService;
 import com.back.domain.user.entity.User;
 import com.back.domain.user.repository.UserRepository;
 import com.back.global.exception.ServiceException;
-import com.back.global.s3.S3FileRequest;
+import com.back.global.s3.FileType;
+import com.back.global.s3.S3Service;
+import com.back.global.s3.UploadResultResponse;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -20,14 +23,19 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.util.ReflectionTestUtils;
+import org.springframework.web.multipart.MultipartFile;
 
-import java.util.*;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.List;
+import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.BDDMockito.verify;
 
@@ -38,12 +46,25 @@ public class ArtistApplicationServiceTest {
 
     @Mock
     private ArtistApplicationRepository artistApplicationRepository;
-    @Mock private UserRepository userRepository;
+
+    @Mock
+    private ArtistDocumentRepository artistDocumentRepository;
+
+    @Mock
+    private UserRepository userRepository;
+
+    @Mock
+    private S3Service s3Service;
+
+    @Mock
+    private NotificationService notificationService;
+
     @InjectMocks
     private ArtistApplicationService artistApplicationService;
 
     private User testUser;
     private ArtistApplicationRequest validRequest;
+    private List<MultipartFile> validDocumentFiles;
 
     @BeforeEach
     void setUp() {
@@ -56,18 +77,6 @@ public class ArtistApplicationServiceTest {
         );
         ReflectionTestUtils.setField(testUser, "id", 1L);
 
-        // 테스트용 Request 생성
-        Map<DocumentType, List<S3FileRequest>> documents = new HashMap<>();
-        documents.put(DocumentType.BUSINESS_LICENSE, List.of(
-                new S3FileRequest("https://s3.../business.pdf", null, "docs/uuid1.pdf", "사업자등록증.pdf")
-        ));
-        documents.put(DocumentType.TELECOM_CERTIFICATION, List.of(
-                new S3FileRequest("https://s3.../telecom.pdf", null, "docs/uuid2.pdf", "통신판매업신고증.pdf")
-        ));
-        documents.put(DocumentType.PORTFOLIO, List.of(
-                new S3FileRequest("https://s3.../portfolio.jpg", null, "docs/uuid3.jpg", "포트폴리오.jpg")
-        ));
-
         validRequest = new ArtistApplicationRequest(
                 "홍길동",
                 "artist@test.com",
@@ -78,7 +87,7 @@ public class ArtistApplicationServiceTest {
                 "테헤란로 123",
                 "12345",
                 "2024-서울강남-00001",
-                documents,
+                // 선택 필드들
                 "홍길동아트",
                 "인스타그램@artist",
                 "도자기, 그림",
@@ -86,6 +95,27 @@ public class ArtistApplicationServiceTest {
                 "카카오뱅크",
                 "1234567890",
                 "홍길동"
+        );
+
+        validDocumentFiles = Arrays.asList(
+                new MockMultipartFile(
+                        "documents",
+                        "사업자등록증.pdf",
+                        "application/pdf",
+                        "business license content".getBytes()
+                ),
+                new MockMultipartFile(
+                        "documents",
+                        "통신판매업신고증.pdf",
+                        "application/pdf",
+                        "telecom cert content".getBytes()
+                ),
+                new MockMultipartFile(
+                        "documents",
+                        "포트폴리오.jpg",
+                        "image/jpeg",
+                        "portfolio content".getBytes()
+                )
         );
     }
 
@@ -118,14 +148,48 @@ public class ArtistApplicationServiceTest {
             given(artistApplicationRepository.save(any(ArtistApplication.class)))
                     .willReturn(savedApplication);
 
+            // ✅ S3 업로드 결과 Mock
+            List<UploadResultResponse> uploadResults = Arrays.asList(
+                    new UploadResultResponse(
+                            "https://s3.../business.pdf",
+                            FileType.DOCUMENT,
+                            "docs/uuid1.pdf",
+                            "사업자등록증.pdf"
+                    ),
+                    new UploadResultResponse(
+                            "https://s3.../telecom.pdf",
+                            FileType.DOCUMENT,
+                            "docs/uuid2.pdf",
+                            "통신판매업신고증.pdf"
+                    ),
+                    new UploadResultResponse(
+                            "https://s3.../portfolio.jpg",
+                            FileType.DOCUMENT,
+                            "docs/uuid3.jpg",
+                            "포트폴리오.jpg"
+                    )
+            );
+
+            given(s3Service.uploadFiles(anyList(), anyString(), anyList()))
+                    .willReturn(uploadResults);
+
+            // ✅ 관리자 목록 Mock
+            given(userRepository.findAllAdmins()).willReturn(Collections.emptyList());
+
             // when
-            Long applicationId = artistApplicationService.createApplication(1L, validRequest);
+            Long applicationId = artistApplicationService.createApplication(
+                    1L,
+                    validRequest,
+                    validDocumentFiles  // ✅ 파일 추가
+            );
 
             // then
             assertThat(applicationId).isEqualTo(1L);
             verify(userRepository).findById(1L);
             verify(artistApplicationRepository).existsByUserIdAndStatus(1L, ApplicationStatus.PENDING);
             verify(artistApplicationRepository).save(any(ArtistApplication.class));
+            verify(s3Service).uploadFiles(anyList(), anyString(), anyList());
+            verify(artistDocumentRepository).saveAll(anyList());
         }
 
         @Test
@@ -135,7 +199,8 @@ public class ArtistApplicationServiceTest {
             given(userRepository.findById(999L)).willReturn(Optional.empty());
 
             // when & then
-            assertThatThrownBy(() -> artistApplicationService.createApplication(999L, validRequest))
+            assertThatThrownBy(() -> artistApplicationService.createApplication(
+                    999L, validRequest, validDocumentFiles))
                     .isInstanceOf(ServiceException.class)
                     .satisfies(ex -> {
                         ServiceException serviceEx = (ServiceException) ex;
@@ -153,7 +218,8 @@ public class ArtistApplicationServiceTest {
                     .willReturn(true);
 
             // when & then
-            assertThatThrownBy(() -> artistApplicationService.createApplication(1L, validRequest))
+            assertThatThrownBy(() -> artistApplicationService.createApplication(
+                    1L, validRequest, validDocumentFiles))
                     .isInstanceOf(ServiceException.class)
                     .satisfies(ex -> {
                         ServiceException serviceEx = (ServiceException) ex;
@@ -163,64 +229,103 @@ public class ArtistApplicationServiceTest {
         }
 
         @Test
-        @DisplayName("필수 서류 누락으로 신청 실패 (사업자등록증 없음)")
-        void createApplication_MissingBusinessLicense() {
+        @DisplayName("필수 서류 파일 누락으로 신청 실패 (파일이 2개 미만)")
+        void createApplication_MissingDocuments() {
             // given
-            Map<DocumentType, List<S3FileRequest>> incompleteDocuments = new HashMap<>();
-            incompleteDocuments.put(DocumentType.TELECOM_CERTIFICATION, List.of(
-                    new S3FileRequest("https://s3.../telecom.pdf", null, "docs/uuid2.pdf", "통신판매업신고증.pdf")
-            ));
-
-            ArtistApplicationRequest invalidRequest = new ArtistApplicationRequest(
-                    "홍길동", "artist@test.com", "010-1234-5678", "아티스트홍",
-                    "123-45-67890", "서울시 강남구", "테헤란로 123", "12345",
-                    "2024-서울강남-00001", incompleteDocuments,
-                    "홍길동아트", "인스타그램@artist", "도자기, 그림", "010-9876-5432",
-                    "카카오뱅크", "1234567890", "홍길동"
-            );
-
             given(userRepository.findById(1L)).willReturn(Optional.of(testUser));
             given(artistApplicationRepository.existsByUserIdAndStatus(1L, ApplicationStatus.PENDING))
                     .willReturn(false);
 
+            // ✅ 1개 파일만 제공
+            List<MultipartFile> incompleteFiles = Arrays.asList(
+                    new MockMultipartFile(
+                            "documents",
+                            "사업자등록증.pdf",
+                            "application/pdf",
+                            "business license content".getBytes()
+                    )
+            );
+
             // when & then
-            assertThatThrownBy(() -> artistApplicationService.createApplication(1L, invalidRequest))
+            assertThatThrownBy(() -> artistApplicationService.createApplication(
+                    1L, validRequest, incompleteFiles))
                     .isInstanceOf(ServiceException.class)
                     .satisfies(ex -> {
                         ServiceException serviceEx = (ServiceException) ex;
                         assertThat(serviceEx.getResultCode()).isEqualTo("400");
-                        assertThat(serviceEx.getMsg()).contains("필수 서류가 누락되었습니다");
+                        assertThat(serviceEx.getMsg()).contains("필수 서류 파일이 누락되었습니다");
                     });
         }
 
         @Test
-        @DisplayName("필수 서류 누락으로 신청 실패 (통신판매업신고증 없음)")
-        void createApplication_MissingTelecomCertification() {
+        @DisplayName("파일명에 필수 키워드 누락으로 신청 실패 (사업자등록증 키워드 없음)")
+        void createApplication_MissingBusinessLicenseKeyword() {
             // given
-            Map<DocumentType, List<S3FileRequest>> incompleteDocuments = new HashMap<>();
-            incompleteDocuments.put(DocumentType.BUSINESS_LICENSE, List.of(
-                    new S3FileRequest("https://s3.../business.pdf", null, "docs/uuid1.pdf", "사업자등록증.pdf")
-            ));
-
-            ArtistApplicationRequest invalidRequest = new ArtistApplicationRequest(
-                    "홍길동", "artist@test.com", "010-1234-5678", "아티스트홍",
-                    "123-45-67890", "서울시 강남구", "테헤란로 123", "12345",
-                    "2024-서울강남-00001", incompleteDocuments,
-                    "홍길동아트", "인스타그램@artist", "도자기, 그림", "010-9876-5432",
-                    "카카오뱅크", "1234567890", "홍길동"
-            );
-
             given(userRepository.findById(1L)).willReturn(Optional.of(testUser));
             given(artistApplicationRepository.existsByUserIdAndStatus(1L, ApplicationStatus.PENDING))
                     .willReturn(false);
 
+            ArtistApplication savedApplication = ArtistApplication.builder()
+                    .user(testUser)
+                    .ownerName(validRequest.ownerName())
+                    .email(validRequest.email())
+                    .phone(validRequest.phone())
+                    .artistName(validRequest.artistName())
+                    .businessNumber(validRequest.businessNumber())
+                    .businessAddress(validRequest.businessAddress())
+                    .businessAddressDetail(validRequest.businessAddressDetail())
+                    .businessZipCode(validRequest.businessZipCode())
+                    .telecomSalesNumber(validRequest.telecomSalesNumber())
+                    .build();
+            ReflectionTestUtils.setField(savedApplication, "id", 1L);
+
+            given(artistApplicationRepository.save(any(ArtistApplication.class)))
+                    .willReturn(savedApplication);
+
+            // ✅ 잘못된 파일명 (키워드 없음)
+            List<MultipartFile> wrongNameFiles = Arrays.asList(
+                    new MockMultipartFile(
+                            "documents",
+                            "document1.pdf",  // 키워드 없음
+                            "application/pdf",
+                            "content".getBytes()
+                    ),
+                    new MockMultipartFile(
+                            "documents",
+                            "document2.pdf",  // 키워드 없음
+                            "application/pdf",
+                            "content".getBytes()
+                    )
+            );
+
+            List<UploadResultResponse> uploadResults = Arrays.asList(
+                    new UploadResultResponse(
+                            "https://s3.../doc1.pdf",
+                            FileType.DOCUMENT,
+                            "docs/uuid1.pdf",
+                            "document1.pdf"
+                    ),
+                    new UploadResultResponse(
+                            "https://s3.../doc2.pdf",
+                            FileType.DOCUMENT,
+                            "docs/uuid2.pdf",
+                            "document2.pdf"
+                    )
+            );
+
+            given(s3Service.uploadFiles(anyList(), anyString(), anyList()))
+                    .willReturn(uploadResults);
+
             // when & then
-            assertThatThrownBy(() -> artistApplicationService.createApplication(1L, invalidRequest))
+            assertThatThrownBy(() -> artistApplicationService.createApplication(
+                    1L, validRequest, wrongNameFiles))
                     .isInstanceOf(ServiceException.class)
                     .satisfies(ex -> {
                         ServiceException serviceEx = (ServiceException) ex;
                         assertThat(serviceEx.getResultCode()).isEqualTo("400");
                         assertThat(serviceEx.getMsg()).contains("필수 서류가 누락되었습니다");
+                        assertThat(serviceEx.getMsg()).contains("사업자등록증");
+                        assertThat(serviceEx.getMsg()).contains("통신판매업신고증");
                     });
         }
     }
@@ -282,6 +387,8 @@ public class ArtistApplicationServiceTest {
         void getMyApplications_EmptyList() {
             // given
             given(userRepository.existsById(1L)).willReturn(true);
+            given(artistApplicationRepository.findByUserIdOrderByCreateDateDesc(1L))
+                    .willReturn(Collections.emptyList());
 
             // when
             List<ArtistApplicationSimpleResponse> responses =
@@ -375,7 +482,7 @@ public class ArtistApplicationServiceTest {
             ReflectionTestUtils.setField(otherUser, "id", 2L);
 
             ArtistApplication application = ArtistApplication.builder()
-                    .user(otherUser) // 다른 사용자의 신청서
+                    .user(otherUser)
                     .ownerName("홍길동")
                     .email("other@test.com")
                     .phone("010-9999-9999")
@@ -543,7 +650,7 @@ public class ArtistApplicationServiceTest {
                     .telecomSalesNumber("2024-서울강남-00001")
                     .build();
             ReflectionTestUtils.setField(application, "id", 1L);
-            
+
             application.approve(999L, "관리자");
             given(artistApplicationRepository.findById(1L)).willReturn(Optional.of(application));
 
@@ -557,6 +664,4 @@ public class ArtistApplicationServiceTest {
                     });
         }
     }
-
-
 }

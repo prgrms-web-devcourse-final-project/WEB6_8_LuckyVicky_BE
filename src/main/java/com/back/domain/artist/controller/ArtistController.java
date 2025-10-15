@@ -12,9 +12,11 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
 
@@ -101,15 +103,24 @@ public class ArtistController {
     /**
      * 작가 신청
      */
-    @PostMapping("/application")
-    @Operation(summary = "작가 신청", description = "사용자가 작가로 신청합니다.")
+    @PostMapping(value = "/application", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    @Operation(
+            summary = "작가 신청",
+            description = "사용자가 작가 입점을 신청합니다. 필수 서류를 함께 업로드합니다."
+    )
     public ResponseEntity<RsData<Long>> applyForArtist(
             @AuthenticationPrincipal CustomUserDetails userDetails,
-            @Valid @RequestBody ArtistApplicationRequest request) {
+            @Valid @RequestPart("application") ArtistApplicationRequest request,
+            @RequestPart(value = "documents", required = true) List<MultipartFile> documents) {
 
-        log.info("작가 신청 - userId: {}", userDetails.getUserId());
+        log.info("작가 신청 - userId: {}, 서류 개수: {}",
+                userDetails.getUserId(), documents.size());
 
-        Long applicationId = artistApplicationService.createApplication(userDetails.getUserId(), request);
+        Long applicationId = artistApplicationService.createApplication(
+                userDetails.getUserId(),
+                request,
+                documents
+        );
 
         return ResponseEntity.ok(
                 RsData.of("200", "작가 신청 완료", applicationId)
