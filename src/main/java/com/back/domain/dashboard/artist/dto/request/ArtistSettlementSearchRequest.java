@@ -36,8 +36,8 @@ public record ArtistSettlementSearchRequest(
         Integer size,
 
         /** 정렬 기준 */
-        @Pattern(regexp = "^(date|grossAmount|commission|netAmount|status)$",
-                message = "sort는 date, grossAmount, commission, netAmount, status 중 하나여야 합니다")
+        @Pattern(regexp = "^(date|productName|grossAmount|commission|netAmount|status)$",
+                message = "sort는 date, productName, grossAmount, commission, netAmount, status 중 하나여야 합니다")
         String sort,
 
         /** 정렬 방향 */

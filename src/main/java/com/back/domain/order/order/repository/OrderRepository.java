@@ -328,4 +328,29 @@ public interface OrderRepository extends JpaRepository<Order, Long> {
             @Param("startDate") java.time.LocalDateTime startDate,
             @Param("endDate") java.time.LocalDateTime endDate
     );
+
+    /**
+     * - 특정 기간 내 DELIVERED 상태 주문만
+     * - 작가가 판매한 상품의 주문만
+     * - 상품명 기준 정렬 (ASC/DESC)
+     */
+    @Query("SELECT DISTINCT o FROM Order o " +
+            "JOIN o.orderItems oi " +
+            "JOIN oi.product p " +
+            "WHERE p.user = :artist " +
+            "AND o.status = com.back.domain.order.order.entity.OrderStatus.DELIVERED " +
+            "AND o.orderDate >= :startDate " +
+            "AND o.orderDate <= :endDate " +
+            "AND p.name = (SELECT MIN(p2.name) FROM OrderItem oi2 JOIN oi2.product p2 " +
+            "              WHERE oi2.order = o AND p2.user = :artist) " +
+            "ORDER BY " +
+            "CASE WHEN :direction = 'ASC' THEN p.name END ASC, " +
+            "CASE WHEN :direction = 'DESC' THEN p.name END DESC, " +
+            "o.orderDate DESC")
+    List<Order> findDeliveredOrdersByArtistInPeriodSortedByProductName(
+            @Param("artist") User artist,
+            @Param("startDate") java.time.LocalDateTime startDate,
+            @Param("endDate") java.time.LocalDateTime endDate,
+            @Param("direction") String direction
+    );
 }

@@ -1667,11 +1667,25 @@ public class ArtistDashboardServiceImpl implements ArtistDashboardService {
             ArtistSettlementSearchRequest request,
             Long artistId) {
 
-        // 1. 배송 완료된 주문 조회 (정렬 없이 전체 조회)
-        List<com.back.domain.order.order.entity.Order> allOrders =
-                orderRepository.findDeliveredOrdersByArtistInPeriod(artist, startDate, endDate);
+        // 1. 정렬 필드 확인
+        String sortField = request.sort() != null ? request.sort() : "date";
+        String sortOrder = request.order() != null ? request.order() : "DESC";
+        boolean isProductNameSort = "productName".equals(sortField);
 
-        // 2. 주문을 OrderItem 단위로 변환 (작가의 상품만)
+        // 2. 배송 완료된 주문 조회
+        List<com.back.domain.order.order.entity.Order> allOrders;
+        
+        if (isProductNameSort) {
+            // 상품명 정렬: DB에서 정렬된 상태로 조회
+            allOrders = orderRepository.findDeliveredOrdersByArtistInPeriodSortedByProductName(
+                    artist, startDate, endDate, sortOrder);
+        } else {
+            // 일반 조회 (정렬은 메모리에서 처리)
+            allOrders = orderRepository.findDeliveredOrdersByArtistInPeriod(
+                    artist, startDate, endDate);
+        }
+
+        // 3. 주문을 OrderItem 단위로 변환 (작가의 상품만)
         List<SettlementOrderItem> settlementItems = allOrders.stream()
                 .flatMap(order -> order.getOrderItems().stream()
                         .filter(item -> item.getProduct().getUser().getId().equals(artistId))
@@ -1684,17 +1698,19 @@ public class ArtistDashboardServiceImpl implements ArtistDashboardService {
                         )))
                 .toList();
 
-        // 3. 정렬 적용
-        settlementItems = sortSettlementItems(settlementItems, request.sort(), request.order());
+        // 4. 정렬 적용 (상품명 정렬이 아닌 경우만 메모리 정렬)
+        if (!isProductNameSort) {
+            settlementItems = sortSettlementItems(settlementItems, sortField, sortOrder);
+        }
 
-        // 4. 페이징 처리
+        // 5. 페이징 처리
         int start = request.page() * request.size();
         int end = Math.min(start + request.size(), settlementItems.size());
         List<SettlementOrderItem> pagedItems = start < settlementItems.size()
                 ? settlementItems.subList(start, end)
                 : List.of();
 
-        // 5. DTO 변환
+        // 6. DTO 변환
         List<ArtistSettlementResponse.Settlement> content = pagedItems.stream()
                 .map(this::convertToSettlementDtoFromOrder)
                 .toList();
@@ -1716,7 +1732,8 @@ public class ArtistDashboardServiceImpl implements ArtistDashboardService {
     }
 
     /**
-     * 정산 아이템 정렬
+     * 정산 아이템 정렬 (메모리 정렬)
+     * productName 정렬은 DB에서 처리하므로 여기서는 제외
      */
     private List<SettlementOrderItem> sortSettlementItems(
             List<SettlementOrderItem> items, String sortField, String sortOrder) {
@@ -1726,6 +1743,7 @@ public class ArtistDashboardServiceImpl implements ArtistDashboardService {
         return items.stream()
                 .sorted((a, b) -> {
                     int cmp = switch (sortField) {
+                        case "productName" -> a.productName.compareTo(b.productName);
                         case "grossAmount" -> Integer.compare(a.grossAmount, b.grossAmount);
                         case "commission" -> Integer.compare(a.grossAmount / 10, b.grossAmount / 10);
                         case "netAmount" -> Integer.compare(a.grossAmount * 9 / 10, b.grossAmount * 9 / 10);
