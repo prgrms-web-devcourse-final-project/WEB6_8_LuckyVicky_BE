@@ -1131,8 +1131,8 @@ public class ArtistDashboardServiceImpl implements ArtistDashboardService {
 
     @Override
     public ArtistExchangeResponse.List getExchangeRequests(Long artistId, ArtistExchangeSearchRequest request) {
-        log.info("작가 교환 요청 목록 조회 시작 - artistId: {}, page: {}, size: {}, status: {}, keyword: {}",
-                artistId, request.page(), request.size(), request.status(), request.keyword());
+        log.info("작가 교환 요청 목록 조회 시작 - artistId: {}, page: {}, size: {}, status: {}, keyword: {}, sort: {}, order: {}",
+                artistId, request.page(), request.size(), request.status(), request.keyword(), request.sort(), request.order());
 
         // status 문자열을 ExchangeStatus enum으로 변환
         com.back.domain.order.exchange.entity.Exchange.ExchangeStatus exchangeStatus = null;
@@ -1149,23 +1149,49 @@ public class ArtistDashboardServiceImpl implements ArtistDashboardService {
             }
         }
 
-        // Repository를 통한 실제 DB 조회 (최신순 정렬)
-        Page<com.back.domain.order.exchange.entity.Exchange> exchangePage = exchangeRepository.findExchangesByArtist(
-                artistId,
-                exchangeStatus,
-                request.keyword(),
-                PageRequest.of(request.page(), request.size())
-        );
+        // 정렬 방향
+        String sortOrder = request.order() != null ? request.order() : "DESC";
+        
+        // 정렬 필드에 따라 적절한 Repository 메서드 호출
+        Page<com.back.domain.order.exchange.entity.Exchange> exchangePage;
+        PageRequest pageRequest = PageRequest.of(request.page(), request.size());
+
+        String sortField = request.sort() != null ? request.sort() : "requestDate";
+
+        switch (sortField) {
+            case "productName" -> {
+                // 상품명 정렬 (DB 쿼리)
+                if ("ASC".equalsIgnoreCase(sortOrder)) {
+                    exchangePage = exchangeRepository.findExchangesByArtistSortedByProductNameAsc(
+                            artistId, exchangeStatus, request.keyword(), pageRequest);
+                } else {
+                    exchangePage = exchangeRepository.findExchangesByArtistSortedByProductNameDesc(
+                            artistId, exchangeStatus, request.keyword(), pageRequest);
+                }
+            }
+            case "customerName" -> {
+                // 구매자 이름 정렬 (DB 쿼리)
+                if ("ASC".equalsIgnoreCase(sortOrder)) {
+                    exchangePage = exchangeRepository.findExchangesByArtistSortedByCustomerNameAsc(
+                            artistId, exchangeStatus, request.keyword(), pageRequest);
+                } else {
+                    exchangePage = exchangeRepository.findExchangesByArtistSortedByCustomerNameDesc(
+                            artistId, exchangeStatus, request.keyword(), pageRequest);
+                }
+            }
+            default -> {
+                // 주문일자, 상태 정렬 (Pageable Sort 사용)
+                org.springframework.data.domain.Sort sort = createExchangeSort(sortField, sortOrder);
+                pageRequest = PageRequest.of(request.page(), request.size(), sort);
+                exchangePage = exchangeRepository.findExchangesByArtist(
+                        artistId, exchangeStatus, request.keyword(), pageRequest);
+            }
+        }
 
         // Entity → DTO 변환
         List<ArtistExchangeResponse.ExchangeRequest> content = exchangePage.getContent().stream()
                 .map(this::convertToExchangeDto)
                 .toList();
-
-        // 메모리에서 정렬 (간단한 정렬만 지원)
-        if (request.sort() != null && !request.sort().equals("requestDate")) {
-            content = sortExchangesInMemory(content, request.sort(), request.order());
-        }
 
         int totalPages = exchangePage.getTotalPages();
         long totalElements = exchangePage.getTotalElements();
@@ -1187,36 +1213,18 @@ public class ArtistDashboardServiceImpl implements ArtistDashboardService {
     }
 
     /**
-     * 메모리에서 교환 요청 정렬 처리
+     * 교환 요청 정렬 생성 (requestDate, status 정렬용)
      */
-    private List<ArtistExchangeResponse.ExchangeRequest> sortExchangesInMemory(
-            List<ArtistExchangeResponse.ExchangeRequest> list, String sort, String order) {
+    private org.springframework.data.domain.Sort createExchangeSort(String sortField, String sortOrder) {
+        org.springframework.data.domain.Sort.Direction direction =
+                "ASC".equalsIgnoreCase(sortOrder)
+                        ? org.springframework.data.domain.Sort.Direction.ASC
+                        : org.springframework.data.domain.Sort.Direction.DESC;
 
-        boolean asc = "ASC".equalsIgnoreCase(order);
-
-        return list.stream()
-                .sorted((a, b) -> {
-                    int cmp = 0;
-                    switch (sort) {
-                        case "productName":
-                            String nameA = a.orderItem() != null ? a.orderItem().productName() : "";
-                            String nameB = b.orderItem() != null ? b.orderItem().productName() : "";
-                            cmp = nameA.compareTo(nameB);
-                            break;
-                        case "customerName":
-                            String customerA = a.customer() != null ? a.customer().nickname() : "";
-                            String customerB = b.customer() != null ? b.customer().nickname() : "";
-                            cmp = customerA.compareTo(customerB);
-                            break;
-                        case "status":
-                            cmp = a.status().compareTo(b.status());
-                            break;
-                        default:
-                            cmp = a.requestDate().compareTo(b.requestDate());
-                    }
-                    return asc ? cmp : -cmp;
-                })
-                .toList();
+        return switch (sortField) {
+            case "status" -> org.springframework.data.domain.Sort.by(direction, "status");
+            default -> org.springframework.data.domain.Sort.by(direction, "createDate"); // requestDate
+        };
     }
 
     /**
