@@ -33,7 +33,7 @@ public class ProductPopularityScheduler {
             long salesCount = orderItemRepository.countByProduct(product);
 
             // 찜 수 계산 (가중치 20%)
-            long wishlistCount = wishlistRepository.countByProduct(product);
+            long wishlistCount = wishlistRepository.countByProductId(product.getId());
 
             // 리뷰 평점 (가중치 20%)
             Double averageRating = product.getAverageRating();

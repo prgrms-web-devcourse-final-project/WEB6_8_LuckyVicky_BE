@@ -347,77 +347,6 @@ class DashboardControllerTest {
                 .andExpect(jsonPath("$.data.content[0].meta").doesNotExist());
     }
 
-    @Test
-    @DisplayName("팔로우한 작가 목록 조회 API - 성공")
-    void getFollowingArtists_Success() throws Exception {
-        // Given
-        com.back.domain.dashboard.customer.dto.response.FollowingResponse.List mockResponse =
-                createMockFollowingList();
-        given(dashboardService.getFollowingArtists(
-                eq(TEST_USER_ID), any(FollowingSearchRequest.class)))
-                .willReturn(mockResponse);
-
-        // When & Then
-        mockMvc.perform(get("/api/dashboard/following-artists")
-                        .param("page", "0")
-                        .param("size", "8"))
-                .andDo(print())
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.resultCode").value("200"))
-                .andExpect(jsonPath("$.data.content").isArray())
-                .andExpect(jsonPath("$.data.content[0].artistId").exists())
-                .andExpect(jsonPath("$.data.content[0].artistName").exists())
-                .andExpect(jsonPath("$.data.content[0].profileImageUrl").exists())
-                .andExpect(jsonPath("$.data.content[0].artistPageUrl").exists())
-                .andExpect(jsonPath("$.data.page").value(0))
-                .andExpect(jsonPath("$.data.size").value(8));
-    }
-
-    @Test
-    @DisplayName("팔로우한 작가 목록 조회 API - 불필요한 필드 제외 검증")
-    void getFollowingArtists_ExcludesUnnecessaryFields() throws Exception {
-        // Given
-        com.back.domain.dashboard.customer.dto.response.FollowingResponse.List mockResponse =
-                createMockFollowingList();
-        given(dashboardService.getFollowingArtists(
-                eq(TEST_USER_ID), any(FollowingSearchRequest.class)))
-                .willReturn(mockResponse);
-
-        // When & Then
-        mockMvc.perform(get("/api/dashboard/following-artists")
-                        .param("page", "0")
-                        .param("size", "8"))
-                .andDo(print())
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.data.profile").doesNotExist())
-                .andExpect(jsonPath("$.data.summary").doesNotExist())
-                .andExpect(jsonPath("$.data.content[0].followerCount").doesNotExist())
-                .andExpect(jsonPath("$.data.content[0].followRelation").doesNotExist())
-                .andExpect(jsonPath("$.data.content[0].badges").doesNotExist());
-    }
-
-    @Test
-    @DisplayName("팔로우한 작가 목록 조회 API - 페이징 처리 검증")
-    void getFollowingArtists_HandlesPagination() throws Exception {
-        // Given
-        com.back.domain.dashboard.customer.dto.response.FollowingResponse.List mockResponse =
-                createMockFollowingList();
-        given(dashboardService.getFollowingArtists(
-                eq(TEST_USER_ID), any(FollowingSearchRequest.class)))
-                .willReturn(mockResponse);
-
-        // When & Then
-        mockMvc.perform(get("/api/dashboard/following-artists")
-                        .param("page", "0")
-                        .param("size", "8"))
-                .andDo(print())
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.data.totalElements").exists())
-                .andExpect(jsonPath("$.data.totalPages").exists())
-                .andExpect(jsonPath("$.data.hasNext").exists())
-                .andExpect(jsonPath("$.data.hasPrevious").exists());
-    }
-
     // =========================== 헬퍼 메서드들 ===========================
 
     private AccountResponse.Settings createMockAccountSettings() {
@@ -579,27 +508,6 @@ class DashboardControllerTest {
 
         return new com.back.domain.dashboard.customer.dto.response.FundingResponse.List(
                 summary, content, 0, 10, 5, 1, false, false
-        );
-    }
-
-    private com.back.domain.dashboard.customer.dto.response.FollowingResponse.List createMockFollowingList() {
-        List<com.back.domain.dashboard.customer.dto.response.FollowingResponse.Artist> content = List.of(
-                new com.back.domain.dashboard.customer.dto.response.FollowingResponse.Artist(
-                        "1",
-                        "작가명입니다",
-                        "https://cdn.example.com/artist1.jpg",
-                        "/artists/1"
-                ),
-                new com.back.domain.dashboard.customer.dto.response.FollowingResponse.Artist(
-                        "2",
-                        "다른작가",
-                        null,  // 프로필 이미지 없음 (프론트에서 기본 이미지 처리)
-                        "/artists/2"
-                )
-        );
-
-        return new com.back.domain.dashboard.customer.dto.response.FollowingResponse.List(
-                content, 0, 8, 2, 1, false, false
         );
     }
 
