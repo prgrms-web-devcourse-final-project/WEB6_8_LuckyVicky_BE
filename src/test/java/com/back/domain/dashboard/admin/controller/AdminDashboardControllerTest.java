@@ -164,7 +164,7 @@ class AdminDashboardControllerTest {
                 .andExpect(jsonPath("$.data.totalElements").isNumber())
                 .andExpect(jsonPath("$.data.content[0].productId").exists())
                 .andExpect(jsonPath("$.data.content[0].name").exists())
-                .andExpect(jsonPath("$.data.content[0].artist.name").exists());
+                .andExpect(jsonPath("$.data.content[0].artistName").exists());
     }
 
     @Test
@@ -427,10 +427,10 @@ class AdminDashboardControllerTest {
 
         String rejectionReason = "제출 서류가 불충분합니다.";
         String requestBody = String.format("""
-            {
-                "rejectionReason": "%s"
-            }
-            """, rejectionReason);
+                {
+                    "rejectionReason": "%s"
+                }
+                """, rejectionReason);
 
         // When & Then
         mockMvc.perform(post("/api/dashboard/admin/artist-applications/{applicationId}/reject", saved.getId())
@@ -461,10 +461,10 @@ class AdminDashboardControllerTest {
         ArtistApplication saved = artistApplicationRepository.save(application);
 
         String requestBody = """
-            {
-                "rejectionReason": ""
-            }
-            """;
+                {
+                    "rejectionReason": ""
+                }
+                """;
 
         // When & Then
         mockMvc.perform(post("/api/dashboard/admin/artist-applications/{applicationId}/reject", saved.getId())

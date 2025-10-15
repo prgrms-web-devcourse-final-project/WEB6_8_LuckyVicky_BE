@@ -554,7 +554,7 @@ class AdminDashboardServiceImplTest {
 
         // Then
         response.content().forEach(funding ->
-                assertThat(funding.artist().id()).isEqualTo(artistUser.getId())
+                assertThat(funding.artistId()).isEqualTo(artistUser.getId())
         );
     }
 

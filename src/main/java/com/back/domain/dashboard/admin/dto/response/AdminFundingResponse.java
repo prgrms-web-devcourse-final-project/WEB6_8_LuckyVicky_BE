@@ -24,13 +24,15 @@ public record AdminFundingResponse(
 ) {
 
     /**
-     * 펀딩 정보
+     * 펀딩 정보 (화면 표시 필드만, 평면 구조)
      */
     public record Funding(
             /** 펀딩 ID (기본키) */
             Long fundingId,
-            /** 작가 정보 */
-            Artist artist,
+            /** 작가 ID */
+            Long artistId,
+            /** 작가명 */
+            String artistName,
             /** 펀딩 제목 */
             String title,
             /** 달성률 (%) */
@@ -39,15 +41,5 @@ public record AdminFundingResponse(
             String status,
             /** 마감일 */
             String endDate
-    ) {}
-
-    /**
-     * 작가 정보
-     */
-    public record Artist(
-            /** 작가 ID */
-            Long id,
-            /** 작가명 */
-            String name
     ) {}
 }

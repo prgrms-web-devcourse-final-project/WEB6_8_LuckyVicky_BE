@@ -640,7 +640,7 @@ public class AdminDashboardServiceImpl implements AdminDashboardService {
     }
 
     /**
-     * Funding Entity → DTO 변환 (화면 표시 필드만)
+     * Funding Entity → DTO 변환 (화면 표시 필드만, 평면 구조)
      */
     private AdminFundingResponse.Funding convertToFundingDto(Funding funding) {
         // 달성률 계산
@@ -652,10 +652,8 @@ public class AdminDashboardServiceImpl implements AdminDashboardService {
 
         return new AdminFundingResponse.Funding(
                 funding.getId(),
-                new AdminFundingResponse.Artist(
-                        funding.getUser().getId(),
-                        funding.getUser().getName()
-                ),
+                funding.getUser().getId(),
+                funding.getUser().getName(),
                 funding.getTitle(),
                 achievementRate,
                 funding.getStatus().name(),
@@ -998,27 +996,17 @@ public class AdminDashboardServiceImpl implements AdminDashboardService {
     }
 
     /**
-     * Funding Entity → FundingApproval DTO 변환
+     * Funding Entity → FundingApproval DTO 변환 (화면 표시 필드만)
      */
     private AdminFundingApprovalResponse.FundingApproval convertToFundingApprovalDto(Funding funding) {
         DateTimeFormatter dateFormatter = DateTimeFormatter.ofPattern("yyyy. MM. dd");
 
-        // 작가 정보
-        AdminFundingApprovalResponse.Artist artist = new AdminFundingApprovalResponse.Artist(
-                funding.getUser().getId(),
-                funding.getUser().getName(),
-                funding.getUser().getEmail() != null ? funding.getUser().getEmail() : "N/A"
-        );
-
         return new AdminFundingApprovalResponse.FundingApproval(
                 funding.getId(),
+                funding.getUser().getId(),
+                funding.getUser().getName(),
                 funding.getTitle(),
-                artist,
-                funding.getTargetAmount(),
-                funding.getStartDate().format(dateFormatter),
-                funding.getEndDate().format(dateFormatter),
-                funding.getCreateDate().format(dateFormatter),
-                funding.getImageUrl()
+                funding.getCreateDate().format(dateFormatter)
         );
     }
 
