@@ -105,6 +105,7 @@ public class OrderService {
     /**
      * 주문 상세 조회
      */
+    @Transactional(readOnly = true)
     public OrderResponseDto getOrderDetail(Long orderId, User user) {
         Order order = orderRepository.findByIdWithOrderItems(orderId)
                 .orElseThrow(() -> new IllegalArgumentException("주문을 찾을 수 없습니다."));
@@ -572,11 +573,20 @@ public class OrderService {
      * 펀딩 썸네일 이미지 URL 조회
      */
     private String getFundingThumbnailUrl(Funding funding) {
-        return funding.getImages().stream()
-                .filter(image -> "THUMBNAIL".equals(image.getFileType().name()))
-                .findFirst()
-                .map(image -> image.getFileUrl())
-                .orElse(funding.getImageUrl()); // 썸네일이 없으면 메인 이미지 사용
+        try {
+            // Funding.images는 LAZY 로딩이므로 안전하게 접근
+            if (funding.getImages() != null && !funding.getImages().isEmpty()) {
+                return funding.getImages().stream()
+                        .filter(image -> "THUMBNAIL".equals(image.getFileType().name()))
+                        .findFirst()
+                        .map(image -> image.getFileUrl())
+                        .orElse(funding.getImageUrl()); // 썸네일이 없으면 메인 이미지 사용
+            }
+        } catch (Exception e) {
+            // LAZY 로딩 실패 시 메인 이미지 사용
+            log.warn("Funding 이미지 로딩 실패, 메인 이미지 사용: fundingId={}", funding.getId());
+        }
+        return funding.getImageUrl(); // 기본 이미지 사용
     }
 
     /**
