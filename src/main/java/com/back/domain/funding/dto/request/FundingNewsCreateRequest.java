@@ -5,5 +5,6 @@ import jakarta.validation.constraints.NotBlank;
 public record FundingNewsCreateRequest(
         @NotBlank String title,
         @NotBlank String content,
-        String imageUrl
+        String imageUrl,
+        String s3Key
 ) {}

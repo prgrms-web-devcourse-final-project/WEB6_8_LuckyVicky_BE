@@ -8,6 +8,8 @@ import com.back.domain.funding.repository.FundingRepository;
 import com.back.domain.user.entity.User;
 import com.back.domain.user.repository.UserRepository;
 import com.back.global.exception.ServiceException;
+import com.back.global.s3.S3Service;
+import com.back.global.s3.S3ValidationService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -18,6 +20,8 @@ public class FundingNewsService {
     private final FundingNewsRepository fundingNewsRepository;
     private final FundingRepository fundingRepository;
     private final UserRepository userRepository;
+    private final S3Service s3Service;
+    private final S3ValidationService s3ValidationService;
 
     @Transactional
     public Long addFundingNews(Long fundingId, FundingNewsCreateRequest req, String userEmail) {
@@ -31,12 +35,17 @@ public class FundingNewsService {
             throw new ServiceException("403", "권한이 없습니다.");
         }
 
+        if (req.s3Key() != null && !req.s3Key().isBlank()) {
+            s3ValidationService.validateFileExists(req.s3Key());
+        }
+
         FundingNews news = FundingNews.builder()
                 .funding(funding)
                 .artist(artist)
                 .title(req.title())
                 .content(req.content())
                 .imageUrl(req.imageUrl())
+                .s3Key(req.s3Key())
                 .build();
 
         fundingNewsRepository.save(news);
@@ -53,6 +62,9 @@ public class FundingNewsService {
                 .orElseThrow(() -> new ServiceException("403", "존재하지 않는 사용자입니다."));
         if (!funding.getUser().getId().equals(artist.getId())) {
             throw new ServiceException("403", "권한이 없습니다.");
+        }
+        if (news.getS3Key() != null && !news.getS3Key().isBlank()){
+            s3Service.deleteFile(news.getS3Key());
         }
         news.delete();
     }
