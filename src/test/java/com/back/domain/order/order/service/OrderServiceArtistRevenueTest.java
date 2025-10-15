@@ -76,6 +76,7 @@ class OrderServiceArtistRevenueTest {
         // 관리자 생성 (테스트용)
         admin = User.createLocalUser("admin@test.com" + uniqueSuffix, "password", "관리자" + uniqueSuffix, "010-9999-9999");
         admin.becomeAdmin();  // 관리자 권한 부여
+
         admin = userRepository.save(admin);
 
         // 카테고리 생성

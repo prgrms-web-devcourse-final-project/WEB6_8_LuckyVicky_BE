@@ -20,6 +20,7 @@ public interface WishlistRepository extends JpaRepository<Wishlist, Long> {
     long countByUserId(Long userId);
 
     // 사용자의 찜 목록 조회 (Product, User(작가) 정보 포함)
+
     @Query("SELECT w FROM Wishlist w " +
             "JOIN FETCH w.product p " +
             "LEFT JOIN FETCH p.user " +
@@ -28,4 +29,5 @@ public interface WishlistRepository extends JpaRepository<Wishlist, Long> {
             "AND p.isDeleted = false " +
             "ORDER BY w.createDate DESC")
     Page<Wishlist> findByUserIdWithProductAndArtist(@Param("userId") Long userId, Pageable pageable);
+
 }
