@@ -88,7 +88,7 @@ public class FundingController {
                 .body(new RsData<>("201", "펀딩이 생성되었습니다.", response));
     }
 
-    @PostMapping(value = "/api/fundings/images", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    @PostMapping(value = "/images", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     @PreAuthorize("hasAuthority('ROLE_ARTIST') or hasAuthority('ROLE_ADMIN') or hasAuthority('ROLE_ROOT')")
     @Operation(
             summary = "펀딩 이미지 업로드",
