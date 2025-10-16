@@ -298,11 +298,6 @@ public class ProductService {
         // 베이스 URL 생성 (프론트엔드 URL)
         String baseUrl = frontendUrl + "/product/" + productUuid;
 
-        // UTM 파라미터 생성
-        // utm_source: 유입 경로 (instagram, youtube 등)
-        // utm_medium: 매체 타입 (social 고정)
-        // utm_campaign: 캠페인 (작가 ID 포함)
-        // utm_content: 추가 정보 (product_share 고정)
         String utmParams = String.format(
                 "?utm_source=%s&utm_medium=social&utm_campaign=artist_%d&utm_content=product_share",
                 normalizedPlatform,
@@ -319,7 +314,7 @@ public class ProductService {
                 normalizedPlatform,
                 artistId,
                 productUuid,
-                product.getName() // 상품명을 설명으로 사용
+                product.getName()
         );
     }
 
