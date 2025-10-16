@@ -72,4 +72,10 @@ public interface UserRepository extends JpaRepository<User, Long>, JpaSpecificat
             @org.springframework.data.repository.query.Param("startDate") java.time.LocalDateTime startDate,
             @org.springframework.data.repository.query.Param("endDate") java.time.LocalDateTime endDate
     );
+
+    /**
+     * 관리자 대시보드 - 전체 작가 수 조회 (최적화)
+     */
+    @org.springframework.data.jpa.repository.Query("SELECT COUNT(u) FROM User u WHERE u.role = com.back.domain.user.entity.Role.ARTIST AND u.isArtistVerified = true")
+    long countArtists();
 }
