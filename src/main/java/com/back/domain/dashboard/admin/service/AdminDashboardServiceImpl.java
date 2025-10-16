@@ -121,6 +121,7 @@ public class AdminDashboardServiceImpl implements AdminDashboardService {
                 .getContent();
 
         List<AdminOverviewResponse.ArtistApproval> artistApprovals = pendingApplications.stream()
+                .filter(app -> app.getUser() != null) // User가 null인 경우 필터링
                 .map(app -> new AdminOverviewResponse.ArtistApproval(
                         app.getUser().getId(),
                         app.getArtistName(),
@@ -137,6 +138,7 @@ public class AdminDashboardServiceImpl implements AdminDashboardService {
                 .getContent();
 
         List<AdminOverviewResponse.FundingApproval> fundingApprovals = pendingFundings.stream()
+                .filter(funding -> funding.getUser() != null) // User가 null인 경우 필터링
                 .map(funding -> new AdminOverviewResponse.FundingApproval(
                         funding.getId(),
                         funding.getTitle(),
@@ -649,6 +651,13 @@ public class AdminDashboardServiceImpl implements AdminDashboardService {
      * Funding Entity → DTO 변환 (화면 표시 필드만, 평면 구조)
      */
     private AdminFundingResponse.Funding convertToFundingDto(Funding funding) {
+        // User null 체크 (FK 제약조건상 발생하면 안되지만 방어적 처리)
+        if (funding.getUser() == null) {
+            log.error("Funding의 User가 null입니다 - fundingId: {}", funding.getId());
+            throw new ServiceException("DATA_INTEGRITY_ERROR", 
+                "펀딩 데이터 무결성 오류 - fundingId: " + funding.getId());
+        }
+        
         // 달성률 계산
         int achievementRate = funding.getTargetAmount() > 0
                 ? (int) ((funding.getCollectedAmount() * 100) / funding.getTargetAmount())
@@ -791,6 +800,13 @@ public class AdminDashboardServiceImpl implements AdminDashboardService {
      * ArtistApplication Entity → DTO 변환
      */
     private AdminArtistApplicationResponse.Application convertToApplicationDto(ArtistApplication application) {
+        // User null 체크 (FK 제약조건상 발생하면 안되지만 방어적 처리)
+        if (application.getUser() == null) {
+            log.error("ArtistApplication의 User가 null입니다 - applicationId: {}", application.getId());
+            throw new ServiceException("DATA_INTEGRITY_ERROR", 
+                "입점 신청 데이터 무결성 오류 - applicationId: " + application.getId());
+        }
+        
         DateTimeFormatter dateFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd");
 
         return new AdminArtistApplicationResponse.Application(
