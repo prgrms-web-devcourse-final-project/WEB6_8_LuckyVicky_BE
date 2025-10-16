@@ -373,6 +373,18 @@ public class DashboardServiceImpl implements DashboardService {
      */
     private OrderResponse.Product convertToProductDto(com.back.domain.order.orderItem.entity.OrderItem orderItem) {
         com.back.domain.product.product.entity.Product product = orderItem.getProduct();
+        
+        // 상품이 삭제되었거나 null인 경우 처리
+        if (product == null) {
+            log.warn("OrderItem의 Product가 null입니다 - orderItemId: {}", orderItem.getId());
+            return new OrderResponse.Product(
+                    null,
+                    "삭제된 상품",
+                    orderItem.getQuantity(),
+                    orderItem.getPrice().intValue(),
+                    null
+            );
+        }
 
         return new OrderResponse.Product(
                 product.getId(),
@@ -388,6 +400,19 @@ public class DashboardServiceImpl implements DashboardService {
      */
     private OrderResponse.OrderItem convertToOrderItemDto(com.back.domain.order.orderItem.entity.OrderItem orderItem) {
         com.back.domain.product.product.entity.Product product = orderItem.getProduct();
+        
+        // 상품이 삭제되었거나 null인 경우 처리
+        if (product == null) {
+            log.warn("OrderItem의 Product가 null입니다 - orderItemId: {}", orderItem.getId());
+            return new OrderResponse.OrderItem(
+                    orderItem.getId(),
+                    null,
+                    "삭제된 상품",
+                    orderItem.getQuantity(),
+                    orderItem.getPrice().intValue(),
+                    null
+            );
+        }
 
         return new OrderResponse.OrderItem(
                 orderItem.getId(),
