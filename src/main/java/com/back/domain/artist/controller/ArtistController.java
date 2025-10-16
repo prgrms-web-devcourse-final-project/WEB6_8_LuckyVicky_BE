@@ -59,15 +59,24 @@ public class ArtistController {
     @GetMapping("/profile/{artistId}")
     @Operation(
             summary = "작가 공개 프로필 상세 조회",
-            description = "작가의 공개 프로필 상세 정보를 조회합니다."
+            description = "작가의 공개 프로필 상세 정보를 조회합니다. 로그인한 경우 팔로우 여부가 포함됩니다."
     )
     public ResponseEntity<RsData<ArtistPublicProfileResponse>> getArtistPublicProfile(
             @Parameter(description = "작가 ID", example = "42", required = true)
-            @PathVariable Long artistId) {
+            @PathVariable Long artistId,
+            @AuthenticationPrincipal CustomUserDetails userDetails) {
 
-        log.info("작가 공개 프로필 조회 - artistId: {}", artistId);
-
-        ArtistPublicProfileResponse response = artistPublicService.getPublicProfile(artistId);
+        ArtistPublicProfileResponse response;
+        
+        if (userDetails != null) {
+            // 로그인한 사용자 - 팔로우 상태 포함
+            log.info("작가 공개 프로필 조회 (로그인) - artistId: {}, userId: {}", artistId, userDetails.getUserId());
+            response = artistPublicService.getPublicProfile(artistId, userDetails.getUserId());
+        } else {
+            // 비로그인 사용자 - 팔로우 상태 미포함
+            log.info("작가 공개 프로필 조회 (비로그인) - artistId: {}", artistId);
+            response = artistPublicService.getPublicProfile(artistId);
+        }
 
         return ResponseEntity.ok(
                 RsData.of("200", "작가 프로필 조회 성공", response)

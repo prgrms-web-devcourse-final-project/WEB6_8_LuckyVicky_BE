@@ -36,6 +36,9 @@ public record ArtistPublicProfileResponse(
         @Schema(description = "등록 상품 수", example = "15")
         Integer productCount,
 
+        @Schema(description = "팔로우 여부", example = "true")
+        Boolean isFollowing,
+
         @Schema(description = "작가 등록일", example = "2024-01-15T10:30:00")
         LocalDateTime createdAt
 ) {
@@ -50,6 +53,23 @@ public record ArtistPublicProfileResponse(
                 artistProfile.getFollowerCount(),
                 artistProfile.getTotalSales(),
                 artistProfile.getProductCount(),
+                false, // 기본값, Service에서 설정 필요
+                artistProfile.getCreateDate()
+        );
+    }
+
+    public static ArtistPublicProfileResponse from(ArtistProfile artistProfile, boolean isFollowing) {
+        return new ArtistPublicProfileResponse(
+                artistProfile.getId(),
+                artistProfile.getArtistName(),
+                artistProfile.getProfileImageUrl(),
+                artistProfile.getDescription(),
+                artistProfile.getMainProducts(),
+                artistProfile.getSnsAccount(),
+                artistProfile.getFollowerCount(),
+                artistProfile.getTotalSales(),
+                artistProfile.getProductCount(),
+                isFollowing,
                 artistProfile.getCreateDate()
         );
     }

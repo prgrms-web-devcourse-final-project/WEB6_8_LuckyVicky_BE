@@ -5,6 +5,7 @@ import com.back.domain.artist.dto.response.ArtistProductResponse;
 import com.back.domain.artist.dto.response.ArtistPublicProfileResponse;
 import com.back.domain.artist.entity.ArtistProfile;
 import com.back.domain.artist.repository.ArtistProfileRepository;
+import com.back.domain.follow.repository.FollowRepository;
 import com.back.domain.product.product.entity.Product;
 import com.back.domain.product.product.entity.ProductImage;
 import com.back.domain.product.product.repository.ProductRepository;
@@ -29,6 +30,7 @@ public class ArtistPublicService {
 
     private final ArtistProfileRepository artistProfileRepository;
     private final ProductRepository productRepository;
+    private final FollowRepository followRepository;
 
     /**
      * 작가 목록 조회
@@ -46,10 +48,10 @@ public class ArtistPublicService {
     }
 
     /**
-     * 작가 공개 프로필 상세 조회
+     * 작가 공개 프로필 상세 조회 (비로그인 사용자)
      */
     public ArtistPublicProfileResponse getPublicProfile(Long artistId) {
-        log.info("작가 공개 프로필 조회 시작 - artistId: {}", artistId);
+        log.info("작가 공개 프로필 조회 시작 (비로그인) - artistId: {}", artistId);
 
         // 작가 프로필 조회
         ArtistProfile artistProfile = artistProfileRepository.findById(artistId)
@@ -59,6 +61,25 @@ public class ArtistPublicService {
                 artistId, artistProfile.getArtistName());
 
         return ArtistPublicProfileResponse.from(artistProfile);
+    }
+
+    /**
+     * 작가 공개 프로필 상세 조회 (로그인 사용자)
+     */
+    public ArtistPublicProfileResponse getPublicProfile(Long artistId, Long currentUserId) {
+        log.info("작가 공개 프로필 조회 시작 (로그인) - artistId: {}, currentUserId: {}", artistId, currentUserId);
+
+        // 작가 프로필 조회
+        ArtistProfile artistProfile = artistProfileRepository.findById(artistId)
+                .orElseThrow(() -> new ServiceException("404", "존재하지 않는 작가입니다."));
+
+        // 팔로우 여부 확인
+        boolean isFollowing = followRepository.existsByFollowerIdAndFollowingArtistId(currentUserId, artistId);
+
+        log.info("작가 공개 프로필 조회 완료 - artistId: {}, artistName: {}, isFollowing: {}",
+                artistId, artistProfile.getArtistName(), isFollowing);
+
+        return ArtistPublicProfileResponse.from(artistProfile, isFollowing);
     }
 
     /**
