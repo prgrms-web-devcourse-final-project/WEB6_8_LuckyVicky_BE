@@ -45,7 +45,6 @@ public interface ArtistApplicationRepository extends JpaRepository<ArtistApplica
         LEFT JOIN FETCH a.user u
         WHERE (:keyword IS NULL OR 
                LOWER(a.artistName) LIKE LOWER(CONCAT('%', :keyword, '%')) OR
-               LOWER(u.email) LIKE LOWER(CONCAT('%', :keyword, '%')) OR
                CAST(u.id AS string) LIKE CONCAT('%', :keyword, '%'))
         AND (:status IS NULL OR a.status = :status)
         ORDER BY 
