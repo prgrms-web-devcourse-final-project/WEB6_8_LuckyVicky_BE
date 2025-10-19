@@ -19,6 +19,7 @@ import java.util.UUID;
 public interface ProductRepository extends JpaRepository<Product, Long>, ProductCustomRepository, JpaSpecificationExecutor<Product> {
     Optional<Product> findByProductUuid(UUID productUuid);
     
+
     // 재고 감소용 - Pessimistic Write Lock (동시성 제어)
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("SELECT p FROM Product p WHERE p.productUuid = :productUuid")

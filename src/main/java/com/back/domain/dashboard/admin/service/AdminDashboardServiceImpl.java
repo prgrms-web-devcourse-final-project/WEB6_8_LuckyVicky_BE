@@ -605,10 +605,11 @@ public class AdminDashboardServiceImpl implements AdminDashboardService {
      * 정산 데이터 포인트 생성
      */
     private void addSettlementDataPoint(MonthlySettlementDto settlement,
-                                        List<AdminSettlementResponse.DataPoint> grossSalesData,
-                                        List<AdminSettlementResponse.DataPoint> artistPayoutData,
-                                        List<AdminSettlementResponse.DataPoint> netIncomeData,
-                                        List<AdminSettlementResponse.TableRow> tableData) {
+                                       List<AdminSettlementResponse.DataPoint> grossSalesData,
+                                       List<AdminSettlementResponse.DataPoint> artistPayoutData,
+                                       List<AdminSettlementResponse.DataPoint> netIncomeData,
+                                       List<AdminSettlementResponse.TableRow> tableData) {
+        
 
         String bucketStart = settlement.date().toString();
         long grossSales = settlement.totalAmount();
