@@ -122,8 +122,14 @@ class ArtistApplicationAdminServiceTest {
                     2
             );
 
-            given(artistApplicationRepository.findAllByOrderByCreateDateDesc(pageable))
-                    .willReturn(applicationPage);
+            // ⭐ 수정: 새로운 동적 쿼리 메서드 mocking
+            given(artistApplicationRepository.findArtistApplicationsForAdmin(
+                    null,           // keyword
+                    null,           // status
+                    "submittedAt",  // sort
+                    "DESC",         // order
+                    pageable
+            )).willReturn(applicationPage);
 
             // when
             Page<ArtistApplicationSimpleResponse> result = adminService.getAllApplications(pageable);
@@ -133,7 +139,15 @@ class ArtistApplicationAdminServiceTest {
             assertThat(result.getTotalElements()).isEqualTo(2);
             assertThat(result.getContent().get(0).artistName()).isEqualTo("아티스트1");
             assertThat(result.getContent().get(1).artistName()).isEqualTo("아티스트2");
-            verify(artistApplicationRepository).findAllByOrderByCreateDateDesc(pageable);
+            
+            // ⭐ 수정: 새로운 메서드 호출 검증
+            verify(artistApplicationRepository).findArtistApplicationsForAdmin(
+                    null,
+                    null,
+                    "submittedAt",
+                    "DESC",
+                    pageable
+            );
         }
     }
 

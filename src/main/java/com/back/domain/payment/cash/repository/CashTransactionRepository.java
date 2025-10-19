@@ -61,4 +61,65 @@ public interface CashTransactionRepository extends JpaRepository<CashTransaction
     @Query("SELECT ct FROM CashTransaction ct WHERE ct.transactionType = :transactionType AND ct.status = :status ORDER BY ct.createDate DESC")
     List<CashTransaction> findByTransactionTypeAndStatus(@Param("transactionType") CashTransactionType transactionType, 
                                                          @Param("status") CashTransactionStatus status);
+
+    /**
+     * 사용자별 충전 내역 조회 (COMPLETED만)
+     */
+    @Query("SELECT ct FROM CashTransaction ct WHERE ct.user = :user " +
+           "AND ct.transactionType = 'CHARGING' " +
+           "AND ct.status = 'COMPLETED' " +
+           "ORDER BY ct.completedAt DESC, ct.createDate DESC")
+    List<CashTransaction> findCompletedChargingByUser(@Param("user") User user);
+
+    /**
+     * 작가별 캐시 거래 내역 조회 (페이징, 다중 조건 필터링, 동적 정렬)
+     * @param user 사용자
+     * @param transactionType 거래 유형 (CHARGING, EXCHANGE)
+     * @param status 거래 상태 (PENDING, COMPLETED, FAILED, CANCELLED)
+     * @param startDate 시작 날짜
+     * @param endDate 종료 날짜
+     * @param pageable 페이징 및 정렬 정보
+     * @return 조회된 거래 내역 페이지
+     */
+    @Query("SELECT ct FROM CashTransaction ct " +
+           "WHERE ct.user = :user " +
+           "AND (:transactionType IS NULL OR ct.transactionType = :transactionType) " +
+           "AND (:status IS NULL OR ct.status = :status) " +
+           "AND (:startDate IS NULL OR ct.createDate >= :startDate) " +
+           "AND (:endDate IS NULL OR ct.createDate <= :endDate)")
+    Page<CashTransaction> findCashTransactionsByUserWithFilters(
+            @Param("user") User user,
+            @Param("transactionType") CashTransactionType transactionType,
+            @Param("status") CashTransactionStatus status,
+            @Param("startDate") LocalDateTime startDate,
+            @Param("endDate") LocalDateTime endDate,
+            Pageable pageable);
+
+    /**
+     * 기간 내 사용자별 입금(충전) 합계
+     */
+    @Query("SELECT COALESCE(SUM(ct.amount), 0) FROM CashTransaction ct " +
+           "WHERE ct.user = :user " +
+           "AND ct.transactionType = 'CHARGING' " +
+           "AND ct.status = 'COMPLETED' " +
+           "AND (:startDate IS NULL OR ct.completedAt >= :startDate) " +
+           "AND (:endDate IS NULL OR ct.completedAt <= :endDate)")
+    Integer getPeriodDepositTotal(
+            @Param("user") User user,
+            @Param("startDate") LocalDateTime startDate,
+            @Param("endDate") LocalDateTime endDate);
+
+    /**
+     * 기간 내 사용자별 환전 합계
+     */
+    @Query("SELECT COALESCE(SUM(ct.amount), 0) FROM CashTransaction ct " +
+           "WHERE ct.user = :user " +
+           "AND ct.transactionType = 'EXCHANGE' " +
+           "AND ct.status = 'COMPLETED' " +
+           "AND (:startDate IS NULL OR ct.completedAt >= :startDate) " +
+           "AND (:endDate IS NULL OR ct.completedAt <= :endDate)")
+    Integer getPeriodWithdrawalTotal(
+            @Param("user") User user,
+            @Param("startDate") LocalDateTime startDate,
+            @Param("endDate") LocalDateTime endDate);
 }

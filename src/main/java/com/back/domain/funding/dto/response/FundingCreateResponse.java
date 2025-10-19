@@ -1,7 +1,6 @@
 package com.back.domain.funding.dto.response;
 
 import com.back.domain.funding.entity.Funding;
-import com.back.domain.funding.entity.FundingOption;
 import com.fasterxml.jackson.annotation.JsonFormat;
 
 import java.time.LocalDateTime;
@@ -13,13 +12,14 @@ public record FundingCreateResponse(
         String title,
         String description,
         String categoryName,
-        String imageUrl,
+        List<FundingDetailResponse.FundingImageResponse> images,
         long targetAmount,
+        long price,
+        Integer stock,
         @JsonFormat(shape = JsonFormat.Shape.STRING, pattern = "yyyy-MM-dd HH:mm:ss")
         LocalDateTime startDate,
         @JsonFormat(shape = JsonFormat.Shape.STRING, pattern = "yyyy-MM-dd HH:mm:ss")
-        LocalDateTime endDate,
-        List<FundingOptionResponse> options
+        LocalDateTime endDate
 ) {
     public static FundingCreateResponse from(Funding funding) {
         return new FundingCreateResponse(
@@ -27,31 +27,13 @@ public record FundingCreateResponse(
                 funding.getTitle(),
                 funding.getDescription(),
                 funding.getCategory().getCategoryName(),
-                funding.getImageUrl(),
-                funding.getTargetAmount(),
+                funding.getImages().stream()
+                        .map(FundingDetailResponse.FundingImageResponse::fromEntity)
+                        .collect(Collectors.toList()),                funding.getTargetAmount(),
+                funding.getPrice(),
+                funding.getStock(),
                 funding.getStartDate(),
-                funding.getEndDate(),
-                funding.getOptions().stream()
-                        .map(FundingOptionResponse::from)
-                        .collect(Collectors.toList())
+                funding.getEndDate()
         );
-    }
-
-    public record FundingOptionResponse(
-            Long id,
-            String name,
-            long price,
-            Integer stock,
-            Integer sortOrder
-    ) {
-        public static FundingOptionResponse from(FundingOption option) {
-            return new FundingOptionResponse(
-                    option.getId(),
-                    option.getName(),
-                    option.getPrice(),
-                    option.getStock(),
-                    option.getSortOrder()
-            );
-        }
     }
 }

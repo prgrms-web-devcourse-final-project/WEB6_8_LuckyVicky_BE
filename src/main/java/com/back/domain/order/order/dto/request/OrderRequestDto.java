@@ -38,15 +38,23 @@ public record OrderRequestDto(
 ) {
     
     /**
-     * 주문 상품 요청 DTO
+     * 주문 상품 요청 DTO (NORMAL/FUNDING 통합)
      */
     public record OrderItemRequestDto(
-            @NotNull(message = "상품 UUID는 필수입니다.")
+            // NORMAL 상품용 (FUNDING일 때는 null 가능)
             UUID productUuid,
-            
+
+            // FUNDING 상품용 (NORMAL일 때는 null 가능)
+            Long fundingId,
+            Integer fundingPrice,
+            Integer fundingStock,
+
             @NotNull(message = "수량은 필수입니다.")
             Integer quantity,
-            
-            String optionInfo
+
+            String optionInfo,
+
+            // 장바구니 타입: NORMAL 또는 FUNDING
+            String cartType
     ) {}
 }

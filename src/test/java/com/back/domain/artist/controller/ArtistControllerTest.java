@@ -12,6 +12,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.MediaType;
+import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.security.test.context.support.WithUserDetails;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
@@ -46,45 +47,58 @@ class ArtistControllerTest {
     @WithUserDetails("user2@user.com")
     @DisplayName("1. 작가 신청 - 성공")
     void t1() throws Exception {
+        // given
+        String applicationJson = """
+                {
+                  "ownerName": "홍길동",
+                  "email": "artist@example.com",
+                  "phone": "010-1234-5678",
+                  "artistName": "작가홍길동",
+                  "businessNumber": "123-45-67890",
+                  "businessName": "홍길동 작가실",
+                  "businessAddress": "서울시 강남구 테헤란로",
+                  "businessAddressDetail": "123번지 2층",
+                  "businessZipCode": "12345",
+                  "telecomSalesNumber": "2023-서울강남-0001",
+                  "snsAccount": "@artist_hong",
+                  "mainProducts": "회화, 조각",
+                  "managerPhone": "010-9876-5432",
+                  "bankName": "신한은행",
+                  "bankAccount": "110-123-456789",
+                  "accountName": "홍길동"
+                }
+                """;
+
+        MockMultipartFile application = new MockMultipartFile(
+                "application",
+                "",
+                "application/json",
+                applicationJson.getBytes()
+        );
+
+        MockMultipartFile document1 = new MockMultipartFile(
+                "documents",
+                "사업자등록증.pdf",
+                "application/pdf",
+                "business license content".getBytes()
+        );
+
+        MockMultipartFile document2 = new MockMultipartFile(
+                "documents",
+                "통신판매업신고증.pdf",
+                "application/pdf",
+                "telecom certification content".getBytes()
+        );
+
         // when
-        ResultActions resultActions = mvc.perform(post("/api/artist/application")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content("""
-                                {
-                                  "ownerName": "홍길동",
-                                  "email": "artist@example.com",
-                                  "phone": "010-1234-5678",
-                                  "artistName": "작가홍길동",
-                                  "businessNumber": "123-45-67890",
-                                  "businessName": "홍길동 작가실",
-                                  "businessAddress": "서울시 강남구 테헤란로",
-                                  "businessAddressDetail": "123번지 2층",
-                                  "businessZipCode": "12345",
-                                  "telecomSalesNumber": "2023-서울강남-0001",
-                                  "snsAccount": "@artist_hong",
-                                  "mainProducts": "회화, 조각",
-                                  "managerPhone": "010-9876-5432",
-                                  "bankName": "신한은행",
-                                  "bankAccount": "110-123-456789",
-                                  "accountName": "홍길동",
-                                  "documents": {
-                                    "BUSINESS_LICENSE": [
-                                      {
-                                        "fileKey": "documents/business_license.pdf",
-                                        "fileName": "사업자등록증.pdf",
-                                        "fileUrl": "https://example.com/business_license.pdf"
-                                      }
-                                    ],
-                                    "TELECOM_CERTIFICATION": [
-                                      {
-                                        "fileKey": "documents/telecom_cert.pdf",
-                                        "fileName": "통신판매업신고증.pdf",
-                                        "fileUrl": "https://example.com/telecom_cert.pdf"
-                                      }
-                                    ]
-                                  }
-                                }
-                                """))
+        ResultActions resultActions = mvc.perform(multipart("/api/artist/application")
+                        .file(application)
+                        .file(document1)
+                        .file(document2)
+                        .with(request -> {
+                            request.setMethod("POST");
+                            return request;
+                        }))
                 .andDo(print());
 
         // then
@@ -97,23 +111,43 @@ class ArtistControllerTest {
     @Test
     @DisplayName("2. 작가 신청 - 실패 (미인증)")
     void t2() throws Exception {
+        // given
+        String applicationJson = """
+                {
+                  "ownerName": "홍길동",
+                  "email": "artist@example.com",
+                  "phone": "010-1234-5678",
+                  "artistName": "작가홍길동",
+                  "businessNumber": "123-45-67890",
+                  "businessAddress": "서울시 강남구",
+                  "businessAddressDetail": "123번지",
+                  "businessZipCode": "12345",
+                  "telecomSalesNumber": "2023-서울강남-0001"
+                }
+                """;
+
+        MockMultipartFile application = new MockMultipartFile(
+                "application",
+                "",
+                "application/json",
+                applicationJson.getBytes()
+        );
+
+        MockMultipartFile document = new MockMultipartFile(
+                "documents",
+                "사업자등록증.pdf",
+                "application/pdf",
+                "content".getBytes()
+        );
+
         // when
-        ResultActions resultActions = mvc.perform(post("/api/artist/application")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content("""
-                                {
-                                  "ownerName": "홍길동",
-                                  "email": "artist@example.com",
-                                  "phone": "010-1234-5678",
-                                  "artistName": "작가홍길동",
-                                  "businessNumber": "123-45-67890",
-                                  "businessAddress": "서울시 강남구",
-                                  "businessAddressDetail": "123번지",
-                                  "businessZipCode": "12345",
-                                  "telecomSalesNumber": "2023-서울강남-0001",
-                                  "documents": {}
-                                }
-                                """))
+        ResultActions resultActions = mvc.perform(multipart("/api/artist/application")
+                        .file(application)
+                        .file(document)
+                        .with(request -> {
+                            request.setMethod("POST");
+                            return request;
+                        }))
                 .andDo(print());
 
         // then
@@ -124,62 +158,105 @@ class ArtistControllerTest {
     @WithUserDetails("user2@user.com")
     @DisplayName("3. 작가 신청 - 실패 (필수 서류 누락)")
     void t3() throws Exception {
+        // given
+        String applicationJson = """
+                {
+                  "ownerName": "홍길동",
+                  "email": "artist@example.com",
+                  "phone": "010-1234-5678",
+                  "artistName": "작가홍길동",
+                  "businessNumber": "123-45-67890",
+                  "businessAddress": "서울시 강남구",
+                  "businessAddressDetail": "123번지",
+                  "businessZipCode": "12345",
+                  "telecomSalesNumber": "2023-서울강남-0001"
+                }
+                """;
+
+        MockMultipartFile application = new MockMultipartFile(
+                "application",
+                "",
+                "application/json",
+                applicationJson.getBytes()
+        );
+
+        // ✅ 사업자등록증만 있고 통신판매업신고증 누락
+        MockMultipartFile document1 = new MockMultipartFile(
+                "documents",
+                "사업자등록증.pdf",
+                "application/pdf",
+                "business license content".getBytes()
+        );
+
         // when
-        ResultActions resultActions = mvc.perform(post("/api/artist/application")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content("""
-                                {
-                                  "ownerName": "홍길동",
-                                  "email": "artist@example.com",
-                                  "phone": "010-1234-5678",
-                                  "artistName": "작가홍길동",
-                                  "businessNumber": "123-45-67890",
-                                  "businessAddress": "서울시 강남구",
-                                  "businessAddressDetail": "123번지",
-                                  "businessZipCode": "12345",
-                                  "telecomSalesNumber": "2023-서울강남-0001",
-                                  "documents": {
-                                    "BUSINESS_LICENSE": [
-                                      {
-                                        "fileKey": "documents/business_license.pdf",
-                                        "fileName": "사업자등록증.pdf",
-                                        "fileUrl": "https://example.com/business_license.pdf"
-                                      }
-                                    ]
-                                  }
-                                }
-                                """))
+        ResultActions resultActions = mvc.perform(multipart("/api/artist/application")
+                        .file(application)
+                        .file(document1)
+                        .with(request -> {
+                            request.setMethod("POST");
+                            return request;
+                        }))
                 .andDo(print());
 
         // then
         resultActions.andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.msg").value("필수 서류가 누락되었습니다.통신판매업신고증"));
+                .andExpect(jsonPath("$.resultCode").value("400"))
+                .andExpect(jsonPath("$.msg").value("필수 서류 파일이 누락되었습니다. (최소 2개: 사업자등록증, 통신판매업신고증)"));
     }
 
     @Test
     @WithUserDetails("user2@user.com")
     @DisplayName("4. 작가 신청 - 실패 (필수 필드 누락)")
     void t4() throws Exception {
-        // when - ownerName 누락
-        ResultActions resultActions = mvc.perform(post("/api/artist/application")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content("""
-                                {
-                                  "email": "artist@example.com",
-                                  "phone": "010-1234-5678",
-                                  "artistName": "작가홍길동",
-                                  "businessNumber": "123-45-67890",
-                                  "businessAddress": "서울시 강남구",
-                                  "businessAddressDetail": "123번지",
-                                  "businessZipCode": "12345",
-                                  "telecomSalesNumber": "2023-서울강남-0001",
-                                  "documents": {}
-                                }
-                                """))
+        // given - ownerName 누락
+        String applicationJson = """
+                {
+                  "email": "artist@example.com",
+                  "phone": "010-1234-5678",
+                  "artistName": "작가홍길동",
+                  "businessNumber": "123-45-67890",
+                  "businessAddress": "서울시 강남구",
+                  "businessAddressDetail": "123번지",
+                  "businessZipCode": "12345",
+                  "telecomSalesNumber": "2023-서울강남-0001"
+                }
+                """;
+
+        MockMultipartFile application = new MockMultipartFile(
+                "application",
+                "",
+                "application/json",
+                applicationJson.getBytes()
+        );
+
+        MockMultipartFile document1 = new MockMultipartFile(
+                "documents",
+                "사업자등록증.pdf",
+                "application/pdf",
+                "business license content".getBytes()
+        );
+
+        MockMultipartFile document2 = new MockMultipartFile(
+                "documents",
+                "통신판매업신고증.pdf",
+                "application/pdf",
+                "telecom cert content".getBytes()
+        );
+
+        // when
+        ResultActions resultActions = mvc.perform(multipart("/api/artist/application")
+                        .file(application)
+                        .file(document1)
+                        .file(document2)
+                        .with(request -> {
+                            request.setMethod("POST");
+                            return request;
+                        }))
                 .andDo(print());
 
         // then
-        resultActions.andExpect(status().isBadRequest());
+        resultActions.andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.resultCode").value("400"));
     }
 
     @Test
@@ -584,7 +661,7 @@ class ArtistControllerTest {
         artistProfileRepository.save(profile);
 
         // when
-        ResultActions resultActions = mvc.perform(get("/api/artist/profile/" + user1.getId())
+        ResultActions resultActions = mvc.perform(get("/api/artist/profile/" + profile.getId())
                         .contentType(MediaType.APPLICATION_JSON))
                 .andDo(print());
 
@@ -592,7 +669,7 @@ class ArtistControllerTest {
         resultActions.andExpect(status().isOk())
                 .andExpect(jsonPath("$.resultCode").value("200"))
                 .andExpect(jsonPath("$.msg").value("작가 프로필 조회 성공"))
-                .andExpect(jsonPath("$.data.artistId").value(user1.getId()))
+                .andExpect(jsonPath("$.data.artistId").value(profile.getId()))
                 .andExpect(jsonPath("$.data.artistName").value("유저1작가"))
                 .andExpect(jsonPath("$.data.description").value("전통 도자기를 현대적으로 재해석하는 작가입니다."))
                 .andExpect(jsonPath("$.data.mainProducts").value("도자기, 머그컵"))
@@ -649,7 +726,7 @@ class ArtistControllerTest {
         artistProfileRepository.save(profile);
 
         // when - 상품이 없는 상태에서 조회
-        ResultActions resultActions = mvc.perform(get("/api/artist/profile/" + user1.getId() + "/products")
+        ResultActions resultActions = mvc.perform(get("/api/artist/profile/" + profile.getId() + "/products")
                         .param("page", "1")
                         .param("size", "12")
                         .contentType(MediaType.APPLICATION_JSON))

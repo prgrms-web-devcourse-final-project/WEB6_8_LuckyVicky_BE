@@ -59,7 +59,9 @@ public record AdminArtistApplicationResponse(
      * 작가 정보
      */
     public record Artist(
-            /** 회원 ID */
+            /** 작가 ID (User ID) */
+            Long artistId,
+            /** 회원 ID (이메일) */
             String memberId,
             /** 작가명 */
             String name

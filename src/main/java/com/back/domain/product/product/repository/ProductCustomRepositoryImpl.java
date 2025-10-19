@@ -4,13 +4,9 @@ import com.back.domain.product.category.entity.Category;
 import com.back.domain.product.category.repository.CategoryRepository;
 import com.back.domain.product.product.dto.response.ProductListResponse;
 import com.back.domain.product.product.dto.response.ProductListResponse.ProductInfo;
-import com.back.domain.product.product.entity.DisplayStatus;
-import com.back.domain.product.product.entity.QProduct;
-import com.back.domain.product.product.entity.QProductImage;
+import com.back.domain.product.product.entity.*;
 import com.back.global.s3.FileType;
 import com.querydsl.core.BooleanBuilder;
-import com.querydsl.core.types.Projections;
-import com.querydsl.core.types.dsl.Expressions;
 import com.querydsl.jpa.impl.JPAQueryFactory;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Pageable;
@@ -69,9 +65,12 @@ public class ProductCustomRepositoryImpl implements ProductCustomRepository {
             builder.and(p.productTags.any().tag.id.in(tagIds)); // 상품에 사용자가 필터링으로 선택한 tagIds가 하나라도 있으면 조건 만족
         }
 
-        // 가격대 필터
-        if (minPrice != null) builder.and(p.price.goe(minPrice)); // 최소 가격 이상 (goe는 greater or equal)
-        if (maxPrice != null) builder.and(p.price.loe(maxPrice)); // 최대 가격 이하 (loe는 less or equal)
+        // 할인된 최종 가격에 대한 표현식 생성
+        com.querydsl.core.types.dsl.NumberExpression<Integer> discountedPrice = p.price.subtract(p.price.multiply(p.discountRate).divide(100));
+
+        // 가격대 필터 (할인된 가격 기준)
+        if (minPrice != null) builder.and(discountedPrice.goe(minPrice));
+        if (maxPrice != null) builder.and(discountedPrice.loe(maxPrice));
 
         // 배송유형 필터
         if (deliveryType != null) {
@@ -80,38 +79,51 @@ public class ProductCustomRepositoryImpl implements ProductCustomRepository {
             ));
         }
 
-        // QueryDSL로 DTO 매핑 + THUMBNAIL join
+        // QueryDSL로 엔티티 조회 + THUMBNAIL join
         var query = queryFactory
-                .select(Projections.constructor(
-                        ProductInfo.class, // dto 매핑
-                        p.productUuid, // 상품 uuid
-                        img.fileUrl, //썸네일 이미지 url
-                        p.brandName, // 브랜드명
-                        p.name, // 상품명
-                        p.price, // 가격
-                        p.discountRate,// 할인율
-                        p.price.subtract(p.price.multiply(p.discountRate).divide(100)), // 할인된 최종 가격
-                        Expressions.nullExpression(Double.class) // rating: 리뷰 연동 전이라서 일단 null로 함.
-                ))
+                .select(p)
                 .from(p)
-                .leftJoin(p.images, img) // left join
-                .on(img.fileType.eq(FileType.THUMBNAIL)) // type이 THUMBNAIL인 이미지만 JOIN
-                .where(builder) // 동적 조건 적용
-                .distinct(); // 중복 제거
+                .leftJoin(p.images, img).on(img.fileType.eq(FileType.THUMBNAIL))
+                .where(builder)
+                .distinct();
 
         // 정렬 처리
         if ("priceAsc".equals(sort)) query.orderBy(p.price.asc()); // 가격 낮은 순
         else if ("priceDesc".equals(sort)) query.orderBy(p.price.desc()); // 가격 높은 순
+        else if ("popular".equals(sort)) query.orderBy(p.popularityScore.desc()); // 인기순
         else query.orderBy(p.createDate.desc()); // 일단 기본은 신상품순으로 함.
 
         // 전체 건수 조회 (페이징용)
         long total = query.fetchCount();
 
-        // 페이징 적용
-        List<ProductInfo> products = query
-                .offset(pageable.getOffset()) // offset
-                .limit(pageable.getPageSize()) //limit
+        // 페이징 적용하여 엔티티 조회
+        List<Product> fetchedProducts = query
+                .offset(pageable.getOffset())
+                .limit(pageable.getPageSize())
                 .fetch();
+
+        // 엔티티를 DTO로 변환
+        List<ProductInfo> products = fetchedProducts.stream()
+                .map(product -> {
+                    String thumbnailUrl = product.getImages().stream()
+                            .filter(i -> i.getFileType() == FileType.THUMBNAIL)
+                            .findFirst()
+                            .map(ProductImage::getFileUrl)
+                            .orElse(null);
+
+                    return new ProductInfo(
+                            product.getProductUuid(),
+                            thumbnailUrl,
+                            product.getBrandName(),
+                            product.getName(),
+                            product.getPrice(),
+                            product.getDiscountRate(),
+                            product.getDiscountPrice(),
+                            product.getAverageRating()
+                    );
+                })
+                .toList();
+
 
         int totalPages = (int) Math.ceil((double) total / pageable.getPageSize());
 
@@ -206,5 +218,31 @@ public class ProductCustomRepositoryImpl implements ProductCustomRepository {
 
         // Page 객체로 반환
         return new org.springframework.data.domain.PageImpl<>(products, pageable, total);
+    }
+
+    /**
+     * 검색 키워드(상품명)에 해당하는 상품 조회
+     */
+    @Override
+    public List<Product> searchByProductNameOrBrandName(String keyword) {
+        QProduct product = QProduct.product;
+        BooleanBuilder builder = new BooleanBuilder();
+
+        if (org.springframework.util.StringUtils.hasText(keyword)) {
+            String[] keywords = keyword.trim().toLowerCase().split("\\s+");
+            for (String kw : keywords) {
+                builder.or(product.name.toLowerCase().contains(kw)
+                        .or(product.brandName.toLowerCase().contains(kw))); // 상품명 또는 브랜드명에서 찾기
+            }
+        }
+
+        // 전시중인 상품만 조회
+        builder.and(product.displayStatus.eq(DisplayStatus.DISPLAYING));
+
+        return queryFactory
+                .selectFrom(product)
+                .where(builder)
+                .distinct()
+                .fetch();
     }
 }

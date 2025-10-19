@@ -152,6 +152,7 @@ public class ProductService {
     }
 
     /** 메인페이지 - 할인중 상품 */
+    @Transactional(readOnly = true)
     public List<ProductListResponse.ProductInfo> getOnSaleProducts() {
         List<Product> products = productRepository.findOnSaleProducts();
         if (products.isEmpty()) throw new ServiceException("404", "할인중인 상품이 존재하지 않습니다.");
@@ -159,6 +160,7 @@ public class ProductService {
     }
 
     /** 메인페이지 - 품절 임박 상품 */
+    @Transactional(readOnly = true)
     public List<ProductListResponse.ProductInfo> getLowStockProducts() {
         List<Product> products = productRepository.findLowStockProducts();
         if (products.isEmpty()) throw new ServiceException("404", "품절 임박 상품이 존재하지 않습니다.");
@@ -166,6 +168,7 @@ public class ProductService {
     }
 
     /** 메인페이지 - 재입고 상품 */
+    @Transactional(readOnly = true)
     public List<ProductListResponse.ProductInfo> getRestockProducts() {
         List<Product> products = productRepository.findRestockProducts();
         if (products.isEmpty()) throw new ServiceException("404", "재입고 상품이 존재하지 않습니다.");
@@ -173,6 +176,7 @@ public class ProductService {
     }
 
     /** 메인페이지 - 기획 상품 */
+    @Transactional(readOnly = true)
     public List<ProductListResponse.ProductInfo> getPlannedProducts() {
         List<Product> products = productRepository.findPlannedProducts();
         if (products.isEmpty()) throw new ServiceException("404", "기획 상품이 존재하지 않습니다.");
@@ -180,6 +184,7 @@ public class ProductService {
     }
 
     /** 메인페이지 - 오픈 예정 상품 */
+    @Transactional(readOnly = true)
     public List<ProductListResponse.ProductInfo> getUpcomingProducts() {
         LocalDateTime today = LocalDateTime.now();
         List<Product> products = productRepository.findUpcomingProducts(today);
@@ -293,11 +298,6 @@ public class ProductService {
         // 베이스 URL 생성 (프론트엔드 URL)
         String baseUrl = frontendUrl + "/product/" + productUuid;
 
-        // UTM 파라미터 생성
-        // utm_source: 유입 경로 (instagram, youtube 등)
-        // utm_medium: 매체 타입 (social 고정)
-        // utm_campaign: 캠페인 (작가 ID 포함)
-        // utm_content: 추가 정보 (product_share 고정)
         String utmParams = String.format(
                 "?utm_source=%s&utm_medium=social&utm_campaign=artist_%d&utm_content=product_share",
                 normalizedPlatform,
@@ -314,7 +314,7 @@ public class ProductService {
                 normalizedPlatform,
                 artistId,
                 productUuid,
-                product.getName() // 상품명을 설명으로 사용
+                product.getName()
         );
     }
 
@@ -381,7 +381,7 @@ public class ProductService {
         }
     }
     // 존재하지 않는 상품 검증
-    private Product getProductOrThrow(UUID productUuid) {
+    public Product getProductOrThrow(UUID productUuid) {
         return productRepository.findByProductUuid(productUuid)
                 .orElseThrow(() -> new ServiceException("404", "존재하지 않는 상품입니다. UUID: " + productUuid));
     }
@@ -410,8 +410,8 @@ public class ProductService {
                 .maxQuantity(request.maxQuantity()) // 최대 구매수량
                 .isPlanned(request.isPlanned()) // 기획상품 여부
                 .isRestock(request.isRestock()) // 재입고상품 여부
-                .sellingStartDate(request.sellingStartDate() != null ? request.sellingStartDate().atStartOfDay() : null)// 판매시작일
-                .sellingEndDate(request.sellingEndDate() != null ? request.sellingEndDate().atStartOfDay() : null)// 판매종료일
+                .sellingStartDate(request.sellingStartDate() != null ? request.sellingStartDate() : null)// 판매시작일
+                .sellingEndDate(request.sellingEndDate() != null ? request.sellingEndDate() : null)// 판매종료일
                 .productModelName(request.productModelName()) //품명
                 .certification(request.certification()) // 법에 의한 인증,허가 확인사항
                 .origin(request.origin()) // 제조국
@@ -457,7 +457,6 @@ public class ProductService {
         if (previousStock == 0 && product.getStock() > 0) {
             product.setRestock(true);
         }
-
     }
 
     /** 엔티티 -> DTO  */
@@ -506,7 +505,9 @@ public class ProductService {
                 product.getDisplayStatus().name(),
                 product.isPlanned(),
                 product.isRestock(),
-                mapTags(product.getProductTags())
+                mapTags(product.getProductTags()),
+                product.getSellingStartDate(),
+                product.getSellingEndDate()
         );
     }
 

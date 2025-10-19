@@ -8,6 +8,7 @@ import com.back.domain.order.order.dto.request.OrderStatusChangeRequestDto;
 import com.back.domain.order.order.dto.response.OrderResponseDto;
 import com.back.domain.order.order.service.OrderService;
 import com.back.domain.user.entity.User;
+import com.back.global.security.auth.CustomUserDetails;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
@@ -37,8 +38,9 @@ public class OrderController {
     @Operation(summary = "주문 생성", description = "장바구니 상품을 주문으로 변환하여 주문을 생성합니다.")
     public ResponseEntity<OrderResponseDto> createOrder(
             @Valid @RequestBody OrderRequestDto requestDto,
-            @AuthenticationPrincipal User user
+            @AuthenticationPrincipal CustomUserDetails customUserDetails
     ) {
+        User user = customUserDetails.getUser();
         OrderResponseDto responseDto = orderService.createOrder(user, requestDto);
         return ResponseEntity.status(HttpStatus.CREATED).body(responseDto);
     }
@@ -54,8 +56,9 @@ public class OrderController {
                 sort = "orderDate",
                 direction = Sort.Direction.DESC
             ) Pageable pageable,
-            @AuthenticationPrincipal User user
+            @AuthenticationPrincipal CustomUserDetails customUserDetails
     ) {
+        User user = customUserDetails.getUser();
         Page<OrderResponseDto> result = orderService.getOrderList(user, pageable);
         return ResponseEntity.ok(result);
     }
@@ -67,8 +70,9 @@ public class OrderController {
     @Operation(summary = "주문 상세 조회", description = "특정 주문의 상세 정보를 조회합니다.")
     public ResponseEntity<OrderResponseDto> getOrderDetail(
             @PathVariable Long orderId,
-            @AuthenticationPrincipal User user
+            @AuthenticationPrincipal CustomUserDetails customUserDetails
     ) {
+        User user = customUserDetails.getUser();
         OrderResponseDto result = orderService.getOrderDetail(orderId, user);
         return ResponseEntity.ok(result);
     }
@@ -81,8 +85,9 @@ public class OrderController {
     public ResponseEntity<Void> cancelOrder(
             @PathVariable Long orderId,
             @Valid @RequestBody OrderCancelRequestDto requestDto,
-            @AuthenticationPrincipal User user
+            @AuthenticationPrincipal CustomUserDetails customUserDetails
     ) {
+        User user = customUserDetails.getUser();
         orderService.cancelOrder(orderId, user, requestDto);
         return ResponseEntity.ok().build();
     }
@@ -95,8 +100,9 @@ public class OrderController {
     public ResponseEntity<Void> requestRefund(
             @PathVariable Long orderId,
             @Valid @RequestBody OrderRefundRequestDto requestDto,
-            @AuthenticationPrincipal User user
+            @AuthenticationPrincipal CustomUserDetails customUserDetails
     ) {
+        User user = customUserDetails.getUser();
         orderService.requestRefund(orderId, user, requestDto);
         return ResponseEntity.ok().build();
     }
@@ -109,8 +115,9 @@ public class OrderController {
     public ResponseEntity<Void> requestExchange(
             @PathVariable Long orderId,
             @Valid @RequestBody OrderExchangeRequestDto requestDto,
-            @AuthenticationPrincipal User user
+            @AuthenticationPrincipal CustomUserDetails customUserDetails
     ) {
+        User user = customUserDetails.getUser();
         orderService.requestExchange(orderId, user, requestDto);
         return ResponseEntity.ok().build();
     }
@@ -123,24 +130,26 @@ public class OrderController {
     @Operation(summary = "주문 취소 승인", description = "관리자가 주문 취소를 승인합니다. (관리자 전용)")
     public ResponseEntity<Void> approveOrderCancellation(
             @PathVariable Long orderId,
-            @AuthenticationPrincipal User admin
+            @AuthenticationPrincipal CustomUserDetails customUserDetails
     ) {
+        User admin = customUserDetails.getUser();
         orderService.approveOrderCancellation(orderId, admin);
         return ResponseEntity.ok().build();
     }
 
     /**
-     * 주문 상태 변경 (관리자용)
+     * 주문 상태 변경 (관리자 또는 작가용)
      */
     @PatchMapping("/{orderId}/status")
-    @PreAuthorize("hasAuthority('ROLE_ADMIN') or hasAuthority('ROLE_ROOT')")
-    @Operation(summary = "주문 상태 변경", description = "관리자가 주문 상태를 변경합니다. (관리자 전용)")
+    @PreAuthorize("hasAnyRole('ADMIN', 'ROOT', 'ARTIST')")
+    @Operation(summary = "주문 상태 변경", description = "관리자 또는 작가가 주문 상태를 변경합니다. 작가는 자신의 상품 주문만 변경 가능합니다.")
     public ResponseEntity<Void> changeOrderStatus(
             @PathVariable Long orderId,
             @Valid @RequestBody OrderStatusChangeRequestDto requestDto,
-            @AuthenticationPrincipal User admin
+            @AuthenticationPrincipal CustomUserDetails customUserDetails
     ) {
-        orderService.changeOrderStatus(orderId, requestDto, admin);
+        User user = customUserDetails.getUser();
+        orderService.changeOrderStatus(orderId, requestDto, user);
         return ResponseEntity.ok().build();
     }
 }

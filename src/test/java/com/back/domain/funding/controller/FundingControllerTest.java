@@ -47,24 +47,12 @@ public class FundingControllerTest {
                                   "title": "테스트 펀딩",
                                   "description": "테스트 펀딩 설명",
                                   "categoryId": 1,
-                                  "imageUrl": "http://example.com/image.jpg",
+                                  "imageUrl": "test.jpg",
                                   "targetAmount": 1000000,
+                                  "price": 100000,
+                                  "stock": 1000,
                                   "startDate": "2025-11-20 00:00:00",
-                                  "endDate": "2025-12-31 23:59:59",
-                                  "options": [
-                                    {
-                                      "name": "옵션 1",
-                                      "price": 50000,
-                                      "stock": 100,
-                                      "sortOrder": 1
-                                    },
-                                    {
-                                      "name": "옵션 2",
-                                      "price": 100000,
-                                      "stock": 50,
-                                      "sortOrder": 2
-                                    }
-                                  ]
+                                  "endDate": "2025-12-31 23:59:59"
                                 }
                                 """))
                 .andDo(print());
@@ -74,18 +62,9 @@ public class FundingControllerTest {
                 .andExpect(jsonPath("$.data.title").value("테스트 펀딩"))
                 .andExpect(jsonPath("$.data.description").value("테스트 펀딩 설명"))
                 .andExpect(jsonPath("$.data.categoryName").value("테스트 카테고리"))
-                .andExpect(jsonPath("$.data.imageUrl").value("http://example.com/image.jpg"))
                 .andExpect(jsonPath("$.data.targetAmount").value(1000000))
                 .andExpect(jsonPath("$.data.startDate").value("2025-11-20 00:00:00"))
-                .andExpect(jsonPath("$.data.endDate").value("2025-12-31 23:59:59"))
-                .andExpect(jsonPath("$.data.options[0].name").value("옵션 1"))
-                .andExpect(jsonPath("$.data.options[0].price").value(50000))
-                .andExpect(jsonPath("$.data.options[0].stock").value(100))
-                .andExpect(jsonPath("$.data.options[0].sortOrder").value(1))
-                .andExpect(jsonPath("$.data.options[1].name").value("옵션 2"))
-                .andExpect(jsonPath("$.data.options[1].price").value(100000))
-                .andExpect(jsonPath("$.data.options[1].stock").value(50))
-                .andExpect(jsonPath("$.data.options[1].sortOrder").value(2));
+                .andExpect(jsonPath("$.data.endDate").value("2025-12-31 23:59:59"));
     }
 
     @Test
@@ -101,22 +80,10 @@ public class FundingControllerTest {
                                     "categoryId": 1,
                                   "imageUrl": "http://example.com/image.jpg",
                                   "targetAmount": 1000000,
+                                  "price": 100000,
+                                  "stock": 1000,
                                   "startDate": "2025-10-01 00:00:00",
-                                  "endDate": "2025-12-31 23:59:59",
-                                  "options": [
-                                    {
-                                      "name": "옵션 1",
-                                      "price": 50000,
-                                      "stock": 100,
-                                      "sortOrder": 1
-                                    },
-                                    {
-                                      "name": "옵션 2",
-                                      "price": 100000,
-                                      "stock": 50,
-                                      "sortOrder": 2
-                                    }
-                                  ]
+                                  "endDate": "2025-12-31 23:59:59"
                                 }
                                 """))
                 .andDo(print());
@@ -138,22 +105,10 @@ public class FundingControllerTest {
                                   "categoryId": 1,
                                   "imageUrl": "http://example.com/image.jpg",
                                   "targetAmount": 1000000,
+                                  "price": 100000,
+                                  "stock": 1000,
                                   "startDate": "2025-10-01 00:00:00",
-                                  "endDate": "2025-12-31 23:59:59",
-                                  "options": [
-                                    {
-                                      "name": "옵션 1",
-                                      "price": 50000,
-                                      "stock": 100,
-                                      "sortOrder": 1
-                                    },
-                                    {
-                                      "name": "옵션 2",
-                                      "price": 100000,
-                                      "stock": 50,
-                                      "sortOrder": 2
-                                    }
-                                  ]
+                                  "endDate": "2025-12-31 23:59:59"
                                 }
                                 """))
                 .andDo(print());
@@ -161,67 +116,6 @@ public class FundingControllerTest {
         // then (필수 입력값 누락 - title)
         resultActions.andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.msg").value("title: 펀딩 제목은 필수입니다."));
-    }
-
-    @Test
-    @WithUserDetails("user1@user.com")
-    @DisplayName("펀딩 생성 실패 - 옵션 누락")
-    void t4() throws Exception {
-        ResultActions resultActions = mvc.perform(post("/api/fundings")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content("""
-                                {
-                                  "title": "테스트 펀딩",
-                                  "description": "테스트 펀딩 설명",
-                                  "categoryId": 1,
-                                  "imageUrl": "http://example.com/image.jpg",
-                                  "targetAmount": 1000000,
-                                  "startDate": "2025-10-01 00:00:00",
-                                  "endDate": "2025-12-31 23:59:59"
-                                }
-                                """))
-                .andDo(print());
-
-        // then (필수 입력값 누락 - options)
-        resultActions.andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.msg").value("options: 펀딩 옵션은 최소 1개 이상 필요합니다."));
-    }
-
-    @Test
-    @WithUserDetails("user1@user.com")
-    @DisplayName("펀딩 생성 실패 - 옵션 이름 누락")
-    void t5() throws Exception {
-        ResultActions resultActions = mvc.perform(post("/api/fundings")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content("""
-                                {
-                                  "title": "테스트 펀딩",
-                                    "description": "테스트 펀딩 설명",
-                                    "categoryId": 1,
-                                    "imageUrl": "http://example.com/image.jpg",
-                                    "targetAmount": 1000000,
-                                    "startDate": "2025-10-01 00:00:00",
-                                    "endDate": "2025-12-31 23:59:59",
-                                    "options": [
-                                        {
-                                            "price": 50000,
-                                            "stock": 100,
-                                            "sortOrder": 1
-                                            },
-                                            {
-                                            "name": "옵션 2",
-                                            "price": 100000,
-                                            "stock": 50,
-                                            "sortOrder": 2
-                                        }
-                                    ]
-                                }
-                                """))
-                .andDo(print());
-
-        // then (필수 입력값 누락 - options.name)
-        resultActions.andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.msg").value("옵션명은 필수입니다."));
     }
 
     @Test
@@ -237,22 +131,10 @@ public class FundingControllerTest {
                                     "categoryId": 1,
                                     "imageUrl": "http://example.com/image.jpg",
                                     "targetAmount": 0,
+                                    "price": 100,
+                                    "stock": 10,
                                     "startDate": "2025-10-01 00:00:00",
-                                    "endDate": "2025-12-31 23:59:59",
-                                    "options": [
-                                        {
-                                            "name": "옵션 1",
-                                            "price": 50000,
-                                            "stock": 100,
-                                            "sortOrder": 1
-                                            },
-                                            {
-                                            "name": "옵션 2",
-                                            "price": 100000,
-                                            "stock": 50,
-                                            "sortOrder": 2
-                                        }
-                                    ]
+                                    "endDate": "2025-12-31 23:59:59"
                                 }
                                 """))
                 .andDo(print());
@@ -275,22 +157,10 @@ public class FundingControllerTest {
                                     "categoryId": 1,
                                     "imageUrl": "http://example.com/image.jpg",
                                     "targetAmount": 1000000,
+                                    "price": 10000,
+                                    "stock": 50,
                                     "startDate": "2025-12-31 23:59:59",
-                                    "endDate": "2025-10-01 00:00:00",
-                                    "options": [
-                                        {
-                                            "name": "옵션 1",
-                                            "price": 50000,
-                                            "stock": 100,
-                                            "sortOrder": 1
-                                            },
-                                            {
-                                            "name": "옵션 2",
-                                            "price": 100000,
-                                            "stock": 50,
-                                            "sortOrder": 2
-                                        }
-                                    ]
+                                    "endDate": "2025-10-01 00:00:00"
                                 }
                                 """))
                 .andDo(print());
@@ -317,18 +187,11 @@ public class FundingControllerTest {
                 .andExpect(jsonPath("$.data.title").value("펀딩 1 입니다."))
                 .andExpect(jsonPath("$.data.description").value("펀딩 1이요~~"))
                 .andExpect(jsonPath("$.data.categoryName").value("테스트 카테고리"))
-                .andExpect(jsonPath("$.data.imageUrl").value("www.example.com"))
+                .andExpect(jsonPath("$.data.price").value(10000))
+                .andExpect(jsonPath("$.data.stock").value(50))
                 .andExpect(jsonPath("$.data.targetAmount").value(1_000_000))
                 .andExpect(jsonPath("$.data.startDate").exists())
-                .andExpect(jsonPath("$.data.endDate").exists())
-                // 옵션 배열 검증
-                .andExpect(jsonPath("$.data.options.length()").value(2))
-                .andExpect(jsonPath("$.data.options[0].name").value("1 옵션이요~"))
-                .andExpect(jsonPath("$.data.options[0].price").value(10_000))
-                .andExpect(jsonPath("$.data.options[0].stock").value(11110))
-                .andExpect(jsonPath("$.data.options[1].name").value("2 옵션이요~"))
-                .andExpect(jsonPath("$.data.options[1].price").value(15_000))
-                .andExpect(jsonPath("$.data.options[1].stock").value(11110));
+                .andExpect(jsonPath("$.data.endDate").exists());
     }
 
     @Test
@@ -436,7 +299,7 @@ public class FundingControllerTest {
                 .andDo(print())
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.content", hasSize(4)))
-                .andExpect(jsonPath("$.data.content[0].title").value("프리미엄 굿즈")) // 200만원
+                .andExpect(jsonPath("$.data.content[0].title").value("프리미엄 굿즈"))
                 .andExpect(jsonPath("$.data.content[0].targetAmount").value(2000000));
     }
 
@@ -462,7 +325,7 @@ public class FundingControllerTest {
                         .param("statuses", "OPEN")
                         .param("keyword", "앨범")
                         .param("minPrice", "10000")
-                        .param("maxPrice", "20000"))
+                        .param("maxPrice", "200000"))
                 .andDo(print())
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.content", hasSize(1)))
@@ -600,7 +463,7 @@ public class FundingControllerTest {
 
     @Test
     @WithUserDetails("user1@user.com")
-    @DisplayName("펀딩 수정 성공 - 제목/이미지/종료일/옵션 수정+추가")
+    @DisplayName("펀딩 수정 성공 - 제목/이미지/종료일")
     void t32() throws Exception {
         ResultActions ra = mvc.perform(patch("/api/fundings/1")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -608,13 +471,8 @@ public class FundingControllerTest {
                                 {
                                   "title": "제목 수정",
                                   "description": "설명 수정",
-                                  "imageUrl": "https://example.com/new.jpg",
                                   "targetAmount": 1200000,
-                                  "endDate": "2030-12-31T12:30:00",
-                                  "options": [
-                                    { "id": %d, "name": "옵션 수정됨", "price": 15000, "stock": 80, "sortOrder": 1 },
-                                    { "name": "신규 옵션", "price": 9000, "stock": 50, "sortOrder": 2 }
-                                  ]
+                                  "endDate": "2030-12-31T12:30:00"
                                 }
                                 """.formatted(1L)))
                 .andDo(print());
@@ -622,11 +480,8 @@ public class FundingControllerTest {
         ra.andExpect(status().isOk())
                 .andExpect(jsonPath("$.msg").value("펀딩이 수정되었습니다."))
                 .andExpect(jsonPath("$.data.title").value("제목 수정"))
-                .andExpect(jsonPath("$.data.imageUrl").value("https://example.com/new.jpg"))
                 .andExpect(jsonPath("$.data.targetAmount").value(1200000))
-                .andExpect(jsonPath("$.data.endDate").value("2030-12-31 12:30:00"))
-                .andExpect(jsonPath("$.data.options[?(@.name=='옵션 수정됨')]").exists())
-                .andExpect(jsonPath("$.data.options[?(@.name=='신규 옵션')]").exists());
+                .andExpect(jsonPath("$.data.endDate").value("2030-12-31 12:30:00"));
     }
 
     @Test
@@ -681,27 +536,6 @@ public class FundingControllerTest {
 
     @Test
     @WithUserDetails("user1@user.com")
-    @DisplayName("펀딩 수정 실패 - 존재하지 않는 옵션 ID")
-    void t36() throws Exception {
-        long invalidOptionId = 9_999_999L;
-
-        ResultActions ra = mvc.perform(patch("/api/fundings/1")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content("""
-                                {
-                                  "options": [
-                                    { "id": %d, "name": "없는 옵션", "price": 1000, "stock": 1, "sortOrder": 1 }
-                                  ]
-                                }
-                                """.formatted(invalidOptionId)))
-                .andDo(print());
-
-        ra.andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.msg", containsString("옵션을 찾을 수 없습니다.")));
-    }
-
-    @Test
-    @WithUserDetails("user1@user.com")
     @DisplayName("펀딩 수정 실패 - 종료된 펀딩은 종료일 수정 불가")
     void t38() throws Exception {
         Funding funding = fundingRepository.findById(1L).orElseThrow();
@@ -723,7 +557,7 @@ public class FundingControllerTest {
     @WithUserDetails("user1@user.com")
     @DisplayName("펀딩 삭제")
     void t39() throws Exception {
-        ResultActions ra = mvc.perform(delete("/api/fundings/1"))
+        ResultActions ra = mvc.perform(delete("/api/fundings/4"))
                 .andDo(print());
 
         ra.andExpect(status().isOk())

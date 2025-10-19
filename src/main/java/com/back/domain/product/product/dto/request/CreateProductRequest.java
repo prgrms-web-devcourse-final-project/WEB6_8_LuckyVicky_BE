@@ -5,7 +5,7 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.*;
 
-import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.List;
 
 @Schema(name = "CreateProductRequest", description = "상품 등록 요청 DTO")
@@ -82,10 +82,10 @@ public record CreateProductRequest(
         Boolean isRestock,// 재입고 여부
 
         @Schema(description = "판매 시작일 (null 가능)", example = "2025-10-01")
-        LocalDate sellingStartDate, // 판매 시작일
+        LocalDateTime sellingStartDate, // 판매 시작일
 
         @Schema(description = "판매 종료일 (null 가능)", example = "2025-12-01")
-        LocalDate sellingEndDate, // 판매 종료일
+        LocalDateTime sellingEndDate, // 판매 종료일
 
         @Schema(description = "태그 ID 목록", example = "[1,2,3]")
         @NotEmpty(message = "스타일 태그는 최소 1개 이상이어야 합니다.")

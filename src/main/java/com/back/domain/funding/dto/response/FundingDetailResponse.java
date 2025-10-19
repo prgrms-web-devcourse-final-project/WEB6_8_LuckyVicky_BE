@@ -12,9 +12,12 @@ public record FundingDetailResponse(
         Long id, // 펀딩 ID
         String title, // 펀딩 제목
         String description, // 펀딩 설명
-        String imageUrl, // 펀딩 이미지 URL
+        List<FundingDetailResponse.FundingImageResponse> images,
         String categoryName, // 카테고리 이름
         long targetAmount, // 목표 금액
+        long price, // 가격
+        Integer stock, // 재고
+        int soldCount,
         long currentAmount, // 현재 모인 금액
         int participants, // 참여자 수
         @JsonFormat(shape = JsonFormat.Shape.STRING, pattern = "yyyy-MM-dd HH:mm:ss")
@@ -25,7 +28,6 @@ public record FundingDetailResponse(
         double progress, // 진행률 (currentAmount / targetAmount * 100)
         FundingStatus status, // 펀딩 상태
         AuthorDto author, // 작성자 정보
-        List<FundingOptionDto> options, // 펀딩 옵션 목록
         List<FundingNewsDto> news, // 펀딩 새소식 목록
         List<FundingCommunityDto> communities // 펀딩 커뮤니티 목록
 ) {
@@ -40,9 +42,14 @@ public record FundingDetailResponse(
                 funding.getId(),
                 funding.getTitle(),
                 funding.getDescription(),
-                funding.getImageUrl(),
+                funding.getImages().stream()
+                        .map(FundingImageResponse::fromEntity)
+                        .collect(Collectors.toList()),
                 funding.getCategory().getCategoryName(),
                 funding.getTargetAmount(),
+                funding.getPrice(),
+                funding.getStock(),
+                funding.getSoldCount(),
                 currentAmount,
                 participants,
                 funding.getStartDate(),
@@ -51,23 +58,27 @@ public record FundingDetailResponse(
                 progress,
                 funding.getStatus(),
                 AuthorDto.from(funding.getUser(), artistDescription),
-                funding.getOptions().stream().map(FundingOptionDto::new).collect(Collectors.toList()),
                 funding.getNews().stream().map(FundingNewsDto::new).collect(Collectors.toList()),
                 funding.getCommunities().stream().map(FundingCommunityDto::new).collect(Collectors.toList())
         );
     }
 
-    // 작성자 DTO
-    public record AuthorDto(Long id, String name, String profileImageUrl, String artistDescription) {
-        public static AuthorDto from(User user, String artistDescription) {
-            return new AuthorDto(user.getId(), user.getName(), user.getProfileImageUrl(), artistDescription);
+    public record FundingImageResponse(
+            String fileUrl,
+            String fileType
+    ) {
+        public static FundingDetailResponse.FundingImageResponse fromEntity(FundingImage img) {
+            return new FundingDetailResponse.FundingImageResponse(
+                    img.getFileUrl(),
+                    img.getFileType().name()
+            );
         }
     }
 
-    // 옵션 DTO
-    public record FundingOptionDto(Long id, String name, long price, int stock) {
-        public FundingOptionDto(FundingOption option) {
-            this(option.getId(), option.getName(), option.getPrice(), option.getStock());
+    // 작성자 DTO
+    public record AuthorDto(Long id, String name, String email, String profileImageUrl, String artistDescription) {
+        public static AuthorDto from(User user, String artistDescription) {
+            return new AuthorDto(user.getId(), user.getName(), user.getEmail(), user.getProfileImageUrl(), artistDescription);
         }
     }
 
@@ -90,13 +101,14 @@ public record FundingDetailResponse(
     public record FundingCommunityDto(
             Long id,
             String writerName,
+            String writerEmail,
             String profileImageUrl,
             String content,
             @JsonFormat(shape = JsonFormat.Shape.STRING, pattern = "yyyy-MM-dd HH:mm:ss")
             LocalDateTime createDate
     ) {
         public FundingCommunityDto(FundingCommunity community) {
-            this(community.getId(), community.getAuthor().getName(), community.getAuthor().getProfileImageUrl(), community.getContent(), community.getCreateDate());
+            this(community.getId(), community.getAuthor().getName(), community.getAuthor().getEmail(),  community.getAuthor().getProfileImageUrl(), community.getContent(), community.getCreateDate());
         }
     }
 }

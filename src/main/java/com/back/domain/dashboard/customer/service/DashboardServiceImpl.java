@@ -40,6 +40,11 @@ public class DashboardServiceImpl implements DashboardService {
     private final UserRepository userRepository;
     private final com.back.domain.order.order.repository.OrderRepository orderRepository;
     private final com.back.domain.artist.repository.ArtistApplicationRepository artistApplicationRepository;
+    private final com.back.domain.payment.cash.repository.CashTransactionRepository cashTransactionRepository;
+    private final com.back.domain.payment.moriCash.repository.MoriCashPaymentRepository moriCashPaymentRepository;
+    private final com.back.domain.payment.moriCash.repository.MoriCashBalanceRepository moriCashBalanceRepository;
+    private final com.back.domain.follow.repository.FollowRepository followRepository;
+    private final com.back.domain.wishlist.repository.WishlistRepository wishlistRepository;
 
     private static final DateTimeFormatter ORDER_DATE_FORMATTER = DateTimeFormatter.ofPattern("yyyy. MM. dd");
     private static final DateTimeFormatter FUNDING_DATE_FORMATTER = DateTimeFormatter.ofPattern("yyyy. MM. dd");
@@ -115,7 +120,7 @@ public class DashboardServiceImpl implements DashboardService {
         int start = request.page() * request.size();
         int end = Math.min(start + request.size(), applications.size());
         List<com.back.domain.artist.entity.ArtistApplication> pagedApplications =
-                applications.subList(start, Math.min(end, applications.size()));
+                applications.subList(start, end);
 
         // 5. DTO 변환
         List<ArtistApplicationResponse.Summary> content = pagedApplications.stream()
@@ -368,6 +373,18 @@ public class DashboardServiceImpl implements DashboardService {
      */
     private OrderResponse.Product convertToProductDto(com.back.domain.order.orderItem.entity.OrderItem orderItem) {
         com.back.domain.product.product.entity.Product product = orderItem.getProduct();
+        
+        // 상품이 삭제되었거나 null인 경우 처리
+        if (product == null) {
+            log.warn("OrderItem의 Product가 null입니다 - orderItemId: {}", orderItem.getId());
+            return new OrderResponse.Product(
+                    null,
+                    "삭제된 상품",
+                    orderItem.getQuantity(),
+                    orderItem.getPrice().intValue(),
+                    null
+            );
+        }
 
         return new OrderResponse.Product(
                 product.getId(),
@@ -383,6 +400,19 @@ public class DashboardServiceImpl implements DashboardService {
      */
     private OrderResponse.OrderItem convertToOrderItemDto(com.back.domain.order.orderItem.entity.OrderItem orderItem) {
         com.back.domain.product.product.entity.Product product = orderItem.getProduct();
+        
+        // 상품이 삭제되었거나 null인 경우 처리
+        if (product == null) {
+            log.warn("OrderItem의 Product가 null입니다 - orderItemId: {}", orderItem.getId());
+            return new OrderResponse.OrderItem(
+                    orderItem.getId(),
+                    null,
+                    "삭제된 상품",
+                    orderItem.getQuantity(),
+                    orderItem.getPrice().intValue(),
+                    null
+            );
+        }
 
         return new OrderResponse.OrderItem(
                 orderItem.getId(),
@@ -404,15 +434,23 @@ public class DashboardServiceImpl implements DashboardService {
             return null;
         }
 
-        if (product.getImages() == null || product.getImages().isEmpty()) {
+        try {
+            if (product.getImages() == null || product.getImages().isEmpty()) {
+                return null;
+            }
+
+            return product.getImages().stream()
+                    .filter(image -> image != null &&
+                            image.getFileType() != null &&
+                            "THUMBNAIL".equals(image.getFileType().name()))
+                    .findFirst()
+                    .map(com.back.domain.product.product.entity.ProductImage::getFileUrl)
+                    .orElse(null);
+        } catch (Exception e) {
+            // LazyInitializationException 등의 에러 발생 시 null 반환
+            log.warn("상품 이미지 컬렉션 접근 실패 - productId: {}", product.getId(), e);
             return null;
         }
-
-        return product.getImages().stream()
-                .filter(image -> "THUMBNAIL".equals(image.getFileType().name()))
-                .findFirst()
-                .map(com.back.domain.product.product.entity.ProductImage::getFileUrl)
-                .orElse(null);
     }
 
     /**
@@ -445,76 +483,137 @@ public class DashboardServiceImpl implements DashboardService {
 
     @Override
     public FollowingResponse.List getFollowingArtists(Long userId, FollowingSearchRequest request) {
-        // TODO: 실제 데이터베이스 조회 로직 구현
         log.debug("팔로우한 작가 목록 조회 - userId: {}, request: {}", userId, request);
 
-        // 사용자 조회
-        User user = userRepository.findById(userId)
-                .orElseThrow(() -> new ServiceException("USER_NOT_FOUND", "사용자를 찾을 수 없습니다."));
+        // 1. 사용자 존재 여부 확인
+        if (!userRepository.existsById(userId)) {
+            throw new ServiceException("USER_NOT_FOUND", "사용자를 찾을 수 없습니다.");
+        }
 
-        FollowingResponse.Profile profile = new FollowingResponse.Profile(
-                user.getId().toString(),
-                user.getName(),
-                user.getProfileImageUrl());
+        // 2. 팔로우 목록 조회
+        List<com.back.domain.follow.entity.Follow> follows =
+                followRepository.findFollowingsByFollowerId(userId);
 
-        FollowingResponse.SummaryDto summary =
-                new FollowingResponse.SummaryDto(5);
+        // 3. 페이징 처리
+        int start = request.page() * request.size();
+        int end = Math.min(start + request.size(), follows.size());
+        List<com.back.domain.follow.entity.Follow> pagedFollows =
+                start < follows.size() ? follows.subList(start, end) : List.of();
 
-        List<FollowingResponse.Artist> content = Arrays.asList(
-                new FollowingResponse.Artist(
-                        "artist_001", "감성작가",
-                        "https://cdn.example.com/artists/artist_001/profile.jpg",
-                        500, "/artists/artist_001",
-                        new FollowingResponse.FollowRelation("FOLLOWING", LocalDateTime.now()),
-                        new FollowingResponse.Badge(true)
-                ),
-                new FollowingResponse.Artist(
-                        "artist_002", "캐릭터작가",
-                        "https://cdn.example.com/artists/artist_002/profile.jpg",
-                        123, "/artists/artist_002",
-                        new FollowingResponse.FollowRelation("FOLLOWING", LocalDateTime.now().minusDays(1)),
-                        new FollowingResponse.Badge(false)
-                )
-        );
+        // 4. DTO 변환
+        List<FollowingResponse.Artist> content = pagedFollows.stream()
+                .map(this::convertToFollowingArtist)
+                .collect(Collectors.toList());
+
+        // 5. 페이징 정보 계산
+        int totalPages = (int) Math.ceil((double) follows.size() / request.size());
 
         return new FollowingResponse.List(
-                profile, summary, content,
+                content,
                 request.page(), request.size(),
-                5, 1, false, false);
+                follows.size(), totalPages,
+                end < follows.size(),
+                request.page() > 0
+        );
+    }
+
+    /**
+     * Follow 엔티티를 Artist DTO로 변환
+     * 프로필 이미지 우선순위: User.profileImageUrl > ArtistProfile.profileImageUrl
+     */
+    private FollowingResponse.Artist convertToFollowingArtist(com.back.domain.follow.entity.Follow follow) {
+        com.back.domain.artist.entity.ArtistProfile artistProfile = follow.getFollowingArtist();
+        User artistUser = artistProfile.getUser();
+
+        // 프로필 이미지 URL 우선순위: User > ArtistProfile
+        String profileImageUrl = artistUser.getProfileImageUrl();
+        if (profileImageUrl == null || profileImageUrl.isBlank()) {
+            profileImageUrl = artistProfile.getProfileImageUrl();
+        }
+
+        return new FollowingResponse.Artist(
+                artistProfile.getId().toString(),
+                artistProfile.getArtistName(),
+                profileImageUrl,  // null인 경우 프론트에서 기본 이미지 표시
+                "/artists/" + artistProfile.getId()
+        );
     }
 
     @Override
     public WishlistResponse.List getWishlist(Long userId, WishlistSearchRequest request) {
-        // TODO: 실제 데이터베이스 조회 로직 구현
         log.debug("찜한 상품 목록 조회 - userId: {}, request: {}", userId, request);
 
-        WishlistResponse.SummaryDto summary = new WishlistResponse.SummaryDto(15);
+        // 1. 사용자 존재 여부 확인
+        if (!userRepository.existsById(userId)) {
+            throw new ServiceException("USER_NOT_FOUND", "사용자를 찾을 수 없습니다.");
+        }
 
+        // 2. 페이징 설정 (페이지 크기 8개 고정)
+        int fixedPageSize = 8;
+        Pageable pageable = PageRequest.of(request.page(), fixedPageSize);
+
+        // 3. 찜 목록 조회 (Product, Artist 정보 포함, 삭제된 상품 제외)
+        Page<com.back.domain.wishlist.entity.Wishlist> wishlistPage =
+                wishlistRepository.findByUserIdWithProductAndArtist(userId, pageable);
+
+        // 4. DTO 변환
+        List<WishlistResponse.Item> content = wishlistPage.getContent().stream()
+                .map(this::convertToWishlistItem)
+                .collect(Collectors.toList());
+
+        // 5. 통계 계산 (삭제되지 않은 상품만 카운트)
+        long totalWishItems = wishlistPage.getTotalElements();
+        WishlistResponse.SummaryDto summary = new WishlistResponse.SummaryDto((int) totalWishItems);
+
+        // 6. 일괄 작업 옵션
         List<WishlistResponse.BulkAction> bulkActions = List.of(
                 new WishlistResponse.BulkAction("BULK_UNWISH", "선택 항목 해제", true)
         );
 
-        List<WishlistResponse.Item> content = List.of(
-                new WishlistResponse.Item(
-                        "w-001", 123157L, "0123157", "감성 일러스트 포스터", 25000,
-                        new WishlistResponse.Artist("artist001", "감성작가"),
-                        "https://cdn.example.com/p/123157/main.jpg", "SELLING", "2025-09-18",
-                        LocalDateTime.now(), "/products/0123157",
-                        new WishlistResponse.Permission(true)
-                ),
-                new WishlistResponse.Item(
-                        "w-002", 123158L, "0123158", "귀여운 스티커 세트", 15000,
-                        new WishlistResponse.Artist("artist002", "캐릭터작가"),
-                        "https://cdn.example.com/p/123158/main.jpg", "SELLING", "2025-09-17",
-                        LocalDateTime.now().minusDays(1), "/products/0123158",
-                        new WishlistResponse.Permission(true)
-                )
-        );
-
         return new WishlistResponse.List(
                 summary, bulkActions, content,
-                request.page(), request.size(),
-                15, 2, true, false);
+                wishlistPage.getNumber(), fixedPageSize,
+                wishlistPage.getTotalElements(), wishlistPage.getTotalPages(),
+                wishlistPage.hasNext(), wishlistPage.hasPrevious()
+        );
+    }
+
+    /**
+     * Wishlist 엔티티를 Item DTO로 변환
+     */
+    private WishlistResponse.Item convertToWishlistItem(com.back.domain.wishlist.entity.Wishlist wishlist) {
+        com.back.domain.product.product.entity.Product product = wishlist.getProduct();
+
+        // 작가 정보 (Product의 user가 작가)
+        WishlistResponse.Artist artist = null;
+        if (product.getUser() != null) {
+            artist = new WishlistResponse.Artist(
+                    product.getUser().getId().toString(),
+                    product.getUser().getName()
+            );
+        }
+
+        // 상품 상태 매핑
+        String sellingStatus = product.getSellingStatus() != null ?
+                product.getSellingStatus().name() : "UNKNOWN";
+
+        // 썸네일 이미지 URL
+        String imageUrl = getProductThumbnailUrl(product);
+
+        return new WishlistResponse.Item(
+                "w-" + wishlist.getId(),
+                product.getId(),
+                String.format("%07d", product.getId()),
+                product.getBrandName() != null ? product.getBrandName() : "",
+                product.getName(),
+                product.getPrice(),
+                artist,
+                imageUrl,
+                sellingStatus,
+                wishlist.getCreateDate(),
+                "/products/" + product.getId(),
+                new WishlistResponse.Permission(true)
+        );
     }
 
     @Override
@@ -613,7 +712,9 @@ public class DashboardServiceImpl implements DashboardService {
             // images 컬렉션에서 THUMBNAIL 타입 찾기
             if (funding.getImages() != null && !funding.getImages().isEmpty()) {
                 String thumbnailUrl = funding.getImages().stream()
-                        .filter(image -> image != null && "THUMBNAIL".equals(image.getFileType().name()))
+                        .filter(image -> image != null &&
+                                image.getFileType() != null &&
+                                "THUMBNAIL".equals(image.getFileType().name()))
                         .findFirst()
                         .map(FundingImage::getFileUrl)
                         .orElse(null);
@@ -640,13 +741,10 @@ public class DashboardServiceImpl implements DashboardService {
 
     /**
      * Funding 상태를 프론트엔드용 상태로 매핑
+     * 8가지 상태를 그대로 반환
      */
     private String mapFundingStatus(FundingStatus status) {
-        return switch (status) {
-            case PENDING, APPROVED -> "UPCOMING";
-            case  OPEN -> "ACTIVE";
-            case CLOSED, SUCCESS, FAILED, CANCELED, REJECTED -> "ENDED";
-        };
+        return status.name();
     }
 
     /**
@@ -667,33 +765,111 @@ public class DashboardServiceImpl implements DashboardService {
 
     @Override
     public CashResponse.Balance getCashBalance(Long userId) {
-        // TODO: 실제 데이터베이스 조회 로직 구현
         log.debug("캐시 정보 조회 - userId: {}", userId);
 
-        return new CashResponse.Balance(5900, "KRW", LocalDateTime.now());
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new ServiceException("USER_NOT_FOUND", "사용자를 찾을 수 없습니다."));
+
+        var balance = moriCashBalanceRepository.findByUser(user)
+                .orElse(com.back.domain.payment.moriCash.entity.MoriCashBalance.createInitialBalance(user));
+
+        return new CashResponse.Balance(
+                balance.getTotalBalance(),
+                "KRW",
+                balance.getModifyDate() != null ? balance.getModifyDate() : balance.getCreateDate()
+        );
     }
 
     @Override
     public CashResponse.HistoryList getCashHistory(Long userId, CashHistorySearchRequest request) {
-        // TODO: 실제 데이터베이스 조회 로직 구현
-        log.debug("캐시 충전 내역 조회 - userId: {}, request: {}", userId, request);
+        log.debug("캐시 충전/사용 내역 조회 - userId: {}, page: {}, size: {}", userId, request.page(), request.size());
 
-        CashResponse.SummaryDto summary = new CashResponse.SummaryDto(5, 15000, 2);
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new ServiceException("USER_NOT_FOUND", "사용자를 찾을 수 없습니다."));
 
-        List<CashResponse.Transaction> content = Arrays.asList(
-                new CashResponse.Transaction(
-                        "RC-001", LocalDateTime.now(),
-                        "캐시 충전", 10000, 50, "NAVERPAY", "네이버페이", "COMPLETED",
-                        new CashResponse.Link(null)),
-                new CashResponse.Transaction(
-                        "RC-002", LocalDateTime.now().minusDays(1),
-                        "캐시 사용", -5000, 45, "PURCHASE", "상품구매", "COMPLETED",
-                        new CashResponse.Link("/orders/0123157"))
+        // 1. 충전 내역 조회 (CashTransaction)
+        var chargeTransactions = cashTransactionRepository.findCompletedChargingByUser(user);
+
+        // 2. 사용 내역 조회 (MoriCashPayment)
+        var purchaseTransactions = moriCashPaymentRepository.findCompletedPurchaseByUser(user);
+
+        // 3. 통합 리스트 생성 및 정렬
+        var allTransactions = new java.util.ArrayList<CashResponse.Transaction>();
+
+        chargeTransactions.forEach(tx -> allTransactions.add(new CashResponse.Transaction(
+                "CHG-" + tx.getId(),
+                tx.getCompletedAt() != null ? tx.getCompletedAt() : tx.getCreateDate(),
+                "모리캐시 충전",
+                tx.getAmount(),
+                0,
+                tx.getBalanceAfter() != null ? tx.getBalanceAfter() : 0,
+                mapPaymentMethodText(tx.getPaymentMethod()),
+                "COMPLETED",
+                new CashResponse.Link("/cash/transactions/" + tx.getId())
+        )));
+
+        purchaseTransactions.forEach(tx -> allTransactions.add(new CashResponse.Transaction(
+                "USE-" + tx.getId(),
+                tx.getPaidAt() != null ? tx.getPaidAt() : tx.getCreateDate(),
+                "상품 주문",
+                0,
+                tx.getUsedMoriCash() != null ? tx.getUsedMoriCash() : 0,
+                tx.getBalanceAfter() != null ? tx.getBalanceAfter() : 0,
+                "모리캐시",
+                "COMPLETED",
+                tx.getOrder() != null ? 
+                    new CashResponse.Link("/orders/" + tx.getOrder().getOrderNumber()) : null
+        )));
+
+        // 4. 날짜순 정렬 (최신순)
+        allTransactions.sort((a, b) -> b.occurredAt().compareTo(a.occurredAt()));
+
+        // 5. 페이징 처리
+        int start = request.page() * request.size();
+        int end = Math.min(start + request.size(), allTransactions.size());
+        var pagedContent = start < allTransactions.size() ? 
+                allTransactions.subList(start, end) : List.<CashResponse.Transaction>of();
+
+        // 6. 통계 계산
+        var balance = moriCashBalanceRepository.findByUser(user)
+                .orElse(com.back.domain.payment.moriCash.entity.MoriCashBalance.createInitialBalance(user));
+
+        int periodTotalRecharge = chargeTransactions.stream()
+                .mapToInt(com.back.domain.payment.cash.entity.CashTransaction::getAmount)
+                .sum();
+
+        var summary = new CashResponse.SummaryDto(
+                balance.getTotalBalance(),
+                periodTotalRecharge,
+                0  // 보너스 포인트는 추후 구현
         );
 
+        // 7. 페이징 정보 계산
+        int totalPages = (int) Math.ceil((double) allTransactions.size() / request.size());
+
         return new CashResponse.HistoryList(
-                summary, content,
-                request.page(), request.size(),
-                5, 1, false, false);
+                summary,
+                pagedContent,
+                request.page(),
+                request.size(),
+                allTransactions.size(),
+                totalPages,
+                end < allTransactions.size(),
+                request.page() > 0
+        );
+    }
+
+    /**
+     * 결제 수단 텍스트 매핑
+     */
+    private String mapPaymentMethodText(String paymentMethod) {
+        if (paymentMethod == null) return "기타";
+        return switch (paymentMethod.toUpperCase()) {
+            case "TOSS", "TOSSPAY" -> "토스페이";
+            case "NAVERPAY" -> "네이버페이";
+            case "CARD" -> "카드결제";
+            case "KAKAOPAY" -> "카카오페이";
+            default -> paymentMethod;
+        };
     }
 }

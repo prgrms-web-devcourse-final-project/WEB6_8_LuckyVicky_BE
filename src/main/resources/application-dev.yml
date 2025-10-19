@@ -15,7 +15,7 @@ spring:
   # JPA 설정
   jpa:
     database-platform: org.hibernate.dialect.H2Dialect
-    
+
 # https 설정
 app:
   cookie:

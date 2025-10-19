@@ -1,6 +1,7 @@
 package com.back.domain.order.order.service;
 
 import com.back.domain.cart.repository.CartRepository;
+import com.back.domain.notification.service.NotificationService;
 import com.back.domain.order.order.dto.request.OrderCancelRequestDto;
 import com.back.domain.order.order.dto.request.OrderExchangeRequestDto;
 import com.back.domain.order.order.dto.request.OrderRefundRequestDto;
@@ -47,6 +48,7 @@ class OrderServiceTest {
     @Mock private OrderItemRepository orderItemRepository;
     @Mock private ProductRepository productRepository;
     @Mock private CartRepository cartRepository;
+    @Mock private NotificationService notificationService;
 
     @InjectMocks private OrderService orderService;
 
@@ -58,14 +60,14 @@ class OrderServiceTest {
         Product product = createProduct(1L, productUuid);
         OrderRequestDto requestDto = createOrderRequestDto(productUuid);
 
-        given(productRepository.findByProductUuid(productUuid)).willReturn(Optional.of(product));
+        given(productRepository.findByProductUuidWithLock(productUuid)).willReturn(Optional.of(product));
         given(orderRepository.save(any(Order.class))).willAnswer(invocation -> invocation.getArgument(0));
 
         OrderResponseDto result = orderService.createOrder(user, requestDto);
 
         assertThat(result).isNotNull();
         assertThat(result.status()).isEqualTo(OrderStatus.PAYMENT_COMPLETED);
-        verify(productRepository).findByProductUuid(productUuid);
+        verify(productRepository).findByProductUuidWithLock(productUuid);
         verify(orderRepository).save(any(Order.class));
         verify(cartRepository).deleteByUserAndProductUuidIn(eq(user), anyList());
     }
@@ -76,11 +78,11 @@ class OrderServiceTest {
         User user = createUser(1L);
         UUID productUuid = UUID.randomUUID();
         OrderRequestDto requestDto = createOrderRequestDto(productUuid);
-        given(productRepository.findByProductUuid(productUuid)).willReturn(Optional.empty());
+        given(productRepository.findByProductUuidWithLock(productUuid)).willReturn(Optional.empty());
 
         assertThatThrownBy(() -> orderService.createOrder(user, requestDto))
-                .isInstanceOf(IllegalArgumentException.class)
-                .hasMessage("상품을 찾을 수 없습니다.");
+                .isInstanceOf(com.back.global.exception.ServiceException.class)
+                .hasMessageContaining("404 : 상품을 찾을 수 없습니다.");
     }
 
     @Test
@@ -90,15 +92,18 @@ class OrderServiceTest {
         Pageable pageable = PageRequest.of(0, 10);
         UUID productUuid = UUID.randomUUID();
         Order order = createOrderWithItem(user, createProduct(1L, productUuid));
-        Page<Order> orderPage = new PageImpl<>(List.of(order));
-        given(orderRepository.findByUserOrderByOrderDateDesc(user, pageable)).willReturn(orderPage);
+        
+        // N+1 방지를 위해 Fetch Join 메서드 Mock 설정
+        given(orderRepository.findByUserWithOrderItemsAndProducts(user, pageable)).willReturn(List.of(order));
+        given(orderRepository.countByUser(user)).willReturn(1L);
 
         Page<OrderResponseDto> result = orderService.getOrderList(user, pageable);
 
         assertThat(result.getContent()).hasSize(1);
         assertThat(result.getContent().get(0).orderId()).isNotNull();
         assertThat(result.getContent().get(0).orderItems()).isNotEmpty();
-        verify(orderRepository).findByUserOrderByOrderDateDesc(user, pageable);
+        verify(orderRepository).findByUserWithOrderItemsAndProducts(user, pageable);
+        verify(orderRepository).countByUser(user);
     }
 
     @Test
@@ -234,9 +239,9 @@ class OrderServiceTest {
                 .isDeleted(false)
                 .productUuid(productUuid)
                 .build();
-        // initialize images list to avoid NPE in thumbnail resolver
-        java.util.ArrayList<com.back.domain.product.product.entity.ProductImage> images = new java.util.ArrayList<>();
-        ReflectionTestUtils.setField(product, "images", images);
+        // 썸네일 조회 시 NPE 방지를 위해 images 리스트 초기화
+        java.util.ArrayList<com.back.domain.product.product.entity.ProductImage> imageList = new java.util.ArrayList<>();
+        ReflectionTestUtils.setField(product, "images", imageList);
         ReflectionTestUtils.setField(product, "id", id);
         return product;
     }
@@ -260,7 +265,7 @@ class OrderServiceTest {
 
     private OrderRequestDto createOrderRequestDto(UUID productUuid) {
         return new OrderRequestDto(
-                List.of(new OrderRequestDto.OrderItemRequestDto(productUuid, 2, "옵션")),
+                List.of(new OrderRequestDto.OrderItemRequestDto(productUuid, null, null, null, 2, "옵션", "NORMAL")),
                 "서울시 강남구",
                 "테헤란로 123",
                 "12345",

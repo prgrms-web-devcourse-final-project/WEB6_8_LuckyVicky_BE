@@ -13,6 +13,8 @@ import com.back.domain.payment.moriCash.repository.MoriCashPaymentRepository;
 import com.back.domain.user.entity.User;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -44,9 +46,12 @@ public class MoriCashPaymentService {
             throw new IllegalArgumentException("본인의 주문만 결제할 수 있습니다.");
         }
 
-        // 3. 모리캐시 잔액 확인
-        MoriCashBalance balance = moriCashBalanceRepository.findByUser(user)
-                .orElseGet(() -> MoriCashBalance.createInitialBalance(user));
+        // 3. 모리캐시 잔액 확인 (Pessimistic Write Lock - 동시성 제어)
+        MoriCashBalance balance = moriCashBalanceRepository.findByUserWithLock(user)
+                .orElseGet(() -> {
+                    MoriCashBalance newBalance = MoriCashBalance.createInitialBalance(user);
+                    return moriCashBalanceRepository.save(newBalance);
+                });
 
         if (balance.getAvailableBalance() < requestDto.getUsedMoriCash()) {
             throw new IllegalArgumentException("모리캐시 잔액이 부족합니다.");
@@ -97,8 +102,8 @@ public class MoriCashPaymentService {
             throw new IllegalArgumentException("완료된 결제만 취소할 수 있습니다.");
         }
 
-        // 3. 모리캐시 잔액 복원
-        MoriCashBalance balance = moriCashBalanceRepository.findByUser(user)
+        // 3. 모리캐시 잔액 복원 (Pessimistic Write Lock - 동시성 제어)
+        MoriCashBalance balance = moriCashBalanceRepository.findByUserWithLock(user)
                 .orElseThrow(() -> new IllegalArgumentException("모리캐시 잔액 정보를 찾을 수 없습니다."));
 
         balance.restoreBalance(payment.getUsedMoriCash());
@@ -129,5 +134,14 @@ public class MoriCashPaymentService {
         }
 
         return MoriCashPaymentResponseDto.from(payment);
+    }
+
+    /**
+     * 사용자별 모리캐시 결제 내역 조회
+     */
+    @Transactional(readOnly = true)
+    public Page<MoriCashPaymentResponseDto> getPayments(User user, Pageable pageable) {
+        Page<MoriCashPayment> payments = moriCashPaymentRepository.findByUser(user, pageable);
+        return payments.map(MoriCashPaymentResponseDto::from);
     }
 }

@@ -42,6 +42,7 @@ db_dev.trace.db
 .DS_Store
 .env
 /src/main/generated/
+/k6
 
 ### GA4 Service Account Key (민감 정보!) ###
 src/main/resources/ga4-service-account.json
@@ -53,3 +54,10 @@ terraform.tfstate
 terraform.tfstate.backup
 .terraform.tfstate.lock.info
 secrets.tf
+
+## Runtime data ##
+npm_data/
+redis_data/
+*.log
+*.rdb
+*.sqlite

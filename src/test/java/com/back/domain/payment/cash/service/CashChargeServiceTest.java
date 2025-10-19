@@ -6,6 +6,8 @@ import com.back.domain.payment.cash.entity.CashTransaction;
 import com.back.domain.payment.cash.entity.CashTransactionStatus;
 import com.back.domain.payment.cash.entity.CashTransactionType;
 import com.back.domain.payment.cash.repository.CashTransactionRepository;
+import com.back.domain.payment.gateway.dto.TossPaymentApproveResponse;
+import com.back.domain.payment.gateway.service.PaymentGatewayService;
 import com.back.domain.payment.moriCash.entity.MoriCashBalance;
 import com.back.domain.payment.moriCash.repository.MoriCashBalanceRepository;
 import com.back.domain.user.entity.User;
@@ -17,7 +19,7 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
-import java.lang.reflect.Field;
+import java.time.LocalDateTime;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -33,6 +35,9 @@ class CashChargeServiceTest {
 
     @Mock
     private MoriCashBalanceRepository moriCashBalanceRepository;
+
+    @Mock
+    private PaymentGatewayService paymentGatewayService;
 
     @InjectMocks
     private CashChargeService cashChargeService;
@@ -69,27 +74,36 @@ class CashChargeServiceTest {
     void completeCharge_Success() {
         // Given
         Long transactionId = 1L;
-        String pgTransactionId = "PG_12345";
-        String pgApprovalNumber = "APP_67890";
+        String paymentKey = "pay_test123";
+        String orderId = "order_test123";
         
         CashTransaction transaction = createTestTransaction();
         MoriCashBalance balance = createTestBalance();
         
+        TossPaymentApproveResponse pgResponse = TossPaymentApproveResponse.builder()
+                .paymentKey(paymentKey)
+                .orderId(orderId)
+                .status("DONE")
+                .totalAmount(10000)
+                .approvedAt(LocalDateTime.now())
+                .build();
+        
         when(cashTransactionRepository.findById(transactionId)).thenReturn(Optional.of(transaction));
-        when(moriCashBalanceRepository.findByUser(user)).thenReturn(Optional.of(balance));
+        when(paymentGatewayService.approvePayment(anyString(), anyString(), anyInt())).thenReturn(pgResponse);
+        when(moriCashBalanceRepository.findByUserWithLock(user)).thenReturn(Optional.of(balance));
         when(moriCashBalanceRepository.save(any(MoriCashBalance.class))).thenReturn(balance);
 
         // When
-        CashChargeResponseDto result = cashChargeService.completeCharge(transactionId, pgTransactionId, pgApprovalNumber);
+        CashChargeResponseDto result = cashChargeService.completeCharge(transactionId, paymentKey, orderId);
 
         // Then
         assertThat(result).isNotNull();
-        assertThat(result.getPgTransactionId()).isEqualTo(pgTransactionId);
-        assertThat(result.getPgApprovalNumber()).isEqualTo(pgApprovalNumber);
+        assertThat(result.getPgTransactionId()).isEqualTo(paymentKey);
         assertThat(result.getStatus()).isEqualTo(CashTransactionStatus.COMPLETED);
 
         verify(cashTransactionRepository).findById(transactionId);
-        verify(moriCashBalanceRepository).findByUser(user);
+        verify(paymentGatewayService).approvePayment(paymentKey, orderId, transaction.getAmount());
+        verify(moriCashBalanceRepository).findByUserWithLock(user);
         verify(moriCashBalanceRepository).save(any(MoriCashBalance.class));
     }
 
@@ -111,19 +125,32 @@ class CashChargeServiceTest {
     void completeCharge_CreateNewBalance() {
         // Given
         Long transactionId = 1L;
+        String paymentKey = "pay_test456";
+        String orderId = "order_test456";
+        
         CashTransaction transaction = createTestTransaction();
         MoriCashBalance newBalance = createTestBalance();
         
+        TossPaymentApproveResponse pgResponse = TossPaymentApproveResponse.builder()
+                .paymentKey(paymentKey)
+                .orderId(orderId)
+                .status("DONE")
+                .totalAmount(10000)
+                .approvedAt(LocalDateTime.now())
+                .build();
+        
         when(cashTransactionRepository.findById(transactionId)).thenReturn(Optional.of(transaction));
-        when(moriCashBalanceRepository.findByUser(user)).thenReturn(Optional.empty());
+        when(paymentGatewayService.approvePayment(anyString(), anyString(), anyInt())).thenReturn(pgResponse);
+        when(moriCashBalanceRepository.findByUserWithLock(user)).thenReturn(Optional.empty());
         when(moriCashBalanceRepository.save(any(MoriCashBalance.class))).thenReturn(newBalance);
 
         // When
-        CashChargeResponseDto result = cashChargeService.completeCharge(transactionId, "PG_123", "APP_456");
+        CashChargeResponseDto result = cashChargeService.completeCharge(transactionId, paymentKey, orderId);
 
         // Then
         assertThat(result).isNotNull();
-        verify(moriCashBalanceRepository).save(any(MoriCashBalance.class));
+        verify(paymentGatewayService).approvePayment(paymentKey, orderId, transaction.getAmount());
+        verify(moriCashBalanceRepository, times(2)).save(any(MoriCashBalance.class)); // orElseGet에서 1번, 이후 1번
     }
 
     @Test
@@ -150,13 +177,14 @@ class CashChargeServiceTest {
     void cancelCharge_Success() {
         // Given
         Long transactionId = 1L;
+        String paymentKey = "pay_test123";
         String cancellationReason = "사용자 요청";
         CashTransaction transaction = createTestTransaction();
         
         when(cashTransactionRepository.findById(transactionId)).thenReturn(Optional.of(transaction));
 
         // When
-        cashChargeService.cancelCharge(transactionId, cancellationReason);
+        cashChargeService.cancelCharge(transactionId, paymentKey, cancellationReason);
 
         // Then
         verify(cashTransactionRepository).findById(transactionId);

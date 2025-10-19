@@ -27,6 +27,16 @@ public interface MoriCashPaymentRepository extends JpaRepository<MoriCashPayment
     Page<MoriCashPayment> findByUserOrderByCreateDateDesc(User user, Pageable pageable);
 
     /**
+     * 사용자별 모리캐시 결제 조회 (페이징, 정렬 지정 가능)
+     */
+    Page<MoriCashPayment> findByUser(User user, Pageable pageable);
+
+    /**
+     * 사용자별 환불 내역 조회 (refundId가 null이 아닌 것만)
+     */
+    Page<MoriCashPayment> findByUserAndRefundIdIsNotNull(User user, Pageable pageable);
+
+    /**
      * 결제 상태별 조회 (페이징)
      */
     Page<MoriCashPayment> findByStatusOrderByCreateDateDesc(MoriCashPaymentStatus status, Pageable pageable);
@@ -89,4 +99,15 @@ public interface MoriCashPaymentRepository extends JpaRepository<MoriCashPayment
      */
     @Query("SELECT SUM(mcp.usedMoriCash) FROM MoriCashPayment mcp WHERE mcp.user = :user AND mcp.transactionType = 'PURCHASE' AND mcp.status = 'COMPLETED'")
     Integer getTotalUsedAmountByUser(@Param("user") User user);
+
+    /**
+     * 사용자별 상품 구매 내역 조회 (COMPLETED만)
+     */
+    @Query("SELECT mcp FROM MoriCashPayment mcp " +
+           "LEFT JOIN FETCH mcp.order o " +
+           "WHERE mcp.user = :user " +
+           "AND mcp.status = 'COMPLETED' " +
+           "AND mcp.transactionType = 'PURCHASE' " +
+           "ORDER BY mcp.paidAt DESC, mcp.createDate DESC")
+    List<MoriCashPayment> findCompletedPurchaseByUser(@Param("user") User user);
 }

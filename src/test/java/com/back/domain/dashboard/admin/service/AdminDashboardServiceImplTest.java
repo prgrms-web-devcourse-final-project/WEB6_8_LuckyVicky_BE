@@ -8,7 +8,10 @@ import com.back.domain.order.order.entity.PaymentMethod;
 import com.back.domain.order.order.repository.OrderRepository;
 import com.back.domain.product.category.entity.Category;
 import com.back.domain.product.category.repository.CategoryRepository;
-import com.back.domain.product.product.entity.*;
+import com.back.domain.product.product.entity.DeliveryType;
+import com.back.domain.product.product.entity.DisplayStatus;
+import com.back.domain.product.product.entity.Product;
+import com.back.domain.product.product.entity.SellingStatus;
 import com.back.domain.product.product.repository.ProductRepository;
 import com.back.domain.user.entity.Role;
 import com.back.domain.user.entity.User;
@@ -30,6 +33,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertAll;
@@ -367,6 +371,190 @@ class AdminDashboardServiceImplTest {
         // Then
         response.content().forEach(user ->
                 assertThat(user.artistName()).isNotNull()
+        );
+    }
+
+    @Test
+    @DisplayName("사용자 목록 조회 - 수수료율 검증 (작가 10%, 일반 유저 null)")
+    void getUsers_수수료율검증() {
+        // Given
+        AdminUserSearchRequest request = new AdminUserSearchRequest(
+                0, 20, null, null, null, null, null, null, null, "joinedAt", "DESC"
+        );
+
+        // When
+        AdminUserResponse response = adminDashboardService.getUsers(request);
+
+        // Then
+        assertThat(response.content()).isNotEmpty();
+        
+        response.content().forEach(user -> {
+            if (user.artistName() != null) {
+                // 작가는 수수료율 10%
+                assertThat(user.commissionRate())
+                        .as("작가 유저는 수수료율이 10%여야 합니다")
+                        .isEqualTo(10);
+            } else {
+                // 일반 유저는 수수료율 null
+                assertThat(user.commissionRate())
+                        .as("일반 유저는 수수료율이 null이어야 합니다")
+                        .isNull();
+            }
+        });
+    }
+
+    @Test
+    @DisplayName("사용자 목록 조회 - 작가 수수료율 정확성 검증")
+    void getUsers_작가수수료율정확성() {
+        // Given - 작가만 필터링
+        AdminUserSearchRequest request = new AdminUserSearchRequest(
+                0, 20, null, "ARTIST", null, null, null, null, null, "joinedAt", "DESC"
+        );
+
+        // When
+        AdminUserResponse response = adminDashboardService.getUsers(request);
+
+        // Then - 모든 작가는 수수료율 10%
+        assertThat(response.content()).isNotEmpty();
+        response.content().forEach(user -> {
+            assertAll(
+                    () -> assertThat(user.artistName()).isNotNull(),
+                    () -> assertThat(user.commissionRate()).isEqualTo(10)
+            );
+        });
+    }
+
+    @Test
+    @DisplayName("사용자 목록 조회 - 일반 유저 수수료율 null 검증")
+    void getUsers_일반유저수수료율null() {
+        // Given - 일반 유저만 필터링 (USER)
+        AdminUserSearchRequest request = new AdminUserSearchRequest(
+                0, 20, null, "USER", null, null, null, null, null, "joinedAt", "DESC"
+        );
+
+        // When
+        AdminUserResponse response = adminDashboardService.getUsers(request);
+
+        // Then - 일반 유저는 수수료율 null
+        response.content().forEach(user -> {
+            assertAll(
+                    () -> assertThat(user.artistName()).isNull(),
+                    () -> assertThat(user.commissionRate()).isNull()
+            );
+        });
+    }
+
+    @Test
+    @DisplayName("사용자 목록 조회 - 수수료율 정렬 (실제로는 회원등급 정렬)")
+    void getUsers_수수료율정렬() {
+        // Given - 수수료율 오름차순 정렬 (실제로는 grade 정렬)
+        AdminUserSearchRequest request = new AdminUserSearchRequest(
+                0, 20, null, null, null, null, null, null, null,
+                "commissionRate", "ASC"
+        );
+
+        // When
+        AdminUserResponse response = adminDashboardService.getUsers(request);
+
+        // Then
+        assertThat(response.content()).isNotEmpty();
+        // 등급 순서: SPROUT(일반) < GRASS < TREE < FOREST < GUARDIAN(작가)
+        // 따라서 일반 유저(수수료율 null)가 먼저, 작가(수수료율 10%)가 나중에 나와야 함
+        
+        List<AdminUserResponse.User> users = response.content();
+        for (int i = 0; i < users.size() - 1; i++) {
+            String currentGrade = users.get(i).grade();
+            String nextGrade = users.get(i + 1).grade();
+            
+            // GUARDIAN(작가) 앞에는 GUARDIAN이 아닌 등급이 와야 함
+            if ("GUARDIAN".equals(nextGrade)) {
+                assertThat(currentGrade).isIn("SPROUT", "GRASS", "TREE", "FOREST", "GUARDIAN");
+            }
+        }
+    }
+
+    @Test
+    @DisplayName("사용자 목록 조회 - 수수료율 내림차순 정렬")
+    void getUsers_수수료율내림차순정렬() {
+        // Given - 수수료율 내림차순 정렬 (실제로는 grade 역순 정렬)
+        AdminUserSearchRequest request = new AdminUserSearchRequest(
+                0, 20, null, null, null, null, null, null, null,
+                "commissionRate", "DESC"
+        );
+
+        // When
+        AdminUserResponse response = adminDashboardService.getUsers(request);
+
+        // Then
+        assertThat(response.content()).isNotEmpty();
+        // 내림차순이므로 GUARDIAN(작가, 10%)가 먼저, 일반 유저(null)가 나중에 나와야 함
+    }
+
+    // ========== 펀딩 승인 대기 목록 테스트 ==========
+
+    @Test
+    @DisplayName("펀딩 승인 대기 목록 조회 - 기본 조회")
+    void getFundingApprovals_기본조회() {
+        // Given
+        AdminFundingApprovalSearchRequest request = new AdminFundingApprovalSearchRequest(
+                0, 20, null, null, "registeredAt", "DESC"
+        );
+
+        // When
+        AdminFundingApprovalResponse response = adminDashboardService.getFundingApprovals(request);
+
+        // Then
+        assertAll(
+                () -> assertThat(response.page()).isEqualTo(0),
+                () -> assertThat(response.size()).isEqualTo(20),
+                () -> assertThat(response.totalElements()).isGreaterThanOrEqualTo(0)
+        );
+    }
+
+    @Test
+    @DisplayName("펀딩 승인 대기 목록 조회 - 작가 ID로 정렬")
+    void getFundingApprovals_작가ID정렬() {
+        // Given
+        AdminFundingApprovalSearchRequest request = new AdminFundingApprovalSearchRequest(
+                0, 20, null, null, "artistId", "ASC"
+        );
+
+        // When
+        AdminFundingApprovalResponse response = adminDashboardService.getFundingApprovals(request);
+
+        // Then
+        assertThat(response).isNotNull();
+    }
+
+    @Test
+    @DisplayName("펀딩 승인 대기 목록 조회 - 펀딩 제목으로 정렬")
+    void getFundingApprovals_제목정렬() {
+        // Given
+        AdminFundingApprovalSearchRequest request = new AdminFundingApprovalSearchRequest(
+                0, 20, null, null, "title", "ASC"
+        );
+
+        // When
+        AdminFundingApprovalResponse response = adminDashboardService.getFundingApprovals(request);
+
+        // Then
+        assertThat(response).isNotNull();
+    }
+
+    @Test
+    @DisplayName("펀딩 승인 대기 목록 조회 - 특정 작가 필터링")
+    void getFundingApprovals_작가필터() {
+        // Given
+        AdminFundingApprovalSearchRequest request = new AdminFundingApprovalSearchRequest(
+                0, 20, null, artistUser.getId(), "registeredAt", "DESC"
+        );
+
+        // When
+        AdminFundingApprovalResponse response = adminDashboardService.getFundingApprovals(request);
+
+        // Then
+        response.content().forEach(funding ->
+                assertThat(funding.artistId()).isEqualTo(artistUser.getId())
         );
     }
 

@@ -10,6 +10,7 @@ import org.hibernate.annotations.Where;
 
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 
@@ -54,6 +55,16 @@ public class Funding extends BaseEntity {
     private long collectedAmount = 0L;
 
     @Column(nullable = false)
+    private long price;
+
+    @Column
+    private Integer stock;
+
+    @Column(nullable = false)
+    @Builder.Default
+    private int soldCount = 0;
+
+    @Column(nullable = false)
     private LocalDateTime startDate;
 
     @Column(nullable = false)
@@ -73,11 +84,6 @@ public class Funding extends BaseEntity {
 
     @Builder.Default
     @OneToMany(mappedBy = "funding", cascade = CascadeType.ALL, orphanRemoval = true)
-    @OrderBy("sortOrder ASC, id ASC")
-    private List<FundingOption> options = new ArrayList<>();
-
-    @Builder.Default
-    @OneToMany(mappedBy = "funding", cascade = CascadeType.ALL, orphanRemoval = true)
     @OrderBy("createDate DESC, id DESC")
     private List<FundingNews> news = new ArrayList<>();
 
@@ -88,7 +94,19 @@ public class Funding extends BaseEntity {
 
     @OneToMany(mappedBy = "funding", cascade = CascadeType.ALL, orphanRemoval = true)// 펀딩이 저장/삭제되면 모든 펀딩이미지도 저장/삭제됨, 펀딩에서 이미지를 제거하면 DB에서 해당 이미지도 삭제됨.
     @org.hibernate.annotations.BatchSize(size = 100)  // N+1 방지: 100개씩 배치로 조회
-    private List<FundingImage> images = new ArrayList<>();; // 해당 펀딩의 이미지들(대표/추가/썸네일 이미지)
+    @Builder.Default
+    private List<FundingImage> images = new ArrayList<>(); // 해당 펀딩의 이미지들(대표/추가/썸네일 이미지)
+
+    public void addImage(FundingImage image) {
+        if (images == null) images = new ArrayList<>();
+        images.add(image);
+        image.setFunding(this); // 양방향 연관관계 고정
+    }
+
+    public void addImages(Collection<FundingImage> list) {
+        if (list == null || list.isEmpty()) return;
+        list.forEach(this::addImage);
+    }
 
     // ========== 팩토리 메서드 ==========
 
@@ -99,30 +117,27 @@ public class Funding extends BaseEntity {
             Category category,
             String imageUrl,
             long targetAmount,
+            long price,
+            Integer stock,
             LocalDateTime startDate,
             LocalDateTime endDate,
-            FundingStatus initialStatus,
-            List<FundingOption> options
+            FundingStatus initialStatus
     ) {
-        validateCreation(user, title, description, targetAmount, startDate, endDate);
+        validateCreation(user, title, description, targetAmount, price, stock, startDate, endDate);
 
-        Funding funding = Funding.builder()
+        return Funding.builder()
                 .user(user)
                 .title(title)
                 .description(description)
                 .imageUrl(imageUrl)
                 .category(category)
                 .targetAmount(targetAmount)
+                .price(price)
+                .stock(stock)
                 .startDate(startDate)
                 .endDate(endDate)
-                .status(initialStatus != null ? initialStatus : FundingStatus.OPEN)
+                .status(initialStatus != null ? initialStatus : FundingStatus.PENDING)
                 .build();
-
-        if (options != null) {
-            options.forEach(funding::attachOption);
-        }
-
-        return funding;
     }
 
     // ========== 기본 정보 수정 ==========
@@ -144,12 +159,39 @@ public class Funding extends BaseEntity {
         this.targetAmount = newTargetAmount;
     }
 
+    public void updatePrice(long newPrice) {
+        if (newPrice <= 0) {
+            throw new IllegalArgumentException("가격은 0보다 커야 합니다.");
+        }
+        if (this.soldCount > 0) {
+            throw new IllegalStateException("판매가 발생한 경우 가격을 수정할 수 없습니다.");
+        }
+        this.price = newPrice;
+    }
+
+    public void updateStock(Integer newStock) {
+        if (newStock != null && newStock < this.soldCount) {
+            throw new IllegalArgumentException("재고는 이미 판매된 수량보다 적을 수 없습니다.");
+        }
+        this.stock = newStock;
+    }
+
     public void updateEndDate(LocalDateTime newEndDate) {
         validateEndDateUpdate(newEndDate);
         this.endDate = newEndDate;
     }
 
     // ========== 상태 변경 ==========
+
+    public void open() {
+        if (this.status != FundingStatus.APPROVED) {
+            throw new IllegalStateException("승인된 펀딩만 오픈할 수 있습니다.");
+        }
+        if (LocalDateTime.now().isBefore(this.startDate)) {
+            throw new IllegalStateException("시작일이 도래하지 않았습니다.");
+        }
+        this.status = FundingStatus.OPEN;
+    }
 
     public void close() {
         if (this.status != FundingStatus.OPEN) {
@@ -176,18 +218,15 @@ public class Funding extends BaseEntity {
     }
 
     public void cancel() {
-        if (this.status == FundingStatus.SUCCESS || this.status == FundingStatus.FAILED) {
+        if (this.status == FundingStatus.SUCCESS || this.status == FundingStatus.FAILED || this.status == FundingStatus.CLOSED) {
             throw new IllegalStateException("이미 완료된 펀딩은 취소할 수 없습니다.");
-        }
-        if (this.isDeleted) {
-            throw new IllegalStateException("삭제된 펀딩은 취소할 수 없습니다.");
         }
         this.status = FundingStatus.CANCELED;
     }
 
     public void delete() {
-        if (this.status != FundingStatus.OPEN && this.status != FundingStatus.PENDING) {
-            throw new IllegalStateException("진행 중이거나 심사 중인 펀딩만 삭제할 수 있습니다.");
+        if (this.status != FundingStatus.PENDING && this.status != FundingStatus.REJECTED && this.status != FundingStatus.CANCELED) {
+            throw new IllegalStateException("심사 중, 거절됨, 취소된 펀딩만 삭제할 수 있습니다.");
         }
         if (this.participantCount > 0) {
             throw new IllegalStateException("참여자가 있는 펀딩은 삭제할 수 없습니다.");
@@ -199,24 +238,51 @@ public class Funding extends BaseEntity {
         this.deletedAt = LocalDateTime.now();
     }
 
-    // ========== 옵션 관리 ==========
-
-    public void attachOption(FundingOption option) {
-        option.attachTo(this);
-        this.options.add(option);
+    public void approve() {
+        if (this.status != FundingStatus.PENDING) {
+            throw new IllegalStateException("심사 중 상태가 아닙니다.");
+        }
+        this.status = FundingStatus.APPROVED;
     }
 
-    public void addOption(FundingOption newOption) {
-        this.attachOption(newOption);
+    public void reject() {
+        if (this.status != FundingStatus.PENDING) {
+            throw new IllegalStateException("심사 중 상태가 아닙니다.");
+        }
+        this.status = FundingStatus.REJECTED;
     }
 
-    public void updateOption(Long optionId, String name, Long price, Integer stock, Integer sortOrder) {
-        FundingOption option = this.options.stream()
-                .filter(o -> o.getId().equals(optionId))
-                .findFirst()
-                .orElseThrow(() -> new IllegalArgumentException("해당 옵션을 찾을 수 없습니다."));
+    // ========== 재고 관리 ==========
 
-        option.update(name, price, stock, sortOrder);
+    public void decreaseStock(int quantity) {
+        if (stock != null) {
+            if (stock < quantity) {
+                throw new IllegalStateException("재고가 부족합니다.");
+            }
+            this.stock -= quantity;
+        }
+        this.soldCount += quantity;
+    }
+
+    public void increaseStock(int quantity) {
+        if (quantity <= 0) {
+            throw new IllegalArgumentException("복원 수량은 0보다 커야 합니다.");
+        }
+        if (stock != null) {
+            this.stock += quantity;
+        }
+        this.soldCount -= quantity;
+        if (this.soldCount < 0) {
+            this.soldCount = 0;
+        }
+    }
+
+    public boolean hasStock(int quantity) {
+        return stock == null || stock >= quantity;
+    }
+
+    public Integer getRemainingStock() {
+        return stock;
     }
 
     // ========== 금액/참여자 관리 ==========
@@ -235,6 +301,14 @@ public class Funding extends BaseEntity {
         this.participantCount += delta;
     }
 
+    public void syncStats(long amount, int participants) {
+        if (amount < 0 || participants < 0) {
+            throw new IllegalArgumentException("통계 값은 음수일 수 없습니다.");
+        }
+        this.collectedAmount = amount;
+        this.participantCount = participants;
+    }
+
     // ========== 조회 메서드 ==========
 
     public boolean isEndDatePassed() {
@@ -249,10 +323,6 @@ public class Funding extends BaseEntity {
         return this.status == FundingStatus.OPEN;
     }
 
-    public List<FundingOption> getOptions() {
-        return Collections.unmodifiableList(options);
-    }
-
     public List<FundingNews> getNews() {
         return Collections.unmodifiableList(news);
     }
@@ -262,7 +332,7 @@ public class Funding extends BaseEntity {
     }
 
     public List<FundingImage> getImages() {
-        return Collections.unmodifiableList(images);
+        return Collections.unmodifiableList(images == null ? List.of() : images);
     }
 
     // ========== 검증 메서드 ==========
@@ -272,6 +342,8 @@ public class Funding extends BaseEntity {
             String title,
             String description,
             long targetAmount,
+            long price,
+            Integer stock,
             LocalDateTime startDate,
             LocalDateTime endDate
     ) {
@@ -290,13 +362,19 @@ public class Funding extends BaseEntity {
         if (targetAmount <= 0) {
             throw new IllegalArgumentException("목표 금액은 0보다 커야 합니다.");
         }
+        if (price <= 0) {
+            throw new IllegalArgumentException("가격은 0보다 커야 합니다.");
+        }
+        if (stock != null && stock < 0) {
+            throw new IllegalArgumentException("재고는 0 이상이어야 합니다.");
+        }
         if (startDate == null || endDate == null) {
             throw new IllegalArgumentException("시작/종료일은 필수입니다.");
         }
         if (startDate.isBefore(LocalDateTime.now())) {
             throw new IllegalArgumentException("시작일은 현재 시각 이후여야 합니다.");
         }
-        if (endDate.isBefore(startDate)) {
+        if (endDate.isBefore(startDate) || endDate.isEqual(startDate)) {
             throw new IllegalArgumentException("종료일은 시작일 이후여야 합니다.");
         }
     }

@@ -3,7 +3,6 @@ package com.back.global.initData;
 import com.back.domain.auth.dto.request.SignUpRequest;
 import com.back.domain.auth.service.AuthService;
 import com.back.domain.funding.entity.Funding;
-import com.back.domain.funding.entity.FundingOption;
 import com.back.domain.funding.entity.FundingStatus;
 import com.back.domain.funding.repository.FundingRepository;
 import com.back.domain.product.category.entity.Category;
@@ -26,7 +25,6 @@ import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
-import java.util.List;
 
 @Slf4j
 @Component
@@ -123,13 +121,11 @@ public class TestInitData {
                 category,
                 "www.example.com",
                 1_000_000L,
+                10000,
+                50,
                 now.plusDays(5),
                 now.plusDays(25),
-                FundingStatus.OPEN,
-                List.of(
-                        FundingOption.create("1 옵션이요~", 10_000L, 11_110, 1),
-                        FundingOption.create("2 옵션이요~", 15_000L, 11_110, 2)
-                )
+                FundingStatus.OPEN
         );
         fundingRepository.save(f0);
         log.info("테스트 펀딩 저장 완료 id={}", f0.getId());
@@ -142,10 +138,11 @@ public class TestInitData {
                 category,
                 "image1.jpg",
                 1_000_000L,
+                15000,
+                100,
                 now.plusDays(5),
                 now.plusDays(25),
-                FundingStatus.OPEN,
-                List.of(FundingOption.create("일반 앨범", 15_000L, 100, 1))
+                FundingStatus.OPEN
         );
         f1.increaseParticipantCount(50);
         fundingRepository.save(f1);
@@ -158,10 +155,11 @@ public class TestInitData {
                 category,
                 "image2.jpg",
                 500_000L,
+                35000,
+                50,
                 now.plusDays(3),
                 now.plusDays(5),
-                FundingStatus.OPEN,
-                List.of(FundingOption.create("포토북 세트", 35_000L, 50, 1))
+                FundingStatus.OPEN
         );
         f2.increaseParticipantCount(30);
         fundingRepository.save(f2);
@@ -174,12 +172,12 @@ public class TestInitData {
                 category,
                 "image3.jpg",
                 2_000_000L,
+                80000,
+                30,
                 now.plusDays(1),
                 now.plusDays(40),
-                FundingStatus.OPEN,
-                List.of(FundingOption.create("프리미엄 세트", 80_000L, 30, 1))
+                FundingStatus.PENDING
         );
-        f3.increaseParticipantCount(10);
         fundingRepository.save(f3);
     }
 

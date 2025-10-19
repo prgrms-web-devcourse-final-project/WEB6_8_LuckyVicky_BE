@@ -151,6 +151,7 @@ public class User extends BaseEntity {
      */
     public void becomeArtist() {
         this.role = Role.ARTIST;
+        this.grade = Grade.GUARDIAN;
         this.isArtistVerified = true;
         this.artistVerifiedAt = LocalDateTime.now();
     }
@@ -164,6 +165,7 @@ public class User extends BaseEntity {
         }
 
         this.role = Role.USER;
+        this.grade = Grade.SPROUT;
         this.isArtistVerified = false;
         this.artistVerifiedAt = null;
     }
@@ -294,6 +296,20 @@ public class User extends BaseEntity {
         if (profileImageUrl != null && !profileImageUrl.isBlank()) {
             this.profileImageUrl = profileImageUrl;
         }
+    }
+
+    /**
+     * 프로필 이미지 설정
+     */
+    public void setProfileImage(String profileImageUrl) {
+        this.profileImageUrl = profileImageUrl;
+    }
+
+    /**
+     * 프로필 이미지 삭제 (null로 설정)
+     */
+    public void deleteProfileImage() {
+        this.profileImageUrl = null;
     }
 
     /**

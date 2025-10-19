@@ -111,7 +111,6 @@ public class ProdInitData {
         String encodedPassword = passwordEncoder.encode(artistPassword);
         User artist = User.createLocalUser(artistEmail, encodedPassword, name, phone);
         userRepository.save(artist);
-        log.info("✓ 작가 유저 생성 완료: {} ({})", name, artistEmail);
 
         // 2. ArtistApplication 생성 (신청서)
         ArtistApplication application = ArtistApplication.builder()
@@ -135,7 +134,6 @@ public class ProdInitData {
                 .build();
 
         artistApplicationRepository.save(application);
-        log.info("✓ 작가 신청서 생성 완료 (PENDING 상태)");
 
         // 3. 신청서 자동 승인 및 작가 권한 부여
         application.approve(1L, "시스템");
@@ -143,7 +141,7 @@ public class ProdInitData {
 
         userRepository.save(artist);
         artistApplicationRepository.save(application);
-        log.info("✓ 작가 신청서 승인 완료 및 작가 권한 부여 완료");
+        log.info("✓ 작가 유저 생성 완료: {} ({})", name, artistEmail);
     }
 
     /**

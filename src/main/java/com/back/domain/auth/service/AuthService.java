@@ -1,9 +1,11 @@
 package com.back.domain.auth.service;
 
 import com.back.domain.auth.dto.request.LoginRequest;
+import com.back.domain.auth.dto.request.PasswordResetRequest;
 import com.back.domain.auth.dto.request.SignUpRequest;
 import com.back.domain.auth.dto.request.TokenRefreshRequest;
 import com.back.domain.auth.dto.response.AuthResponse;
+import com.back.domain.auth.dto.response.PasswordResetResponse;
 import com.back.domain.auth.dto.response.SignUpResponse;
 import com.back.domain.auth.entity.UserToken;
 import com.back.domain.auth.repository.UserTokenRepository;
@@ -11,6 +13,7 @@ import com.back.domain.user.entity.User;
 import com.back.domain.user.repository.UserRepository;
 import com.back.global.exception.ServiceException;
 import com.back.global.security.jwt.JwtTokenProvider;
+import com.back.global.service.EmailService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -30,6 +33,7 @@ public class AuthService {
     private final UserTokenRepository userTokenRepository;
     private final JwtTokenProvider jwtTokenProvider;
     private final PasswordEncoder passwordEncoder;
+    private final EmailService emailService;
 
     @Value("${jwt.access-token-expiration}")
     private long accessTokenExpiration;
@@ -309,5 +313,71 @@ public class AuthService {
                 accessTokenExpiration / 1000,
                 user.needsAdditionalInfo()
         );
+    }
+
+    /**
+     * 비밀번호 찾기 - 임시 비밀번호 발급
+     */
+    public PasswordResetResponse resetPassword(PasswordResetRequest request) {
+        User user = userRepository.findByEmail(request.email())
+                .orElseThrow(() -> new ServiceException("404", "등록되지 않은 이메일입니다."));
+
+        // OAuth 사용자는 비밀번호 찾기 불가
+        if (user.isOAuthUser()) {
+            throw new ServiceException("400",
+                    "소셜 로그인 사용자는 비밀번호 찾기를 이용할 수 없습니다.");
+        }
+
+        // 임시 비밀번호 생성 (8자리 영문+숫자 조합)
+        String temporaryPassword = generateTemporaryPassword();
+
+        // 비밀번호 암호화 후 업데이트
+        String encodedPassword = passwordEncoder.encode(temporaryPassword);
+        user.changePassword(encodedPassword);
+        userRepository.save(user);
+
+        // 모든 기기에서 로그아웃 처리 (보안)
+        logoutAll(user.getId());
+
+        // 임시 비밀번호 이메일 발송
+        emailService.sendTemporaryPassword(user.getEmail(), temporaryPassword);
+
+        log.info("비밀번호 찾기 완료: userId={}, email={}", user.getId(), user.getEmail());
+
+        return PasswordResetResponse.success(user.getEmail());
+    }
+
+    /**
+     * 임시 비밀번호 생성 (8자리 영문 대소문자 + 숫자 + 특수문자 조합)
+     */
+    private String generateTemporaryPassword() {
+        String letters = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz";
+        String numbers = "0123456789";
+        String specials = "!@#$%^&*";
+
+        java.security.SecureRandom random = new java.security.SecureRandom();
+        StringBuilder password = new StringBuilder();
+
+        // 필수 문자 각 1개씩 추가 (최소 조건 보장)
+        password.append(letters.charAt(random.nextInt(letters.length())));    // 영문 1개
+        password.append(numbers.charAt(random.nextInt(numbers.length())));    // 숫자 1개
+        password.append(specials.charAt(random.nextInt(specials.length())));  // 특수문자 1개
+
+        // 나머지 5자리는 모든 문자에서 랜덤 선택
+        String allChars = letters + numbers + specials;
+        for (int i = 0; i < 5; i++) {
+            password.append(allChars.charAt(random.nextInt(allChars.length())));
+        }
+
+        // 문자 순서 섞기 (첫 3자리가 항상 영문-숫자-특수문자 순서가 되지 않도록)
+        char[] chars = password.toString().toCharArray();
+        for (int i = chars.length - 1; i > 0; i--) {
+            int j = random.nextInt(i + 1);
+            char temp = chars[i];
+            chars[i] = chars[j];
+            chars[j] = temp;
+        }
+
+        return new String(chars);
     }
 }

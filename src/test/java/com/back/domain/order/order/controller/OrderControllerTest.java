@@ -7,6 +7,7 @@ import com.back.domain.order.order.entity.OrderStatus;
 import com.back.domain.order.order.entity.PaymentMethod;
 import com.back.domain.order.order.service.OrderService;
 import com.back.domain.user.entity.User;
+import com.back.global.security.auth.CustomUserDetails;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -19,6 +20,7 @@ import org.springframework.data.domain.Pageable;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -35,9 +37,12 @@ class OrderControllerTest {
     private ObjectMapper objectMapper;
 
     private User testUser;
+    private CustomUserDetails customUserDetails;
     private OrderRequestDto orderRequestDto;
     private OrderCancelRequestDto orderCancelRequestDto;
     private OrderResponseDto orderResponseDto;
+    
+    private static final UUID TEST_PRODUCT_UUID = UUID.fromString("550e8400-e29b-41d4-a716-446655440000");
 
     @BeforeEach
     void setUp() throws Exception {
@@ -51,14 +56,21 @@ class OrderControllerTest {
         java.lang.reflect.Field idField = testUser.getClass().getSuperclass().getDeclaredField("id");
         idField.setAccessible(true);
         idField.set(testUser, 1L);
+        
+        // CustomUserDetails 생성
+        customUserDetails = new CustomUserDetails(testUser, com.back.domain.user.entity.Role.USER);
 
         // 주문 요청 DTO
         orderRequestDto = new OrderRequestDto(
                 List.of( // orderItems
                         new OrderRequestDto.OrderItemRequestDto(
-                                java.util.UUID.randomUUID(), // productUuid
+                                TEST_PRODUCT_UUID, // productUuid
+                                null, // fundingId
+                                null, // fundingPrice
+                                null, // fundingStock
                                 2, // quantity
-                                "빨강, L" // optionInfo
+                                "빨강, L", // optionInfo
+                                "NORMAL" // cartType
                         )
                 ),
                 "서울시 강남구", // shippingAddress1
@@ -96,7 +108,7 @@ class OrderControllerTest {
                 List.of( // orderItems
                         new OrderResponseDto.OrderItemResponseDto(
                                 1L, // orderItemId
-                                1L, // productId
+                                TEST_PRODUCT_UUID, // productUuid
                                 "테스트 상품", // productName
                                 "http://example.com/image.jpg", // productThumbnailUrl
                                 2, // quantity
@@ -116,7 +128,7 @@ class OrderControllerTest {
                 .willReturn(orderResponseDto);
 
         // When
-        var result = orderController.createOrder(orderRequestDto, testUser);
+        var result = orderController.createOrder(orderRequestDto, customUserDetails);
 
         // Then
         assertThat(result.getStatusCode().value()).isEqualTo(201);
@@ -142,7 +154,7 @@ class OrderControllerTest {
                 .willReturn(orderPage);
 
         // When
-        var result = orderController.getOrderList(PageRequest.of(0, 8), testUser);
+        var result = orderController.getOrderList(PageRequest.of(0, 8), customUserDetails);
 
         // Then
         assertThat(result.getStatusCode().value()).isEqualTo(200);
@@ -160,7 +172,7 @@ class OrderControllerTest {
                 .willReturn(orderResponseDto);
 
         // When
-        var result = orderController.getOrderDetail(1L, testUser);
+        var result = orderController.getOrderDetail(1L, customUserDetails);
 
         // Then
         assertThat(result.getStatusCode().value()).isEqualTo(200);
@@ -176,7 +188,7 @@ class OrderControllerTest {
         willDoNothing().given(orderService).cancelOrder(eq(1L), any(User.class), any(OrderCancelRequestDto.class));
 
         // When
-        var result = orderController.cancelOrder(1L, orderCancelRequestDto, testUser);
+        var result = orderController.cancelOrder(1L, orderCancelRequestDto, customUserDetails);
 
         // Then
         assertThat(result.getStatusCode().value()).isEqualTo(200);
@@ -189,7 +201,7 @@ class OrderControllerTest {
         willDoNothing().given(orderService).approveOrderCancellation(eq(1L), any(User.class));
 
         // When
-        var result = orderController.approveOrderCancellation(1L, testUser);
+        var result = orderController.approveOrderCancellation(1L, customUserDetails);
 
         // Then
         assertThat(result.getStatusCode().value()).isEqualTo(200);
@@ -203,7 +215,7 @@ class OrderControllerTest {
                 .willThrow(new IllegalArgumentException("주문을 찾을 수 없습니다."));
 
         // When & Then
-        assertThatThrownBy(() -> orderController.getOrderDetail(999L, testUser))
+        assertThatThrownBy(() -> orderController.getOrderDetail(999L, customUserDetails))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessage("주문을 찾을 수 없습니다.");
     }

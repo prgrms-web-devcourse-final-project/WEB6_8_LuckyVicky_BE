@@ -109,11 +109,19 @@ public class AdminDashboardServiceImpl implements AdminDashboardService {
         AdminOverviewResponse.Charts charts = createChartsData(request);
 
         // 5. 승인 대기 알림
+        // 작가 입점 신청 승인 대기 (최근 2건)
         List<ArtistApplication> pendingApplications = artistApplicationRepository
-                .findByStatusOrderByCreateDateDesc(ApplicationStatus.PENDING, PageRequest.of(0, 2))
+                .findArtistApplicationsForAdmin(
+                        null,  // keyword: 검색어 없음
+                        ApplicationStatus.PENDING,  // status: PENDING만
+                        "submittedAt",  // 신청일자 기준
+                        "DESC",  // 최신순
+                        PageRequest.of(0, 2)
+                )
                 .getContent();
 
         List<AdminOverviewResponse.ArtistApproval> artistApprovals = pendingApplications.stream()
+                .filter(app -> app.getUser() != null) // User가 null인 경우 필터링
                 .map(app -> new AdminOverviewResponse.ArtistApproval(
                         app.getUser().getId(),
                         app.getArtistName(),
@@ -121,9 +129,26 @@ public class AdminDashboardServiceImpl implements AdminDashboardService {
                 ))
                 .toList();
 
+        // 펀딩 승인 대기 (최근 2건)
+        List<Funding> pendingFundings = fundingRepository
+                .findByStatusOrderByCreateDateDesc(
+                        com.back.domain.funding.entity.FundingStatus.PENDING,
+                        PageRequest.of(0, 2)
+                )
+                .getContent();
+
+        List<AdminOverviewResponse.FundingApproval> fundingApprovals = pendingFundings.stream()
+                .filter(funding -> funding.getUser() != null) // User가 null인 경우 필터링
+                .map(funding -> new AdminOverviewResponse.FundingApproval(
+                        funding.getId(),
+                        funding.getTitle(),
+                        funding.getCreateDate()
+                ))
+                .toList();
+
         AdminOverviewResponse.Alerts alerts = new AdminOverviewResponse.Alerts(
                 artistApprovals,
-                List.of()  // 펀딩 승인은 나중에 구현
+                fundingApprovals
         );
 
         return new AdminOverviewResponse(overview, charts, alerts, LocalDateTime.now(), request.timezone());
@@ -308,19 +333,15 @@ public class AdminDashboardServiceImpl implements AdminDashboardService {
                 ? product.getProductUuid().toString()
                 : String.valueOf(product.getId());
 
+        // 작가명 추출 (User 또는 ArtistProfile에서)
+        String artistName = product.getUser().getName();
+
         return new AdminProductResponse.Product(
                 product.getId(),
                 productNumber,
                 product.getName(),
-                new AdminProductResponse.Artist(
-                        product.getUser().getId(),
-                        product.getUser().getName() // User에서 작가명 추출
-                ),
+                artistName,
                 product.getSellingStatus().name(),
-                new AdminProductResponse.Category(
-                        product.getCategory().getId(),
-                        product.getCategory().getCategoryName() // categoryName 사용
-                ),
                 product.getCreateDate().toLocalDate()
         );
     }
@@ -427,7 +448,8 @@ public class AdminDashboardServiceImpl implements AdminDashboardService {
      */
     private AdminUserResponse.User convertToUserDto(User user) {
         String artistName = user.isArtist() ? user.getName() : null;
-        Integer commissionRate = user.isArtist() ? 0 : null;
+        // 작가 유저는 10% 수수료, 일반 유저는 null (화면에서 '-' 표시)
+        Integer commissionRate = user.isArtist() ? 10 : null;
 
         return new AdminUserResponse.User(
                 user.getId(),
@@ -501,7 +523,7 @@ public class AdminDashboardServiceImpl implements AdminDashboardService {
             case "memberId" -> "email";
             case "nickname" -> "name";
             case "artistName" -> "name";
-            case "commissionRate" -> "id"; // TODO: User 엔티티에 commissionRate 필드 추가 시 수정
+            case "commissionRate" -> "grade";  // 수수료율 정렬은 회원등급으로 처리 (작가=GUARDIAN, 일반=SPROUT)
             case "grade" -> "grade";
             case "accountStatus" -> "status";
             case "joinedAt" -> "createDate";
@@ -627,43 +649,31 @@ public class AdminDashboardServiceImpl implements AdminDashboardService {
     }
 
     /**
-     * Funding Entity → DTO 변환
+     * Funding Entity → DTO 변환 (화면 표시 필드만, 평면 구조)
      */
     private AdminFundingResponse.Funding convertToFundingDto(Funding funding) {
+        // User null 체크 (FK 제약조건상 발생하면 안되지만 방어적 처리)
+        if (funding.getUser() == null) {
+            log.error("Funding의 User가 null입니다 - fundingId: {}", funding.getId());
+            throw new ServiceException("DATA_INTEGRITY_ERROR", 
+                "펀딩 데이터 무결성 오류 - fundingId: " + funding.getId());
+        }
+        
+        // 달성률 계산
         int achievementRate = funding.getTargetAmount() > 0
                 ? (int) ((funding.getCollectedAmount() * 100) / funding.getTargetAmount())
                 : 0;
 
-        long remainingDays = java.time.temporal.ChronoUnit.DAYS.between(
-                LocalDateTime.now(),
-                funding.getEndDate()
-        );
-
-        DateTimeFormatter dateFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd");
+        DateTimeFormatter dateFormatter = DateTimeFormatter.ofPattern("yyyy. MM. dd");
 
         return new AdminFundingResponse.Funding(
                 funding.getId(),
+                funding.getUser().getId(),
+                funding.getUser().getName(),
                 funding.getTitle(),
-                new AdminFundingResponse.Artist(
-                        funding.getUser().getId(),
-                        funding.getUser().getEmail() != null ? funding.getUser().getEmail() : "N/A",
-                        funding.getUser().getName()
-                ),
-                new AdminFundingResponse.Category(1L, "미분류"),
-                funding.getStatus().name(),
-                funding.getTargetAmount(),
-                funding.getCollectedAmount(),
                 achievementRate,
-                funding.getParticipantCount(),
-                funding.getEndDate().format(dateFormatter),
-                funding.getCreateDate().format(dateFormatter),
-                (int) Math.max(0, remainingDays),
-                funding.getImageUrl(),
-                new AdminFundingResponse.Permissions(true, true),
-                new AdminFundingResponse.Flags(
-                        achievementRate >= 100,
-                        remainingDays <= 7 && remainingDays > 0
-                )
+                funding.getStatus().name(),
+                funding.getEndDate().format(dateFormatter)
         );
     }
 
@@ -743,25 +753,21 @@ public class AdminDashboardServiceImpl implements AdminDashboardService {
     public AdminArtistApplicationResponse getArtistApplications(AdminArtistApplicationSearchRequest request) {
         CustomUserDetails adminUser = validateAdminAuthentication();
 
-        Pageable pageable = buildPageable(request.page(), request.size(), request.sort(), request.order(),
-                sort -> "createDate");
+        Pageable pageable = PageRequest.of(request.page(), request.size());
 
-        Page<ArtistApplication> applicationPage;
-
+        // 새로운 동적 정렬 쿼리 사용
+        ApplicationStatus status = null;
         if (request.status() != null && !request.status().isBlank()) {
-            ApplicationStatus appStatus = ApplicationStatus.valueOf(request.status());
-            if (request.keyword() != null && !request.keyword().isBlank()) {
-                applicationPage = artistApplicationRepository.findByArtistNameContainingOrderByCreateDateDesc(request.keyword(), pageable);
-            } else {
-                applicationPage = artistApplicationRepository.findByStatusOrderByCreateDateDesc(appStatus, pageable);
-            }
-        } else {
-            if (request.keyword() != null && !request.keyword().isBlank()) {
-                applicationPage = artistApplicationRepository.findByArtistNameContainingOrderByCreateDateDesc(request.keyword(), pageable);
-            } else {
-                applicationPage = artistApplicationRepository.findAllByOrderByCreateDateDesc(pageable);
-            }
+            status = ApplicationStatus.valueOf(request.status());
         }
+
+        Page<ArtistApplication> applicationPage = artistApplicationRepository.findArtistApplicationsForAdmin(
+                request.keyword(),
+                status,
+                request.sort(),
+                request.order(),
+                pageable
+        );
 
         long totalApplications = artistApplicationRepository.count();
         long pending = artistApplicationRepository.countByStatus(ApplicationStatus.PENDING);
@@ -795,11 +801,19 @@ public class AdminDashboardServiceImpl implements AdminDashboardService {
      * ArtistApplication Entity → DTO 변환
      */
     private AdminArtistApplicationResponse.Application convertToApplicationDto(ArtistApplication application) {
+        // User null 체크 (FK 제약조건상 발생하면 안되지만 방어적 처리)
+        if (application.getUser() == null) {
+            log.error("ArtistApplication의 User가 null입니다 - applicationId: {}", application.getId());
+            throw new ServiceException("DATA_INTEGRITY_ERROR", 
+                "입점 신청 데이터 무결성 오류 - applicationId: " + application.getId());
+        }
+        
         DateTimeFormatter dateFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd");
 
         return new AdminArtistApplicationResponse.Application(
                 application.getId(),
                 new AdminArtistApplicationResponse.Artist(
+                        application.getUser().getId(), // 작가 ID 추가
                         application.getUser().getEmail() != null ? application.getUser().getEmail() : "N/A",
                         application.getArtistName()
                 ),
@@ -954,6 +968,148 @@ public class AdminDashboardServiceImpl implements AdminDashboardService {
                 review,
                 decision,
                 permissions
+        );
+    }
+
+    @Override
+    public AdminFundingApprovalResponse getFundingApprovals(AdminFundingApprovalSearchRequest request) {
+        CustomUserDetails adminUser = validateAdminAuthentication();
+
+        log.info("관리자 펀딩 승인 대기 목록 조회 - adminId: {}, page: {}, size: {}, keyword: {}",
+                adminUser.getUserId(), request.page(), request.size(), request.keyword());
+
+        // Pageable 생성
+        Pageable pageable = buildPageable(
+                request.page(),
+                request.size(),
+                request.sort(),
+                request.order(),
+                this::mapFundingApprovalSortField
+        );
+
+        // PENDING 상태 펀딩 조회
+        Page<Funding> fundingPage = fundingRepository.findPendingApprovalFundings(
+                request.keyword(),
+                request.artistId(),
+                request.sort(),
+                request.order(),
+                pageable
+        );
+
+        // Entity → DTO 변환
+        List<AdminFundingApprovalResponse.FundingApproval> content = fundingPage.getContent().stream()
+                .map(this::convertToFundingApprovalDto)
+                .toList();
+
+        log.info("펀딩 승인 대기 목록 조회 완료 - 조회된 펀딩 수: {}, 전체: {}",
+                content.size(), fundingPage.getTotalElements());
+
+        return new AdminFundingApprovalResponse(
+                content,
+                request.page(),
+                request.size(),
+                fundingPage.getTotalElements(),
+                fundingPage.getTotalPages(),
+                fundingPage.hasNext(),
+                fundingPage.hasPrevious()
+        );
+    }
+
+    /**
+     * Funding Entity → FundingApproval DTO 변환 (화면 표시 필드만)
+     */
+    private AdminFundingApprovalResponse.FundingApproval convertToFundingApprovalDto(Funding funding) {
+        DateTimeFormatter dateFormatter = DateTimeFormatter.ofPattern("yyyy. MM. dd");
+
+        return new AdminFundingApprovalResponse.FundingApproval(
+                funding.getId(),
+                funding.getUser().getId(),
+                funding.getUser().getName(),
+                funding.getTitle(),
+                funding.getCreateDate().format(dateFormatter)
+        );
+    }
+
+    /**
+     * 펀딩 승인 대기 정렬 필드 매핑
+     */
+    private String mapFundingApprovalSortField(String sort) {
+        return switch (sort) {
+            case "artistId" -> "user.id";
+            case "artistName" -> "user.name";
+            case "title" -> "title";
+            case "registeredAt" -> "createDate";
+            default -> "createDate";
+        };
+    }
+
+    @Override
+    public AdminFundingApprovalDetailResponse getFundingApprovalDetail(Long fundingId) {
+        CustomUserDetails adminUser = validateAdminAuthentication();
+
+        log.info("관리자 펀딩 승인 대기 상세 조회 - adminId: {}, fundingId: {}",
+                adminUser.getUserId(), fundingId);
+
+        // PENDING 상태의 펀딩 조회
+        Funding funding = fundingRepository.findPendingApprovalFundingById(fundingId)
+                .orElseThrow(() -> new ServiceException("404", "승인 대기 중인 펀딩을 찾을 수 없습니다."));
+
+        // 작가의 ArtistApplication 조회
+        ArtistApplication application = artistApplicationRepository.findByUserId(funding.getUser().getId())
+                .orElse(null);
+
+        // DTO 변환
+        AdminFundingApprovalDetailResponse response = convertToFundingApprovalDetailDto(funding, application);
+
+        log.info("펀딩 승인 대기 상세 조회 완료 - fundingId: {}, artistId: {}",
+                fundingId, funding.getUser().getId());
+
+        return response;
+    }
+
+    /**
+     * Funding + ArtistApplication → AdminFundingApprovalDetailResponse 변환
+     */
+    private AdminFundingApprovalDetailResponse convertToFundingApprovalDetailDto(
+            Funding funding, ArtistApplication application) {
+
+        // 작가 정보 (ArtistApplication에서 우선 조회, 없으면 User에서)
+        String email = application != null ? application.getEmail() : funding.getUser().getEmail();
+        String phone = application != null ? application.getPhone() : funding.getUser().getPhone();
+
+        AdminFundingApprovalDetailResponse.ArtistInfo artistInfo =
+                new AdminFundingApprovalDetailResponse.ArtistInfo(
+                        funding.getUser().getId(),
+                        funding.getUser().getName(),
+                        email != null ? email : "N/A",
+                        phone != null ? phone : "N/A"
+                );
+
+        // 사업자 정보 (ArtistApplication에서만 조회 가능)
+        AdminFundingApprovalDetailResponse.BusinessInfo businessInfo;
+        if (application != null) {
+            String fullAddress = application.getBusinessAddress();
+            if (application.getBusinessAddressDetail() != null) {
+                fullAddress += " " + application.getBusinessAddressDetail();
+            }
+
+            businessInfo = new AdminFundingApprovalDetailResponse.BusinessInfo(
+                    application.getBusinessNumber() != null ? application.getBusinessNumber() : "미등록",
+                    application.getTelecomSalesNumber() != null ? application.getTelecomSalesNumber() : "미등록",
+                    application.getBusinessName() != null ? application.getBusinessName() : "미등록",
+                    fullAddress != null ? fullAddress : "미등록"
+            );
+        } else {
+            // ArtistApplication이 없는 경우 (작가 신청을 안 한 경우)
+            businessInfo = new AdminFundingApprovalDetailResponse.BusinessInfo(
+                    "미등록", "미등록", "미등록", "미등록"
+            );
+        }
+
+        return new AdminFundingApprovalDetailResponse(
+                funding.getTitle(),
+                artistInfo,
+                businessInfo
         );
     }
 }

@@ -4,6 +4,8 @@ import com.back.domain.user.entity.User;
 import com.back.global.jpa.entity.BaseEntity;
 import jakarta.persistence.*;
 import lombok.*;
+import org.hibernate.annotations.SQLDelete;
+import org.hibernate.annotations.Where;
 
 @Entity
 @Getter
@@ -11,6 +13,8 @@ import lombok.*;
 @AllArgsConstructor
 @Builder
 @Table(name = "funding_news")
+@SQLDelete(sql = "UPDATE funding_news SET deleted = true WHERE id = ?")
+@Where(clause = "deleted = false")
 public class FundingNews extends BaseEntity {
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
@@ -22,8 +26,23 @@ public class FundingNews extends BaseEntity {
     @Column(nullable = false)
     private String title;
 
-    @Column(nullable = false)
+    @Column(nullable = false, columnDefinition = "TEXT")
     private String content;
 
     private String imageUrl;
+
+    private String s3Key;
+
+    @Column(nullable = false)
+    @Builder.Default
+    private boolean deleted = false;
+
+    public void delete() {
+        this.deleted = true;
+    }
+
+    public void removeImage() {
+        this.imageUrl = null;
+        this.s3Key = null;
+    }
 }

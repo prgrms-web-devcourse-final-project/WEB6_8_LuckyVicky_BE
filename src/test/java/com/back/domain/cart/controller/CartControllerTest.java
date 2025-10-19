@@ -22,6 +22,7 @@ import org.springframework.test.web.servlet.MockMvc;
 import java.time.LocalDateTime;
 import java.util.Arrays;
 import java.util.List;
+import java.util.UUID;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
@@ -57,6 +58,8 @@ class CartControllerTest {
     private CartRequestDto cartRequestDto;
     private CartResponseDto cartResponseDto;
     private CartListResponseDto cartListResponseDto;
+    
+    private static final UUID TEST_PRODUCT_UUID = UUID.fromString("550e8400-e29b-41d4-a716-446655440000");
 
     @BeforeEach
     void setUp() {
@@ -70,23 +73,29 @@ class CartControllerTest {
         org.springframework.test.util.ReflectionTestUtils.setField(testUser, "id", 1L);
 
         cartRequestDto = new CartRequestDto(
-                1L,
-                2,
-                "옵션정보",
-                "NORMAL"
+                TEST_PRODUCT_UUID, // productUuid
+                2,                 // quantity
+                "옵션정보",         // optionInfo
+                "NORMAL",          // cartType
+                null,              // fundingId
+                null,              // fundingPrice
+                null               // fundingStock
         );
 
         cartResponseDto = new CartResponseDto(
-                1L,
-                1L,
-                "임시 상품명",  // 서비스에서 실제 반환하는 값과 일치
-                "test-image.jpg",
-                10000,
-                2,
-                "옵션정보",
-                true,
-                "NORMAL",
-                LocalDateTime.now()
+                1L,                    // cartId
+                TEST_PRODUCT_UUID,     // productUuid
+                "임시 상품명",         // productName
+                "test-image.jpg",     // productImageUrl
+                10000,                 // price
+                2,                     // quantity
+                "옵션정보",            // optionInfo
+                true,                  // isSelected
+                "NORMAL",              // cartType
+                null,                  // fundingId
+                null,                  // fundingPrice
+                null,                  // fundingStock
+                LocalDateTime.now()    // createdAt
         );
 
         List<CartResponseDto> normalItems = Arrays.asList(cartResponseDto);
@@ -137,10 +146,13 @@ class CartControllerTest {
     void addToCart_ValidationFailed() throws Exception {
         // given
         CartRequestDto invalidRequest = new CartRequestDto(
-                null, // 필수값 누락
-                -1, // 음수값
-                null,
-                null
+                null,  // productId - 필수값 누락
+                -1,    // quantity - 음수값
+                null,  // optionInfo
+                null,  // cartType
+                null,  // fundingId
+                null,  // fundingPrice
+                null   // fundingStock
         );
 
         // when & then
@@ -160,16 +172,19 @@ class CartControllerTest {
         Long cartId = 1L;
         Integer newQuantity = 3;
         CartResponseDto updatedCart = new CartResponseDto(
-                cartId,
-                1L,
-                "임시 상품명",
-                "test-image.jpg",
-                10000,
-                newQuantity,
-                null,
-                true,
-                "NORMAL",
-                null
+                cartId,              // cartId
+                TEST_PRODUCT_UUID,   // productUuid
+                "임시 상품명",       // productName
+                "test-image.jpg", // productImageUrl
+                10000,            // price
+                newQuantity,      // quantity
+                null,             // optionInfo
+                true,             // isSelected
+                "NORMAL",         // cartType
+                null,             // fundingId
+                null,             // fundingPrice
+                null,             // fundingStock
+                null              // createdAt
         );
 
         when(cartService.updateQuantity(any(), eq(cartId), eq(newQuantity)))
@@ -234,16 +249,19 @@ class CartControllerTest {
         // given
         Long cartId = 1L;
         CartResponseDto toggledCart = new CartResponseDto(
-                cartId,
-                1L,
-                "임시 상품명",
-                "test-image.jpg",
-                10000,
-                2,
-                null,
-                false,
-                "NORMAL",
-                null
+                cartId,              // cartId
+                TEST_PRODUCT_UUID,   // productUuid
+                "임시 상품명",       // productName
+                "test-image.jpg", // productImageUrl
+                10000,            // price
+                2,                // quantity
+                null,             // optionInfo
+                false,            // isSelected
+                "NORMAL",         // cartType
+                null,             // fundingId
+                null,             // fundingPrice
+                null,             // fundingStock
+                null              // createdAt
         );
 
         when(cartService.toggleSelection(any(), eq(cartId)))
@@ -263,20 +281,23 @@ class CartControllerTest {
         // given
         List<CartResponseDto> selectedItems = Arrays.asList(
                 new CartResponseDto(
-                        1L,
-                        1L,
-                        "테스트 상품1",
-                        "test-image1.jpg",
-                        10000,
-                        2,
-                        null,
-                        true,
-                        "NORMAL",
-                        null
+                        1L,                   // cartId
+                        TEST_PRODUCT_UUID,    // productUuid
+                        "테스트 상품1",       // productName
+                        "test-image1.jpg",   // productImageUrl
+                        10000,                // price
+                        2,                    // quantity
+                        null,                 // optionInfo
+                        true,                 // isSelected
+                        "NORMAL",             // cartType
+                        null,                 // fundingId
+                        null,                 // fundingPrice
+                        null,                 // fundingStock
+                        null                  // createdAt
                 )
         );
 
-        when(cartService.getSelectedCartItems(any()))
+        when(cartService.getSelectedCartItems(any(), eq(false)))
                 .thenReturn(selectedItems);
 
         // when & then
@@ -284,7 +305,7 @@ class CartControllerTest {
                 .andDo(print())
                 .andExpect(status().isOk());
 
-        verify(cartService, times(1)).getSelectedCartItems(any());
+        verify(cartService, times(1)).getSelectedCartItems(any(), eq(false));
     }
 
     @Test

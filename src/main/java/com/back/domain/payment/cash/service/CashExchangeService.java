@@ -33,8 +33,8 @@ public class CashExchangeService {
             throw new IllegalArgumentException("작가만 환전이 가능합니다.");
         }
 
-        // 2. 모리캐시 잔액 확인
-        MoriCashBalance balance = moriCashBalanceRepository.findByUser(user)
+        // 2. 모리캐시 잔액 확인 (Pessimistic Write Lock - 동시성 제어)
+        MoriCashBalance balance = moriCashBalanceRepository.findByUserWithLock(user)
                 .orElseThrow(() -> new IllegalArgumentException("모리캐시 잔액 정보를 찾을 수 없습니다."));
 
         if (balance.getAvailableBalance() < requestDto.getAmount()) {
@@ -74,8 +74,8 @@ public class CashExchangeService {
         // 1. 거래 완료 처리
         cashTransaction.completeTransaction(pgTransactionId, pgApprovalNumber, cashTransaction.getBalanceAfter());
 
-        // 2. 모리캐시 잔액에서 실제 차감
-        MoriCashBalance balance = moriCashBalanceRepository.findByUser(cashTransaction.getUser())
+        // 2. 모리캐시 잔액에서 실제 차감 (Pessimistic Write Lock - 동시성 제어)
+        MoriCashBalance balance = moriCashBalanceRepository.findByUserWithLock(cashTransaction.getUser())
                 .orElseThrow(() -> new IllegalArgumentException("모리캐시 잔액 정보를 찾을 수 없습니다."));
 
         balance.deductFrozenBalance(cashTransaction.getAmount());
@@ -99,8 +99,8 @@ public class CashExchangeService {
         // 1. 거래 실패 처리
         cashTransaction.failTransaction(rejectionReason);
 
-        // 2. 모리캐시 잔액 동결 해제
-        MoriCashBalance balance = moriCashBalanceRepository.findByUser(cashTransaction.getUser())
+        // 2. 모리캐시 잔액 동결 해제 (Pessimistic Write Lock - 동시성 제어)
+        MoriCashBalance balance = moriCashBalanceRepository.findByUserWithLock(cashTransaction.getUser())
                 .orElseThrow(() -> new IllegalArgumentException("모리캐시 잔액 정보를 찾을 수 없습니다."));
 
         balance.unfreezeBalance(cashTransaction.getAmount());

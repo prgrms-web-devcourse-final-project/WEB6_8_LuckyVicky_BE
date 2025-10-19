@@ -19,7 +19,7 @@ import org.springframework.web.bind.annotation.*;
 /**
  * 고객용 대시보드 컨트롤러
  * 고객이 자신의 계정 정보, 주문 내역, 작가 신청 현황 등을 조회할 수 있는 대시보드 기능을 제공
- * 모든 API는 JWT 인증이 필요
+ * 모든 API는 JWT 인증이 필요.
  * 제공 기능:
  * <ul>
  *   <li>계정 설정 조회 (프로필, 연락처, 보안)</li>

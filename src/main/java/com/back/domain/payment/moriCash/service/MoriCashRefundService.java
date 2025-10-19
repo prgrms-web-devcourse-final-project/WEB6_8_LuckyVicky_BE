@@ -11,6 +11,8 @@ import com.back.domain.payment.moriCash.repository.MoriCashPaymentRepository;
 import com.back.domain.user.entity.User;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -51,8 +53,8 @@ public class MoriCashRefundService {
             throw new IllegalArgumentException("환불 금액이 올바르지 않습니다.");
         }
 
-        // 5. 모리캐시 잔액 복원
-        MoriCashBalance balance = moriCashBalanceRepository.findByUser(user)
+        // 5. 모리캐시 잔액 복원 (Pessimistic Write Lock - 동시성 제어)
+        MoriCashBalance balance = moriCashBalanceRepository.findByUserWithLock(user)
                 .orElseThrow(() -> new IllegalArgumentException("모리캐시 잔액 정보를 찾을 수 없습니다."));
 
         balance.restoreBalance(requestDto.getRefundAmount());
@@ -81,8 +83,8 @@ public class MoriCashRefundService {
             throw new IllegalArgumentException("환불 처리된 결제가 아닙니다.");
         }
 
-        // 2. 모리캐시 잔액에서 환불 금액 차감
-        MoriCashBalance balance = moriCashBalanceRepository.findByUser(payment.getUser())
+        // 2. 모리캐시 잔액에서 환불 금액 차감 (Pessimistic Write Lock - 동시성 제어)
+        MoriCashBalance balance = moriCashBalanceRepository.findByUserWithLock(payment.getUser())
                 .orElseThrow(() -> new IllegalArgumentException("모리캐시 잔액 정보를 찾을 수 없습니다."));
 
         balance.deductBalance(payment.getRefundPrice());
@@ -113,5 +115,19 @@ public class MoriCashRefundService {
                 .orElseThrow(() -> new IllegalArgumentException("모리캐시 잔액 정보를 찾을 수 없습니다."));
 
         return MoriCashRefundResponseDto.from(payment, balance.getTotalBalance());
+    }
+
+    /**
+     * 사용자별 모리캐시 환불 내역 조회
+     */
+    @Transactional(readOnly = true)
+    public Page<MoriCashRefundResponseDto> getRefunds(User user, Pageable pageable) {
+        Page<MoriCashPayment> payments = moriCashPaymentRepository.findByUserAndRefundIdIsNotNull(user, pageable);
+        
+        // 현재 잔액 조회
+        MoriCashBalance balance = moriCashBalanceRepository.findByUser(user)
+                .orElseThrow(() -> new IllegalArgumentException("모리캐시 잔액 정보를 찾을 수 없습니다."));
+        
+        return payments.map(payment -> MoriCashRefundResponseDto.from(payment, balance.getTotalBalance()));
     }
 }
