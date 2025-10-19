@@ -83,7 +83,8 @@ public class ProductCustomRepositoryImpl implements ProductCustomRepository {
         var query = queryFactory
                 .select(p)
                 .from(p)
-                .leftJoin(p.images, img).on(img.fileType.eq(FileType.THUMBNAIL))
+                .leftJoin(p.images, img).fetchJoin()
+                .on(img.fileType.eq(FileType.THUMBNAIL))
                 .where(builder)
                 .distinct();
 
