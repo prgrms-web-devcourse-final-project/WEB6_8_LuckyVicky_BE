@@ -1,7 +1,9 @@
 package com.back.domain.order.order.service;
 
-import com.back.domain.cart.entity.Cart;
 import com.back.domain.cart.repository.CartRepository;
+import com.back.domain.funding.entity.Funding;
+import com.back.domain.funding.entity.FundingStatus;
+import com.back.domain.funding.repository.FundingRepository;
 import com.back.domain.notification.entity.NotificationType;
 import com.back.domain.notification.service.NotificationService;
 import com.back.domain.order.order.dto.request.*;
@@ -32,12 +34,12 @@ import java.util.UUID;
 @Service
 @RequiredArgsConstructor
 @Slf4j
-@Transactional(readOnly = true)
 public class OrderService {
 
     private final OrderRepository orderRepository;
     private final OrderItemRepository orderItemRepository;
     private final ProductRepository productRepository;
+    private final FundingRepository fundingRepository;
     private final CartRepository cartRepository;
     private final NotificationService notificationService;
     private final com.back.domain.payment.moriCash.repository.MoriCashBalanceRepository moriCashBalanceRepository;
@@ -50,29 +52,8 @@ public class OrderService {
         // 1. 주문상품 생성
         List<OrderItem> orderItems = createOrderItems(requestDto.orderItems());
         
-        // 2. 재고 감소 및 재고 부족 알림 발송
-        for (OrderItem orderItem : orderItems) {
-            Product product = orderItem.getProduct();
-            int currentStock = product.getStock();
-            
-            // 재고 감소
-            product.setStock(currentStock - orderItem.getQuantity());
-            
-            // 품절 처리 (재고가 0이 되면 자동으로 품절 상태로 변경)
-            if (product.getStock() == 0) {
-                product.setSellingStatus(SellingStatus.SOLD_OUT);
-            }
-            
-            // 재고 부족 알림 (재고가 5개 이하이고 0개 초과일 때)
-            if (product.getStock() <= 5 && product.getStock() > 0) {
-                notificationService.sendNotification(
-                    product.getUser(),
-                    NotificationType.LOW_STOCK,
-                    product.getName() + "의 재고가 부족합니다. (남은 재고: " + product.getStock() + "개)",
-                    "/artist/products/" + product.getProductUuid()
-                );
-            }
-        }
+        // 2. 재고 부족 알림 발송 (재고 감소는 이미 createOrderItems에서 처리됨)
+        sendLowStockNotifications(orderItems);
         
         // 3. 주문 생성 (엔티티에서 처리)
         Order order = Order.createOrder(
@@ -101,19 +82,8 @@ public class OrderService {
             "/mypage/orders/" + savedOrder.getId()
         );
         
-        // 7. 알림 발송 - 작가: 새로운 주문 (각 상품의 작가에게)
-        orderItems.stream()
-            .map(OrderItem::getProduct)
-            .map(Product::getUser)
-            .distinct()
-            .forEach(artist -> {
-                notificationService.sendNotification(
-                    artist,
-                    NotificationType.NEW_ORDER,
-                    "새로운 주문이 들어왔습니다. 주문번호: " + savedOrder.getOrderNumber(),
-                    "/artist/orders/" + savedOrder.getId()
-                );
-            });
+        // 7. 알림 발송 - 작가: 새로운 주문 (NORMAL/FUNDING 상품의 작가에게)
+        sendNewOrderNotifications(orderItems, savedOrder);
         
         return convertToOrderResponseDto(savedOrder);
     }
@@ -135,6 +105,7 @@ public class OrderService {
     /**
      * 주문 상세 조회
      */
+    @Transactional(readOnly = true)
     public OrderResponseDto getOrderDetail(Long orderId, User user) {
         Order order = orderRepository.findByIdWithOrderItems(orderId)
                 .orElseThrow(() -> new IllegalArgumentException("주문을 찾을 수 없습니다."));
@@ -379,52 +350,212 @@ public class OrderService {
     // ==================== Private Methods ====================
 
     /**
-     * 주문상품 생성
+     * 주문상품 생성 (CartType별 분기)
      */
     private List<OrderItem> createOrderItems(List<OrderRequestDto.OrderItemRequestDto> orderItemRequests) {
         return orderItemRequests.stream()
                 .map(itemRequest -> {
-                    // Pessimistic Write Lock으로 상품 조회 (동시성 제어)
-                    Product product = productRepository.findByProductUuidWithLock(itemRequest.productUuid())
-                            .orElseThrow(() -> new IllegalArgumentException("상품을 찾을 수 없습니다."));
+                    String cartType = itemRequest.cartType();
                     
-                    // 재고 검증 및 감소
-                    int newStock = product.getStock() - itemRequest.quantity();
-                    if (newStock < 0) {
-                        throw new IllegalArgumentException("재고가 부족합니다. (상품: " + product.getName() + ", 현재 재고: " + product.getStock() + ")");
+                    if ("NORMAL".equals(cartType)) {
+                        return createNormalOrderItem(itemRequest);
+                    } else if ("FUNDING".equals(cartType)) {
+                        return createFundingOrderItem(itemRequest);
+                    } else {
+                        throw new ServiceException("400", "지원하지 않는 장바구니 타입입니다: " + cartType);
                     }
-                    product.setStock(newStock);
-                    
-                    return OrderItem.createOrderItem(product, itemRequest.quantity(), itemRequest.optionInfo());
                 })
                 .toList();
     }
 
     /**
-     * 장바구니에서 제거
+     * NORMAL 상품 주문 아이템 생성
      */
-    private void removeFromCart(User user, List<OrderRequestDto.OrderItemRequestDto> orderItems) {
-        List<UUID> productUuids = orderItems.stream()
-                .map(OrderRequestDto.OrderItemRequestDto::productUuid)
-                .toList();
+    private OrderItem createNormalOrderItem(OrderRequestDto.OrderItemRequestDto itemRequest) {
+        if (itemRequest.productUuid() == null) {
+            throw new ServiceException("400", "NORMAL 상품은 productUuid가 필수입니다.");
+        }
         
-        cartRepository.deleteByUserAndProductUuidIn(user, productUuids);
+        // Pessimistic Write Lock으로 상품 조회 (동시성 제어)
+        Product product = productRepository.findByProductUuidWithLock(itemRequest.productUuid())
+                .orElseThrow(() -> new ServiceException("404", "상품을 찾을 수 없습니다."));
+        
+        // 재고 검증 및 감소
+        int newStock = product.getStock() - itemRequest.quantity();
+        if (newStock < 0) {
+            throw new ServiceException("400", "재고가 부족합니다. (상품: " + product.getName() + ", 현재 재고: " + product.getStock() + ")");
+        }
+        product.setStock(newStock);
+        
+        return OrderItem.createOrderItem(product, itemRequest.quantity(), itemRequest.optionInfo());
     }
 
     /**
-     * 재고 복원 (주문 취소 시)
+     * FUNDING 상품 주문 아이템 생성
+     */
+    private OrderItem createFundingOrderItem(OrderRequestDto.OrderItemRequestDto itemRequest) {
+        if (itemRequest.fundingId() == null) {
+            throw new ServiceException("400", "FUNDING 상품은 fundingId가 필수입니다.");
+        }
+        
+        // 1. Funding 엔티티 조회
+        Funding funding = fundingRepository.findById(itemRequest.fundingId())
+                .orElseThrow(() -> new ServiceException("404", "펀딩을 찾을 수 없습니다: " + itemRequest.fundingId()));
+        
+        // 2. 펀딩 상태 검증 (OPEN 상태만 주문 가능)
+        if (funding.getStatus() != FundingStatus.OPEN) {
+            throw new ServiceException("400", "주문할 수 없는 펀딩 상태입니다: " + funding.getStatus());
+        }
+        
+        // 3. 펀딩 기간 검증 (진행 중인 펀딩만)
+        LocalDateTime now = LocalDateTime.now();
+        if (now.isBefore(funding.getStartDate()) || now.isAfter(funding.getEndDate())) {
+            throw new ServiceException("400", "펀딩 기간이 아닙니다. 시작일: " + funding.getStartDate() + ", 종료일: " + funding.getEndDate());
+        }
+        
+        // 4. 재고 검증 (Funding 엔티티의 hasStock 메서드 사용)
+        if (!funding.hasStock(itemRequest.quantity())) {
+            Integer availableStock = funding.getRemainingStock();
+            throw new ServiceException("400", "펀딩 재고가 부족합니다. 요청 수량: " + itemRequest.quantity() + 
+                    (availableStock != null ? ", 남은 재고: " + availableStock : ", 무제한 재고"));
+        }
+        
+        // 5. 재고 차감 (Funding 엔티티의 decreaseStock 메서드 사용)
+        // decreaseStock 내부에서 재고 검증을 다시 수행하므로 안전
+        funding.decreaseStock(itemRequest.quantity());
+        
+        // 6. OrderItem 생성 (Funding용) - BigDecimal 사용
+        BigDecimal fundingPrice = itemRequest.fundingPrice() != null 
+                ? BigDecimal.valueOf(itemRequest.fundingPrice()) 
+                : BigDecimal.valueOf(funding.getPrice());
+        
+        return OrderItem.createFundingOrderItem(
+                funding,
+                itemRequest.quantity(),
+                itemRequest.optionInfo(),
+                fundingPrice
+        );
+    }
+
+    /**
+     * 장바구니에서 제거 (CartType별 분기)
+     */
+    private void removeFromCart(User user, List<OrderRequestDto.OrderItemRequestDto> orderItems) {
+        if (orderItems.isEmpty()) {
+            return;
+        }
+        
+        // NORMAL과 FUNDING을 분리해서 처리
+        List<UUID> productUuids = orderItems.stream()
+                .filter(item -> "NORMAL".equals(item.cartType()))
+                .map(OrderRequestDto.OrderItemRequestDto::productUuid)
+                .filter(java.util.Objects::nonNull)
+                .toList();
+        
+        List<Long> fundingIds = orderItems.stream()
+                .filter(item -> "FUNDING".equals(item.cartType()))
+                .map(OrderRequestDto.OrderItemRequestDto::fundingId)
+                .filter(java.util.Objects::nonNull)
+                .toList();
+        
+        // NORMAL 상품 삭제
+        if (!productUuids.isEmpty()) {
+            cartRepository.deleteByUserAndProductUuidIn(user, productUuids);
+        }
+        
+        // FUNDING 상품 삭제
+        if (!fundingIds.isEmpty()) {
+            cartRepository.deleteByUserAndFundingIdIn(user, fundingIds);
+        }
+    }
+
+    /**
+     * 재고 복원 (주문 취소 시) - NORMAL/FUNDING 분기 처리
      */
     private void restoreStock(Order order) {
         order.getOrderItems().forEach(orderItem -> {
-            Product product = orderItem.getProduct();
-            int restoredStock = product.getStock() + orderItem.getQuantity();
-            product.setStock(restoredStock);
-            
-            // 품절 해제 (품절 상태였다면 판매중으로 변경)
-            if (product.getSellingStatus() == SellingStatus.SOLD_OUT) {
-                product.setSellingStatus(SellingStatus.SELLING);
+            if (orderItem.getProduct() != null) {
+                // NORMAL 상품 재고 복원
+                Product product = orderItem.getProduct();
+                int restoredStock = product.getStock() + orderItem.getQuantity();
+                product.setStock(restoredStock);
+                
+                // 품절 해제 (품절 상태였다면 판매중으로 변경)
+                if (product.getSellingStatus() == SellingStatus.SOLD_OUT) {
+                    product.setSellingStatus(SellingStatus.SELLING);
+                }
+            } else if (orderItem.getFunding() != null) {
+                // FUNDING 상품 재고 복원
+                Funding funding = orderItem.getFunding();
+                funding.increaseStock(orderItem.getQuantity());
             }
         });
+    }
+
+    /**
+     * 재고 부족 알림 발송
+     */
+    private void sendLowStockNotifications(List<OrderItem> orderItems) {
+        for (OrderItem orderItem : orderItems) {
+            if (orderItem.getProduct() != null) {
+                // NORMAL 상품 처리
+                Product product = orderItem.getProduct();
+                
+                // 품절 처리 (재고가 0이 되면 자동으로 품절 상태로 변경)
+                if (product.getStock() == 0) {
+                    product.setSellingStatus(SellingStatus.SOLD_OUT);
+                }
+                
+                // 재고 부족 알림 (재고가 5개 이하이고 0개 초과일 때)
+                if (product.getStock() <= 5 && product.getStock() > 0) {
+                    notificationService.sendNotification(
+                        product.getUser(),
+                        NotificationType.LOW_STOCK,
+                        product.getName() + "의 재고가 부족합니다. (남은 재고: " + product.getStock() + "개)",
+                        "/artist/products/" + product.getProductUuid()
+                    );
+                }
+            } else if (orderItem.getFunding() != null) {
+                // FUNDING 상품 처리
+                Funding funding = orderItem.getFunding();
+                Integer currentStock = funding.getStock();
+                
+                // 재고 부족 알림 (재고가 5개 이하이고 0개 초과일 때)
+                if (currentStock != null && currentStock <= 5 && currentStock > 0) {
+                    notificationService.sendNotification(
+                        funding.getUser(),
+                        NotificationType.LOW_STOCK,
+                        funding.getTitle() + "의 재고가 부족합니다. (남은 재고: " + currentStock + "개)",
+                        "/artist/fundings/" + funding.getId()
+                    );
+                }
+            }
+        }
+    }
+
+    /**
+     * 새로운 주문 알림 발송 (작가에게)
+     */
+    private void sendNewOrderNotifications(List<OrderItem> orderItems, Order savedOrder) {
+        orderItems.stream()
+            .map(orderItem -> {
+                if (orderItem.getProduct() != null) {
+                    return orderItem.getProduct().getUser(); // NORMAL 상품 작가
+                } else if (orderItem.getFunding() != null) {
+                    return orderItem.getFunding().getUser(); // FUNDING 상품 작가
+                }
+                return null;
+            })
+            .filter(java.util.Objects::nonNull)
+            .distinct()
+            .forEach(artist -> {
+                notificationService.sendNotification(
+                    artist,
+                    NotificationType.NEW_ORDER,
+                    "새로운 주문이 들어왔습니다. 주문번호: " + savedOrder.getOrderNumber(),
+                    "/artist/orders/" + savedOrder.getId()
+                );
+            });
     }
 
     /**
@@ -439,20 +570,64 @@ public class OrderService {
     }
 
     /**
+     * 펀딩 썸네일 이미지 URL 조회
+     */
+    private String getFundingThumbnailUrl(Funding funding) {
+        try {
+            // Funding.images는 LAZY 로딩이므로 안전하게 접근
+            if (funding.getImages() != null && !funding.getImages().isEmpty()) {
+                return funding.getImages().stream()
+                        .filter(image -> "THUMBNAIL".equals(image.getFileType().name()))
+                        .findFirst()
+                        .map(image -> image.getFileUrl())
+                        .orElse(funding.getImageUrl()); // 썸네일이 없으면 메인 이미지 사용
+            }
+        } catch (Exception e) {
+            // LAZY 로딩 실패 시 메인 이미지 사용
+            log.warn("Funding 이미지 로딩 실패, 메인 이미지 사용: fundingId={}", funding.getId());
+        }
+        return funding.getImageUrl(); // 기본 이미지 사용
+    }
+
+    /**
      * OrderResponseDto 변환
      */
     private OrderResponseDto convertToOrderResponseDto(Order order) {
         List<OrderResponseDto.OrderItemResponseDto> orderItemDtos = order.getOrderItems().stream()
-                .map(item -> new OrderResponseDto.OrderItemResponseDto(
-                        item.getId(),
-                        item.getProduct().getProductUuid(),
-                        item.getProduct().getName(),
-                        getProductThumbnailUrl(item.getProduct()),
-                        item.getQuantity(),
-                        item.getPrice(),
-                        item.getTotalPrice(),
-                        item.getOptionInfo()
-                ))
+                .map(item -> {
+                    String name;
+                    String imageUrl;
+                    UUID productUuid = null;
+                    BigDecimal price = item.getPrice();
+
+                    if (item.getProduct() != null) {
+                        // NORMAL 상품
+                        Product product = item.getProduct();
+                        productUuid = product.getProductUuid();
+                        name = product.getName();
+                        imageUrl = getProductThumbnailUrl(product);
+
+                    } else if (item.getFunding() != null) {
+                        // FUNDING 상품
+                        Funding funding = item.getFunding();
+                        name = funding.getTitle();
+                        imageUrl = getFundingThumbnailUrl(funding); // FUNDING 썸네일 이미지
+                    } else {
+                        name = "알 수 없는 상품";
+                        imageUrl = null;
+                    }
+
+                    return new OrderResponseDto.OrderItemResponseDto(
+                            item.getId(),
+                            productUuid,
+                            name,
+                            imageUrl,
+                            item.getQuantity(),
+                            price,
+                            item.getTotalPrice(),
+                            item.getOptionInfo()
+                    );
+                })
                 .toList();
         
         return new OrderResponseDto(

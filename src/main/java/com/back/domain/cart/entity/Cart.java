@@ -126,43 +126,53 @@ public class Cart extends BaseEntity {
         return this.cartType == CartType.FUNDING;
     }
 
-    // 유효한 장바구니 아이템인지 확인
+    // 유효한 장바구니 아이템인지 확인 (null-safe)
     public boolean isValid() {
-        // 수량 검증
-        if (this.quantity <= 0) {
+        // 1) 수량 검증 (null 또는 1 미만이면 무효)
+        if (this.quantity == null || this.quantity <= 0) {
             return false;
         }
-        
+
+        // 2) 펀딩 장바구니 검증
         if (isFundingCart()) {
-            // 펀딩 장바구니 검증
             if (this.funding == null) {
                 return false;
             }
-            // fundingStock이 설정되어 있으면 그것을 기준으로, 없으면 funding의 stock 사용
-            int availableStock = (this.fundingStock != null) ? this.fundingStock : this.funding.getStock();
+            // 재고 null = 무제한, 0 이하는 품절
+            Integer availableStock = (this.fundingStock != null)
+                    ? this.fundingStock
+                    : this.funding.getStock();
+
+            if (availableStock == null) {
+                return true; // 무제한 재고로 간주
+            }
+            if (availableStock <= 0) {
+                return false;
+            }
             return this.quantity <= availableStock;
-        } else {
-            // 일반 장바구니 검증
-            if (this.product == null) {
-                return false;
-            }
-            
-            // 상품이 삭제되지 않았고 재고가 있는지
-            if (this.product.isDeleted() || this.product.getStock() <= 0) {
-                return false;
-            }
-            
-            // 일반 재고 확인
-            return this.quantity <= this.product.getStock();
         }
+
+        // 3) 일반 장바구니 검증
+        if (this.product == null) {
+            return false;
+        }
+        if (this.product.isDeleted()) {
+            return false;
+        }
+        Integer productStock = this.product.getStock();
+        // 재고 null = 무제한, 0 이하는 품절
+        if (productStock != null && productStock <= 0) {
+            return false;
+        }
+        return productStock == null || this.quantity <= productStock;
     }
 
-    // 총 가격 계산
+    // 총 가격 계산 (null-safe)
     public int getTotalPrice() {
+        int qty = (this.quantity != null && this.quantity > 0) ? this.quantity : 0;
         int unitPrice;
-        
+
         if (isFundingCart()) {
-            // 펀딩 장바구니: fundingPrice 사용
             if (this.fundingPrice != null) {
                 unitPrice = this.fundingPrice;
             } else if (this.funding != null) {
@@ -171,14 +181,21 @@ public class Cart extends BaseEntity {
                 return 0;
             }
         } else {
-            // 일반 장바구니: Product 가격 사용
             if (this.product == null) {
                 return 0;
             }
-            unitPrice = this.product.getDiscountPrice();
+            Integer discount = this.product.getDiscountPrice();
+            Integer basePrice = this.product.getPrice();
+            if (discount != null) {
+                unitPrice = discount;
+            } else if (basePrice != null) {
+                unitPrice = basePrice;
+            } else {
+                return 0;
+            }
         }
-        
-        return unitPrice * this.quantity;
+
+        return unitPrice * qty;
     }
 
     // ===== 도메인 메서드 (선택 상태 조회) =====

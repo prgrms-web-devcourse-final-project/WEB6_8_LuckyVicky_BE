@@ -4,6 +4,7 @@ import com.back.domain.order.exchange.dto.request.ExchangeRequestDto;
 import com.back.domain.order.exchange.dto.response.ExchangeResponseDto;
 import com.back.domain.order.exchange.service.ExchangeService;
 import com.back.domain.user.entity.User;
+import com.back.global.security.auth.CustomUserDetails;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
@@ -33,8 +34,9 @@ public class ExchangeController {
     @Operation(summary = "교환 신청", description = "배송완료된 주문에 대해 교환을 신청합니다.")
     public ResponseEntity<ExchangeResponseDto> createExchange(
             @Valid @RequestBody ExchangeRequestDto requestDto,
-            @AuthenticationPrincipal User user
+            @AuthenticationPrincipal CustomUserDetails customUserDetails
     ) {
+        User user = customUserDetails.getUser();
         ExchangeResponseDto responseDto = exchangeService.createExchange(requestDto, user);
         return ResponseEntity.status(HttpStatus.CREATED).body(responseDto);
     }
@@ -50,8 +52,9 @@ public class ExchangeController {
                 sort = "createDate",
                 direction = Sort.Direction.DESC
             ) Pageable pageable,
-            @AuthenticationPrincipal User user
+            @AuthenticationPrincipal CustomUserDetails customUserDetails
     ) {
+        User user = customUserDetails.getUser();
         Page<ExchangeResponseDto> result = exchangeService.getItemsByUser(user, pageable);
         return ResponseEntity.ok(result);
     }
@@ -63,8 +66,9 @@ public class ExchangeController {
     @Operation(summary = "교환 상세 조회", description = "특정 교환의 상세 정보를 조회합니다.")
     public ResponseEntity<ExchangeResponseDto> getExchangeDetail(
             @PathVariable Long exchangeId,
-            @AuthenticationPrincipal User user
+            @AuthenticationPrincipal CustomUserDetails customUserDetails
     ) {
+        User user = customUserDetails.getUser();
         ExchangeResponseDto result = exchangeService.getItem(exchangeId, user);
         return ResponseEntity.ok(result);
     }
@@ -77,8 +81,9 @@ public class ExchangeController {
     @Operation(summary = "교환 승인", description = "관리자가 교환을 승인합니다. (관리자 전용)")
     public ResponseEntity<ExchangeResponseDto> approveExchange(
             @PathVariable Long exchangeId,
-            @AuthenticationPrincipal User admin
+            @AuthenticationPrincipal CustomUserDetails customUserDetails
     ) {
+        User admin = customUserDetails.getUser();
         ExchangeResponseDto responseDto = exchangeService.approveItem(exchangeId, admin);
         return ResponseEntity.ok(responseDto);
     }

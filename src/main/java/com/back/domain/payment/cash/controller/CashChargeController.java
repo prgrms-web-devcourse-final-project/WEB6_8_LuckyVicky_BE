@@ -4,6 +4,7 @@ import com.back.domain.payment.cash.dto.request.CashChargeRequestDto;
 import com.back.domain.payment.cash.dto.response.CashChargeResponseDto;
 import com.back.domain.payment.cash.service.CashChargeService;
 import com.back.domain.user.entity.User;
+import com.back.global.security.auth.CustomUserDetails;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
@@ -27,8 +28,9 @@ public class CashChargeController {
     @PostMapping
     public ResponseEntity<CashChargeResponseDto> createChargeRequest(
             @RequestBody CashChargeRequestDto requestDto,
-            @AuthenticationPrincipal User user) {
+            @AuthenticationPrincipal CustomUserDetails customUserDetails) {
         
+        User user = customUserDetails.getUser();
         CashChargeResponseDto response = cashChargeService.createChargeRequest(requestDto, user);
         return ResponseEntity.ok(response);
     }

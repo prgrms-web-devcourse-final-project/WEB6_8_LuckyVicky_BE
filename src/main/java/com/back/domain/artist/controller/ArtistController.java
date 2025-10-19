@@ -12,11 +12,11 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.data.domain.PageRequest;
-import org.springframework.data.domain.Pageable;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
 
@@ -59,15 +59,24 @@ public class ArtistController {
     @GetMapping("/profile/{artistId}")
     @Operation(
             summary = "작가 공개 프로필 상세 조회",
-            description = "작가의 공개 프로필 상세 정보를 조회합니다."
+            description = "작가의 공개 프로필 상세 정보를 조회합니다. 로그인한 경우 팔로우 여부가 포함됩니다."
     )
     public ResponseEntity<RsData<ArtistPublicProfileResponse>> getArtistPublicProfile(
             @Parameter(description = "작가 ID", example = "42", required = true)
-            @PathVariable Long artistId) {
+            @PathVariable Long artistId,
+            @AuthenticationPrincipal CustomUserDetails userDetails) {
 
-        log.info("작가 공개 프로필 조회 - artistId: {}", artistId);
-
-        ArtistPublicProfileResponse response = artistPublicService.getPublicProfile(artistId);
+        ArtistPublicProfileResponse response;
+        
+        if (userDetails != null) {
+            // 로그인한 사용자 - 팔로우 상태 포함
+            log.info("작가 공개 프로필 조회 (로그인) - artistId: {}, userId: {}", artistId, userDetails.getUserId());
+            response = artistPublicService.getPublicProfile(artistId, userDetails.getUserId());
+        } else {
+            // 비로그인 사용자 - 팔로우 상태 미포함
+            log.info("작가 공개 프로필 조회 (비로그인) - artistId: {}", artistId);
+            response = artistPublicService.getPublicProfile(artistId);
+        }
 
         return ResponseEntity.ok(
                 RsData.of("200", "작가 프로필 조회 성공", response)
@@ -83,19 +92,12 @@ public class ArtistController {
             description = "특정 작가가 등록한 모든 상품을 조회합니다."
     )
     public ResponseEntity<RsData<List<ArtistProductResponse>>> getArtistProducts(
-            @Parameter(description = "작가 ID", example = "42", required = true)
-            @PathVariable Long artistId,
+            @Parameter(description = "작가 프로필 ID", example = "42", required = true)
+            @PathVariable Long artistId) {
 
-            @Parameter(description = "페이지 번호 (1부터 시작)", example = "1")
-            @RequestParam(defaultValue = "1") int page,
+        log.info("작가 상품 목록 조회 - artistId: {}", artistId);
 
-            @Parameter(description = "페이지 크기", example = "12")
-            @RequestParam(defaultValue = "12") int size) {
-
-        log.info("작가 상품 목록 조회 - artistId: {}, page: {}, size: {}", artistId, page, size);
-
-        Pageable pageable = PageRequest.of(page - 1, size);
-        List<ArtistProductResponse> response = artistPublicService.getArtistProducts(artistId, pageable);
+        List<ArtistProductResponse> response = artistPublicService.getArtistProducts(artistId);
 
         return ResponseEntity.ok(
                 RsData.of("200", "작가 상품 목록 조회 성공", response)
@@ -110,15 +112,24 @@ public class ArtistController {
     /**
      * 작가 신청
      */
-    @PostMapping("/application")
-    @Operation(summary = "작가 신청", description = "사용자가 작가로 신청합니다.")
+    @PostMapping(value = "/application", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    @Operation(
+            summary = "작가 신청",
+            description = "사용자가 작가 입점을 신청합니다. 필수 서류를 함께 업로드합니다."
+    )
     public ResponseEntity<RsData<Long>> applyForArtist(
             @AuthenticationPrincipal CustomUserDetails userDetails,
-            @Valid @RequestBody ArtistApplicationRequest request) {
+            @Valid @RequestPart("application") ArtistApplicationRequest request,
+            @RequestPart(value = "documents", required = true) List<MultipartFile> documents) {
 
-        log.info("작가 신청 - userId: {}", userDetails.getUserId());
+        log.info("작가 신청 - userId: {}, 서류 개수: {}",
+                userDetails.getUserId(), documents.size());
 
-        Long applicationId = artistApplicationService.createApplication(userDetails.getUserId(), request);
+        Long applicationId = artistApplicationService.createApplication(
+                userDetails.getUserId(),
+                request,
+                documents
+        );
 
         return ResponseEntity.ok(
                 RsData.of("200", "작가 신청 완료", applicationId)

@@ -220,6 +220,32 @@ public class CartService {
     }
 
     /**
+     * 장바구니 전체 선택 토글
+     */
+    @Transactional
+    public List<CartResponseDto> toggleAllSelection(User user, boolean isSelected) {
+        // 1. 사용자의 모든 장바구니 아이템 조회 (상품/펀딩 fetch join)
+        List<Cart> userCarts = cartRepository.findByUserWithProduct(user);
+
+        // 2. 모든 아이템의 선택 상태를 일괄 변경
+        for (Cart cart : userCarts) {
+            if (isSelected) {
+                cart.select();
+            } else {
+                cart.unselect();
+            }
+        }
+
+        // 3. 일괄 저장
+        List<Cart> updatedCarts = cartRepository.saveAll(userCarts);
+
+        // 4. 응답 DTO 변환
+        return updatedCarts.stream()
+                .map(CartResponseDto::from)
+                .collect(Collectors.toList());
+    }
+
+    /**
      * 선택된 장바구니 아이템 조회
      * @param user 사용자
      * @param validateForOrder 주문용 유효성 검증 여부 (true: 유효한 것만, false: 모두)
@@ -266,11 +292,14 @@ public class CartService {
     public void validateCartItemsForOrder(User user, boolean isFullOrder) {
         List<Cart> cartItems = isFullOrder ? 
             cartRepository.findByUserWithProduct(user) :
-            cartRepository.findByUserAndIsSelectedTrue(user);
+            cartRepository.findByUserAndIsSelectedTrueWithProduct(user);
 
         if (cartItems.isEmpty()) {
             throw new ServiceException("CART_EMPTY", "주문할 장바구니 아이템이 없습니다.");
         }
+
+        // 레거시 데이터 보정 (펀딩 price/stock 누락 대비)
+        cartItems.forEach(this::normalizeCartFields);
 
         // 각 아이템의 유효성 검증
         for (Cart cart : cartItems) {
@@ -293,13 +322,35 @@ public class CartService {
         }
     }
 
+    private void normalizeCartFields(Cart cart) {
+        if (cart.isFundingCart() && cart.getFunding() != null) {
+            if (cart.getFundingPrice() == null) {
+                cart.updateFundingInfo(
+                        cart.getFundingId(),
+                        (int) cart.getFunding().getPrice(),
+                        cart.getFundingStock()
+                );
+            }
+            if (cart.getFundingStock() == null) {
+                cart.updateFundingInfo(
+                        cart.getFundingId(),
+                        cart.getFundingPrice(),
+                        cart.getFunding().getStock()
+                );
+            }
+        }
+    }
+
     /**
      * 장바구니 총 금액 계산 (전체/선택)
      */
     public Integer calculateTotalAmount(User user, boolean isFullOrder) {
         List<Cart> cartItems = isFullOrder ? 
             cartRepository.findByUserWithProduct(user) :
-            cartRepository.findByUserAndIsSelectedTrue(user);
+            cartRepository.findByUserAndIsSelectedTrueWithProduct(user);
+
+        // 레거시 보정(펀딩 price/stock 누락 대비)
+        cartItems.forEach(this::normalizeCartFields);
 
         return cartItems.stream()
             .filter(Cart::isValid)

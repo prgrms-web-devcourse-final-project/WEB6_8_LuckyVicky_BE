@@ -19,6 +19,7 @@ import java.util.UUID;
 public interface ProductRepository extends JpaRepository<Product, Long>, ProductCustomRepository, JpaSpecificationExecutor<Product> {
     Optional<Product> findByProductUuid(UUID productUuid);
     
+
     // 재고 감소용 - Pessimistic Write Lock (동시성 제어)
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("SELECT p FROM Product p WHERE p.productUuid = :productUuid")
@@ -35,6 +36,8 @@ public interface ProductRepository extends JpaRepository<Product, Long>, Product
      * 작가의 상품 목록 조회 (삭제되지 않은 상품만)
      */
     List<Product> findByUserIdAndIsDeletedFalse(Long userId, Pageable pageable);
+
+    List<Product> findByUserIdAndIsDeletedFalse(Long artistId);
 
     // 판매 시작일이 오늘 이후인 상품 조회
     List<Product> findBySellingStartDateAfter(LocalDateTime dateTime);

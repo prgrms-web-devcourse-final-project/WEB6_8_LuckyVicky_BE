@@ -4,6 +4,7 @@ import com.back.domain.payment.settlement.dto.request.WithdrawalRequestDto;
 import com.back.domain.payment.settlement.dto.response.WithdrawalResponseDto;
 import com.back.domain.payment.settlement.service.SettlementService;
 import com.back.domain.user.entity.User;
+import com.back.global.security.auth.CustomUserDetails;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
@@ -37,8 +38,9 @@ public class SettlementController {
     @PreAuthorize("hasRole('ARTIST')")
     public ResponseEntity<WithdrawalResponseDto> requestWithdrawal(
             @Validated @RequestBody WithdrawalRequestDto requestDto,
-            @AuthenticationPrincipal User artist) {
+            @AuthenticationPrincipal CustomUserDetails customUserDetails) {
         
+        User artist = customUserDetails.getUser();
         WithdrawalResponseDto response = settlementService.requestWithdrawal(requestDto, artist);
         return ResponseEntity.ok(response);
     }

@@ -6,6 +6,7 @@ import com.back.domain.payment.moriCash.entity.MoriCashPaymentStatus;
 import com.back.domain.payment.moriCash.entity.TransactionType;
 import com.back.domain.payment.moriCash.service.MoriCashPaymentService;
 import com.back.domain.user.entity.User;
+import com.back.global.security.auth.CustomUserDetails;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.mockito.InjectMocks;
@@ -41,6 +42,7 @@ class MoriCashPaymentControllerTest {
     void createPayment_Success() {
         // given
         User user = User.createLocalUser("test@test.com", "password", "테스트", "01012345678");
+        CustomUserDetails customUserDetails = new CustomUserDetails(user, com.back.domain.user.entity.Role.USER);
         MoriCashPaymentRequestDto requestDto = new MoriCashPaymentRequestDto(1L, 10000, 10000);
         
         MoriCashPaymentResponseDto responseDto = MoriCashPaymentResponseDto.builder()
@@ -61,7 +63,7 @@ class MoriCashPaymentControllerTest {
 
         // when
         ResponseEntity<MoriCashPaymentResponseDto> response = 
-                moriCashPaymentController.createPayment(requestDto, user);
+                moriCashPaymentController.createPayment(requestDto, customUserDetails);
 
         // then
         assertThat(response.getStatusCode().value()).isEqualTo(200);
@@ -78,10 +80,11 @@ class MoriCashPaymentControllerTest {
         // given
         Long paymentId = 1L;
         User user = User.createLocalUser("test@test.com", "password", "테스트", "01012345678");
+        CustomUserDetails customUserDetails = new CustomUserDetails(user, com.back.domain.user.entity.Role.USER);
 
         // when
         ResponseEntity<Void> response = 
-                moriCashPaymentController.cancelPayment(paymentId, user);
+                moriCashPaymentController.cancelPayment(paymentId, customUserDetails);
 
         // then
         assertThat(response.getStatusCode().value()).isEqualTo(200);
@@ -95,6 +98,7 @@ class MoriCashPaymentControllerTest {
         // given
         Long paymentId = 1L;
         User user = User.createLocalUser("test@test.com", "password", "테스트", "01012345678");
+        CustomUserDetails customUserDetails = new CustomUserDetails(user, com.back.domain.user.entity.Role.USER);
         
         MoriCashPaymentResponseDto responseDto = MoriCashPaymentResponseDto.builder()
                 .paymentId(paymentId)
@@ -114,7 +118,7 @@ class MoriCashPaymentControllerTest {
 
         // when
         ResponseEntity<MoriCashPaymentResponseDto> response = 
-                moriCashPaymentController.getPayment(paymentId, user);
+                moriCashPaymentController.getPayment(paymentId, customUserDetails);
 
         // then
         assertThat(response.getStatusCode().value()).isEqualTo(200);
@@ -129,6 +133,7 @@ class MoriCashPaymentControllerTest {
     void getMyPayments_Success() {
         // given
         User user = User.createLocalUser("test@test.com", "password", "테스트", "01012345678");
+        CustomUserDetails customUserDetails = new CustomUserDetails(user, com.back.domain.user.entity.Role.USER);
         Pageable pageable = PageRequest.of(0, 20);
         
         MoriCashPaymentResponseDto responseDto = MoriCashPaymentResponseDto.builder()
@@ -151,7 +156,7 @@ class MoriCashPaymentControllerTest {
 
         // when
         ResponseEntity<Page<MoriCashPaymentResponseDto>> response = 
-                moriCashPaymentController.getMyPayments(user, pageable);
+                moriCashPaymentController.getMyPayments(customUserDetails, pageable);
 
         // then
         assertThat(response.getStatusCode().value()).isEqualTo(200);

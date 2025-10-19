@@ -5,6 +5,7 @@ import com.back.domain.order.refund.dto.response.RefundResponseDto;
 import com.back.domain.order.refund.entity.Refund;
 import com.back.domain.order.refund.service.RefundService;
 import com.back.domain.user.entity.User;
+import com.back.global.security.auth.CustomUserDetails;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -32,6 +33,7 @@ class RefundControllerTest {
     private ObjectMapper objectMapper;
 
     private User testUser;
+    private CustomUserDetails customUserDetails;
     private RefundRequestDto refundRequestDto;
     private RefundResponseDto refundResponseDto;
 
@@ -47,6 +49,9 @@ class RefundControllerTest {
         java.lang.reflect.Field idField = testUser.getClass().getSuperclass().getDeclaredField("id");
         idField.setAccessible(true);
         idField.set(testUser, 1L);
+        
+        // CustomUserDetails 생성
+        customUserDetails = new CustomUserDetails(testUser, com.back.domain.user.entity.Role.USER);
 
         // 환불 요청 DTO
         refundRequestDto = new RefundRequestDto(
@@ -96,7 +101,7 @@ class RefundControllerTest {
                 .willReturn(refundResponseDto);
 
         // When
-        var result = refundController.createRefund(refundRequestDto, testUser);
+        var result = refundController.createRefund(refundRequestDto, customUserDetails);
 
         // Then
         assertThat(result.getStatusCode().value()).isEqualTo(201);
@@ -119,7 +124,7 @@ class RefundControllerTest {
                 .willReturn(refundPage);
 
         // When
-        var result = refundController.getRefundList(PageRequest.of(0, 10), testUser);
+        var result = refundController.getRefundList(PageRequest.of(0, 10), customUserDetails);
 
         // Then
         assertThat(result.getStatusCode().value()).isEqualTo(200);
@@ -137,7 +142,7 @@ class RefundControllerTest {
                 .willReturn(refundResponseDto);
 
         // When
-        var result = refundController.getRefundDetail(1L, testUser);
+        var result = refundController.getRefundDetail(1L, customUserDetails);
 
         // Then
         assertThat(result.getStatusCode().value()).isEqualTo(200);
@@ -154,7 +159,7 @@ class RefundControllerTest {
                 .willThrow(new IllegalArgumentException("환불 정보를 찾을 수 없습니다."));
 
         // When & Then
-        assertThatThrownBy(() -> refundController.getRefundDetail(999L, testUser))
+        assertThatThrownBy(() -> refundController.getRefundDetail(999L, customUserDetails))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessage("환불 정보를 찾을 수 없습니다.");
     }
@@ -174,7 +179,7 @@ class RefundControllerTest {
                 .willReturn(approvedResponseDto);
 
         // When
-        var result = refundController.approveRefund(1L, testUser);
+        var result = refundController.approveRefund(1L, customUserDetails);
 
         // Then
         assertThat(result.getStatusCode().value()).isEqualTo(200);

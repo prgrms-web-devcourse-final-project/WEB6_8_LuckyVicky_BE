@@ -31,11 +31,18 @@ public class FundingNews extends BaseEntity {
 
     private String imageUrl;
 
+    private String s3Key;
+
     @Column(nullable = false)
     @Builder.Default
     private boolean deleted = false;
 
     public void delete() {
         this.deleted = true;
+    }
+
+    public void removeImage() {
+        this.imageUrl = null;
+        this.s3Key = null;
     }
 }

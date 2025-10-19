@@ -179,6 +179,9 @@ google:
     property-id: properties/1223286596
     credentials-path: classpath:ga4-service-account.json
 
+# OpenAI 설정
+openai:
+  api-key: ${OPENAI_API_KEY:}
 # 결제 PG 설정 (PortOne + 토스페이먼츠)
 payment:
   portone:
@@ -187,3 +190,4 @@ payment:
   toss:
     api-url: ${TOSS_API_URL:https://api.tosspayments.com/v2}
     webhook-secret: ${TOSS_WEBHOOK_SECRET:test-webhook-secret}
+
