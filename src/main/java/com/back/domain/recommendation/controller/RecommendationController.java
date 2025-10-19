@@ -59,30 +59,28 @@ public class RecommendationController {
                                             example = """
                                                     {
                                                       "resultCode": "200",
-                                                      "msg": "5개 상품을 추천했습니다",
-                                                      "data": {
-                                                        "recommendations": [
-                                                          {
-                                                            "rank": 1,
-                                                            "matchScore": 2.4,
-                                                            "product": {
-                                                              "productUuid": "550e8400-...",
-                                                              "imageUrl": "https://...",
-                                                              "brandName": "문구브랜드",
-                                                              "name": "부드러운 4B 연필",
-                                                              "price": 15000,
-                                                              "discountRate": 10,
-                                                              "discountPrice": 13500,
-                                                              "rating": 4.5
-                                                            },
-                                                            "matchedTags": [
-                                                              {"name": "부드러운", "yourScore": 0.9},
-                                                              {"name": "실용적인", "yourScore": 0.8}
-                                                            ],
-                                                            "reason": "'부드러운·실용적인·데일리' 선호와 일치"
-                                                          }
-                                                        ]
-                                                      }
+                                                      "msg": "3개 상품을 추천했습니다",
+                                                      "data": [
+                                                        {
+                                                          "rank": 1,
+                                                          "matchScore": 2.4,
+                                                          "product": {
+                                                            "productUuid": "550e8400-...",
+                                                            "imageUrl": "https://...",
+                                                            "brandName": "문구브랜드",
+                                                            "name": "부드러운 4B 연필",
+                                                            "price": 15000,
+                                                            "discountRate": 10,
+                                                            "discountPrice": 13500,
+                                                            "rating": 4.5
+                                                          },
+                                                          "matchedTags": [
+                                                            {"name": "부드러운", "yourScore": 0.9},
+                                                            {"name": "실용적인", "yourScore": 0.8}
+                                                          ],
+                                                          "reason": "'부드러운·실용적인·데일리' 선호와 일치"
+                                                        }
+                                                      ]
                                                     }
                                                     """
                                     )
@@ -90,11 +88,12 @@ public class RecommendationController {
                     )
             }
     )
-    public ResponseEntity<RsData<MatchResponse>> matchProducts(
+    public ResponseEntity<RsData<List<RecommendedItem>>> matchProducts(
             @Valid @RequestBody PreferenceRequest request) {
 
         try {
             log.info("===== 추천 요청 시작 =====");
+            log.info("🔵 요청 전체: {}", request);
             log.info("선호 태그: {}", request.preferences());
             log.info("가격: {}-{}", request.minPrice(), request.maxPrice());
 
@@ -103,7 +102,7 @@ public class RecommendationController {
                 log.warn("선호 태그가 비어있음");
                 return ResponseEntity.ok(RsData.of("400",
                         "선호 태그 정보가 필요합니다",
-                        new MatchResponse(List.of())));
+                        List.of()));
             }
 
             // 가격 범위 검증
@@ -114,14 +113,14 @@ public class RecommendationController {
                 log.warn("잘못된 가격 범위: min={}, max={}", minPrice, maxPrice);
                 return ResponseEntity.ok(RsData.of("400",
                         "가격은 0 이상이어야 합니다",
-                        new MatchResponse(List.of())));
+                        List.of()));
             }
 
             if (minPrice > maxPrice) {
                 log.warn("최소 가격이 최대 가격보다 큼: min={}, max={}", minPrice, maxPrice);
                 return ResponseEntity.ok(RsData.of("400",
                         "최소 가격은 최대 가격보다 클 수 없습니다",
-                        new MatchResponse(List.of())));
+                        List.of()));
             }
 
             // 2. 상위 선호 태그 추출 (점수 0.3 이상)
@@ -137,7 +136,7 @@ public class RecommendationController {
                 log.warn("선호도 0.3 이상인 태그가 없음");
                 return ResponseEntity.ok(RsData.of("200",
                         "선호도가 충분히 높은 태그가 없습니다. 테스트를 다시 진행해주세요.",
-                        new MatchResponse(List.of())));
+                        List.of()));
             }
 
             // 3. 태그명 → 태그ID 변환
@@ -149,19 +148,19 @@ public class RecommendationController {
                 log.error("태그 변환 중 오류: {}", e.getMessage());
                 return ResponseEntity.ok(RsData.of("400",
                         "잘못된 태그 정보입니다: " + e.getMessage(),
-                        new MatchResponse(List.of())));
+                        List.of()));
             } catch (Exception e) {
                 log.error("태그 변환 중 예상치 못한 오류", e);
                 return ResponseEntity.ok(RsData.of("500",
                         "태그 처리 중 오류가 발생했습니다",
-                        new MatchResponse(List.of())));
+                        List.of()));
             }
 
             if (tagIds.isEmpty()) {
                 log.warn("유효한 태그 ID를 찾을 수 없음. 입력된 태그명: {}", topTagNames);
                 return ResponseEntity.ok(RsData.of("200",
                         "해당하는 상품 태그를 찾을 수 없습니다",
-                        new MatchResponse(List.of())));
+                        List.of()));
             }
 
             // 4. 후보 상품 조회 (충분한 후보군 확보 후 상위 3개 선택)
@@ -190,14 +189,14 @@ public class RecommendationController {
                 log.error("상품 조회 중 오류 발생", e);
                 return ResponseEntity.ok(RsData.of("500",
                         "상품 조회 중 오류가 발생했습니다",
-                        new MatchResponse(List.of())));
+                        List.of()));
             }
 
             if (response.products().isEmpty()) {
                 log.warn("조건에 맞는 상품이 없음 (findProducts 단계)");
                 return ResponseEntity.ok(RsData.of("200",
                         "조건에 맞는 상품이 없습니다. 가격 범위를 조정해보세요.",
-                        new MatchResponse(List.of())));
+                        List.of()));
             }
 
             // ProductInfo → Product 변환이 필요하므로, UUID로 다시 조회 (태그 포함)
@@ -225,14 +224,14 @@ public class RecommendationController {
                 log.error("상품 상세 조회 중 오류 발생", e);
                 return ResponseEntity.ok(RsData.of("500",
                         "상품 상세 정보 조회 중 오류가 발생했습니다",
-                        new MatchResponse(List.of())));
+                        List.of()));
             }
 
             if (filtered.isEmpty()) {
                 log.warn("조건에 맞는 상품이 없음 (UUID 재조회 단계)");
                 return ResponseEntity.ok(RsData.of("200",
                         "조건에 맞는 상품이 없습니다",
-                        new MatchResponse(List.of())));
+                        List.of()));
             }
 
             // 5. 매칭 스코어 계산 및 정렬
@@ -249,24 +248,24 @@ public class RecommendationController {
                 log.error("❌ 매칭 스코어 계산 중 잘못된 입력: {}", e.getMessage());
                 return ResponseEntity.ok(RsData.of("400",
                         "추천 계산 중 오류: " + e.getMessage(),
-                        new MatchResponse(List.of())));
+                        List.of()));
             } catch (NullPointerException e) {
                 log.error("❌ 매칭 스코어 계산 중 null 값 발견", e);
                 return ResponseEntity.ok(RsData.of("500",
                         "추천 계산 중 데이터 오류가 발생했습니다",
-                        new MatchResponse(List.of())));
+                        List.of()));
             } catch (Exception e) {
                 log.error("❌ 매칭 스코어 계산 중 오류 발생", e);
                 return ResponseEntity.ok(RsData.of("500",
                         "추천 계산 중 오류가 발생했습니다",
-                        new MatchResponse(List.of())));
+                        List.of()));
             }
 
             if (ranked == null || ranked.isEmpty()) {
                 log.warn("매칭 스코어 계산 결과가 비어있음");
                 return ResponseEntity.ok(RsData.of("200",
                         "추천할 수 있는 상품이 없습니다",
-                        new MatchResponse(List.of())));
+                        List.of()));
             }
 
             // 6. 상위 3개만 추출 (프론트 요구사항)
@@ -277,14 +276,14 @@ public class RecommendationController {
 
             log.info("===== 최종 추천: {}개 상품 (고정) =====", topN.size());
 
-            MatchResponse matchResponse = new MatchResponse(topN);
-            RsData<MatchResponse> result = RsData.of("200",
+            RsData<List<RecommendedItem>> result = RsData.of("200",
                     topN.size() + "개 상품을 추천했습니다",
-                    matchResponse);
+                    topN);
 
             log.info("🎉 응답 반환 준비 완료");
-            log.info("Response: resultCode={}, msg={}, data.size={}",
+            log.info("✅ Response: resultCode={}, msg={}, data.size={}",
                     result.resultCode(), result.msg(), topN.size());
+            log.info("🔵 최종 응답 JSON 미리보기: {}", result);
 
             return ResponseEntity.ok(result);
 
@@ -292,12 +291,12 @@ public class RecommendationController {
             log.error("❌ 잘못된 입력값 오류", e);
             return ResponseEntity.ok(RsData.of("400",
                     "잘못된 요청입니다: " + e.getMessage(),
-                    new MatchResponse(List.of())));
+                    List.of()));
         } catch (NullPointerException e) {
             log.error("❌ Null 값 참조 오류", e);
             return ResponseEntity.ok(RsData.of("500",
                     "데이터 처리 중 오류가 발생했습니다",
-                    new MatchResponse(List.of())));
+                    List.of()));
         } catch (Exception e) {
             log.error("❌❌❌ RecommendationController에서 예상치 못한 오류 발생 ❌❌❌", e);
             log.error("오류 타입: {}", e.getClass().getName());
@@ -305,7 +304,7 @@ public class RecommendationController {
 
             return ResponseEntity.ok(RsData.of("500",
                     "추천 시스템에 문제가 발생했습니다. 잠시 후 다시 시도해주세요.",
-                    new MatchResponse(List.of())));
+                    List.of()));
         }
     }
 }
