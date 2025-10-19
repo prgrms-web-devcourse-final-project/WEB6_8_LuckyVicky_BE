@@ -87,7 +87,7 @@ public class AdminDashboardServiceImpl implements AdminDashboardService {
         long totalUsers = userRepository.count();
         long totalProducts = productRepository.count();
         long totalFundings = fundingRepository.count();
-        long artistCount = userRepository.findAll().stream().filter(User::isArtist).count();
+        long artistCount = userRepository.countArtists();  // 최적화: findAll() 대신 COUNT 쿼리 사용
 
         // 2. 오늘 날짜 기준 통계
         LocalDate today = LocalDate.now();

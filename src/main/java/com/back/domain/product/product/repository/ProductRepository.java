@@ -18,7 +18,14 @@ import java.util.UUID;
 
 public interface ProductRepository extends JpaRepository<Product, Long>, ProductCustomRepository, JpaSpecificationExecutor<Product> {
     Optional<Product> findByProductUuid(UUID productUuid);
-    
+
+    // 태그 및 이미지 정보를 포함한 상품 조회 (추천 시스템용)
+    @Query("SELECT DISTINCT p FROM Product p " +
+            "LEFT JOIN FETCH p.productTags pt " +
+            "LEFT JOIN FETCH pt.tag " +
+            "LEFT JOIN FETCH p.images " +
+            "WHERE p.productUuid = :productUuid")
+    Optional<Product> findByProductUuidWithTags(@Param("productUuid") UUID productUuid);
 
     // 재고 감소용 - Pessimistic Write Lock (동시성 제어)
     @Lock(LockModeType.PESSIMISTIC_WRITE)
