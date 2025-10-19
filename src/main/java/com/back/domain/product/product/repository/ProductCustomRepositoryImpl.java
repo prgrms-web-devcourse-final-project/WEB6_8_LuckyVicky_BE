@@ -79,12 +79,11 @@ public class ProductCustomRepositoryImpl implements ProductCustomRepository {
             ));
         }
 
-        // QueryDSL로 엔티티 조회 + THUMBNAIL join
+        // QueryDSL로 엔티티 조회 + 이미지 eager loading
         var query = queryFactory
                 .select(p)
                 .from(p)
                 .leftJoin(p.images, img).fetchJoin()
-                .on(img.fileType.eq(FileType.THUMBNAIL))
                 .where(builder)
                 .distinct();
 
